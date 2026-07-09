@@ -1630,16 +1630,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-core {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 42%, transparent);
-  border-radius: 50%;
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-state) 16%, transparent) !important;
-  opacity: 0.28;
+  display: none;
 }
 
 .tq-core svg {

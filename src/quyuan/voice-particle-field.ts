@@ -4,9 +4,11 @@ interface Particle {
 	/** T 形内基准坐标（归一化 -0.5~0.5，以 T 中心为原点） */
 	baseX: number;
 	baseY: number;
-	/** 随机微抖动（让粒子不完美对齐，更有机） */
-	jitterX: number;
-	jitterY: number;
+	/** 当前偏移（每帧随机游走，让粒子活泼跳跃） */
+	offX: number;
+	offY: number;
+	/** 游走目标和速度（控制跳跃幅度） */
+	wanderSpeed: number;
 	size: number;
 	phase: number;
 	speed: number;
@@ -149,8 +151,9 @@ export class QuyuanVoiceParticleField {
 			particles.push({
 				baseX,
 				baseY,
-				jitterX: (Math.random() - 0.5) * 0.008,
-				jitterY: (Math.random() - 0.5) * 0.008,
+				offX: 0,
+				offY: 0,
+				wanderSpeed: 0.3 + Math.random() * 0.7,
 				size: 0.32 + ((i * 17) % 19) / 22,
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
@@ -305,15 +308,23 @@ export class QuyuanVoiceParticleField {
 		const scale = baseRadius * breathScale;
 		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
 
+		// 游走幅度：energy 越高粒子越活泼（偏离 T 形边缘，模糊边界）
+		const wanderRange = 0.04 + energy * 0.08;
+
 		for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
 			const particle = this.particles[particleIndex];
 
-			// 粒子位置 = T 形坐标 × scale（中心居中）
-			// 加基于相位的微小浮动（呼吸时粒子轻微位移，更有机）
-			const floatX = Math.sin(particle.phase + animationTime * 0.0012) * energy * 0.004;
-			const floatY = Math.cos(particle.phase + animationTime * 0.0014) * energy * 0.004;
-			const px = cx + (particle.baseX + particle.jitterX + floatX) * scale * 2;
-			const py = cy + (particle.baseY + particle.jitterY + floatY) * scale * 2;
+			// 无序跳跃：每帧用 Perlin-like 噪声驱动偏移，粒子在基准位置附近随机游走
+			// 用两条不同频率的 sin 叠加模拟噪声，比纯随机更有机
+			const nx = Math.sin(particle.phase + animationTime * 0.0018 * particle.wanderSpeed)
+				+ Math.sin(particle.phase * 2.3 + animationTime * 0.0029 * particle.wanderSpeed) * 0.6;
+			const ny = Math.cos(particle.phase * 1.7 + animationTime * 0.0016 * particle.wanderSpeed)
+				+ Math.cos(particle.phase * 3.1 + animationTime * 0.0024 * particle.wanderSpeed) * 0.6;
+			particle.offX = nx * wanderRange;
+			particle.offY = ny * wanderRange;
+
+			const px = cx + (particle.baseX + particle.offX) * scale * 2;
+			const py = cy + (particle.baseY + particle.offY) * scale * 2;
 
 			// 深度：layer 决定前后景 + 大小变化
 			const depth = 0.72 + particle.layer * 0.28;
