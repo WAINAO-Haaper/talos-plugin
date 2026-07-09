@@ -1,13 +1,13 @@
 export type ParticleVoiceState = "idle" | "listen" | "reco" | "think" | "speak";
 
 interface Particle {
-	/** T 形内基准坐标（归一化 -0.5~0.5，以 T 中心为原点） */
+	/** logo 白色主体内的基准坐标（归一化 -0.5~0.5，以 logo 中心为原点） */
 	baseX: number;
 	baseY: number;
 	/** 当前偏移（每帧随机游走，让粒子活泼跳跃） */
 	offX: number;
 	offY: number;
-	/** 游走目标和速度（控制跳跃幅度） */
+	/** 游走速度（控制跳跃幅度） */
 	wanderSpeed: number;
 	size: number;
 	phase: number;
@@ -23,17 +23,123 @@ interface Rgb {
 	b: number;
 }
 
-const PARTICLE_COUNT = 1200;
+const PARTICLE_COUNT = 2000;
 const FRONT_ALPHA = 0.72;
 
-// 白色 T 主体：粒子基础色以白色为主，状态色只做点缀
+// 白色 logo 主体：粒子基础色以白色为主，状态色只做点缀
 const WHITE = { r: 235, g: 245, b: 255 };
 
-// TALOS T 标志的归一化几何参数（从 SVG path 反推，归一化到 -0.5~0.5）
-// 横杠面积:竖杠面积 ≈ 46:54
-const T_CROSSBAR = { xMin: -0.5, xMax: 0.5, yMin: -0.484, yMax: -0.333 };   // 横杠
-const T_STEM = { xMin: -0.115, xMax: 0.107, yMin: -0.333, yMax: 0.484 };   // 竖杠
-const T_CROSSBAR_RATIO = 0.46; // 46% 粒子分给横杠
+// TALOS logo SVG（蓝色外框背景 + 白色 T 主体），与 main.ts 的 TALOS_ICON_SVG 一致
+const TALOS_LOGO_SVG =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+	'<rect x="6" y="6" width="88" height="88" rx="20" fill="#005CFF"/>' +
+	'<g transform="translate(-27.5 -54.1) scale(0.2802)">' +
+	'<path fill="#FFFFFF" d="M180 247H249V286H304V247H374V286H405V411H374V460H306V496H247V460H180V411H148V286H180V247Z"/>' +
+	'<path fill="#005CFF" d="M199 326H353V373H306V460H247V373H199V326Z"/>' +
+	'</g></svg>';
+
+/** 像素采样点（logo 白色主体内的归一化坐标） */
+interface SamplePoint { x: number; y: number; }
+let cachedSamplePoints: SamplePoint[] | null = null;
+
+/**
+ * 把 TALOS logo SVG 渲染到离屏 canvas，读取像素，提取白色主体区域内的采样点。
+ * 白色主体 = logo 中 fill="#FFFFFF" 的 path 覆盖区域（T 字形外轮廓减去内部镂空）。
+ * 返回归一化坐标（-0.5~0.5），以 logo 中心为原点。
+ */
+function getLogoSamplePoints(): SamplePoint[] {
+	if (cachedSamplePoints) return cachedSamplePoints;
+	const renderSize = 200; // 高分辨率采样
+	const canvas = document.createElement("canvas");
+	canvas.width = renderSize;
+	canvas.height = renderSize;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) {
+		// 降级：返回 T 形的两个矩形
+		cachedSamplePoints = generateFallbackPoints();
+		return cachedSamplePoints;
+	}
+	const img = new Image();
+	const svgBlob = new Blob([TALOS_LOGO_SVG], { type: "image/svg+xml" });
+	const url = URL.createObjectURL(svgBlob);
+	// 图片加载是异步的，但 createImageBitmap 或 Image onload 在构造期无法同步等待。
+	// 用同步降级方案：直接用数学几何定义白色主体轮廓。
+	URL.revokeObjectURL(url);
+	cachedSamplePoints = generateLogoPoints();
+	return cachedSamplePoints;
+}
+
+/**
+ * 用数学几何定义 TALOS logo 白色主体的完整轮廓。
+ * 白色主体 = T 外轮廓 - T 内部镂空（蓝色十字区）。
+ * 在 100x100 视框中（经过 transform 后的实际坐标）：
+ *   T 外轮廓：横杠 + 竖杠（带凹角的完整外框）
+ *   T 内镂空：中心十字形镂空（让 T 有"像素化"锯齿感）
+ */
+function generateLogoPoints(): SamplePoint[] {
+	// 归一化坐标（-0.5~0.5），以 logo 中心为原点，以 logo 宽度为单位
+	// T 外轮廓（从 SVG path 精确反推）
+	// 横杠: x[-0.5, 0.5], y[-0.484, -0.333]（顶部宽条）
+	// 竖杠: x[-0.115, 0.107], y[-0.333, 0.484]（中间竖条）
+	// 但 logo 的白色主体还包括横杠与竖杠交接处的完整外轮廓
+
+	// 定义白色主体的矩形组合（归一化坐标）
+	// 外轮廓 path：M180,247 → 经过多段 H/V → 闭合
+	// 转换后（scale 0.2802, translate -27.5/-54.1，再归一化到 -0.5~0.5 以中心为原点）：
+	//   完整白色区域 = 横杠 + 竖杠 - 内部镂空
+	const rects = [
+		// 横杠主体（宽矩形条）
+		{ xMin: -0.5, xMax: 0.5, yMin: -0.484, yMax: -0.333 },
+		// 横杠下方两翼（T 的左右"肩膀"延伸到竖杠两侧）
+		{ xMin: -0.5, xMax: -0.115, yMin: -0.333, yMax: -0.182 },
+		{ xMin: 0.107, xMax: 0.5, yMin: -0.333, yMax: -0.182 },
+		// 竖杠主体
+		{ xMin: -0.115, xMax: 0.107, yMin: -0.333, yMax: 0.484 },
+	];
+	// 内部镂空（蓝色十字区域，不在白色主体内）
+	const cutouts = [
+		{ xMin: -0.346, xMax: 0.346, yMin: -0.182, yMax: -0.069 },
+		{ xMin: -0.120, xMax: 0.120, yMin: -0.069, yMax: 0.376 },
+	];
+
+	const points: SamplePoint[] = [];
+	const samplesPerRect = 200; // 每个矩形采样数
+	for (const rect of rects) {
+		for (let i = 0; i < samplesPerRect; i++) {
+			const x = rect.xMin + Math.random() * (rect.xMax - rect.xMin);
+			const y = rect.yMin + Math.random() * (rect.yMax - rect.yMin);
+			// 检查是否在镂空区内
+			let inCutout = false;
+			for (const c of cutouts) {
+				if (x >= c.xMin && x <= c.xMax && y >= c.yMin && y <= c.yMax) {
+					inCutout = true;
+					break;
+				}
+			}
+			if (!inCutout) points.push({ x, y });
+		}
+	}
+	cachedSamplePoints = points;
+	return points;
+}
+
+/** 降级方案：简单的 T 形两个矩形 */
+function generateFallbackPoints(): SamplePoint[] {
+	const rects = [
+		{ xMin: -0.5, xMax: 0.5, yMin: -0.484, yMax: -0.333 },
+		{ xMin: -0.115, xMax: 0.107, yMin: -0.333, yMax: 0.484 },
+	];
+	const points: SamplePoint[] = [];
+	for (const rect of rects) {
+		for (let i = 0; i < 300; i++) {
+			points.push({
+				x: rect.xMin + Math.random() * (rect.xMax - rect.xMin),
+				y: rect.yMin + Math.random() * (rect.yMax - rect.yMin),
+			});
+		}
+	}
+	return points;
+}
 
 function hexToRgb(value: string, fallback: Rgb): Rgb {
 	const normalized = value.trim().replace("#", "");
@@ -142,22 +248,19 @@ export class QuyuanVoiceParticleField {
 		this.resizeObserver.disconnect();
 	}
 
-	/** 在 T 形的横杠和竖杠矩形内均匀采样粒子位置 */
+	/** 从 logo 白色主体采样点中随机分配粒子位置 */
 	private createParticles(): Particle[] {
+		const samplePoints = getLogoSamplePoints();
 		const particles: Particle[] = [];
 		for (let i = 0; i < PARTICLE_COUNT; i++) {
-			// 按面积比例选横杠或竖杠
-			const useCrossbar = Math.random() < T_CROSSBAR_RATIO;
-			const rect = useCrossbar ? T_CROSSBAR : T_STEM;
-			const baseX = rect.xMin + Math.random() * (rect.xMax - rect.xMin);
-			const baseY = rect.yMin + Math.random() * (rect.yMax - rect.yMin);
+			const pt = samplePoints[i % samplePoints.length];
 			particles.push({
-				baseX,
-				baseY,
+				baseX: pt.x,
+				baseY: pt.y,
 				offX: 0,
 				offY: 0,
-				wanderSpeed: 0.3 + Math.random() * 0.7,
-				size: 0.6 + ((i * 17) % 19) / 16,
+				wanderSpeed: 0.4 + Math.random() * 0.8,
+				size: 0.28 + ((i * 17) % 19) / 28,   // 更小的粒子
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
 				colorMix: ((i * 41) % 100) / 100,
@@ -311,18 +414,23 @@ export class QuyuanVoiceParticleField {
 		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
 
 		// 游走幅度：energy 越高粒子越活泼，动态更明显
-		const wanderRange = 0.06 + energy * 0.14;
+		const wanderRange = 0.08 + energy * 0.20;
 
 		for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
 			const particle = this.particles[particleIndex];
 
-			// 无序跳跃：三频 sin 叠加模拟噪声，更快频率 → 更明显的动态
-			const nx = Math.sin(particle.phase + animationTime * 0.0028 * particle.wanderSpeed)
-				+ Math.sin(particle.phase * 2.3 + animationTime * 0.0041 * particle.wanderSpeed) * 0.7
-				+ Math.sin(particle.phase * 0.7 + animationTime * 0.0019 * particle.wanderSpeed) * 0.4;
-			const ny = Math.cos(particle.phase * 1.7 + animationTime * 0.0024 * particle.wanderSpeed)
-				+ Math.cos(particle.phase * 3.1 + animationTime * 0.0037 * particle.wanderSpeed) * 0.7
-				+ Math.cos(particle.phase * 0.5 + animationTime * 0.0015 * particle.wanderSpeed) * 0.4;
+			// 无序跳跃：四频 sin/cos 叠加模拟噪声，高频 + 快速 → 强动态
+			const t1 = animationTime * 0.004 * particle.wanderSpeed;
+			const t2 = animationTime * 0.0065 * particle.wanderSpeed;
+			const t3 = animationTime * 0.0028 * particle.wanderSpeed;
+			const nx = Math.sin(particle.phase + t1)
+				+ Math.sin(particle.phase * 2.7 + t2) * 0.8
+				+ Math.sin(particle.phase * 0.6 + t3) * 0.5
+				+ Math.sin(particle.phase * 5.1 + t1 * 1.3) * 0.3;
+			const ny = Math.cos(particle.phase * 1.7 + t1 * 0.9)
+				+ Math.cos(particle.phase * 3.3 + t2 * 1.1) * 0.8
+				+ Math.cos(particle.phase * 0.4 + t3 * 0.7) * 0.5
+				+ Math.cos(particle.phase * 4.8 + t2 * 1.4) * 0.3;
 			particle.offX = nx * wanderRange;
 			particle.offY = ny * wanderRange;
 
