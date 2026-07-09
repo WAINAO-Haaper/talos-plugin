@@ -326,7 +326,6 @@ export class StreamTts {
 			audio.playbackRate = Math.min(4, Math.max(0.25, rate));
 			(audio as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = true;
 			this.audio = audio;
-			this.attachAnalyser(audio, gen);
 			let done = false;
 			const finish = (): void => {
 				if (done) return;
@@ -336,7 +335,11 @@ export class StreamTts {
 				if (this.audio === audio) this.audio = null;
 				resolve();
 			};
-			audio.onplay = () => { if (gen === this.gen) this.onState("speaking"); };
+			audio.onplay = () => {
+				if (gen === this.gen) this.onState("speaking");
+				// 播放成功后才接分析器，避免 createMediaElementSource 在 play 前阻断音频
+				this.attachAnalyser(audio, gen);
+			};
 			audio.onended = finish;
 			audio.onerror = finish;
 			audio.onpause = finish; // stop()/打断时 pause 触发 → 解除挂起的 await
@@ -347,31 +350,47 @@ export class StreamTts {
 	/**
 	 * 用 AudioContext + AnalyserNode 监听播放音量，驱动粒子系统。
 	 * 仅 API 引擎可用（系统 speechSynthesis 无法接入 Web Audio 分析）。
+	 * 安全降级：任何环节失败都静默放弃分析，绝不阻塞播放。
 	 */
 	private attachAnalyser(audio: HTMLAudioElement, gen: number): void {
 		if (!this.onLevel) return;
 		try {
 			const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-			this.audioCtx = new Ctx();
-			this.audioSource = this.audioCtx.createMediaElementSource(audio);
-			this.analyser = this.audioCtx.createAnalyser();
-			this.analyser.fftSize = 256;
-			this.audioSource.connect(this.analyser);
-			this.analyser.connect(this.audioCtx.destination);
-			const buf = new Uint8Array(this.analyser.frequencyBinCount);
+			if (!Ctx) return;
+			const ctx = new Ctx();
+			// 自动播放策略可能让 context 处于 suspended，先 resume
+			if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+			const source = ctx.createMediaElementSource(audio);
+			const analyser = ctx.createAnalyser();
+			analyser.fftSize = 256;
+			// 关键：source → analyser → destination，确保声音仍能播出
+			source.connect(analyser);
+			analyser.connect(ctx.destination);
+			this.audioCtx = ctx;
+			this.audioSource = source;
+			this.analyser = analyser;
+			const buf = new Uint8Array(analyser.frequencyBinCount);
 			const sample = (): void => {
 				if (gen !== this.gen || !this.analyser) return;
 				this.analyser.getByteFrequencyData(buf);
 				let sum = 0;
 				for (let i = 0; i < buf.length; i++) sum += buf[i] ?? 0;
-				const avg = sum / buf.length / 255; // 归一化到 0-1
+				const avg = sum / buf.length / 255;
 				this.onLevel?.(Math.min(1, avg * 2.2));
 				this.levelTimer = window.requestAnimationFrame(sample);
 			};
 			this.levelTimer = window.requestAnimationFrame(sample);
 		} catch {
-			// AudioContext 创建失败（跨域或 CSP）——静默降级，不影响播放
+			// AudioContext 创建失败、跨域 tainted media 或 CSP 拦截——
+			// 静默降级：放弃音量分析，音频仍正常播放（未挂载到 AudioContext 链路）
+			this.cleanupAnalyserState();
 		}
+	}
+
+	private cleanupAnalyserState(): void {
+		this.analyser = null;
+		this.audioSource = null;
+		this.audioCtx = null;
 	}
 
 	private detachAnalyser(): void {
