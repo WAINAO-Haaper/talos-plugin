@@ -23,7 +23,7 @@ interface Rgb {
 	b: number;
 }
 
-const PARTICLE_COUNT = 1600;
+const PARTICLE_COUNT = 1200;
 const FRONT_ALPHA = 0.72;
 
 // 白色 T 主体：粒子基础色以白色为主，状态色只做点缀
@@ -157,7 +157,7 @@ export class QuyuanVoiceParticleField {
 				offX: 0,
 				offY: 0,
 				wanderSpeed: 0.3 + Math.random() * 0.7,
-				size: 0.18 + ((i * 17) % 19) / 30,
+				size: 0.6 + ((i * 17) % 19) / 16,
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
 				colorMix: ((i * 41) % 100) / 100,
