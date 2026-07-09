@@ -33,7 +33,7 @@ interface StateMeta {
 }
 
 const STATES: Record<VoiceState, StateMeta> = {
-	sleep: { color: "#475569", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说“屈原”开始对话" },
+	sleep: { color: "#475569", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说「屈原」开始对话" },
 	idle: { color: "#64748b", speed: "3.6s", icon: "mic-off", caption: "麦克风已关闭", sub: "点击下方按钮恢复监听" },
 	listen: { color: "#38bdf8", speed: "2s", icon: "ear", caption: "我在听", sub: "说完，我会接住。" },
 	reco: { color: "#7dd3fc", speed: "0.9s", icon: "audio-lines", caption: "正在识别", sub: "把你的声音变成清晰意图" },
@@ -74,6 +74,13 @@ export class QuyuanVoicePanel {
 	private markdownComponent: Component | null = null;
 	private activateSideTab: ((key: "session" | "context" | "ability") => void) | null = null;
 	private replyBuffer = "";
+	// 沉浸式 overlay 文字层（舞台半透明覆盖）
+	private overlayUser: HTMLElement | null = null;
+	private overlayReply: HTMLElement | null = null;
+	// fab 圆环状态文字
+	private fabStatusEl: HTMLElement | null = null;
+	// overlay 回复的 markdown 渲染容器（用于 text 通道完成后重渲染）
+	private overlayReplyMd: HTMLElement | null = null;
 	private sideCollapsed = false;
 	private wakeActive = false;
 	private wakeTimer: number | null = null;
@@ -133,59 +140,11 @@ export class QuyuanVoicePanel {
 		this.rootEl = root;
 		root.setAttribute("data-wake-state", "sleep");
 
-		// 顶栏：身份 + 超级大脑指示 + 引擎切换 + 设置
-		const head = root.createDiv({ cls: "tq-head" });
-		const brand = head.createDiv({ cls: "tq-head-brand" });
-		const badge = brand.createDiv({ cls: "tq-badge" });
-		const pluginDir =
-			this.plugin.manifest.dir
-			?? `${this.app.vault.configDir}/plugins/${this.plugin.manifest.id}`;
-		badge.createEl("img", {
-			attr: {
-				src: this.app.vault.adapter.getResourcePath(
-					`${pluginDir}/TALOS-Favicon-64-v1.png`
-				),
-				alt: "TALOS",
-			},
-		});
-		const title = brand.createDiv({ cls: "tq-title" });
-		title.createEl("b", { text: "屈原 · 语音对话" });
-		title.createEl("small", { text: "外脑玩家Haaper 的知识伙伴" });
-		const headActions = head.createDiv({ cls: "tq-head-actions" });
-		const brainChip = headActions.createDiv({ cls: "tq-chip tq-status-chip" });
-		setIcon(brainChip.createSpan(), "brain");
-		brainChip.createSpan({ text: "超级大脑 已挂载" });
-		const modelChip = headActions.createDiv({ cls: "tq-chip tq-model" });
-		setIcon(modelChip.createSpan(), "sparkles");
-		modelChip.createSpan({ text: this.modelLabel() });
-		this.engBtn = headActions.createEl("button", {
-			cls: "tq-btn tq-btn--secondary tq-btn--sm tq-enginebtn",
-			attr: { "aria-label": "切换识别引擎", type: "button" },
-		});
-		this.renderEngineBtn();
-		this.engBtn.addEventListener("click", () => void this.switchEngine());
-		this.sideToggleBtn = headActions.createEl("button", {
-			cls: "tq-btn tq-btn--ghost tq-btn--icon tq-squarebtn tq-panel-toggle",
-			attr: {
-				"aria-label": "收起 TALOS 交互面板",
-				"aria-expanded": "true",
-				type: "button",
-			},
-		});
-		setIcon(this.sideToggleBtn.createSpan(), "panel-right-close");
-		this.sideToggleBtn.addEventListener("click", () => this.toggleSide());
-		const setBtn = headActions.createEl("button", {
-			cls: "tq-btn tq-btn--ghost tq-btn--icon tq-squarebtn",
-			attr: { "aria-label": "设置", type: "button" },
-		});
-		setIcon(setBtn.createSpan(), "settings");
-		setBtn.addEventListener("click", () => this.openSettings());
-
 		const body = root.createDiv({ cls: "tq-body" });
 		this.bodyEl = body;
 		this.setSideWidth(this.savedSideWidth(), false);
 
-		// 中央动态语音舞台
+		// 中央动态语音舞台（沉浸式全屏）
 		const stage = body.createDiv({ cls: "tq-stage" });
 		const backCanvas = stage.createEl("canvas", {
 			cls: "tq-particles tq-particles-back",
@@ -194,27 +153,6 @@ export class QuyuanVoicePanel {
 		this.orbEl = stage.createDiv({ cls: "tq-orb" });
 		const core = this.orbEl.createDiv({ cls: "tq-core" });
 		this.coreIconEl = core.createSpan();
-		const flow = stage.createDiv({ cls: "tq-flow", attr: { "aria-label": "语音处理状态" } });
-		for (const item of [
-			{ key: "listen", label: "聆听" },
-			{ key: "reco", label: "识别" },
-			{ key: "think", label: "思考" },
-			{ key: "speak", label: "回答" },
-		]) {
-			const state = flow.createSpan({
-				cls: `tq-flow-state is-${item.key}`,
-				attr: { "data-state": item.key },
-			});
-			state.createEl("i");
-			state.createSpan({ text: item.label });
-		}
-		const copy = stage.createDiv({ cls: "tq-copy", attr: { "aria-live": "polite" } });
-		this.capEl = copy.createEl("h1", { cls: "tq-cap" });
-		this.subEl = copy.createDiv({ cls: "tq-sub" });
-		this.liveEl = copy.createDiv({
-			cls: "tq-live",
-			text: "说“屈原”唤醒我；连续对话结束后会自动休眠。",
-		});
 		const frontCanvas = stage.createEl("canvas", {
 			cls: "tq-particles tq-particles-front",
 			attr: { "aria-hidden": "true" },
@@ -225,42 +163,74 @@ export class QuyuanVoicePanel {
 			console.error("TALOS Quyuan particle layer failed to start", error);
 			stage.addClass("is-particle-fallback");
 			this.particleField = null;
-			this.liveEl?.setText("粒子动画不可用，已进入静态语音模式。");
 		}
 
-		// 底部语音控制台
-		const foot = stage.createDiv({ cls: "tq-foot" });
-		this.micBtn = foot.createEl("button", {
-			cls: "tq-btn tq-btn--primary tq-btn--lg tq-listen-btn",
+		// 半透明文字覆盖层：用户消息 + AI 流式回复，自动滚动
+		const overlay = stage.createDiv({ cls: "tq-overlay-text", attr: { "aria-live": "polite" } });
+		this.overlayReply = overlay.createDiv({ cls: "tq-overlay-reply" });
+		this.overlayUser = overlay.createDiv({ cls: "tq-overlay-user" });
+
+		// 右下角悬浮圆环 + 展开控制菜单
+		const fab = stage.createDiv({ cls: "tq-fab" });
+		const fabMenu = fab.createDiv({ cls: "tq-fab-menu" });
+		// 聆听/暂停
+		this.micBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn",
 			attr: { type: "button", "aria-label": "暂停或恢复聆听" },
 		});
 		this.renderMicBtn(false);
 		this.micBtn.addEventListener("click", () => this.toggleMic());
-		const stopBtn = foot.createEl("button", {
-			cls: "tq-btn tq-btn--danger tq-btn--lg tq-stop",
+		// 打断
+		const stopBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn tq-fab-btn--danger",
 			attr: { type: "button", "aria-label": "立即打断" },
 		});
 		setIcon(stopBtn.createSpan(), "zap");
-		stopBtn.createSpan({ text: "立即打断" });
+		stopBtn.createSpan({ text: "打断" });
 		stopBtn.addEventListener("click", () => {
 			this.onBargeIn();
 			this.setState(this.restingState());
 		});
-		const textBtn = foot.createEl("button", {
-			cls: "tq-btn tq-btn--secondary tq-btn--lg tq-text-btn",
-			attr: { type: "button", "aria-label": "在右侧面板文字输入" },
+		// 文字输入
+		const textBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn",
+			attr: { type: "button", "aria-label": "文字输入" },
 		});
 		setIcon(textBtn.createSpan(), "keyboard");
-		textBtn.createSpan({ text: "文字输入" });
+		textBtn.createSpan({ text: "文字" });
 		textBtn.addEventListener("click", () => this.openSessionComposer());
-		const ttsChip = foot.createDiv({ cls: "tq-chip tq-tts" });
-		setIcon(ttsChip.createSpan(), "volume-2");
-		ttsChip.createSpan({ text: this.ttsLabel() });
-		const meter = foot.createDiv({ cls: "tq-meter", attr: { "aria-label": "麦克风音量" } });
-		for (let i = 0; i < 18; i++) {
-			meter.createEl("i").style.setProperty("--bar", `${6 + ((i * 7) % 11)}px`);
+		// 引擎切换
+		this.engBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn",
+			attr: { type: "button", "aria-label": "切换识别引擎" },
+		});
+		this.renderEngineBtn();
+		this.engBtn.addEventListener("click", () => void this.switchEngine());
+		// 侧栏切换
+		this.sideToggleBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn",
+			attr: { type: "button", "aria-label": "展开/收起交互面板" },
+		});
+		setIcon(this.sideToggleBtn.createSpan(), "panel-right");
+		this.sideToggleBtn.addEventListener("click", () => this.toggleSide());
+		// 设置
+		const setBtn = fabMenu.createEl("button", {
+			cls: "tq-fab-btn",
+			attr: { type: "button", "aria-label": "设置" },
+		});
+		setIcon(setBtn.createSpan(), "settings");
+		setBtn.createSpan({ text: "设置" });
+		setBtn.addEventListener("click", () => this.openSettings());
+		// 迷你音量条
+		const meter = fabMenu.createDiv({ cls: "tq-fab-meter", attr: { "aria-label": "麦克风音量" } });
+		for (let i = 0; i < 12; i++) {
+			meter.createEl("i").style.setProperty("--bar", `${4 + ((i * 7) % 9)}px`);
 		}
-		this.dotEl = foot.createDiv({ cls: "tq-dot", text: "就绪" });
+		// 状态文字
+		this.fabStatusEl = fabMenu.createDiv({ cls: "tq-fab-status", text: "就绪" });
+		// 圆环本体（最后创建，浮在最上层）
+		const fabRing = fab.createDiv({ cls: "tq-fab-ring" });
+		fabRing.createDiv({ cls: "tq-fab-core" });
 
 		// 右侧 TALOS 交互面板：可拖拽调宽、折叠，与动态舞台职责分离
 		const resizer = body.createDiv({
@@ -282,8 +252,7 @@ export class QuyuanVoicePanel {
 			void this.asr?.start();
 		} catch (error) {
 			console.error("TALOS Quyuan ASR failed to start", error);
-			if (this.dotEl) this.dotEl.setText("语音输入未启动");
-			if (this.liveEl) this.liveEl.setText("语音输入暂不可用，可先用右侧文字输入。");
+			if (this.fabStatusEl) this.fabStatusEl.setText("语音输入未启动");
 		}
 	}
 
@@ -370,7 +339,7 @@ export class QuyuanVoicePanel {
 		const sessionTitle = sessionHead.createDiv();
 		sessionTitle.createEl("b", { text: "当前语音会话" });
 		this.wakeStatusEl = sessionTitle.createEl("small", {
-			text: "待唤醒 · 说“屈原”",
+			text: "待唤醒 · 说「屈原」",
 		});
 		const sessionActions = sessionHead.createDiv({ cls: "tq-session-actions" });
 		const clear = sessionActions.createEl("button", {
@@ -432,7 +401,8 @@ export class QuyuanVoicePanel {
 			this.convoEl?.empty();
 			if (this.convoEl && this.sessionEmptyEl) this.convoEl.appendChild(this.sessionEmptyEl);
 			this.sessionEmptyEl?.removeClass("is-hidden");
-			if (this.liveEl) this.liveEl.setText("开口，说出你现在最想推进的事。");
+			if (this.overlayUser) this.overlayUser.setText("");
+			if (this.overlayReply) this.overlayReply.setText("开口，说出你现在最想推进的事。");
 		});
 
 		const contextPanel = addTab("context", "上下文", "layers-3");
@@ -638,7 +608,7 @@ export class QuyuanVoicePanel {
 			},
 			onText: (text) => this.handleVoiceTranscript(text),
 			onError: (msg) => {
-				if (this.dotEl) this.dotEl.setText(`语音输入：${msg}`);
+				if (this.fabStatusEl) this.fabStatusEl.setText(`语音输入：${msg}`);
 			},
 		};
 	}
@@ -659,8 +629,8 @@ export class QuyuanVoicePanel {
 		const wasOn = this.asr?.isOn() ?? false;
 		this.asr?.dispose();
 		this.asr = this.buildAsr();
-		if (this.dotEl) {
-			this.dotEl.setText(
+		if (this.fabStatusEl) {
+			this.fabStatusEl.setText(
 				this.settings.quyuanAsrEngine === "local" ? "已切到本地 Whisper（首次需下模型）" : "已切到千问云端"
 			);
 		}
@@ -699,7 +669,7 @@ export class QuyuanVoicePanel {
 		this.wakeStatusEl?.setText("已唤醒 · 30 秒连续对话");
 		this.setState("listen");
 		void this.driver?.warmup("voice");
-		if (this.liveEl) this.liveEl.setText("已唤醒，直接说就好。");
+		if (this.overlayReply) this.overlayReply.setText("已唤醒，直接说就好。");
 	}
 
 	private deactivateWake(): void {
@@ -710,12 +680,12 @@ export class QuyuanVoicePanel {
 		}
 		this.rootEl?.setAttribute("data-wake-state", "sleep");
 		this.renderMicBtn(this.asr?.isOn() ?? false);
-		this.wakeStatusEl?.setText("待唤醒 · 说“屈原”");
-		if (this.liveEl) {
-			this.liveEl.setText(
+		this.wakeStatusEl?.setText("待唤醒 · 说「屈原」");
+		if (this.overlayReply) {
+			this.overlayReply.setText(
 				this.asr?.isOn()
-					? "已休眠，说“屈原”可以再次唤醒。"
-					: "麦克风已暂停，恢复监听后说“屈原”唤醒。"
+					? "已休眠，说「屈原」可以再次唤醒。"
+					: "麦克风已暂停，恢复监听后说「屈原」唤醒。"
 			);
 		}
 		if (this.mounted) this.setState(this.asr?.isOn() ? "sleep" : "idle");
@@ -726,7 +696,7 @@ export class QuyuanVoicePanel {
 		if (this.wakeTimer != null) window.clearTimeout(this.wakeTimer);
 		this.wakeTimer = window.setTimeout(() => {
 			this.deactivateWake();
-			if (this.liveEl) this.liveEl.setText("已休眠，说“屈原”可以再次唤醒。");
+			if (this.overlayReply) this.overlayReply.setText("已休眠，说「屈原」可以再次唤醒。");
 		}, this.wakeWindowMs);
 	}
 
@@ -746,15 +716,15 @@ export class QuyuanVoicePanel {
 			this.deactivateWake();
 			this.tts?.feed("好，我先退下。");
 			this.tts?.flush();
-			if (this.liveEl) this.liveEl.setText("已休眠，说“屈原”可以再次唤醒。");
+			if (this.overlayReply) this.overlayReply.setText("已休眠，说「屈原」可以再次唤醒。");
 			return;
 		}
 
 		if (!this.wakeActive) {
 			if (!text.includes(this.wakeWord)) {
 				this.setState("sleep");
-				if (this.dotEl) this.dotEl.setText("待唤醒 · 说“屈原”");
-				if (this.liveEl) this.liveEl.setText("等待唤醒词“屈原”。");
+				if (this.fabStatusEl) this.fabStatusEl.setText("待唤醒 · 说「屈原」");
+				if (this.overlayReply) this.overlayReply.setText("等待唤醒词「屈原」。");
 				return;
 			}
 			this.activateWake();
@@ -796,23 +766,11 @@ export class QuyuanVoicePanel {
 		const meta = STATES[state];
 		this.rootEl?.setAttribute("data-voice-state", state);
 		this.rootEl?.style.setProperty("--tq-state", meta.color);
+		this.rootEl?.style.setProperty("--tq-spd", meta.speed);
 		this.particleField?.setState(state === "sleep" ? "idle" : state);
-		this.orbEl?.style.setProperty("--tq-orb", meta.color);
-		this.orbEl?.style.setProperty("--tq-spd", meta.speed);
-		const core = this.orbEl?.querySelector<HTMLElement>(".tq-core");
-		if (core) core.style.background = meta.color;
-		if (this.coreIconEl) {
-			this.coreIconEl.empty();
-			setIcon(this.coreIconEl, meta.icon);
-		}
-		if (this.capEl) this.capEl.setText(meta.caption);
-		if (this.subEl) this.subEl.setText(meta.sub);
-		if (this.dotEl) this.dotEl.setText(meta.caption);
-		this.rootEl?.querySelectorAll<HTMLElement>(".tq-flow-state").forEach((item) => {
-			const activeState = state === "idle" || state === "sleep" ? "listen" : state;
-			if (item.dataset.state === activeState) item.setAttribute("aria-current", "step");
-			else item.removeAttribute("aria-current");
-		});
+		// 圆环颜色和呼吸频率由 CSS 变量驱动（--tq-state / --tq-spd）
+		// fab-status 显示状态文字
+		if (this.fabStatusEl) this.fabStatusEl.setText(meta.caption);
 	}
 
 	// ---------- 麦克风（接云端 CloudAsr：按一下录、再按一下识别） ----------
@@ -833,7 +791,10 @@ export class QuyuanVoicePanel {
 			text: channel === "voice" ? "你 · 语音" : "你 · 文字",
 		});
 		bub.createDiv({ text: trimmed });
-		if (this.liveEl) this.liveEl.setText(trimmed);
+		// overlay 文字层：显示最新用户消息
+		if (this.overlayUser) this.overlayUser.setText(trimmed);
+		// 清空 overlay 回复区，准备接收新回复
+		if (this.overlayReply) this.overlayReply.empty();
 		this.scrollConvo();
 		void this.respond(trimmed, channel);
 	}
@@ -870,7 +831,11 @@ export class QuyuanVoicePanel {
 				if (this.replyEl) {
 					this.replyBuffer += delta;
 					this.replyEl.setText(this.replyBuffer);
-					this.liveEl?.setText(this.replyBuffer);
+					// overlay 文字层：同步流式回复
+					if (this.overlayReply) {
+						this.overlayReply.setText(this.replyBuffer);
+						this.overlayReply.scrollTop = this.overlayReply.scrollHeight;
+					}
 				}
 				if (channel === "voice") {
 					const wasPending = this.ttsPending;
@@ -923,7 +888,8 @@ export class QuyuanVoicePanel {
 				this.tts?.stop();
 				this.syncAsrBusy();
 				this.setState(this.restingState());
-				if (this.dotEl) this.dotEl.setText("引擎错误");
+				if (this.fabStatusEl) this.fabStatusEl.setText("引擎错误");
+				if (this.overlayReply) this.overlayReply.setText(`出错了：${message}`);
 			},
 		});
 	}
@@ -1020,6 +986,10 @@ export class QuyuanVoicePanel {
 		this.sendBtn = null;
 		this.sideToggleBtn = null;
 		this.activateSideTab = null;
+		this.overlayUser = null;
+		this.overlayReply = null;
+		this.fabStatusEl = null;
+		this.overlayReplyMd = null;
 		this.replyBuffer = "";
 	}
 }

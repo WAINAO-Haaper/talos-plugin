@@ -3054,3 +3054,223 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   width: 14px;
   height: 14px;
 }
+
+/* ============================================
+   沉浸式语音界面（2026-07-10 重构）
+   删除顶栏/底栏/大标题/流程指示器，
+   改为右下角圆环 fab + 半透明 overlay 文字层
+   ============================================ */
+
+/* 隐藏已废弃的旧元素 */
+.tq-voice .tq-head,
+.tq-voice .tq-foot,
+.tq-voice .tq-flow,
+.tq-voice .tq-copy {
+  display: none !important;
+}
+
+/* 舞台占满整个 body（无顶栏底栏占位） */
+.tq-voice .tq-body {
+  grid-template-columns: minmax(0, 1fr) 8px minmax(280px, var(--tq-side-size));
+}
+.tq-voice .tq-body.is-side-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
+/* ---- 半透明文字覆盖层 ---- */
+.tq-overlay-text {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 40px clamp(24px, 5vw, 72px) 90px;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tq-overlay-reply {
+  order: 2;
+  max-height: 42vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  color: color-mix(in srgb, var(--tq-text) 72%, transparent);
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.75;
+  text-align: left;
+  text-shadow: 0 2px 12px var(--tq-surface);
+  word-break: break-word;
+}
+.tq-overlay-reply::-webkit-scrollbar {
+  display: none;
+}
+.tq-overlay-reply:empty {
+  display: none;
+}
+
+.tq-overlay-user {
+  order: 1;
+  margin-bottom: 14px;
+  color: color-mix(in srgb, var(--tq-text) 50%, transparent);
+  font-size: clamp(13px, 1.3vw, 15px);
+  line-height: 1.6;
+  text-align: right;
+  text-shadow: 0 2px 8px var(--tq-surface);
+  word-break: break-word;
+}
+.tq-overlay-user:empty {
+  display: none;
+}
+
+/* ---- 右下角悬浮圆环 fab ---- */
+.tq-fab {
+  position: absolute;
+  right: clamp(16px, 2.5vw, 28px);
+  bottom: clamp(16px, 2.5vw, 28px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* 圆环本体 */
+.tq-fab-ring {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--tq-state) 70%, transparent);
+  background: color-mix(in srgb, var(--tq-state) 12%, transparent);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  animation: tq-fab-pulse var(--tq-spd, 2s) ease-in-out infinite;
+  transition: transform 200ms ease;
+  flex-shrink: 0;
+}
+.tq-fab:hover .tq-fab-ring {
+  transform: scale(1.08);
+}
+
+.tq-fab-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tq-state);
+  box-shadow: 0 0 12px var(--tq-state);
+  transform: translate(-50%, -50%);
+}
+
+@keyframes tq-fab-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 12px color-mix(in srgb, var(--tq-state) 30%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--tq-state) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 28px color-mix(in srgb, var(--tq-state) 50%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--tq-state) 0%, transparent);
+  }
+}
+
+/* 展开菜单 */
+.tq-fab-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(16px);
+  transition: opacity 200ms ease, transform 200ms ease;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--tq-panel);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--tq-border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.tq-fab:hover .tq-fab-menu,
+.tq-fab-menu:hover {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* 菜单内按钮 */
+.tq-fab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  padding: 8px 14px;
+  border: 1px solid var(--tq-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tq-panel-strong) 60%, transparent);
+  color: var(--tq-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.tq-fab-btn:hover {
+  background: color-mix(in srgb, var(--tq-state) 16%, transparent);
+  transform: translateX(-2px);
+}
+.tq-fab-btn svg {
+  width: 15px;
+  height: 15px;
+  opacity: 0.8;
+}
+.tq-fab-btn--danger:hover {
+  background: color-mix(in srgb, var(--tq-brand) 20%, transparent);
+}
+
+/* 迷你音量条 */
+.tq-fab-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+  padding: 4px 0;
+}
+.tq-fab-meter i {
+  width: 3px;
+  height: var(--bar);
+  border-radius: 2px;
+  background: var(--tq-state);
+  transform: scaleY(calc(0.28 + var(--tq-level, 0)));
+  transform-origin: bottom;
+  transition: transform 60ms linear;
+  opacity: 0.7;
+}
+
+/* 状态文字 */
+.tq-fab-status {
+  font-size: 11px;
+  color: var(--tq-muted);
+  text-align: right;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 响应式：窄屏缩小 fab */
+@media (max-width: 760px) {
+  .tq-overlay-text {
+    padding: 24px 20px 80px;
+  }
+  .tq-fab-ring {
+    width: 44px;
+    height: 44px;
+  }
+  .tq-fab-btn {
+    min-width: 100px;
+    font-size: 12px;
+  }
+}

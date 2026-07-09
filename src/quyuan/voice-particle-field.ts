@@ -79,6 +79,20 @@ function startLogoSampling(onReady: () => void): void {
 				}
 			}
 			if (points.length > 50) {
+				// 追加嘴部模块：镂空区下半部分（竖杠左右两侧）两个小方块
+				// 镂空下半部分 norm 坐标：x[-0.217,-0.083]和[0.082,0.214], y[0.004,0.248]
+				const mouthRects = [
+					{ xMin: -0.185, xMax: -0.115, yMin: 0.08, yMax: 0.18 },  // 左嘴
+					{ xMin: 0.115, xMax: 0.185, yMin: 0.08, yMax: 0.18 },    // 右嘴
+				];
+				for (const r of mouthRects) {
+					for (let i = 0; i < 120; i++) {
+						points.push({
+							x: r.xMin + Math.random() * (r.xMax - r.xMin),
+							y: r.yMin + Math.random() * (r.yMax - r.yMin),
+						});
+					}
+				}
 				cachedSamplePoints = points;
 				samplePointsReady = true;
 				onReady();
@@ -112,6 +126,9 @@ function generateFallbackPoints(): SamplePoint[] {
 		{ x1: n(14, ox), x2: n(86, ox), y1: n(15, oy), y2: n(26, oy) },
 		// 竖杠（窄条）
 		{ x1: n(42, ox), x2: n(58, ox), y1: n(26, oy), y2: n(85, oy) },
+		// 嘴部模块（镂空区下半部分，左右两个小方块）
+		{ x1: -0.185, x2: -0.115, y1: 0.08, y2: 0.18 },
+		{ x1: 0.115, x2: 0.185, y1: 0.08, y2: 0.18 },
 	];
 	const points: SamplePoint[] = [];
 	for (const r of rects) {
@@ -452,18 +469,18 @@ export class QuyuanVoiceParticleField {
 		energy: number,
 		time: number
 	): void {
-		// 从采样点推算 T 形横杠的实际位置
+		// 眼睛放在 T 的镂空区（笔画围出的黑色空间，不覆盖粒子）
+		// 镂空上半部分（横杠正下方）：x[-0.217,0.214] y[-0.128,0.004]
+		// 从采样点推算 T 横杠底部位置，眼睛放在横杠下方
 		const pts = getLogoSamplePoints();
-		// 横杠 = y 最小的那批点（T 顶部最宽的部分）
-		// 先找全局 y 最小值，横杠在 y < (yMin + yRange*0.4) 范围
 		let yMin = 1, yMax = -1;
 		for (const p of pts) {
 			yMin = Math.min(yMin, p.y);
 			yMax = Math.max(yMax, p.y);
 		}
 		const yRange = yMax - yMin;
-		// 横杠 = 最顶部 40% 范围的点
-		const crossbarThreshold = yMin + yRange * 0.4;
+		// 横杠 = 最顶部 35% 范围的点
+		const crossbarThreshold = yMin + yRange * 0.35;
 		let cbXMin = 1, cbXMax = -1, cbYMin = 1, cbYMax = -1;
 		let count = 0;
 		for (const p of pts) {
@@ -477,14 +494,13 @@ export class QuyuanVoiceParticleField {
 		}
 		if (count === 0) return;
 		const cbCenterX = (cbXMin + cbXMax) / 2;
-		const cbCenterY = (cbYMin + cbYMax) / 2;
 		const cbHalfWidth = (cbXMax - cbXMin) / 2;
 
-		// 眼睛位置：横杠中部，左右对称
-		const eyeSpacing = cbHalfWidth * 0.22;   // 间距 = 横杠半宽的 22%
-		const eyeY = cbCenterY;                   // 横杠垂直中心
-		// 眼睛半径基于横杠高度
-		const eyeRadius = Math.max(scale * 0.014, (cbYMax - cbYMin) * scale * 2 * 0.28);
+		// 眼睛位置：横杠正下方的镂空区（不覆盖白色粒子）
+		// eyeY 在横杠底部和镂空中心之间
+		const eyeSpacing = cbHalfWidth * 0.28;
+		const eyeY = cbYMax + yRange * 0.04;           // 横杠底部下方一点（镂空区内）
+		const eyeRadius = Math.max(scale * 0.014, yRange * scale * 2 * 0.034);
 
 		// 眨眼
 		const blinkCycle = 4000;
@@ -496,25 +512,35 @@ export class QuyuanVoiceParticleField {
 
 		// 朗读动态
 		const isSpeaking = this.state === "speak";
-		const pupilScale = isSpeaking ? 0.6 + this.smoothedOutput * 0.6 : 0.5;
+		const pupilScale = isSpeaking ? 0.65 + this.smoothedOutput * 0.6 : 0.55;
 		const glowIntensity = isSpeaking
-			? 0.4 + this.smoothedOutput * 0.5
-			: 0.15 + energy * 0.1;
+			? 0.6 + this.smoothedOutput * 0.6
+			: 0.25 + energy * 0.15;
 
-		const pupilColor = this.lightSurface
-			? { r: 40, g: 50, b: 70 }
-			: { r: 100, g: 180, b: 255 };
+		// 瞳孔颜色随状态变化（变色更明显）
+		let pupilColor: Rgb;
+		if (isSpeaking) {
+			pupilColor = this.stateColor;   // 朗读时用状态色（青绿）
+		} else if (this.state === "think") {
+			pupilColor = this.secondary;     // 思考时紫色
+		} else if (this.state === "listen" || this.state === "reco") {
+			pupilColor = this.primary;       // 听音时亮青
+		} else {
+			pupilColor = this.lightSurface
+				? { r: 40, g: 50, b: 70 }
+				: { r: 120, g: 200, b: 255 };
+		}
 
 		for (const side of [-1, 1]) {
 			const eyeNormX = cbCenterX + side * eyeSpacing;
 			const ex = cx + eyeNormX * scale * 2;
 			const ey = cy + eyeY * scale * 2;
 
-			// 外发光
-			const glowRadius = eyeRadius * (2.5 + glowIntensity * 2);
+			// 外发光（更亮更大）
+			const glowRadius = eyeRadius * (3 + glowIntensity * 2.5);
 			const glowGrad = context.createRadialGradient(ex, ey, 0, ex, ey, glowRadius);
 			const glowColor = isSpeaking ? this.stateColor : this.primary;
-			glowGrad.addColorStop(0, rgba(glowColor, glowIntensity * 0.4));
+			glowGrad.addColorStop(0, rgba(glowColor, glowIntensity * 0.6));
 			glowGrad.addColorStop(1, rgba(glowColor, 0));
 			context.fillStyle = glowGrad;
 			context.beginPath();
@@ -532,16 +558,26 @@ export class QuyuanVoiceParticleField {
 			context.fill();
 			context.restore();
 
-			// 瞳孔
+			// 瞳孔（颜色随状态变化，更饱和）
 			if (blinkClose < 0.5) {
 				const pupilRadius = eyeRadius * pupilScale * (1 - blinkClose);
+				// 瞳孔发光底
+				const pupilGlow = context.createRadialGradient(ex, ey, 0, ex, ey, pupilRadius * 1.8);
+				pupilGlow.addColorStop(0, rgba(pupilColor, 0.5));
+				pupilGlow.addColorStop(1, rgba(pupilColor, 0));
+				context.fillStyle = pupilGlow;
+				context.beginPath();
+				context.arc(ex, ey, pupilRadius * 1.8, 0, Math.PI * 2);
+				context.fill();
+				// 瞳孔实心
 				context.beginPath();
 				context.arc(ex, ey, pupilRadius, 0, Math.PI * 2);
-				context.fillStyle = rgba(pupilColor, 0.9);
+				context.fillStyle = rgba(pupilColor, 0.95);
 				context.fill();
+				// 高光
 				context.beginPath();
 				context.arc(ex - pupilRadius * 0.3, ey - pupilRadius * 0.3, pupilRadius * 0.35, 0, Math.PI * 2);
-				context.fillStyle = rgba(WHITE, 0.7);
+				context.fillStyle = rgba(WHITE, 0.8);
 				context.fill();
 			}
 		}
