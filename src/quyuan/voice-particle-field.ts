@@ -383,7 +383,7 @@ export class QuyuanVoiceParticleField {
 
 		const cx = this.width * 0.5;
 		const cy = this.height * 0.5;
-		const baseRadius = Math.max(100, Math.min(this.width * 0.38, this.height * 0.42, 320));
+		const baseRadius = Math.max(120, Math.min(this.width * 0.44, this.height * 0.48, 380));
 		const breathScale = 1 + energy * 0.05;
 		const scale = baseRadius * breathScale;
 		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
@@ -442,8 +442,7 @@ export class QuyuanVoiceParticleField {
 
 	/**
 	 * 在 T 形竖杠中部画两只动态眼睛。
-	 * - 眼睛位置：竖杠中部（baseY ≈ 0.05），左右对称
-	 * - 动态：眨眼（周期性闭眼）+ 朗读时瞳孔随 TTS 音量脉动
+	 * 从粒子采样点动态推算 T 形的实际边界，确保眼睛在竖杠内。
 	 */
 	private drawEyes(
 		context: CanvasRenderingContext2D,
@@ -453,42 +452,57 @@ export class QuyuanVoiceParticleField {
 		energy: number,
 		time: number
 	): void {
-		// 眼睛在 T 形竖杠中部（归一化坐标）
-		const eyeOffsetX = 0.045;   // 左右眼间距
-		const eyeY = 0.05;          // 竖杠中部偏上
-		const eyeRadius = scale * 0.028;
+		// 从采样点推算 T 形竖杠的实际位置（SVG 采样后坐标是 viewBox 全局的）
+		const pts = getLogoSamplePoints();
+		// 找竖杠区域：y > 0（下半部分）的点的 x/y 边界
+		let stemXMin = 1, stemXMax = -1, stemYMin = 1, stemYMax = -1;
+		let count = 0;
+		for (const p of pts) {
+			if (p.y > 0) {
+				stemXMin = Math.min(stemXMin, p.x);
+				stemXMax = Math.max(stemXMax, p.x);
+				stemYMin = Math.min(stemYMin, p.y);
+				stemYMax = Math.max(stemYMax, p.y);
+				count++;
+			}
+		}
+		if (count === 0) return;
+		const stemCenterX = (stemXMin + stemXMax) / 2;
+		const stemCenterY = (stemYMin + stemYMax) / 2;
+		const stemHalfWidth = (stemXMax - stemXMin) / 2;
 
-		// 眨眼：每 ~4 秒眨一次，持续 150ms
+		// 眼睛位置：竖杠中部偏上，左右对称
+		// 间距 = 竖杠半宽的 50%（确保在竖杠内）
+		const eyeSpacing = Math.min(stemHalfWidth * 0.5, 0.04);
+		const eyeY = stemCenterY - (stemYMax - stemYMin) * 0.15; // 中部偏上
+		// 眼睛半径基于竖杠宽度
+		const eyeRadius = Math.max(scale * 0.012, stemHalfWidth * scale * 2 * 0.18);
+
+		// 眨眼
 		const blinkCycle = 4000;
 		const blinkDuration = 150;
 		const phase = time % blinkCycle;
-		const isBlinking = phase < blinkDuration;
-		// 眨眼时眼睑高度 0→1→0（快速闭合再张开）
-		const blinkClose = isBlinking
+		const blinkClose = phase < blinkDuration
 			? Math.sin((phase / blinkDuration) * Math.PI)
 			: 0;
 
-		// 朗读时瞳孔放大（TTS 音量驱动）
+		// 朗读动态
 		const isSpeaking = this.state === "speak";
-		const pupilScale = isSpeaking
-			? 0.6 + this.smoothedOutput * 0.6
-			: 0.5;
-		// 朗读时眼睛发光更强
+		const pupilScale = isSpeaking ? 0.6 + this.smoothedOutput * 0.6 : 0.5;
 		const glowIntensity = isSpeaking
 			? 0.4 + this.smoothedOutput * 0.5
 			: 0.15 + energy * 0.1;
 
-		// 眼睛颜色：白色眼球 + 深色瞳孔
-		const eyeballColor = WHITE;
 		const pupilColor = this.lightSurface
 			? { r: 40, g: 50, b: 70 }
 			: { r: 100, g: 180, b: 255 };
 
 		for (const side of [-1, 1]) {
-			const ex = cx + side * eyeOffsetX * scale * 2;
+			const eyeNormX = stemCenterX + side * eyeSpacing;
+			const ex = cx + eyeNormX * scale * 2;
 			const ey = cy + eyeY * scale * 2;
 
-			// 外发光（朗读时更亮）
+			// 外发光
 			const glowRadius = eyeRadius * (2.5 + glowIntensity * 2);
 			const glowGrad = context.createRadialGradient(ex, ey, 0, ex, ey, glowRadius);
 			const glowColor = isSpeaking ? this.stateColor : this.primary;
@@ -499,25 +513,24 @@ export class QuyuanVoiceParticleField {
 			context.arc(ex, ey, glowRadius, 0, Math.PI * 2);
 			context.fill();
 
-			// 眼球（白色），眨眼时压扁
+			// 眼球（眨眼时压扁）
 			const eyeHeight = eyeRadius * (1 - blinkClose * 0.9);
 			context.save();
 			context.translate(ex, ey);
 			context.scale(1, eyeHeight / eyeRadius);
 			context.beginPath();
 			context.arc(0, 0, eyeRadius, 0, Math.PI * 2);
-			context.fillStyle = rgba(eyeballColor, 0.95);
+			context.fillStyle = rgba(WHITE, 0.95);
 			context.fill();
 			context.restore();
 
-			// 瞳孔（眨眼时不画）
+			// 瞳孔
 			if (blinkClose < 0.5) {
 				const pupilRadius = eyeRadius * pupilScale * (1 - blinkClose);
 				context.beginPath();
 				context.arc(ex, ey, pupilRadius, 0, Math.PI * 2);
 				context.fillStyle = rgba(pupilColor, 0.9);
 				context.fill();
-				// 瞳孔高光
 				context.beginPath();
 				context.arc(ex - pupilRadius * 0.3, ey - pupilRadius * 0.3, pupilRadius * 0.35, 0, Math.PI * 2);
 				context.fillStyle = rgba(WHITE, 0.7);
