@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 导航重构对照</title>
+	<style>
+		:root { color-scheme: dark; font-family: -apple-system,BlinkMacSystemFont,"PingFang SC",system-ui,sans-serif; background:#050711; color:#f7f9ff; }
+		* { box-sizing:border-box; }
+		body { margin:0; padding:18px; }
+		header { display:flex; align-items:end; justify-content:space-between; gap:20px; margin-bottom:12px; }
+		h1 { margin:0; font-size:20px; }
+		p { margin:4px 0 0; color:#9aa8cb; font-size:12px; }
+		.legend { color:#86a9ff; font-size:12px; }
+		main { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+		figure { margin:0; min-width:0; padding:9px; border:1px solid rgba(140,160,255,.22); border-radius:10px; background:rgba(12,17,34,.9); }
+		figure.after { border-color:rgba(56,225,255,.45); }
+		figcaption { display:flex; justify-content:space-between; gap:12px; padding:0 2px 8px; font-size:12px; }
+		figcaption span { color:#8493bb; }
+		.after figcaption b { color:#38e1ff; }
+		.clip { position:relative; height:900px; overflow:hidden; border-radius:5px; background:#03040a; }
+		img { position:absolute; left:0; top:0; display:block; width:1440px; height:1024px; max-width:none; transform:scale(1.18); transform-origin:top left; }
+	</style>
+</head>
+<body>
+	<header>
+		<div>
+			<h1>TALOS 导航：平铺列表 → 真实工作域</h1>
+			<p>同一 Aurora 主题、同一桌面视口，只比较导航的信息架构与状态表达。</p>
+		</div>
+		<div class="legend">主题不变 · 分组、顺序和真实数字改变</div>
+	</header>
+	<main>
+		<figure>
+			<figcaption><b>调整前 · 11 项同级</b><span>结构与优先级不可见</span></figcaption>
+			<div class="clip"><img src="./overview-operations-aurora-1440.jpg" alt="调整前平铺导航"></div>
+		</figure>
+		<figure class="after">
+			<figcaption><b>调整后 · 四工作域</b><span>现在 / 流转 / 资产 / 系统</span></figcaption>
+			<div class="clip"><img src="./navigation-grouped-aurora-1440.jpg" alt="调整后分组导航"></div>
+		</figure>
+	</main>
+</body>
+</html>

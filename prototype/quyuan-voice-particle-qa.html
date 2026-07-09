@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>屈原 · 流体声云 QA</title>
+  <link rel="stylesheet" href="../styles.css?v=particle-state-layout-1">
+  <style>
+    html,body{width:100%;height:100%;margin:0;overflow:hidden}
+    body{--font-ui-medium:14px;--font-ui-smaller:12px;font-family:"PingFang SC","SF Pro Display",sans-serif}
+    button,select{font:inherit}
+    .qa-shell{width:100%;height:100%}
+    .qa-nav-letter{font-size:15px;font-weight:650}
+    .qa-theme{min-width:132px}
+    @media(max-width:760px){.qa-theme{display:none}}
+  </style>
+</head>
+<body data-talos-vault-theme="geometric-modern">
+  <div class="qa-shell talos-console theme-geometric-modern" data-talos-page="jarvis" data-talos-theme="geometric-modern">
+    <div class="app">
+      <aside class="sidebar">
+        <section class="card pagenav-card">
+          <div class="section-title"><h2>导航</h2><small>PAGES</small></div>
+          <nav class="nav" aria-label="TALOS 导航">
+            <div class="nav-group" data-nav-group="today">
+              <div class="nav-group-label">现在</div>
+              <button class="command" title="总览"><span class="mark qa-nav-letter">总</span><span class="nav-label">总览</span><span class="nav-meta is-alert">2 待处理</span></button>
+              <button class="command" title="每日执行"><span class="mark qa-nav-letter">日</span><span class="nav-label">每日执行</span><span class="nav-meta">0 焦点</span></button>
+              <button class="command active" title="屈原"><span class="mark qa-nav-letter">屈</span><span class="nav-label">屈原</span><span class="nav-meta">AI</span></button>
+            </div>
+            <div class="nav-group" data-nav-group="flow">
+              <div class="nav-group-label">流转</div>
+              <button class="command" title="收件箱"><span class="mark qa-nav-letter">收</span><span class="nav-label">收件箱</span><span class="nav-meta is-alert">16</span></button>
+              <button class="command" title="输出作战室"><span class="mark qa-nav-letter">出</span><span class="nav-label">输出作战室</span><span class="nav-meta">8</span></button>
+              <button class="command" title="项目场景"><span class="mark qa-nav-letter">项</span><span class="nav-label">项目场景</span><span class="nav-meta">11</span></button>
+            </div>
+            <div class="nav-group" data-nav-group="assets">
+              <div class="nav-group-label">资产</div>
+              <button class="command" title="知识枢纽"><span class="mark qa-nav-letter">知</span><span class="nav-label">知识枢纽</span><span class="nav-meta">436</span></button>
+              <button class="command" title="身份上下文"><span class="mark qa-nav-letter">身</span><span class="nav-label">身份上下文</span><span class="nav-meta">7</span></button>
+              <button class="command" title="TALOS 产品"><span class="mark qa-nav-letter">T</span><span class="nav-label">TALOS 产品</span><span class="nav-meta">89</span></button>
+            </div>
+            <div class="nav-group" data-nav-group="system">
+              <div class="nav-group-label">系统</div>
+              <button class="command" title="系统健康"><span class="mark qa-nav-letter">健</span><span class="nav-label">系统健康</span><span class="nav-meta is-alert">89</span></button>
+              <button class="command" title="能力中心"><span class="mark qa-nav-letter">能</span><span class="nav-label">能力中心</span><span class="nav-meta">17</span></button>
+              <button class="command" title="全库视图"><span class="mark qa-nav-letter">库</span><span class="nav-label">全库视图</span><span class="nav-meta">779</span></button>
+            </div>
+          </nav>
+        </section>
+      </aside>
+      <main class="main">
+        <div class="page-content">
+          <section class="tq-voice" data-voice-state="listen">
+            <header class="tq-head">
+              <div class="tq-head-brand">
+                <div class="tq-badge"><img src="../TALOS-Favicon-64-v1.png" alt="TALOS"></div>
+                <div class="tq-title"><b>屈原 · 语音对话</b><small>外脑玩家Haaper 的知识伙伴</small></div>
+              </div>
+              <div class="tq-head-actions">
+                <div class="tq-chip tq-status-chip">超级大脑 已挂载</div>
+                <div class="tq-chip tq-model">Claude · 自动模型</div>
+                <select class="tq-btn tq-btn--secondary tq-btn--sm qa-theme" aria-label="视觉主题">
+                  <option value="aurora">Aurora</option>
+                  <option value="cosmos-dark">Nebula</option>
+                  <option value="animal-island">Animal Island</option>
+                  <option value="system-classic">Macintosh</option>
+                  <option value="data-stream">Data Stream</option>
+                  <option value="soft-relief">Soft Relief</option>
+                  <option value="geometric-modern" selected>Geometric</option>
+                </select>
+                <button class="tq-btn tq-btn--secondary tq-btn--sm tq-enginebtn" type="button"><span>千问</span></button>
+                <button class="tq-btn tq-btn--ghost tq-btn--icon tq-squarebtn qa-panel-toggle" type="button" aria-expanded="true" aria-label="收起 TALOS 交互面板"><span>栏</span></button>
+                <button class="tq-btn tq-btn--ghost tq-btn--icon tq-squarebtn" type="button" aria-label="设置"><span>设</span></button>
+              </div>
+            </header>
+            <div class="tq-body">
+              <div class="tq-stage">
+                <canvas class="tq-particles tq-particles-back" aria-hidden="true"></canvas>
+                <div class="tq-orb"><div class="tq-core">◉</div></div>
+                <div class="tq-flow" aria-label="语音处理状态">
+                  <span class="tq-flow-state is-listen" data-state="listen"><i></i><span>聆听</span></span>
+                  <span class="tq-flow-state is-reco" data-state="reco"><i></i><span>识别</span></span>
+                  <span class="tq-flow-state is-think" data-state="think"><i></i><span>思考</span></span>
+                  <span class="tq-flow-state is-speak" data-state="speak"><i></i><span>回答</span></span>
+                </div>
+                <div class="tq-copy" aria-live="polite">
+                  <h1 class="tq-cap">我在听</h1>
+                  <div class="tq-sub">说完，我会接住。</div>
+                  <div class="tq-live">把今天真正重要的那一件事重新排一下……</div>
+                </div>
+                <canvas class="tq-particles tq-particles-front" aria-hidden="true"></canvas>
+                <div class="tq-foot">
+                  <button class="tq-btn tq-btn--primary tq-btn--lg tq-listen-btn is-active qa-state" data-state="listen" type="button"><span>暂停聆听</span></button>
+                  <button class="tq-btn tq-btn--danger tq-btn--lg tq-stop qa-state" data-state="reco" type="button"><span>立即打断</span></button>
+                  <button class="tq-btn tq-btn--secondary tq-btn--lg tq-text-btn qa-state qa-open-session" data-state="think" type="button"><span>文字输入</span></button>
+                  <div class="tq-chip tq-tts">千问 TTS</div>
+                  <div class="tq-meter" aria-label="麦克风音量"></div>
+                  <div class="tq-dot">我在听</div>
+                </div>
+              </div>
+              <div class="tq-side-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="调整 TALOS 交互面板宽度"></div>
+              <aside class="tq-side">
+                <div class="tq-side-topbar">
+                  <div class="tq-side-identity">
+                    <span class="tq-side-identity-icon">T</span>
+                    <span><b>TALOS 交互面板</b><small>语音、上下文与能力</small></span>
+                  </div>
+                  <div class="tq-side-actions">
+                    <button class="tq-btn tq-btn--ghost tq-btn--icon tq-btn--sm tq-mini-btn" type="button" aria-label="打开完整屈原工作台"><span>↗</span></button>
+                    <button class="tq-btn tq-btn--ghost tq-btn--icon tq-btn--sm tq-mini-btn qa-collapse-side" type="button" aria-label="收起 TALOS 交互面板"><span>‹</span></button>
+                  </div>
+                </div>
+                <div class="tq-side-tabs" role="tablist">
+                  <button class="tq-btn tq-btn--tab tq-side-tab is-active" data-tab="session" role="tab" aria-selected="true"><span>◌</span><span>会话</span></button>
+                  <button class="tq-btn tq-btn--tab tq-side-tab" data-tab="context" role="tab" aria-selected="false"><span>▤</span><span>上下文</span></button>
+                  <button class="tq-btn tq-btn--tab tq-side-tab" data-tab="ability" role="tab" aria-selected="false"><span>✦</span><span>能力</span></button>
+                </div>
+                <div class="tq-side-panels">
+                  <div class="tq-side-panel tq-side-panel-session is-active" data-panel="session">
+                    <div class="tq-session-head">
+                      <div><b>当前语音会话</b><small>屈原正在监听</small></div>
+                      <div class="tq-session-actions"><button class="tq-btn tq-btn--ghost tq-btn--icon tq-btn--sm tq-mini-btn qa-clear-session" type="button" aria-label="清空当前会话"><span>×</span></button></div>
+                    </div>
+                    <div class="tq-convo">
+                      <div class="tq-bub tq-me"><span class="tq-bub-role">你</span><div>把今天真正重要的那一件事重新排一下。</div></div>
+                      <div class="tq-bub tq-qy"><span class="tq-bub-role">屈原</span><div><p>先把“必须完成”和“只是想优化”分开。</p><ul><li>锁定今天唯一胜利条件</li><li>把其余优化移出当前执行面</li></ul></div></div>
+                    </div>
+                    <div class="tq-side-composer">
+                      <textarea rows="2" aria-label="给屈原发送文字消息" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+                      <div class="tq-side-composer-tools"><span class="tq-composer-hint">TALOS · 屈原</span><button class="tq-btn tq-btn--primary tq-btn--icon tq-btn--sm tq-send-btn" type="button" aria-label="发送消息" disabled><span>↑</span></button></div>
+                    </div>
+                  </div>
+                  <div class="tq-side-panel" data-panel="context">
+                    <div class="tq-side-section"><b>当前上下文</b><span>4 个核心</span></div>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">P</span><span class="tq-side-row-copy"><b>PERSONA</b><small>屈原 · 人格契约</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">忆</span><span class="tq-side-row-copy"><b>自我记忆</b><small>persona-memory</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">态</span><span class="tq-side-row-copy"><b>当前状态</b><small>Identity / CONTEXT</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">今</span><span class="tq-side-row-copy"><b>今日焦点</b><small>tasks.md</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <div class="tq-side-section"><b>运行状态</b><span>实时</span></div>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">M</span><span class="tq-side-row-copy"><b>Skills / MCP</b><small>工作台能力已连接</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">权</span><span class="tq-side-row-copy"><b>权限模式</b><small>每次询问</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">声</span><span class="tq-side-row-copy"><b>语音引擎</b><small>千问 ASR</small></span><span class="tq-side-row-arrow">›</span></button>
+                  </div>
+                  <div class="tq-side-panel" data-panel="ability">
+                    <div class="tq-side-section"><b>已启用能力</b><span>v2 工作台</span></div>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">S</span><span class="tq-side-row-copy"><b>Skills</b><small>命令与工作流</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">M</span><span class="tq-side-row-copy"><b>MCP</b><small>外部工具连接</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">A</span><span class="tq-side-row-copy"><b>Subagents</b><small>可调度</small></span><span class="tq-side-row-arrow">›</span></button>
+                    <button class="tq-btn tq-btn--row tq-side-row"><span class="tq-side-row-icon">F</span><span class="tq-side-row-copy"><b>文件读取</b><small>库内上下文</small></span><span class="tq-side-row-arrow">›</span></button>
+                  </div>
+                </div>
+                <footer class="tq-side-footer">
+                  <div class="tq-side-footrow">权限 · 每次询问</div>
+                  <div class="tq-side-footrow">千问 ASR</div>
+                </footer>
+              </aside>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    if (!new URLSearchParams(location.search).has("layoutOnly")) {
+      const script = document.createElement("script");
+      script.src = "./quyuan-voice-particle-qa.js?v=5";
+      document.body.appendChild(script);
+    }
+  </script>
+</body>
+</html>

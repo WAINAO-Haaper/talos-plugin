@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS Theme Preview</title>
+	<link rel="stylesheet" href="./styles.css">
+	<style>
+		html,body{margin:0;height:100%;overflow:hidden}
+		.preview-switch{position:fixed;right:18px;top:18px;z-index:20;display:flex;gap:8px}
+		.preview-switch a{background:#fff;border:1px solid #111;color:#111;font:12px system-ui;padding:7px 10px;text-decoration:none}
+	</style>
+</head>
+<body>
+	<nav class="preview-switch">
+		<a href="?theme=aurora">Aurora</a>
+		<a href="?theme=cosmos-dark">Nebula</a>
+		<a href="?theme=animal-island">小岛</a>
+		<a href="?theme=system-classic">Mac</a>
+		<a href="?theme=data-stream">32 数据流</a>
+		<a href="?theme=soft-relief">37 柔光浮雕</a>
+		<a href="?theme=geometric-modern">42 几何现代</a>
+		<a href="?theme=geometric-modern&page=jarvis">屈原全屏</a>
+		<a href="?theme=geometric-modern&page=daily">每日执行舱</a>
+		<a href="?theme=geometric-modern&page=output">输出作战室</a>
+	</nav>
+	<div id="preview" class="talos-console" data-talos-page="overview">
+		<div class="bg-fx">
+			<div class="data-rain" aria-hidden="true"></div>
+			<div class="geometry-field" aria-hidden="true">
+				<i class="geometry-shape is-circle"></i>
+				<i class="geometry-shape is-square"></i>
+				<i class="geometry-shape is-triangle"></i>
+				<i class="geometry-shape is-bar"></i>
+			</div>
+		</div>
+		<div class="app">
+			<aside class="sidebar">
+				<section class="card">
+					<div class="time">15:42</div>
+					<div class="sub">ASIA / SHANGHAI</div>
+					<div class="week"><div class="day today"><b>27</b><span>今天</span></div></div>
+				</section>
+				<section class="card">
+					<div class="section-title"><h2>导航</h2><small>PAGES</small></div>
+					<nav class="nav">
+						<div class="command active"><div class="mark">总</div><span>运行总览</span></div>
+						<div class="command"><div class="mark">出</div><span>输出作战室</span></div>
+						<div class="command"><div class="mark">健</div><span>系统健康</span></div>
+						<div class="command"><div class="mark">知</div><span>知识枢纽</span></div>
+					</nav>
+				</section>
+				<section class="card">
+					<div class="section-title"><h2>上下文健康</h2><small>SNAPSHOT</small></div>
+					<div class="overview-card"><b>92</b><span>系统健康分</span></div>
+				</section>
+			</aside>
+			<main class="main">
+				<header class="hero">
+					<div class="hero-head">
+						<div class="brand brand-text">
+							<div>
+								<div class="eyebrow">超级大脑 · CONTEXT OS <span class="live"><i></i>ONLINE</span></div>
+								<h1>TALOS 系统控制台</h1>
+								<div class="sub">个人上下文主权 · 运行态势 · 知识资产</div>
+							</div>
+						</div>
+						<div class="logo-module"><div class="logo"></div></div>
+					</div>
+					<div class="hero-grid">
+						<div class="quote"><strong>模型会商品化，上下文会差异化。</strong><span>TALOS 核心主张</span></div>
+						<div class="status-row">
+							<div class="stat"><b>13</b><span>模块</span></div>
+							<div class="stat"><b>92</b><span>健康</span></div>
+							<div class="stat"><b>7</b><span>待批</span></div>
+						</div>
+					</div>
+				</header>
+				<section class="panel">
+					<div class="section-title"><h2>运行快照</h2><small>LIVE SIGNALS</small></div>
+					<div class="quick-grid">
+						<div class="quick-card"><b>输出作战室</b><div class="quick-value">8</div><small>今日输出</small></div>
+						<div class="quick-card"><b>收件箱消化</b><div class="quick-value">13</div><small>待处理</small></div>
+						<div class="quick-card"><b>知识节点</b><div class="quick-value">1595</div><small>已连接</small></div>
+						<div class="quick-card"><b>项目推进</b><div class="quick-value">11</div><small>进行中</small></div>
+					</div>
+				</section>
+				<section class="panel">
+					<div class="section-title"><h2>执行进度</h2><small>OPERATIONS</small></div>
+					<div class="barrow"><span>知识索引</span><div class="bar"><i style="width:78%"></i></div><b class="bn">78%</b></div>
+					<div class="barrow"><span>系统维护</span><div class="bar"><i style="width:62%"></i></div><b class="bn">62%</b></div>
+				</section>
+			</main>
+		</div>
+	</div>
+	<script>
+		const root=document.getElementById("preview");
+		const params=new URLSearchParams(location.search);
+		const theme=params.get("theme")||"geometric-modern";
+		const page=params.get("page")||"overview";
+		root.dataset.talosPage=page;
+		root.classList.add(`theme-${theme}`);
+		if(page==="jarvis"){
+			const main=root.querySelector(".main");
+			Array.from(main.children).slice(1).forEach(node=>node.remove());
+			const pageContent=document.createElement("div");
+			pageContent.className="page-content";
+			pageContent.innerHTML=`
+				<section class="panel jv-panel jv-agent">
+					<div class="section-title"><h2>屈原 · AGENTIC</h2><small>claude-agent-sdk · 流式 · 全库可读写 · 听说双向</small></div>
+					<div class="jv-statusbar">
+						<div class="jv-status" data-state="idle">待命</div>
+						<div class="jv-modewrap"><span class="jv-modelabel">权限</span><select class="jv-modesel"><option>每次询问</option></select></div>
+					</div>
+					<div class="jv-log jv-agentlog">
+						<div class="jv-msg jv-user"><div class="jv-bubble">把今天的项目进度和待审批事项整理成一份行动清单。</div></div>
+						<div class="jv-msg jv-assistant"><div class="jv-bubble">已扫描当前项目、工作记忆与审批池。下面按优先级整理，并保留原始文件入口。</div></div>
+						<div class="jv-tool tool-ok"><div class="jv-tool-head"><span class="jv-tool-name">Read</span></div><pre class="jv-tool-input">System/pending-approvals.md</pre><pre class="jv-tool-out">已读取 4 条待审批变更</pre></div>
+						<div class="jv-msg jv-assistant"><div class="jv-bubble">1. 先处理影响当前发布流程的审批项。\n2. 合并今天新增的项目记录。\n3. 完成后更新运行状态与回填信息。\n\n我可以继续逐项执行，并在需要写入时请求授权。</div></div>
+					</div>
+					<div class="jv-inputbar">
+						<textarea class="jv-input" rows="3" placeholder="问屈原，或按语音开口…（Enter 发送，Shift+Enter 换行）"></textarea>
+						<div class="jv-btns"><button class="jv-btn">语音</button><button class="jv-btn">停止</button><button class="jv-btn">新会话</button><button class="jv-btn jv-send">发送</button></div>
+					</div>
+				</section>`;
+			main.appendChild(pageContent);
+			const footer=document.createElement("div");
+			footer.className="footer";
+			footer.textContent="TALOS CONSOLE";
+			main.appendChild(footer);
+		}else if(page==="output"){
+			const main=root.querySelector(".main");
+			Array.from(main.children).slice(1).forEach(node=>node.remove());
+			const pageContent=document.createElement("div");
+			pageContent.className="page-content";
+			pageContent.innerHTML=`
+				<section class="panel" style="--ac:#34D399">
+					<div class="section-title"><h2>输出作战室</h2><small>统一出口 · 五平台发布闭环</small></div>
+					<div class="metric-grid">
+						<div class="metric-card"><b>8</b><span>今日待发</span><small>统一出口里的待处理条目</small></div>
+						<div class="metric-card"><b>6</b><span>平台稿件</span><small>0 已发布 · 6 待闭环</small></div>
+						<div class="metric-card"><b>6</b><span>运营候选</span><small>发布后沉淀的待确认信号</small></div>
+					</div>
+				</section>
+				<div class="dashboard-grid">
+					<section class="panel" style="--ac:#FB7185">
+						<div class="section-title"><h2>今日待发</h2><small>输出/统一出口.md</small></div>
+						<div class="detail-list">
+							<div class="detail-row"><div class="detail-text"><b>闭环位置：选 → 改 → 发 → 复盘（见 _README）</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>2026-06-21 清白起点：认知前内容与旧调度层已整体归档至认知前快照</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>《开源我的 AI 控制台》真人出镜 + 录屏演示 → 剪 → 发抖音</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>发完：改 status、填数据、回填运营候选池，再挪指针</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>25分钟教程 vs 两年实战 · 小红书 06-05</b><span>待处理</span></div></div>
+						</div>
+					</section>
+					<section class="panel" style="--ac:#A78BFA">
+						<div class="section-title"><h2>运营候选</h2><small>发布后观察 · 待确认</small></div>
+						<div class="detail-list">
+							<div class="detail-row"><div class="detail-text"><b>[YYYY-MM-DD] 观察 | 证据(数据/现象) | 待验证 / 可晋升</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>某类钩子或选题的收藏率显著高于账号均值</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>评论区反复出现某需求信号（求教程/求详细/某痛点）</b><span>待处理</span></div></div>
+							<div class="detail-row"><div class="detail-text"><b>算法或平台规则出现可感知变化</b><span>待处理</span></div></div>
+						</div>
+					</section>
+				</div>
+				<section class="panel" style="--ac:#38E1FF">
+					<div class="section-title"><h2>平台分发</h2><small>抖音 / 小红书 / X / 公众号 / 知识星球</small></div>
+					<div class="platform-grid">
+						<div class="platform-card"><b>抖音</b><div class="big">1</div><small>今日发布</small></div>
+						<div class="platform-card"><b>小红书</b><div class="big">2</div><small>待适配</small></div>
+						<div class="platform-card"><b>X</b><div class="big">1</div><small>短帖</small></div>
+						<div class="platform-card"><b>公众号</b><div class="big">1</div><small>长文</small></div>
+						<div class="platform-card"><b>知识星球</b><div class="big">1</div><small>沉淀</small></div>
+					</div>
+				</section>`;
+			main.appendChild(pageContent);
+		}else if(page==="daily"){
+			const main=root.querySelector(".main");
+			Array.from(main.children).slice(1).forEach(node=>node.remove());
+			const pageContent=document.createElement("div");
+			pageContent.className="page-content";
+			pageContent.innerHTML=`
+				<section class="panel daily-cockpit" style="--ac:#FB7185">
+					<div class="section-title"><h2>每日执行舱</h2><small>LIVE EXECUTION · 6月28日 · 周日</small></div>
+					<div class="daily-overview">
+						<div class="daily-win daily-item"><small>今日唯一胜利条件</small><strong>抖音发布成功，并完成链接与运营观察回填</strong><span>抖音首发破功 · 真人出镜、录屏、剪辑、发布</span></div>
+						<div class="daily-route">
+							<div class="daily-route-item daily-item"><small>深度块 01</small><b>输出闭环</b></div>
+							<div class="daily-route-item daily-item"><small>深度块 02</small><b>休息 + 周重置</b></div>
+							<div class="daily-route-item daily-item"><small>当前焦点</small><b>2 项</b></div>
+						</div>
+					</div>
+					<div class="daily-actions">
+						<button class="daily-command daily-item"><span class="daily-command-copy"><b>开工</b><small>接收今天第一步</small></span></button>
+						<button class="daily-command daily-item"><span class="daily-command-copy"><b>晨间</b><small>简报与焦点确认</small></span></button>
+						<button class="daily-command daily-item"><span class="daily-command-copy"><b>收工</b><small>回填并铺好明天</small></span></button>
+						<button class="daily-command daily-item"><span class="daily-command-copy"><b>记忆</b><small>保存实质碎片</small></span></button>
+					</div>
+				</section>
+				<div class="daily-work-grid">
+					<section class="panel" style="--ac:#38E1FF">
+						<div class="section-title"><h2>每日固定骨架</h2><small>ZERO DECISION TIMELINE</small></div>
+						<div class="daily-timeline">
+							<div class="daily-slot daily-item"><div class="daily-slot-time"><b>08:30</b><small>15 min</small></div><div class="daily-slot-body"><h3>开工 · 接收系统指令</h3><p>只确认焦点与 done_when，不重新规划人生。</p><span>复制「开工」，接今天第一步。</span></div></div>
+							<div class="daily-slot daily-item is-deep"><div class="daily-slot-time"><b>09:00</b><small>120 min</small></div><div class="daily-slot-body"><h3>深度块① · 输出闭环</h3><p>完成选、改、发、回填中的最短闭环。</p><span>只处理统一出口今日待发的一条。</span></div></div>
+							<div class="daily-slot daily-item"><div class="daily-slot-time"><b>11:00</b><small>45 min</small></div><div class="daily-slot-body"><h3>分发回填 · 数据与消息</h3><p>发布后立即回填链接、状态与运营观察。</p><span>检查 publish_url、signal 与 views。</span></div></div>
+							<div class="daily-slot daily-item is-deep"><div class="daily-slot-time"><b>14:00</b><small>120 min</small></div><div class="daily-slot-body"><h3>深度块② · 当日轮值项目</h3><p>推进一个能留下痕迹的结果。</p><span>今天由周轮值表决定。</span></div></div>
+						</div>
+					</section>
+					<section class="panel" style="--ac:#F472B6">
+						<div class="section-title"><h2>执行铁轨</h2><small>NO SECOND GUESSING</small></div>
+						<div class="daily-rails">
+							<div class="daily-rail daily-item"><b>主轨 · 输出闭环</b><span>每天优先推动一条内容完成发布或回填。</span></div>
+							<div class="daily-rail daily-item"><b>副轨 · 周轮值项目</b><span>轮到谁，就推进谁的一个可见结果。</span></div>
+							<div class="daily-rail daily-item"><b>回轨 · 收工记忆</b><span>只记录阻塞原因与明早第一步。</span></div>
+						</div>
+					</section>
+				</div>
+				<section class="panel" style="--ac:#A78BFA">
+					<div class="section-title"><h2>周轮值表 · 深度块②</h2><small>WEEK ROUTER</small></div>
+					<div class="daily-week">
+						<div class="daily-day daily-item"><small>MON · 周一</small><b>TALOS 系统</b><span>产品脊柱、交付包、控制台</span></div>
+						<div class="daily-day daily-item"><small>TUE · 周二</small><b>输出器官</b><span>发布流程、首发件、承接口</span></div>
+						<div class="daily-day daily-item"><small>WED · 周三</small><b>B 端交付</b><span>样板项目与客户推进</span></div>
+						<div class="daily-day daily-item"><small>THU · 周四</small><b>GEO + TALOS</b><span>公开资产与理论支撑</span></div>
+						<div class="daily-day daily-item"><small>FRI · 周五</small><b>私域承接</b><span>CTA、社群与模板包</span></div>
+						<div class="daily-day daily-item"><small>SAT · 周六</small><b>缓冲日</b><span>补阻塞、学习、修小破口</span></div>
+						<div class="daily-day daily-item is-today"><small>SUN · 周日</small><b>休息 + 周重置</b><span>刷新上下文与下周轨道</span></div>
+					</div>
+				</section>`;
+			main.appendChild(pageContent);
+		}
+		const rain=root.querySelector(".data-rain");
+		const streams=["01\n10\nCTX\nSYS\nMEM\n01\nNODE","10\n01\nTALOS\nDATA\nCORE\n10","11\n00\nSIGNAL\nSYNC\nINDEX"];
+		for(let i=0;i<20;i++){
+			const col=document.createElement("i");
+			col.textContent=streams[i%streams.length];
+			col.style.setProperty("--rain-x",`${3+i*5}%`);
+			col.style.setProperty("--rain-delay",`${-(i%9)*1.7}s`);
+			col.style.setProperty("--rain-duration",`${16+(i%7)*2}s`);
+			rain.appendChild(col);
+		}
+		const modules=root.querySelectorAll(".quick-card,.overview-card,.barrow");
+		modules.forEach((module,index)=>{
+			module.dataset.talosSelectable="true";
+			module.tabIndex=0;
+			module.addEventListener("click",()=>{
+				modules.forEach(item=>item.classList.remove("is-module-selected"));
+				module.classList.add("is-module-selected");
+			});
+			if(index===1) module.classList.add("is-module-selected");
+		});
+	</script>
+</body>
+</html>

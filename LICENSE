@@ -1,0 +1,48 @@
+TALOS PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 外脑玩家 Haaper. All rights reserved.
+
+1. Scope
+
+This license applies only to the original TALOS source code, user interface,
+documentation, branding, and other materials authored for this project
+("TALOS Materials").
+
+TALOS Materials are proprietary and are not offered under an open-source
+license. Except under a separate written agreement from the copyright holder,
+no permission is granted to copy, modify, publish, distribute, sublicense,
+sell, host, or create derivative commercial products from TALOS Materials.
+
+2. Commercial licenses
+
+Authorized customers may install and use TALOS Materials only within the
+scope, term, seat count, and other conditions stated in their applicable
+commercial agreement or end-user license agreement. Possession of a copy does
+not itself grant redistribution, resale, white-label, or sublicensing rights.
+
+3. Third-party materials
+
+This project contains or interoperates with third-party software that is not
+covered by this proprietary license. Those materials remain governed by their
+respective licenses and service terms. Required attributions and license texts
+are listed in:
+
+- THIRD-PARTY-NOTICES.md
+- THIRD-PARTY-LICENSES.txt
+
+Nothing in this license restricts rights granted directly by a third-party
+license, including the MIT-licensed Claudian portions identified in the
+notices.
+
+4. Trademarks
+
+No right to use the TALOS name, logo, trade dress, or other brand identifiers
+is granted without prior written permission.
+
+5. Disclaimer
+
+TALOS MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY LAW,
+THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM USE OF TALOS MATERIALS.

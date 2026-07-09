@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 全库主题同步 QA</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		* { box-sizing: border-box; }
+		html, body { width: 100%; height: 100%; margin: 0; }
+		body { overflow: hidden; }
+		.qa-shell { display: grid; grid-template-rows: 42px 1fr 26px; height: 100%; }
+		.workspace { display: grid; grid-template-columns: 54px 230px 1fr; min-height: 0; }
+		.workspace-ribbon { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 15px; border-right: 1px solid; }
+		.ribbon-dot { width: 22px; height: 22px; border: 1px solid; border-radius: var(--tv-radius); background: var(--tv-hover); }
+		.mod-left-split { padding: 14px 10px; border-right: 1px solid; overflow: hidden; }
+		.nav-folder-title, .nav-file-title { padding: 7px 9px; margin: 2px 0; }
+		.workspace-tabs { display: grid; grid-template-rows: 38px 1fr; min-width: 0; }
+		.workspace-tab-header-container { display: flex; align-items: end; gap: 3px; padding: 0 9px; border-bottom: 1px solid; }
+		.workspace-tab-header { padding: 9px 14px 8px; }
+		.workspace-leaf-content, .view-content { min-height: 0; height: 100%; }
+		.markdown-reading-view { height: 100%; overflow: auto; padding: 42px max(40px, 10vw); }
+		.markdown-rendered { max-width: 760px; margin: 0 auto; }
+		.markdown-rendered h1 { font-size: 32px; margin: 0 0 18px; }
+		.markdown-rendered h2 { margin-top: 28px; }
+		.markdown-rendered p { line-height: 1.75; }
+		blockquote { margin: 22px 0; padding: 12px 16px; border-left: 4px solid; }
+		pre { padding: 14px; border: 1px solid; }
+		.qa-controls { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid; }
+		.qa-controls strong { margin-right: auto; }
+		.qa-controls select { min-width: 220px; }
+		.status-bar { padding: 4px 12px; text-align: right; border-top: 1px solid; font-size: 11px; }
+		.qa-settings-fixture { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; padding: 28px; background: rgba(0,0,0,.38); }
+		.qa-settings-fixture.is-open { display: grid; }
+		.qa-settings-fixture .modal.mod-settings { width: min(980px, 94vw); height: min(650px, 88vh); display: grid; grid-template-columns: 240px minmax(0,1fr); overflow: hidden; }
+		.qa-settings-fixture .vertical-tab-header { padding: 22px 14px; }
+		.qa-settings-fixture .vertical-tab-header-group-title { margin-bottom: 10px; font-size: 12px; font-weight: 700; }
+		.qa-settings-fixture .vertical-tab-nav-item { padding: 8px 10px; margin: 2px 0; border-radius: var(--tv-radius); }
+		.qa-settings-fixture .vertical-tab-content-container { min-width: 0; padding: 24px 30px; overflow: auto; }
+		.qa-settings-fixture .modal-close-button { float: right; font-size: 22px; }
+		.qa-settings-fixture .setting-item { display: flex; align-items: center; gap: 24px; padding: 18px 0; border-top: 1px solid; }
+		.qa-settings-fixture .setting-item-info { flex: 1; min-width: 0; }
+		.qa-settings-fixture .setting-item-name { margin-bottom: 5px; font-weight: 650; }
+		.qa-settings-fixture .setting-item-description { font-size: 13px; line-height: 1.55; }
+		@media (max-width: 620px) {
+			.qa-shell { grid-template-rows: auto 1fr 24px; }
+			.qa-controls { align-items: stretch; flex-wrap: wrap; }
+			.qa-controls strong { width: 100%; }
+			.qa-controls select { min-width: 0; width: 150px; }
+			.workspace { grid-template-columns: 42px minmax(0,1fr); }
+			.mod-left-split { display: none; }
+			.workspace-tabs, .workspace-tab-header-container, .workspace-leaf-content, .view-content, .markdown-reading-view, .markdown-rendered { min-width: 0; max-width: 100%; }
+			.markdown-reading-view { padding: 26px 20px; }
+			pre { max-width: 100%; overflow: auto; }
+			pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+			.qa-settings-fixture { padding: 12px; }
+			.qa-settings-fixture .modal.mod-settings { grid-template-columns: 1fr; height: 92vh; }
+			.qa-settings-fixture .vertical-tab-header { display: none; }
+			.qa-settings-fixture .vertical-tab-content-container { padding: 20px; }
+			.qa-settings-fixture .setting-item { align-items: flex-start; flex-direction: column; gap: 10px; }
+		}
+	</style>
+</head>
+<body data-talos-vault-theme="geometric-modern">
+	<div class="qa-shell">
+		<div class="titlebar qa-controls">
+			<strong>TALOS × Obsidian 全库同步</strong>
+			<label>主题
+				<select id="theme">
+					<option value="aurora">Aurora</option>
+					<option value="cosmos-dark">Nebula</option>
+					<option value="animal-island">Animal Island</option>
+					<option value="system-classic">Macintosh</option>
+					<option value="data-stream">数据流</option>
+					<option value="soft-relief">柔光浮雕</option>
+					<option value="geometric-modern" selected>几何现代主义</option>
+				</select>
+			</label>
+			<label><input id="sync" type="checkbox" checked> 同步到整个库</label>
+		</div>
+		<div class="workspace">
+			<div class="workspace-ribbon"><div class="ribbon-dot"></div><div class="ribbon-dot"></div><div class="ribbon-dot"></div></div>
+			<aside class="workspace-split mod-left-split">
+				<div class="nav-folder-title">超级大脑</div>
+				<div class="nav-file-title is-active">Identity / CONTEXT</div>
+				<div class="nav-file-title">00-收件箱</div>
+				<div class="nav-file-title">02-洞察</div>
+				<div class="nav-file-title">04-项目 / TALOS</div>
+				<div class="nav-file-title">System</div>
+			</aside>
+			<main class="workspace-tabs">
+				<div class="workspace-tab-header-container">
+					<div class="workspace-tab-header is-active">当前状态</div>
+					<div class="workspace-tab-header">项目首页</div>
+				</div>
+				<div class="workspace-leaf-content">
+					<div class="view-content">
+						<div class="markdown-reading-view">
+							<article class="markdown-rendered">
+								<h1>当前状态</h1>
+								<p>库内界面由 TALOS 当前视觉风格统一驱动。侧栏、标签页、编辑器与阅读区共享同一套颜色、字体和交互反馈。</p>
+								<h2>今日焦点</h2>
+								<blockquote>系统不只是被使用，它也需要保持可读、可控和可回退。</blockquote>
+								<p>内部链接使用 <a class="internal-link">TALOS 强调色</a>，正文保持稳定对比度。</p>
+								<pre><code>body[data-talos-vault-theme] → shared design tokens</code></pre>
+							</article>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+		<div class="status-bar">TALOS · theme sync active</div>
+	</div>
+	<div class="modal-container qa-settings-fixture" aria-label="深色主题设置页预览">
+		<div class="modal mod-settings">
+			<div class="vertical-tab-header">
+				<div class="vertical-tab-header-group-title">选项</div>
+				<div class="vertical-tab-nav-item">关于</div>
+				<div class="vertical-tab-nav-item">编辑器</div>
+				<div class="vertical-tab-nav-item is-active">TALOS</div>
+				<div class="vertical-tab-nav-item">第三方插件</div>
+			</div>
+			<div class="vertical-tab-content-container">
+				<div class="modal-close-button">×</div>
+				<div class="talos-settings">
+					<div class="talos-settabs">
+						<div class="talos-settab is-active">界面</div>
+						<div class="talos-settab">数据源</div>
+						<div class="talos-settab">屈原 · 通道</div>
+						<div class="talos-settab">屈原 · 语音</div>
+					</div>
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">视觉风格</div>
+							<div class="setting-item-description">七套 TALOS 视觉风格；开启全库同步后也会驱动 Obsidian 主界面。</div>
+						</div>
+						<div class="setting-item-control"><select><option>当前主题</option></select></div>
+					</div>
+					<div class="setting-item">
+						<div class="setting-item-info">
+							<div class="setting-item-name">同步到整个库</div>
+							<div class="setting-item-description">侧栏、标签页、编辑器、阅读区、菜单与弹窗跟随 TALOS 主题。</div>
+						</div>
+						<div class="setting-item-control"><button class="mod-cta">已开启</button></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		const theme = document.querySelector("#theme");
+		const sync = document.querySelector("#sync");
+		const params = new URLSearchParams(location.search);
+		const requestedTheme = params.get("theme");
+		document.querySelector(".qa-settings-fixture")?.classList.toggle("is-open", params.get("settings") === "1");
+		if ([...theme.options].some((option) => option.value === requestedTheme)) theme.value = requestedTheme;
+		const apply = () => {
+			if (sync.checked) document.body.setAttribute("data-talos-vault-theme", theme.value);
+			else document.body.removeAttribute("data-talos-vault-theme");
+		};
+		theme.addEventListener("change", apply);
+		sync.addEventListener("change", apply);
+		apply();
+	</script>
+</body>
+</html>

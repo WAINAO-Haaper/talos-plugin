@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 插件 / 全库主题对照</title>
+	<style>
+		* { box-sizing: border-box; }
+		html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #111; }
+		main { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; gap: 2px; }
+		iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+	</style>
+</head>
+<body>
+	<main>
+		<iframe id="source" title="TALOS 插件主题源"></iframe>
+		<iframe id="vault" title="Obsidian 全库同步结果"></iframe>
+	</main>
+	<script>
+		const theme = new URLSearchParams(location.search).get("theme") || "geometric-modern";
+		document.querySelector("#source").src = `../theme-preview.html?theme=${encodeURIComponent(theme)}`;
+		document.querySelector("#vault").src = `vault-theme-sync-qa.html?theme=${encodeURIComponent(theme)}`;
+	</script>
+</body>
+</html>

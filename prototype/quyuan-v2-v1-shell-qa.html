@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>屈原 v2 × v1 Shell QA</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      --font-text: "PingFang SC", sans-serif;
+      --font-monospace: "SFMono-Regular", monospace;
+      background: #d8d4cc;
+    }
+    .qa-frame { width: 100%; height: 100vh; overflow: hidden; }
+    .claudian-hidden { display: none !important; }
+    button, select, textarea { font: inherit; }
+    .qa-nav-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 23px;
+      height: 23px;
+      border: 1.5px solid currentColor;
+      border-radius: 5px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <main class="qa-frame">
+    <section class="claudian-container talos-quyuan-shell" data-provider="claude">
+      <header class="claudian-header">
+        <div class="claudian-title">
+          <span class="claudian-logo"></span>
+          <h4 class="claudian-title-text">屈原 · AGENTIC</h4>
+        </div>
+      </header>
+
+      <div class="talos-quyuan-statusbar">
+        <div class="talos-quyuan-status">
+          <span class="talos-quyuan-status-dot"></span>
+          <span>待命</span>
+        </div>
+        <div class="talos-quyuan-permission">
+          <span>权限</span>
+          <select aria-label="权限模式">
+            <option>每次询问</option>
+            <option>自动接受编辑</option>
+            <option>计划模式（只读）</option>
+            <option>全放开（危险）</option>
+          </select>
+        </div>
+        <button class="talos-quyuan-capability-button" type="button" aria-expanded="false">
+          <span class="qa-nav-icon">能力</span><span>能力</span>
+        </button>
+      </div>
+
+      <div class="talos-quyuan-capabilities">
+        <button class="talos-quyuan-capability-chip">Commands</button>
+        <button class="talos-quyuan-capability-chip">Skills</button>
+        <button class="talos-quyuan-capability-chip">MCP</button>
+        <button class="talos-quyuan-capability-chip">子智能体</button>
+        <button class="talos-quyuan-capability-chip">Inline Edit</button>
+      </div>
+
+      <div class="claudian-tab-content-container">
+        <div class="claudian-tab-content">
+          <div class="claudian-messages-wrapper">
+            <div class="claudian-messages">
+              <div class="claudian-welcome">
+                <div class="claudian-welcome-greeting">来，落一笔。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="claudian-input-footer">
+        <div class="claudian-input-nav-row claudian-view-input-nav-row">
+          <div class="claudian-input-nav-content">
+            <div class="claudian-tab-bar-container">
+              <div class="claudian-tab-badges">
+                <div class="claudian-tab-badge claudian-tab-badge-active claudian-tab-badge-expanded">
+                  <span class="talos-quyuan-tab-index">1</span>
+                  <span class="talos-quyuan-tab-title">新对话</span>
+                  <span class="talos-quyuan-tab-close">×</span>
+                </div>
+              </div>
+            </div>
+            <div class="claudian-input-nav-actions">
+              <div class="claudian-input-nav-btn"><span class="qa-nav-icon">＋</span></div>
+              <div class="claudian-input-nav-btn"><span class="qa-nav-icon">写</span></div>
+              <div class="claudian-input-nav-btn"><span class="qa-nav-icon">史</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="claudian-active-input-slot">
+          <div class="claudian-input-composer">
+            <div class="claudian-input-container">
+              <div class="claudian-input-wrapper">
+                <div class="claudian-context-row"></div>
+                <textarea class="claudian-input" rows="3" placeholder="问屈原，@引用文件、可贴图…（Enter 发送，Shift+Enter 换行）"></textarea>
+              </div>
+
+              <div class="talos-quyuan-action-row">
+                <button class="talos-quyuan-action is-image"><span>图像</span></button>
+                <button class="talos-quyuan-action is-mic"><span>语音</span></button>
+                <button class="talos-quyuan-action is-stop"><span>停止</span></button>
+                <button class="talos-quyuan-action is-send"><span>发送</span></button>
+              </div>
+
+              <div class="claudian-input-toolbar">
+                <div class="claudian-model-selector">
+                  <div class="claudian-model-btn"><span class="claudian-model-label">Claude</span></div>
+                </div>
+                <div class="claudian-thinking-selector">
+                  <div class="claudian-thinking-effort">
+                    <span class="claudian-thinking-label-text">思考</span>
+                    <div class="claudian-thinking-gears">
+                      <div class="claudian-thinking-current">高</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="claudian-external-context-selector">
+                  <span class="qa-nav-icon">夹</span>
+                </div>
+                <div class="claudian-mcp-selector">
+                  <span class="qa-nav-icon">MCP</span>
+                </div>
+                <div class="claudian-permission-toggle">
+                  <span class="claudian-permission-label">YOLO</span>
+                  <div class="claudian-toggle-switch"></div>
+                </div>
+                <label class="talos-quyuan-voice-toggle">
+                  <span>语音</span>
+                  <input type="checkbox" aria-label="语音助手开关">
+                  <span class="talos-quyuan-voice-track" aria-hidden="true"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </section>
+  </main>
+  <script>
+    const capsButton = document.querySelector('.talos-quyuan-capability-button');
+    const capsPanel = document.querySelector('.talos-quyuan-capabilities');
+    capsButton.addEventListener('click', () => {
+      const open = capsPanel.classList.toggle('is-open');
+      capsButton.setAttribute('aria-expanded', String(open));
+    });
+    document.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', () => input.toggleAttribute('data-active', input.checked));
+    });
+    document.querySelector('.claudian-toggle-switch').addEventListener('click', (event) => {
+      event.currentTarget.classList.toggle('active');
+    });
+  </script>
+</body>
+</html>

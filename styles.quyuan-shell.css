@@ -1,0 +1,3047 @@
+@font-face {
+  font-family: "TALOS Ma Shan Zheng";
+  src: url("MaShanZheng-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* TALOS · Quyuan v2 runtime inside the established v1 visual shell */
+.talos-quyuan-shell {
+  --talos-qy-paper: var(--background-primary);
+  --talos-qy-paper-strong: var(--background-secondary);
+  --talos-qy-surface: var(--background-secondary-alt, var(--background-secondary));
+  --talos-qy-ink: var(--text-normal);
+  --talos-qy-muted: var(--text-muted);
+  --talos-qy-faint: var(--text-faint);
+  --talos-qy-border: var(--background-modifier-border);
+  --talos-qy-red: var(--interactive-accent);
+  --talos-qy-cyan: var(--interactive-accent-hover, var(--text-accent));
+  --talos-qy-orange: var(--color-orange, var(--interactive-accent));
+  --talos-qy-green: var(--color-green, var(--interactive-accent));
+  --talos-qy-on-accent: var(--text-on-accent, #fff);
+  --talos-qy-hover: var(--background-modifier-hover);
+  --talos-qy-accent-soft: color-mix(in srgb, var(--talos-qy-red) 12%, transparent);
+  --talos-qy-shadow: color-mix(in srgb, var(--talos-qy-ink) 12%, transparent);
+  --talos-qy-radius: var(--radius-m, 10px);
+  --claudian-brand: var(--talos-qy-red);
+  --claudian-brand-rgb: var(--interactive-accent-rgb, 217, 119, 87);
+  position: relative;
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: talos-quyuan;
+  height: 100%;
+  padding: 18px 3% 12px;
+  overflow: hidden;
+  color: var(--talos-qy-ink);
+  background: var(--talos-qy-paper);
+  font-family: var(
+    --font-interface,
+    "PingFang SC",
+    "SF Pro Text",
+    "Noto Sans CJK SC",
+    sans-serif
+  );
+  color-scheme: inherit;
+}
+
+/* The full-vault bridge is the single source of truth while TALOS sync is on.
+   Without it, the shell naturally inherits the current Obsidian light/dark theme. */
+body[data-talos-vault-theme] .talos-quyuan-shell {
+  --talos-qy-paper: var(--tv-bg);
+  --talos-qy-paper-strong: var(--tv-surface);
+  --talos-qy-surface: var(--tv-surface-strong);
+  --talos-qy-ink: var(--tv-text);
+  --talos-qy-muted: var(--tv-muted);
+  --talos-qy-faint: var(--tv-faint);
+  --talos-qy-border: var(--tv-border);
+  --talos-qy-red: var(--tv-accent);
+  --talos-qy-cyan: var(--tv-accent-2);
+  --talos-qy-orange: var(--tv-accent);
+  --talos-qy-green: var(--tv-accent-2);
+  --talos-qy-on-accent: var(--tv-on-accent);
+  --talos-qy-hover: var(--tv-hover);
+  --talos-qy-accent-soft: var(--tv-active);
+  --talos-qy-radius: var(--tv-radius);
+  --claudian-brand: var(--tv-accent);
+  --claudian-brand-rgb: var(--tv-accent-rgb);
+  font-family: var(--tv-font);
+  color-scheme: inherit;
+}
+
+.talos-quyuan-shell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(34%, 270px);
+  height: 7px;
+  background: var(--talos-qy-red);
+}
+
+.talos-quyuan-shell .claudian-header {
+  flex: 0 0 auto;
+  padding: clamp(12px, 2.4cqw, 18px) clamp(8px, 2.6cqw, 20px)
+    clamp(8px, 1.6cqw, 12px);
+}
+
+.talos-quyuan-shell .claudian-title {
+  gap: clamp(9px, 1.8cqw, 14px);
+}
+
+.talos-quyuan-shell .claudian-logo {
+  width: clamp(18px, 3.1cqw, 24px);
+  height: clamp(18px, 3.1cqw, 24px);
+  border-radius: 50%;
+  background: var(--talos-qy-red);
+  flex: 0 0 clamp(18px, 3.1cqw, 24px);
+}
+
+.talos-quyuan-shell .claudian-logo svg {
+  display: none;
+}
+
+.talos-quyuan-shell .claudian-title-text {
+  color: var(--talos-qy-ink);
+  font-size: clamp(14px, 2.45cqw, 19px);
+  line-height: 1;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.talos-quyuan-statusbar {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: clamp(5px, 1.6cqw, 13px);
+  flex: 0 0 auto;
+  min-height: clamp(42px, 7.5cqw, 58px);
+  margin: clamp(8px, 2.3cqw, 18px) clamp(8px, 3.1cqw, 24px)
+    clamp(4px, 1cqw, 8px);
+}
+
+.talos-quyuan-status {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(6px, 1.4cqw, 11px);
+  min-height: clamp(34px, 5.4cqw, 42px);
+  padding: 0 clamp(8px, 2.2cqw, 17px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(11px, 1.9cqw, 15px);
+  background: color-mix(in srgb, var(--talos-qy-surface) 42%, transparent);
+  font-size: clamp(12px, 2.05cqw, 16px);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.talos-quyuan-status-dot {
+  width: clamp(12px, 2.2cqw, 17px);
+  height: clamp(12px, 2.2cqw, 17px);
+  border-radius: 50%;
+  background: var(--talos-qy-cyan);
+  box-shadow: 0 0 12px rgba(49, 215, 238, 0.42);
+}
+
+.talos-quyuan-status.is-streaming .talos-quyuan-status-dot {
+  background: var(--talos-qy-red);
+  box-shadow: 0 0 12px rgba(220, 39, 52, 0.36);
+}
+
+.talos-quyuan-permission {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  gap: clamp(6px, 1.5cqw, 12px);
+  color: var(--talos-qy-muted);
+  font-size: clamp(12px, 1.9cqw, 15px);
+  white-space: nowrap;
+}
+
+.talos-quyuan-permission select {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  height: clamp(34px, 5.9cqw, 46px);
+  padding: 0 clamp(28px, 5.4cqw, 42px) 0 clamp(10px, 1.8cqw, 14px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(10px, 1.8cqw, 14px);
+  color: var(--talos-qy-ink);
+  background-color: transparent;
+  box-shadow: none;
+  font: inherit;
+}
+
+.talos-quyuan-capability-button {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(5px, 1cqw, 8px);
+  margin-left: 0;
+  padding: clamp(5px, 1.3cqw, 10px) clamp(5px, 1.5cqw, 12px);
+  border: 0;
+  color: var(--talos-qy-muted);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: clamp(12px, 2.05cqw, 16px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.talos-quyuan-capability-button:hover,
+.talos-quyuan-capability-button[aria-expanded="true"] {
+  color: var(--talos-qy-red);
+  background: transparent;
+}
+
+.talos-quyuan-capability-button svg {
+  width: clamp(16px, 2.6cqw, 20px);
+  height: clamp(16px, 2.6cqw, 20px);
+  color: var(--talos-qy-green);
+}
+
+.talos-quyuan-capabilities {
+  position: absolute;
+  top: clamp(112px, 19cqw, 148px);
+  right: clamp(18px, 5.9cqw, 46px);
+  z-index: 80;
+  display: none;
+  grid-template-columns: repeat(2, minmax(100px, 1fr));
+  gap: clamp(6px, 1cqw, 8px);
+  width: min(390px, calc(100% - clamp(36px, 11.8cqw, 92px)));
+  padding: clamp(10px, 1.8cqw, 14px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: 16px;
+  background: var(--talos-qy-paper-strong);
+  box-shadow: 7px 7px 0 var(--talos-qy-shadow);
+}
+
+.talos-quyuan-capabilities.is-open {
+  display: grid;
+}
+
+.talos-quyuan-capability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(5px, 1cqw, 8px);
+  min-height: clamp(32px, 4.9cqw, 38px);
+  padding: clamp(6px, 1cqw, 8px) clamp(7px, 1.3cqw, 10px);
+  border: 1.5px solid var(--talos-qy-ink);
+  border-radius: clamp(8px, 1.4cqw, 11px);
+  color: var(--talos-qy-ink);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.talos-quyuan-capability-chip:hover {
+  color: var(--talos-qy-on-accent);
+  background: var(--talos-qy-red);
+}
+
+.talos-quyuan-shell .claudian-tab-content-container {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.talos-quyuan-shell .claudian-messages {
+  padding: clamp(8px, 1.5cqw, 12px) clamp(8px, 3.1cqw, 24px)
+    clamp(12px, 2.6cqw, 20px);
+  scrollbar-color: var(--talos-qy-border) transparent;
+}
+
+.talos-quyuan-shell .claudian-welcome {
+  min-height: clamp(190px, 33cqw, 260px);
+  padding: clamp(18px, 3.8cqw, 30px) clamp(8px, 2.6cqw, 20px)
+    clamp(42px, 10.3cqw, 80px);
+}
+
+.talos-quyuan-shell .claudian-welcome-greeting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--talos-qy-ink);
+  font-family: "STKaiti", "KaiTi", "Songti SC", "Noto Serif CJK SC", serif;
+  font-size: clamp(31px, 7.4cqw, 58px);
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.talos-quyuan-shell .claudian-welcome-greeting::before {
+  content: "屈原 · 新对话";
+  margin-bottom: clamp(16px, 3.6cqw, 28px);
+  color: var(--talos-qy-muted);
+  font-family: "PingFang SC", "SF Pro Text", sans-serif;
+  font-size: clamp(11px, 1.9cqw, 15px);
+  font-weight: 520;
+  letter-spacing: 0.18em;
+}
+
+.talos-quyuan-shell .claudian-welcome-greeting::after {
+  content: "剩下的，我们一起想透。";
+  margin-top: clamp(15px, 3.3cqw, 26px);
+  color: var(--talos-qy-faint);
+  font-size: clamp(13px, 2.45cqw, 19px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.talos-quyuan-shell .claudian-message {
+  border: 1.5px solid var(--talos-qy-border);
+  border-radius: 16px;
+}
+
+.talos-quyuan-shell .claudian-message-user {
+  color: var(--talos-qy-ink);
+  background: var(--talos-qy-surface);
+}
+
+.talos-quyuan-shell .claudian-message-assistant {
+  border-color: transparent;
+  background: transparent;
+}
+
+.talos-quyuan-shell .claudian-input-footer {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: clamp(8px, 1.5cqw, 12px) clamp(8px, 3.1cqw, 24px) 0;
+  border-top: 2px solid var(--talos-qy-ink);
+}
+
+.talos-quyuan-shell .claudian-view-input-nav-row {
+  padding: 0 0 clamp(8px, 1.5cqw, 12px);
+}
+
+.talos-quyuan-shell .claudian-tab-bar-container {
+  min-width: 0;
+}
+
+.talos-quyuan-shell .claudian-tab-badges {
+  gap: clamp(5px, 1cqw, 8px);
+}
+
+.talos-quyuan-shell .claudian-tab-badge {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: min(230px, 42cqw);
+  height: clamp(34px, 5.6cqw, 44px);
+  padding: 0 clamp(9px, 1.8cqw, 14px);
+  gap: clamp(6px, 1.3cqw, 10px);
+  border: 2px solid transparent;
+  border-radius: clamp(10px, 1.8cqw, 14px);
+  color: var(--talos-qy-ink);
+  background: color-mix(in srgb, var(--talos-qy-surface) 48%, transparent);
+  font-size: clamp(12px, 1.9cqw, 15px);
+}
+
+.talos-quyuan-shell .claudian-tab-badge-active {
+  border-color: var(--talos-qy-red);
+  background: color-mix(in srgb, var(--talos-qy-surface) 70%, transparent);
+}
+
+.talos-quyuan-tab-index {
+  font-weight: 800;
+  color: var(--talos-qy-muted);
+}
+
+.talos-quyuan-tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talos-quyuan-tab-close {
+  color: var(--talos-qy-muted);
+  font-size: clamp(16px, 2.6cqw, 20px);
+  line-height: 1;
+}
+
+.talos-quyuan-shell .claudian-input-nav-actions {
+  gap: clamp(10px, 2.3cqw, 18px);
+}
+
+.talos-quyuan-shell .claudian-input-nav-btn {
+  color: var(--talos-qy-muted);
+}
+
+.talos-quyuan-shell .claudian-input-nav-btn:hover {
+  color: var(--talos-qy-red);
+}
+
+.talos-quyuan-shell .claudian-input-nav-btn svg {
+  width: clamp(16px, 2.6cqw, 20px);
+  height: clamp(16px, 2.6cqw, 20px);
+}
+
+.talos-quyuan-shell .claudian-input-container {
+  padding: 0;
+}
+
+.talos-quyuan-shell .claudian-input-wrapper {
+  min-height: clamp(82px, 16.2cqw, 126px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(16px, 3.1cqw, 24px);
+  background: transparent;
+  box-shadow: none;
+}
+
+.talos-quyuan-shell .claudian-input-wrapper textarea.claudian-input {
+  min-height: clamp(58px, 11.3cqw, 88px);
+  padding: clamp(14px, 3.1cqw, 24px) clamp(16px, 3.6cqw, 28px);
+  color: var(--talos-qy-ink);
+  font-size: clamp(13px, 2.3cqw, 18px);
+  line-height: 1.55;
+}
+
+.talos-quyuan-shell .claudian-input-wrapper textarea.claudian-input::placeholder {
+  color: var(--talos-qy-faint);
+  opacity: 1;
+}
+
+.talos-quyuan-action-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: clamp(6px, 1.5cqw, 12px);
+  padding: clamp(8px, 1.5cqw, 12px) 0 clamp(7px, 1.3cqw, 10px);
+}
+
+.talos-quyuan-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 0.9cqw, 7px);
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(34px, 5.6cqw, 44px);
+  padding: 0 clamp(5px, 1.6cqw, 12px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(10px, 1.9cqw, 15px);
+  color: var(--talos-qy-ink);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: clamp(12px, 1.9cqw, 15px);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.talos-quyuan-action:hover,
+.talos-quyuan-action.is-active {
+  color: var(--talos-qy-red);
+  border-color: var(--talos-qy-red);
+  background: var(--talos-qy-accent-soft);
+}
+
+.talos-quyuan-action svg {
+  width: clamp(15px, 2.3cqw, 18px);
+  height: clamp(15px, 2.3cqw, 18px);
+}
+
+.talos-quyuan-action.is-send {
+  min-width: 0;
+  color: var(--talos-qy-on-accent);
+  border-color: var(--talos-qy-red);
+  background: var(--talos-qy-red);
+}
+
+.talos-quyuan-action.is-send:hover {
+  color: var(--talos-qy-on-accent);
+  background: color-mix(in srgb, var(--talos-qy-red) 82%, var(--talos-qy-ink));
+}
+
+.talos-quyuan-shell .claudian-input-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  min-width: 0;
+  gap: clamp(2px, 0.8cqw, 6px);
+  min-height: clamp(42px, 6.9cqw, 54px);
+  margin-top: 0;
+  padding: clamp(7px, 1.3cqw, 10px) 0 0;
+  border-top: 2px solid var(--talos-qy-ink);
+}
+
+.talos-quyuan-shell .claudian-input-toolbar > * {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.talos-quyuan-shell .claudian-model-btn,
+.talos-quyuan-shell .claudian-thinking-current,
+.talos-quyuan-shell .claudian-mode-selector,
+.talos-quyuan-shell .claudian-service-tier-button {
+  min-height: clamp(28px, 4.1cqw, 32px);
+  border-radius: 0;
+  color: var(--talos-qy-orange);
+  background: color-mix(in srgb, var(--talos-qy-surface) 70%, transparent);
+  box-shadow: 0 5px 9px var(--talos-qy-shadow);
+}
+
+.talos-quyuan-shell .claudian-model-btn {
+  min-width: 0;
+  padding: clamp(4px, 0.8cqw, 6px) clamp(6px, 1.3cqw, 10px);
+  font-size: clamp(11px, 1.9cqw, 15px);
+  font-weight: 760;
+}
+
+.talos-quyuan-shell .claudian-thinking-selector {
+  color: var(--talos-qy-muted);
+  min-width: 0;
+  gap: clamp(3px, 0.8cqw, 6px);
+}
+
+.talos-quyuan-shell .claudian-thinking-label-text {
+  font-size: clamp(10px, 1.8cqw, 14px);
+}
+
+.talos-quyuan-shell .claudian-thinking-current {
+  min-width: clamp(28px, 4.4cqw, 34px);
+  padding: clamp(4px, 0.8cqw, 6px) clamp(6px, 1.2cqw, 9px);
+  color: var(--talos-qy-orange);
+  font-size: clamp(11px, 1.9cqw, 15px);
+  font-weight: 760;
+}
+
+.talos-quyuan-shell .claudian-context-meter,
+.talos-quyuan-shell .claudian-external-context-selector,
+.talos-quyuan-shell .claudian-mcp-selector {
+  color: var(--talos-qy-muted);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.talos-quyuan-shell .claudian-permission-toggle {
+  margin-left: 0;
+  min-width: 0;
+  gap: clamp(3px, 0.8cqw, 6px);
+  padding-left: clamp(3px, 1cqw, 8px);
+  padding-right: 0;
+}
+
+.talos-quyuan-shell .claudian-permission-label {
+  color: var(--talos-qy-muted);
+  min-width: 0;
+  font-size: clamp(10px, 1.8cqw, 14px);
+  white-space: nowrap;
+}
+
+.talos-quyuan-shell .claudian-toggle-switch {
+  width: clamp(38px, 6.9cqw, 54px);
+  height: clamp(22px, 3.8cqw, 30px);
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(12px, 2.1cqw, 16px);
+  background: transparent;
+}
+
+.talos-quyuan-shell .claudian-toggle-switch::after {
+  width: clamp(14px, 2.8cqw, 22px);
+  height: clamp(14px, 2.8cqw, 22px);
+  top: clamp(2px, 0.25cqw, 2px);
+  left: clamp(2px, 0.38cqw, 3px);
+  background: var(--talos-qy-paper-strong);
+  box-shadow: 0 1px 4px var(--talos-qy-shadow);
+}
+
+.talos-quyuan-shell .claudian-toggle-switch.active {
+  background: var(--talos-qy-accent-soft);
+}
+
+.talos-quyuan-shell .claudian-toggle-switch.active::after {
+  transform: translateX(clamp(16px, 2.95cqw, 23px));
+  background: var(--talos-qy-red);
+}
+
+.talos-quyuan-voice-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: clamp(3px, 1cqw, 8px);
+  color: var(--talos-qy-muted);
+  font-size: clamp(10px, 1.8cqw, 14px);
+  white-space: nowrap;
+}
+
+.talos-quyuan-voice-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.talos-quyuan-voice-track {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: clamp(38px, 6.9cqw, 54px);
+  height: clamp(22px, 3.8cqw, 30px);
+  margin: 0;
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: clamp(12px, 2.1cqw, 16px);
+  background: transparent;
+  cursor: pointer;
+}
+
+.talos-quyuan-voice-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: clamp(2px, 0.38cqw, 3px);
+  width: clamp(14px, 2.8cqw, 22px);
+  height: clamp(14px, 2.8cqw, 22px);
+  border-radius: 50%;
+  background: var(--talos-qy-paper-strong);
+  box-shadow: 0 1px 4px var(--talos-qy-shadow);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.talos-quyuan-voice-toggle input:focus-visible + .talos-quyuan-voice-track {
+  outline: 2px solid var(--talos-qy-red);
+  outline-offset: 2px;
+}
+
+.talos-quyuan-voice-toggle input:checked + .talos-quyuan-voice-track {
+  background: var(--talos-qy-accent-soft);
+}
+
+.talos-quyuan-voice-toggle input:checked + .talos-quyuan-voice-track::after {
+  transform: translateX(clamp(16px, 2.95cqw, 23px));
+  background: var(--talos-qy-red);
+}
+
+.talos-quyuan-shell .claudian-model-dropdown,
+.talos-quyuan-shell .claudian-thinking-options,
+.talos-quyuan-shell .claudian-history-menu,
+.talos-quyuan-shell .claudian-external-context-dropdown,
+.talos-quyuan-shell .claudian-mcp-selector-dropdown {
+  border: 2px solid var(--talos-qy-ink);
+  border-radius: 12px;
+  color: var(--talos-qy-ink);
+  background: var(--talos-qy-paper-strong);
+  box-shadow: 6px 6px 0 var(--talos-qy-shadow);
+}
+
+body[data-talos-vault-theme] .talos-quyuan-shell
+  :is(
+    .talos-quyuan-status,
+    .talos-quyuan-permission select,
+    .talos-quyuan-capabilities,
+    .talos-quyuan-capability-chip,
+    .claudian-message,
+    .claudian-tab-badge,
+    .claudian-input-wrapper,
+    .talos-quyuan-action,
+    .claudian-model-dropdown,
+    .claudian-thinking-options,
+    .claudian-history-menu,
+    .claudian-external-context-dropdown,
+    .claudian-mcp-selector-dropdown
+  ) {
+  border-radius: var(--talos-qy-radius);
+}
+
+@container talos-quyuan (max-width: 620px) {
+  .talos-quyuan-shell .claudian-header {
+    padding-inline: 8px;
+  }
+
+  .talos-quyuan-statusbar {
+    gap: clamp(6px, 1.6cqw, 10px);
+    margin: 10px 8px 6px;
+  }
+
+  .talos-quyuan-permission {
+    min-width: 0;
+  }
+
+  .talos-quyuan-permission > span {
+    flex: 0 0 auto;
+  }
+
+  .talos-quyuan-shell .claudian-messages {
+    padding-inline: 8px;
+  }
+
+  .talos-quyuan-shell .claudian-input-footer {
+    padding-inline: 8px;
+  }
+
+  .talos-quyuan-action-row {
+    gap: clamp(5px, 1.4cqw, 7px);
+  }
+
+  .talos-quyuan-action {
+    padding-inline: clamp(4px, 1.2cqw, 8px);
+  }
+
+  .talos-quyuan-shell .claudian-input-toolbar {
+    justify-content: space-between;
+  }
+
+  .talos-quyuan-shell .claudian-permission-toggle {
+    margin-left: 0;
+  }
+
+  .talos-quyuan-shell .claudian-external-context-selector,
+  .talos-quyuan-shell .claudian-mcp-selector {
+    margin-left: clamp(2px, 0.8cqw, 5px);
+  }
+
+  .talos-quyuan-shell .claudian-external-context-icon,
+  .talos-quyuan-shell .claudian-mcp-selector-icon {
+    width: clamp(18px, 4.5cqw, 24px);
+    height: clamp(18px, 4.5cqw, 24px);
+  }
+
+  .talos-quyuan-shell .claudian-external-context-icon svg,
+  .talos-quyuan-shell .claudian-mcp-selector-icon svg {
+    width: clamp(13px, 3.2cqw, 16px);
+    height: clamp(13px, 3.2cqw, 16px);
+  }
+
+  .talos-quyuan-shell .claudian-service-tier-toggle,
+  .talos-quyuan-shell .claudian-context-meter {
+    flex-shrink: 1;
+  }
+}
+
+@container talos-quyuan (max-width: 440px) {
+  .talos-quyuan-statusbar {
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    gap: 5px;
+  }
+
+  .talos-quyuan-capability-button {
+    grid-column: auto;
+    justify-self: auto;
+    gap: 4px;
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .talos-quyuan-permission > span {
+    display: inline;
+    flex: 0 0 auto;
+    font-size: 10px;
+  }
+
+  .talos-quyuan-permission {
+    gap: 4px;
+  }
+
+  .talos-quyuan-permission select {
+    height: 32px;
+    padding-inline: 7px 22px;
+    font-size: 10px;
+  }
+
+  .talos-quyuan-status {
+    min-height: 32px;
+    padding-inline: 8px;
+    font-size: 11px;
+  }
+
+  .talos-quyuan-status-dot {
+    width: 11px;
+    height: 11px;
+  }
+
+  .talos-quyuan-shell .claudian-input-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 2px;
+  }
+
+  .talos-quyuan-shell .claudian-model-btn,
+  .talos-quyuan-shell .claudian-thinking-current {
+    padding-inline: 5px;
+    font-size: 10px;
+  }
+
+  .talos-quyuan-shell .claudian-thinking-label-text,
+  .talos-quyuan-shell .claudian-permission-label,
+  .talos-quyuan-voice-toggle {
+    font-size: 10px;
+  }
+
+  .talos-quyuan-shell .claudian-permission-toggle,
+  .talos-quyuan-voice-toggle {
+    margin-left: 0;
+    gap: 3px;
+  }
+
+  .talos-quyuan-shell .claudian-toggle-switch,
+  .talos-quyuan-voice-track {
+    width: 38px;
+    height: 22px;
+  }
+}
+
+@container talos-quyuan (max-width: 360px) {
+  .talos-quyuan-statusbar,
+  .talos-quyuan-shell .claudian-input-toolbar {
+    gap: 1px;
+  }
+
+  .talos-quyuan-shell .claudian-model-btn,
+  .talos-quyuan-shell .claudian-thinking-current {
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+
+  .talos-quyuan-shell .claudian-thinking-label-text,
+  .talos-quyuan-shell .claudian-permission-label,
+  .talos-quyuan-voice-toggle {
+    font-size: 9px;
+  }
+
+  .talos-quyuan-shell .claudian-external-context-selector,
+  .talos-quyuan-shell .claudian-mcp-selector {
+    margin-left: 1px;
+  }
+
+  .talos-quyuan-shell .claudian-external-context-icon,
+  .talos-quyuan-shell .claudian-mcp-selector-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .talos-quyuan-shell .claudian-toggle-switch,
+  .talos-quyuan-voice-track {
+    width: 34px;
+    height: 20px;
+  }
+
+  .talos-quyuan-shell .claudian-toggle-switch::after,
+  .talos-quyuan-voice-track::after {
+    width: 12px;
+    height: 12px;
+  }
+
+  .talos-quyuan-shell .claudian-toggle-switch.active::after,
+  .talos-quyuan-voice-toggle input:checked + .talos-quyuan-voice-track::after {
+    transform: translateX(15px);
+  }
+}
+
+/* 屈原语音对话面板 · 流体声云
+   结构固定；七套 TALOS 主题只替换本作用域变量，避免宿主主题串色。 */
+.talos-console .nav-icon {
+  display: none;
+}
+
+.talos-console[data-talos-page="jarvis"]::before,
+.talos-console[data-talos-page="jarvis"] > .bg-fx {
+  display: none !important;
+}
+
+.talos-console:not([data-talos-page="overview"]) .app {
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  align-items: start;
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+.talos-console:not([data-talos-page="overview"]) .sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  z-index: 60;
+  display: flex !important;
+  flex-direction: column;
+  width: 72px;
+  min-width: 0;
+  max-height: 100svh;
+  padding: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: none;
+  transition:
+    width 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.talos-console[data-talos-page="jarvis"] .sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: #070d17;
+}
+
+.talos-console[data-talos-page="jarvis"] .app {
+  align-items: stretch;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within) {
+  width: 296px;
+  box-shadow: 14px 0 28px rgba(0, 0, 0, 0.24);
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar > .card:not(.pagenav-card) {
+  display: none !important;
+}
+
+.talos-console:not([data-talos-page="overview"]) .pagenav-card {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card::before,
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card::after {
+  display: none !important;
+}
+
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .section-title,
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-group-label,
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-label,
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-meta {
+  display: none;
+}
+
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-group {
+  width: 50px;
+  justify-items: center;
+  gap: 8px;
+}
+
+.talos-console:not([data-talos-page="overview"]) .pagenav-card .command {
+  box-sizing: border-box;
+  justify-content: center;
+  width: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  margin: 0 !important;
+  padding: 9px;
+  overflow: hidden;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .section-title,
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-group-label {
+  display: flex;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-label,
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-meta {
+  display: block;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav {
+  align-items: stretch;
+  gap: 14px;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-group {
+  width: auto;
+  justify-items: stretch;
+  gap: 6px;
+}
+
+.talos-console:not([data-talos-page="overview"])
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .command {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 9px 10px;
+  overflow: visible;
+}
+
+.talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"])
+  .main {
+  min-width: 0;
+  padding: 18px !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .main,
+.talos-console[data-talos-page="jarvis"] .page-content {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  background: transparent;
+}
+
+/* 屈原语音页最终布局护栏：
+   今天的详情页窄导航/总览重排会把父级高度压成 0，导致语音面板已挂载、
+   麦克风已请求权限，但 .tq-voice 不可见。这里给屈原页独立满高布局。 */
+.talos-console[data-talos-page="jarvis"] {
+  --tq-view-height: calc(100svh - 76px);
+  overflow: hidden !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .app {
+  display: grid !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  width: 100% !important;
+  height: var(--tq-view-height) !important;
+  min-height: var(--tq-view-height) !important;
+  max-height: var(--tq-view-height) !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .main {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: var(--tq-view-height) !important;
+  min-height: var(--tq-view-height) !important;
+  max-height: var(--tq-view-height) !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .page-content {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-voice {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-body,
+.talos-console[data-talos-page="jarvis"] .tq-stage,
+.talos-console[data-talos-page="jarvis"] .tq-side {
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+.tq-voice {
+  --tq-theme-key: aurora;
+  --tq-surface: #06101d;
+  --tq-surface-soft: #0a1727;
+  --tq-panel: rgba(10, 23, 39, 0.88);
+  --tq-panel-strong: rgba(13, 29, 49, 0.96);
+  --tq-border: rgba(143, 177, 228, 0.18);
+  --tq-text: #f3f6fb;
+  --tq-muted: #92a0b5;
+  --tq-faint: #657389;
+  --tq-brand: #dc2734;
+  --tq-particle-a: #2d84ff;
+  --tq-particle-b: #7558ff;
+  --tq-particle-c: #ff6f50;
+  --tq-state-listen: #378add;
+  --tq-state-reco: #1d9e75;
+  --tq-state-think: #7f77dd;
+  --tq-state-speak: #d85a30;
+  --tq-copy-shield: rgba(4, 12, 23, 0.54);
+  --tq-on-brand: #fff;
+  --tq-btn-radius: 10px;
+  --tq-btn-height: 36px;
+  --tq-btn-accent: var(--tq-brand);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--tq-text);
+  background: var(--tq-surface);
+  font-family: "PingFang SC", "SF Pro Display", "Noto Sans CJK SC", sans-serif;
+  font-size: 14px;
+  color-scheme: dark;
+  isolation: isolate;
+}
+
+.talos-console.theme-cosmos-dark .tq-voice {
+  --tq-theme-key: cosmos-dark;
+  --tq-surface: #030711;
+  --tq-surface-soft: #080f20;
+  --tq-panel: rgba(8, 15, 32, 0.9);
+  --tq-panel-strong: rgba(11, 21, 43, 0.97);
+  --tq-border: rgba(119, 151, 225, 0.2);
+  --tq-particle-a: #2587ff;
+  --tq-particle-b: #7448ff;
+  --tq-particle-c: #ff7451;
+  --tq-copy-shield: rgba(3, 7, 17, 0.56);
+}
+
+.talos-console.theme-animal-island .tq-voice {
+  --tq-theme-key: animal-island;
+  --tq-surface: #10211e;
+  --tq-surface-soft: #17302b;
+  --tq-panel: rgba(30, 56, 49, 0.9);
+  --tq-panel-strong: rgba(34, 66, 57, 0.97);
+  --tq-border: rgba(190, 231, 204, 0.2);
+  --tq-text: #fff6df;
+  --tq-muted: #b8cdbd;
+  --tq-faint: #819a8a;
+  --tq-brand: #f18a63;
+  --tq-on-brand: #10211e;
+  --tq-particle-a: #50d6b1;
+  --tq-particle-b: #62a9d7;
+  --tq-particle-c: #ff9a70;
+  --tq-copy-shield: rgba(16, 33, 30, 0.58);
+}
+
+.talos-console.theme-system-classic .tq-voice {
+  --tq-theme-key: system-classic;
+  --tq-surface: #080808;
+  --tq-surface-soft: #111111;
+  --tq-panel: rgba(18, 18, 18, 0.94);
+  --tq-panel-strong: rgba(24, 24, 24, 0.98);
+  --tq-border: rgba(255, 255, 255, 0.24);
+  --tq-text: #ffffff;
+  --tq-muted: #b9b9b9;
+  --tq-faint: #777777;
+  --tq-brand: #ffffff;
+  --tq-on-brand: #080808;
+  --tq-particle-a: #ffffff;
+  --tq-particle-b: #a8a8a8;
+  --tq-particle-c: #606060;
+  --tq-copy-shield: rgba(8, 8, 8, 0.62);
+}
+
+.talos-console.theme-data-stream .tq-voice {
+  --tq-theme-key: data-stream;
+  --tq-surface: #01090b;
+  --tq-surface-soft: #031315;
+  --tq-panel: rgba(2, 20, 22, 0.92);
+  --tq-panel-strong: rgba(3, 28, 30, 0.98);
+  --tq-border: rgba(71, 234, 255, 0.2);
+  --tq-text: #d9fdff;
+  --tq-muted: #82bfc5;
+  --tq-faint: #507c82;
+  --tq-brand: #47eaff;
+  --tq-on-brand: #01090b;
+  --tq-particle-a: #47eaff;
+  --tq-particle-b: #28d78d;
+  --tq-particle-c: #a6ff4d;
+  --tq-copy-shield: rgba(1, 9, 11, 0.6);
+}
+
+.talos-console.theme-soft-relief .tq-voice {
+  --tq-theme-key: soft-relief;
+  --tq-surface: #dfe2ed;
+  --tq-surface-soft: #e8e9f2;
+  --tq-panel: rgba(240, 241, 248, 0.88);
+  --tq-panel-strong: rgba(247, 247, 251, 0.96);
+  --tq-border: rgba(72, 70, 105, 0.16);
+  --tq-text: #202332;
+  --tq-muted: #626579;
+  --tq-faint: #85889b;
+  --tq-brand: #6759d3;
+  --tq-particle-a: #6257d9;
+  --tq-particle-b: #3d8fd1;
+  --tq-particle-c: #b8579a;
+  --tq-copy-shield: rgba(223, 226, 237, 0.62);
+  color-scheme: light;
+}
+
+.talos-console.theme-geometric-modern .tq-voice {
+  --tq-theme-key: geometric-modern-xuan-paper;
+  --tq-surface: #f1ebdd;
+  --tq-surface-soft: #f7f2e8;
+  --tq-panel: rgba(236, 227, 210, 0.94);
+  --tq-panel-strong: rgba(250, 246, 237, 0.98);
+  --tq-border: rgba(92, 76, 52, 0.24);
+  --tq-text: #25231f;
+  --tq-muted: #5f5a52;
+  --tq-faint: #70695f;
+  --tq-brand: #c2383d;
+  --tq-particle-a: #4f7ea8;
+  --tq-particle-b: #7c865a;
+  --tq-particle-c: #c95f4e;
+  --tq-state-listen: #3d77a8;
+  --tq-state-reco: #527b62;
+  --tq-state-think: #705da3;
+  --tq-state-speak: #bd4e3c;
+  --tq-copy-shield: rgba(241, 235, 221, 0.46);
+  --tq-on-brand: #ffffff;
+  color-scheme: light;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"] .sidebar {
+  border-right-color: rgba(92, 76, 52, 0.18);
+  background: #e6ddcb;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"]
+  .pagenav-card .command {
+  color: #69645b !important;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"]
+  .pagenav-card .command:hover {
+  color: #25231f !important;
+  border-color: rgba(137, 109, 69, 0.34) !important;
+  background: rgba(137, 109, 69, 0.12) !important;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"]
+  .pagenav-card .command.active {
+  color: #25231f !important;
+  border-color: rgba(194, 56, 61, 0.36) !important;
+  background: rgba(194, 56, 61, 0.1) !important;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"]
+  .pagenav-card .command.active .nav-label {
+  background: none !important;
+  color: #25231f !important;
+  -webkit-text-fill-color: currentColor !important;
+  text-shadow: none !important;
+}
+
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"]
+  .pagenav-card .command.active::before {
+  background: #c2383d;
+}
+
+.talos-console.theme-geometric-modern .tq-copy h1.tq-cap,
+.talos-console.theme-geometric-modern .tq-copy .tq-sub,
+.talos-console.theme-geometric-modern .tq-live {
+  text-shadow: none;
+}
+
+.talos-console.theme-geometric-modern .tq-foot {
+  box-shadow:
+    0 14px 42px rgba(73, 57, 35, 0.11),
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.tq-voice *,
+.tq-voice *::before,
+.tq-voice *::after {
+  box-sizing: border-box;
+}
+
+.tq-head {
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+  min-height: 72px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--tq-border);
+  background: color-mix(in srgb, var(--tq-surface) 90%, var(--tq-panel-strong));
+  box-shadow: 0 1px 0 color-mix(in srgb, #fff 34%, transparent) inset;
+}
+
+.tq-head-brand,
+.tq-head-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tq-head-brand {
+  flex: 1 1 auto;
+  gap: 11px;
+}
+
+.tq-head-actions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tq-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(36, 91, 255, 0.24);
+  border-radius: 13px;
+  background: rgba(36, 91, 255, 0.08);
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 7px 20px rgba(36, 91, 255, 0.1);
+}
+
+.tq-badge img {
+  display: block;
+  width: 56px;
+  max-width: none;
+  height: 56px;
+  object-fit: contain;
+}
+
+.tq-title {
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+
+.tq-title b,
+.tq-title small {
+  display: block;
+}
+
+.tq-title b {
+  color: var(--tq-text);
+  font-size: 15.5px;
+  font-weight: 680;
+  letter-spacing: 0.035em;
+}
+
+.tq-title small {
+  margin-top: 4px;
+  color: var(--tq-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.015em;
+}
+
+.tq-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--tq-border);
+  border-radius: 11px;
+  color: var(--tq-muted);
+  background: color-mix(in srgb, var(--tq-panel-strong) 86%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--tq-text) 6%, transparent) inset,
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tq-chip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.talos-console.theme-geometric-modern .tq-status-chip {
+  border-color: rgba(84, 120, 101, 0.28);
+  color: #385947;
+  background: rgba(84, 120, 101, 0.08);
+}
+
+.talos-console.theme-geometric-modern .tq-model {
+  border-color: rgba(71, 123, 165, 0.26);
+  color: #405f78;
+  background: rgba(71, 123, 165, 0.07);
+}
+
+.tq-btn {
+  --tq-btn-accent: var(--tq-state);
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: var(--tq-btn-height);
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--tq-btn-accent) 28%, var(--tq-border));
+  border-radius: var(--tq-btn-radius);
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-panel-strong) 86%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--tq-text) 7%, transparent) inset,
+    0 8px 24px rgba(0, 0, 0, 0.12);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.tq-btn svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+
+.tq-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tq-btn-accent) 68%, var(--tq-border));
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-btn-accent) 16%, var(--tq-panel-strong));
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+.tq-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--tq-btn-accent) 78%, var(--tq-border));
+  outline: 0;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--tq-surface) 88%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--tq-btn-accent) 58%, transparent);
+}
+
+.tq-btn:active:not(:disabled) {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+  transform: translateY(0) scale(0.98);
+}
+
+.tq-btn:disabled,
+.tq-btn[aria-disabled="true"] {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: saturate(0.55);
+  box-shadow: none;
+  transform: none;
+}
+
+.tq-btn--primary {
+  color: var(--tq-btn-fg, var(--tq-surface));
+  border-color: color-mix(in srgb, var(--tq-btn-accent) 88%, var(--tq-text));
+  background: var(--tq-btn-accent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 28%, transparent) inset,
+    0 10px 24px color-mix(in srgb, var(--tq-btn-accent) 24%, transparent);
+}
+
+.tq-btn--primary:hover:not(:disabled) {
+  color: var(--tq-btn-fg, var(--tq-surface));
+  background: color-mix(in srgb, var(--tq-btn-accent) 88%, #fff);
+}
+
+.tq-btn--secondary {
+  background: color-mix(in srgb, var(--tq-panel-strong) 88%, transparent);
+}
+
+.tq-btn--ghost {
+  border-color: color-mix(in srgb, var(--tq-border) 78%, transparent);
+  color: var(--tq-muted);
+  background: color-mix(in srgb, var(--tq-panel-strong) 46%, transparent);
+  box-shadow: none;
+}
+
+.tq-btn--danger {
+  --tq-btn-accent: var(--tq-state-speak);
+  color: color-mix(in srgb, var(--tq-state-speak) 82%, var(--tq-text));
+  background: color-mix(in srgb, var(--tq-state-speak) 10%, var(--tq-panel-strong));
+}
+
+.tq-btn--icon {
+  flex: 0 0 var(--tq-btn-height);
+  width: var(--tq-btn-height);
+  padding: 0;
+}
+
+.tq-btn--xs {
+  --tq-btn-height: 28px;
+  --tq-btn-radius: 8px;
+  gap: 5px;
+  padding-inline: 9px;
+  font-size: 10px;
+}
+
+.tq-btn--sm {
+  --tq-btn-height: 32px;
+  --tq-btn-radius: 9px;
+  gap: 6px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+
+.tq-btn--lg {
+  --tq-btn-height: 40px;
+  --tq-btn-radius: 11px;
+  padding-inline: 14px;
+}
+
+.tq-status-chip {
+  border-color: color-mix(in srgb, var(--tq-state-reco) 30%, var(--tq-border));
+}
+
+.tq-enginebtn {
+  --tq-btn-accent: var(--tq-state);
+  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
+  background: color-mix(in srgb, var(--tq-state) 10%, var(--tq-panel-strong));
+}
+
+.tq-squarebtn {
+  --tq-btn-height: 36px;
+}
+
+.tq-body {
+  --tq-side-size: 360px;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    8px
+    minmax(280px, var(--tq-side-size));
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  transition: grid-template-columns 180ms ease;
+}
+
+.tq-body.is-side-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
+.tq-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--tq-surface);
+  isolation: isolate;
+}
+
+.tq-particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tq-particles-back {
+  z-index: 1;
+}
+
+.tq-particles-front {
+  z-index: 4;
+}
+
+.tq-stage.is-particle-fallback {
+  background:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--tq-state) 15%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--tq-surface) 92%, var(--tq-state)), var(--tq-surface));
+}
+
+.tq-stage.is-particle-fallback .tq-particles {
+  display: none;
+}
+
+.tq-stage.is-particle-fallback .tq-orb {
+  width: min(18vw, 144px);
+  height: min(18vw, 144px);
+}
+
+.tq-stage.is-particle-fallback .tq-core {
+  opacity: 0.78;
+  box-shadow:
+    0 0 0 18px color-mix(in srgb, var(--tq-state) 8%, transparent),
+    0 0 64px color-mix(in srgb, var(--tq-state) 28%, transparent);
+}
+
+.tq-orb {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(10vw, 82px);
+  height: min(10vw, 82px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.tq-core {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 42%, transparent);
+  border-radius: 50%;
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-state) 16%, transparent) !important;
+  opacity: 0.42;
+}
+
+.tq-core svg {
+  width: 24px;
+  height: 24px;
+}
+
+.tq-copy {
+  position: absolute;
+  z-index: 5;
+  right: clamp(28px, 4vw, 58px);
+  bottom: 102px;
+  width: min(58%, 640px);
+  padding: 34px 30px 28px;
+  text-align: right;
+  background: var(--tq-copy-shield);
+  border-radius: 30px;
+  box-shadow: 0 0 64px 48px var(--tq-copy-shield);
+  pointer-events: none;
+}
+
+.tq-flow {
+  position: absolute;
+  z-index: 5;
+  top: 30px;
+  left: clamp(24px, 3vw, 46px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(18px, 2.2vw, 34px);
+  margin: 0;
+  color: var(--tq-faint);
+  font-size: clamp(18px, 1.4vw, 22px);
+  font-weight: 560;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.tq-flow-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  opacity: 0.62;
+  transition:
+    color 220ms ease,
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.tq-flow-state i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.tq-voice[data-voice-state="listen"] .tq-flow-state.is-listen,
+.tq-voice[data-voice-state="idle"] .tq-flow-state.is-listen,
+.tq-voice[data-voice-state="reco"] .tq-flow-state.is-reco,
+.tq-voice[data-voice-state="think"] .tq-flow-state.is-think,
+.tq-voice[data-voice-state="speak"] .tq-flow-state.is-speak {
+  color: var(--tq-state);
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.tq-voice[data-voice-state="listen"] .tq-flow-state.is-listen i,
+.tq-voice[data-voice-state="idle"] .tq-flow-state.is-listen i,
+.tq-voice[data-voice-state="reco"] .tq-flow-state.is-reco i,
+.tq-voice[data-voice-state="think"] .tq-flow-state.is-think i,
+.tq-voice[data-voice-state="speak"] .tq-flow-state.is-speak i {
+  background: currentColor;
+  box-shadow: 0 0 14px currentColor;
+}
+
+.tq-copy h1.tq-cap {
+  margin: 0;
+  color: var(--tq-text);
+  -webkit-text-fill-color: var(--tq-text);
+  -webkit-background-clip: border-box !important;
+  background: none !important;
+  background-clip: border-box !important;
+  font-family: "TALOS Ma Shan Zheng", "STKaiti", "Kaiti SC", serif;
+  font-size: clamp(48px, 4.8vw, 72px) !important;
+  line-height: 1.02;
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  text-shadow: 0 2px 22px var(--tq-surface);
+}
+
+.tq-copy .tq-sub {
+  margin-top: 15px;
+  color: var(--tq-text);
+  font-size: clamp(20px, 2vw, 30px) !important;
+  line-height: 1.2;
+  font-weight: 430;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 18px var(--tq-surface);
+}
+
+.tq-live {
+  max-width: 640px;
+  margin: 20px 0 0 auto;
+  overflow: hidden;
+  color: var(--tq-muted);
+  font-size: clamp(13px, 1.25vw, 17px);
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 12px var(--tq-surface);
+}
+
+.tq-voice[data-voice-state="speak"] .tq-copy {
+  animation: tq-answer-arrive 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tq-answer-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.tq-foot {
+  position: absolute;
+  z-index: 6;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 9px 11px;
+  border: 1px solid var(--tq-border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--tq-panel-strong) 92%, transparent);
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.22),
+    0 1px 0 color-mix(in srgb, var(--tq-text) 7%, transparent) inset;
+  backdrop-filter: blur(18px);
+}
+
+.tq-foot .tq-btn {
+  min-height: var(--tq-btn-height);
+}
+
+.tq-foot .tq-listen-btn {
+  --tq-btn-accent: var(--tq-state-listen);
+  --tq-btn-fg: #06101d;
+}
+
+.tq-foot .tq-listen-btn:not(.is-active) {
+  color: var(--tq-muted);
+  border-color: var(--tq-border);
+  background: color-mix(in srgb, var(--tq-panel-strong) 86%, transparent);
+  box-shadow: none;
+}
+
+.tq-foot .tq-stop {
+  --tq-btn-accent: var(--tq-state-speak);
+}
+
+.tq-foot .tq-text-btn {
+  --tq-btn-accent: var(--tq-state-think);
+}
+
+.tq-meter {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 56px;
+  height: 24px;
+  padding: 2px 8px;
+  overflow: hidden;
+}
+
+.tq-meter i {
+  display: block;
+  width: 2px;
+  height: var(--bar, 8px);
+  border-radius: 2px;
+  background: var(--tq-state);
+  opacity: 0.52;
+  transform: scaleY(calc(0.28 + var(--tq-level, 0)));
+  transform-origin: center;
+  transition: transform 45ms linear, background 220ms ease;
+}
+
+.tq-dot {
+  flex: 0 1 160px;
+  overflow: hidden;
+  color: var(--tq-muted);
+  font-size: 11px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tq-side-resizer {
+  position: relative;
+  z-index: 12;
+  width: 8px;
+  min-width: 8px;
+  cursor: col-resize;
+  background: color-mix(in srgb, var(--tq-border) 38%, transparent);
+  box-shadow: 1px 0 0 var(--tq-border) inset;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+  touch-action: none;
+}
+
+.tq-side-resizer:hover,
+.tq-side-resizer:focus-visible,
+.tq-side-resizer.is-dragging {
+  background: color-mix(in srgb, var(--tq-state) 17%, transparent);
+  box-shadow:
+    2px 0 0 color-mix(in srgb, var(--tq-state) 66%, transparent) inset,
+    0 0 18px color-mix(in srgb, var(--tq-state) 18%, transparent);
+  outline: 0;
+}
+
+.tq-body.is-side-collapsed .tq-side-resizer {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.tq-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--tq-panel);
+  backdrop-filter: blur(22px);
+  opacity: 1;
+  transition: opacity 140ms ease;
+}
+
+.tq-body.is-side-collapsed .tq-side {
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tq-side-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 58px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tq-border);
+  background: color-mix(in srgb, var(--tq-panel-strong) 78%, transparent);
+}
+
+.tq-side-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.tq-side-identity-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 38%, var(--tq-border));
+  border-radius: 9px;
+  color: var(--tq-state);
+  background: color-mix(in srgb, var(--tq-state) 9%, transparent);
+}
+
+.tq-side-identity-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tq-side-identity b,
+.tq-side-identity small {
+  display: block;
+}
+
+.tq-side-identity b {
+  overflow: hidden;
+  color: var(--tq-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tq-side-identity small {
+  margin-top: 2px;
+  color: var(--tq-muted);
+  font-size: 9px;
+}
+
+.tq-side-actions,
+.tq-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tq-mini-btn,
+.tq-send-btn {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+}
+
+.tq-mini-btn svg,
+.tq-send-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tq-side-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  flex: 0 0 auto;
+  margin: 9px 10px;
+  padding: 4px;
+  border: 1px solid var(--tq-border);
+  border-radius: 12px;
+  border-bottom: 1px solid var(--tq-border);
+  background: color-mix(in srgb, var(--tq-surface) 42%, transparent);
+}
+
+.tq-side-tab {
+  gap: 6px;
+  width: 100%;
+  height: 34px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--tq-muted);
+  background: transparent;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.tq-side-tab svg {
+  width: 13px;
+  height: 13px;
+}
+
+.tq-side-tab.is-active {
+  --tq-btn-accent: var(--tq-state);
+  color: var(--tq-text);
+  border-color: color-mix(in srgb, var(--tq-state) 42%, var(--tq-border));
+  background: color-mix(in srgb, var(--tq-state) 13%, var(--tq-panel-strong));
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12);
+}
+
+.tq-side-panels {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tq-side-panel {
+  display: none;
+  height: 100%;
+  padding: 14px 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.tq-side-panel.is-active {
+  display: flex;
+  flex-direction: column;
+}
+
+.tq-side-panel-session {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tq-side-section,
+.tq-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 4px 10px;
+}
+
+.tq-side-section b,
+.tq-session-head b {
+  color: var(--tq-text);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.tq-session-head {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 3px 13px 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tq-border) 66%, transparent);
+}
+
+.tq-session-head b,
+.tq-session-head small {
+  display: block;
+}
+
+.tq-session-head small {
+  margin-top: 2px;
+  color: var(--tq-muted);
+  font-size: 9px;
+}
+
+.tq-side-section span {
+  color: var(--tq-faint);
+  font-size: 10px;
+}
+
+.tq-side-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 7px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--tq-border) 76%, transparent);
+  border-radius: 12px;
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-panel-strong) 46%, transparent);
+  text-align: left;
+  font-weight: 400;
+  line-height: normal;
+  white-space: normal;
+}
+
+.tq-side-row:hover,
+.tq-side-row:focus-visible {
+  color: var(--tq-text);
+  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
+  background: color-mix(in srgb, var(--tq-state) 9%, transparent);
+  outline: none;
+  transform: translateX(2px);
+}
+
+.tq-side-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--tq-border);
+  border-radius: 9px;
+  color: var(--tq-state);
+}
+
+.tq-side-row-icon svg,
+.tq-side-row-arrow svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tq-side-row-copy,
+.tq-side-row-copy b,
+.tq-side-row-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.tq-side-row-copy b {
+  overflow: hidden;
+  color: var(--tq-text);
+  font-size: 12px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tq-side-row-copy small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--tq-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tq-side-row-arrow {
+  color: var(--tq-faint);
+}
+
+.tq-side-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  flex: 0 0 auto;
+  padding: 11px 14px;
+  border-top: 1px solid var(--tq-border);
+  color: var(--tq-muted);
+  font-size: 10px;
+}
+
+.tq-side-footrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tq-side-footrow svg {
+  width: 13px;
+  height: 13px;
+}
+
+.tq-convo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 13px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.tq-bub {
+  max-width: 92%;
+  padding: 10px 12px;
+  border: 1px solid var(--tq-border);
+  border-radius: 14px;
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-panel-strong) 84%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.tq-me {
+  align-self: flex-end;
+  border-bottom-right-radius: 5px;
+  background: color-mix(in srgb, var(--tq-state) 12%, var(--tq-panel-strong));
+}
+
+.tq-qy {
+  align-self: flex-start;
+  border-bottom-left-radius: 5px;
+}
+
+.tq-bub p {
+  margin: 0 0 0.65em;
+}
+
+.tq-bub p:last-child,
+.tq-bub ul:last-child,
+.tq-bub ol:last-child {
+  margin-bottom: 0;
+}
+
+.tq-bub ul,
+.tq-bub ol {
+  margin: 0.35em 0 0.75em;
+  padding-left: 1.4em;
+}
+
+.tq-bub code {
+  border-radius: 4px;
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-surface) 62%, transparent);
+}
+
+.tq-bub-role {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--tq-state);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.tq-exec {
+  display: block;
+  margin-top: 6px;
+  color: var(--tq-muted);
+  font-size: 10px;
+}
+
+.tq-confirm {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tq-session-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 210px;
+  padding: 20px 10px;
+  color: var(--tq-muted);
+  text-align: center;
+}
+
+.tq-session-empty.is-hidden {
+  display: none;
+}
+
+.tq-session-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 38%, var(--tq-border));
+  border-radius: 14px;
+  color: var(--tq-state);
+  background: color-mix(in srgb, var(--tq-state) 8%, transparent);
+}
+
+.tq-session-empty-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tq-session-empty b {
+  color: var(--tq-text);
+  font-size: 13px;
+}
+
+.tq-session-empty small {
+  max-width: 220px;
+  color: var(--tq-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.tq-quick-prompts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tq-quick-prompt {
+  font-size: 9px;
+}
+
+.tq-quick-prompt:hover,
+.tq-quick-prompt:focus-visible {
+  border-color: color-mix(in srgb, var(--tq-state) 48%, var(--tq-border));
+  color: var(--tq-text);
+  outline: 0;
+}
+
+.tq-side-composer {
+  flex: 0 0 auto;
+  margin: 0 11px 10px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tq-panel-strong) 88%, transparent);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.14);
+}
+
+.tq-side-composer:focus-within {
+  border-color: color-mix(in srgb, var(--tq-state) 62%, var(--tq-border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--tq-state) 10%, transparent),
+    0 12px 36px rgba(0, 0, 0, 0.15);
+}
+
+.tq-side-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  max-height: 150px;
+  margin: 0;
+  padding: 2px 3px 7px;
+  resize: vertical;
+  border: 0;
+  color: var(--tq-text);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.tq-side-composer textarea:focus {
+  outline: 0;
+  box-shadow: none;
+}
+
+.tq-side-composer textarea::placeholder {
+  color: var(--tq-faint);
+}
+
+.tq-side-composer-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tq-composer-hint {
+  color: var(--tq-faint);
+  font-size: 9px;
+}
+
+.tq-send-btn {
+  --tq-btn-accent: var(--tq-brand);
+  --tq-btn-fg: var(--tq-on-brand);
+}
+
+/* Uiverse.io / gharsh11032000 interaction language, adapted to TALOS semantics.
+   Compact action buttons get the rising color fill + shake. Side tabs share the
+   black pill and rising fill, but stay spatially stable because rotating three
+   adjacent full-width controls harms navigation. List rows remain stationary. */
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  --tq-btn-fill: var(--tq-btn-accent, #f53844);
+  overflow: hidden;
+  isolation: isolate;
+  border-color: color-mix(in srgb, #e8e8e8 16%, transparent);
+  border-radius: 50px;
+  color: #e8e8e8;
+  background: #212121;
+  transition:
+    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row)::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: "";
+  background: var(--tq-btn-fill);
+  transform: translateY(105%);
+  transition: transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: none;
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row) svg {
+  color: var(--tq-btn-fill);
+  transition:
+    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    stroke 300ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled),
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible {
+  color: #e8e8e8;
+  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8);
+  background: #212121;
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled) {
+  animation: tq-button-shake 200ms linear 1;
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled)::before,
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible::before {
+  transform: translateY(0);
+}
+
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled) svg,
+.tq-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible svg {
+  color: #e8e8e8;
+}
+
+.tq-btn.tq-listen-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  --tq-btn-fill: var(--tq-state-listen);
+}
+
+.tq-btn.tq-stop:not(.tq-btn--tab):not(.tq-btn--row),
+.tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  --tq-btn-fill: #f53844;
+}
+
+.tq-btn.tq-text-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  --tq-btn-fill: var(--tq-state-think);
+}
+
+.tq-btn.tq-btn--tab {
+  --tq-btn-fill: var(--tq-btn-accent, #f53844);
+  overflow: hidden;
+  isolation: isolate;
+  border-color: color-mix(in srgb, #e8e8e8 16%, transparent);
+  border-radius: 50px;
+  color: #e8e8e8;
+  background: #212121;
+  transition:
+    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tq-btn.tq-btn--tab::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: "";
+  background: var(--tq-btn-fill);
+  transform: translateY(105%);
+  transition: transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: none;
+}
+
+.tq-btn.tq-btn--tab > * {
+  position: relative;
+  z-index: 1;
+}
+
+.tq-btn.tq-btn--tab svg {
+  color: var(--tq-btn-fill);
+  transition:
+    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    stroke 300ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.tq-btn.tq-btn--tab:hover:not(:disabled),
+.tq-btn.tq-btn--tab:focus-visible,
+.tq-btn.tq-btn--tab.is-active {
+  color: #e8e8e8;
+  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8);
+  background: #212121;
+  transform: none;
+}
+
+.tq-btn.tq-btn--tab:hover:not(:disabled)::before,
+.tq-btn.tq-btn--tab:focus-visible::before,
+.tq-btn.tq-btn--tab.is-active::before {
+  transform: translateY(0);
+}
+
+.tq-btn.tq-btn--tab:hover:not(:disabled) svg,
+.tq-btn.tq-btn--tab:focus-visible svg,
+.tq-btn.tq-btn--tab.is-active svg {
+  color: #e8e8e8;
+}
+
+/* Selected states persist longer than hover, so darken the semantic fill enough
+   for small white labels to remain readable on blue/green/purple/orange. */
+.tq-btn:not(.tq-btn--row).is-active::before {
+  background: color-mix(in srgb, var(--tq-btn-fill) 70%, #111);
+  transform: translateY(0);
+}
+
+.tq-btn:not(.tq-btn--row).is-active,
+.tq-btn:not(.tq-btn--row).is-active svg {
+  color: #e8e8e8;
+}
+
+/* The vault-wide visual-theme bridge styles every <button> with !important.
+   Reassert only Quyuan compact actions so synced themes cannot erase the
+   selected Uiverse treatment; list rows intentionally stay themed. */
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  border-color: color-mix(in srgb, #e8e8e8 16%, transparent) !important;
+  border-radius: 50px !important;
+  color: #e8e8e8 !important;
+  background: #212121 !important;
+  background-color: #212121 !important;
+}
+
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled),
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible {
+  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8) !important;
+  color: #e8e8e8 !important;
+  background: #212121 !important;
+  background-color: #212121 !important;
+}
+
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-btn--tab {
+  border-color: color-mix(in srgb, #e8e8e8 16%, transparent) !important;
+  border-radius: 50px !important;
+  color: #e8e8e8 !important;
+  background: #212121 !important;
+  background-color: #212121 !important;
+}
+
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn.tq-btn--tab:hover:not(:disabled),
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn.tq-btn--tab:focus-visible,
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn.tq-btn--tab.is-active {
+  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8) !important;
+  color: #e8e8e8 !important;
+  background: #212121 !important;
+  background-color: #212121 !important;
+}
+
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn:not(.tq-btn--row).is-active,
+body[data-talos-vault-theme] .talos-console .tq-voice
+  .tq-btn:not(.tq-btn--row).is-active svg {
+  color: #e8e8e8 !important;
+}
+
+@keyframes tq-button-shake {
+  0% {
+    transform: translateY(-1px) rotate(0deg);
+  }
+
+  33% {
+    transform: translateY(-1px) rotate(10deg);
+  }
+
+  66% {
+    transform: translateY(-1px) rotate(-10deg);
+  }
+
+  100% {
+    transform: translateY(-1px) rotate(0deg);
+  }
+}
+
+@media (max-width: 1080px) {
+  .talos-console:not([data-talos-page="overview"]) .app {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+  }
+
+  .talos-console:not([data-talos-page="overview"]) .sidebar {
+    padding: 10px;
+  }
+
+  .talos-console:not([data-talos-page="overview"])
+    .sidebar:is(:hover, :focus-within) {
+    width: 260px;
+  }
+
+  .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"])
+    .main {
+    padding: 14px !important;
+  }
+
+  .tq-head .tq-model,
+  .tq-head .tq-title small,
+  .tq-foot .tq-tts,
+  .tq-dot {
+    display: none;
+  }
+
+  .tq-body {
+    grid-template-columns:
+      minmax(0, 1fr)
+      8px
+      minmax(270px, var(--tq-side-size));
+  }
+
+  .tq-foot .tq-btn {
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 760px) {
+  .talos-console:not([data-talos-page="overview"]) .app {
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+  }
+
+  .talos-console:not([data-talos-page="overview"]) .sidebar {
+    width: 54px;
+    padding-inline: 5px;
+  }
+
+  .talos-console:not([data-talos-page="overview"])
+    .sidebar:is(:hover, :focus-within) {
+    width: min(260px, calc(100vw - 12px));
+  }
+
+  .talos-console:not([data-talos-page="overview"]) .pagenav-card .command {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .talos-console:not([data-talos-page="overview"])
+    .sidebar:is(:hover, :focus-within)
+    .pagenav-card .command {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 44px;
+  }
+
+  .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"])
+    .main {
+    padding: 10px !important;
+  }
+
+  .tq-head {
+    min-height: 58px;
+    padding-inline: 10px;
+  }
+
+  .tq-head-brand {
+    gap: 8px;
+  }
+
+  .tq-badge {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .tq-badge img {
+    width: 48px;
+    height: 48px;
+  }
+
+  .tq-head .tq-chip,
+  .tq-head .tq-title small {
+    display: none;
+  }
+
+  .tq-head .tq-title {
+    min-width: 0;
+  }
+
+  .tq-head .tq-title b {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tq-head-actions > .tq-squarebtn:last-child {
+    display: none;
+  }
+
+  .tq-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .tq-side-resizer {
+    display: none;
+  }
+
+  .tq-stage {
+    flex: 0 0 62svh;
+    min-height: 500px;
+  }
+
+  .tq-side {
+    flex: 0 0 420px;
+    min-height: 360px;
+    border-top: 1px solid var(--tq-border);
+    border-left: 0;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .tq-body.is-side-collapsed .tq-side {
+    display: none;
+  }
+
+  .tq-copy {
+    right: 14px;
+    bottom: 84px;
+    width: min(86%, 520px);
+    padding: 24px 18px 20px;
+    text-align: right;
+  }
+
+  .tq-flow {
+    top: 18px;
+    left: 16px;
+    gap: 14px;
+    justify-content: flex-start;
+    font-size: clamp(13px, 3.6vw, 16px);
+    letter-spacing: 0.03em;
+  }
+
+  .tq-live {
+    margin-left: auto;
+  }
+
+  .tq-cap {
+    font-size: clamp(38px, 10vw, 56px) !important;
+  }
+
+  .tq-foot {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .tq-foot .tq-btn {
+    flex: 0 1 68px;
+    width: auto;
+    min-width: 0;
+    gap: 4px;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talos-console:not([data-talos-page="overview"]) .sidebar {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tq-btn {
+    transition: none;
+  }
+
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row)::before,
+  .tq-btn.tq-btn--tab::before {
+    transition: none;
+  }
+
+  .tq-flow-state {
+    transition: none;
+  }
+
+  .tq-voice[data-voice-state="speak"] .tq-copy {
+    animation: none;
+  }
+
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled) {
+    animation: none;
+  }
+
+  .tq-meter i {
+    transition: none;
+    transform: scaleY(0.55);
+  }
+}
+
+/* =====================================================================
+   屈原面板 · 系统 chrome 激进紧凑（2026-07-06，~0.72 等比缩放）
+   目标：缩小 header/statusbar/tab/input-wrapper/action-row/toolbar/toggle 等
+        所有系统控件，把纵向空间还给对话区。
+   原则：只动 chrome 的 clamp 上限与 padding，不碰阅读区——
+        .claudian-message / .claudian-welcome-greeting / textarea 输入字号保持。
+   机制：本块选择器特异性等同上方原文，靠"后定义优先"盖过；不动原文便于回滚。
+   回滚：删除本整块即可。
+   ===================================================================== */
+
+/* Header（顶部屈原标题栏） */
+.talos-quyuan-shell .claudian-header {
+  padding: clamp(9px, 1.8cqw, 13px) clamp(6px, 2cqw, 15px)
+    clamp(6px, 1.2cqw, 9px);
+}
+.talos-quyuan-shell .claudian-title {
+  gap: clamp(7px, 1.4cqw, 10px);
+}
+.talos-quyuan-shell .claudian-logo {
+  width: clamp(14px, 2.4cqw, 18px);
+  height: clamp(14px, 2.4cqw, 18px);
+  flex: 0 0 clamp(14px, 2.4cqw, 18px);
+}
+.talos-quyuan-shell .claudian-title-text {
+  font-size: clamp(11px, 1.9cqw, 14px);
+}
+
+/* Status bar（状态栏：状态药丸 + 权限选择 + 能力按钮） */
+.talos-quyuan-statusbar {
+  gap: clamp(4px, 1.2cqw, 10px);
+  min-height: clamp(32px, 5.7cqw, 42px);
+  margin: clamp(6px, 1.8cqw, 13px) clamp(6px, 2.4cqw, 18px)
+    clamp(3px, 0.8cqw, 6px);
+}
+.talos-quyuan-status {
+  gap: clamp(5px, 1.1cqw, 8px);
+  min-height: clamp(26px, 4.1cqw, 30px);
+  padding: 0 clamp(6px, 1.7cqw, 12px);
+  border-width: 1.5px;
+  border-radius: clamp(8px, 1.5cqw, 11px);
+  font-size: clamp(10px, 1.6cqw, 12px);
+}
+.talos-quyuan-status-dot {
+  width: clamp(9px, 1.7cqw, 12px);
+  height: clamp(9px, 1.7cqw, 12px);
+}
+.talos-quyuan-permission {
+  gap: clamp(5px, 1.1cqw, 9px);
+  font-size: clamp(10px, 1.5cqw, 12px);
+}
+.talos-quyuan-permission select {
+  height: clamp(26px, 4.5cqw, 33px);
+  padding: 0 clamp(22px, 4.1cqw, 30px) 0 clamp(8px, 1.4cqw, 10px);
+  border-width: 1.5px;
+  border-radius: clamp(8px, 1.4cqw, 10px);
+}
+.talos-quyuan-capability-button {
+  gap: clamp(4px, 0.8cqw, 6px);
+  padding: clamp(4px, 1cqw, 7px) clamp(4px, 1.1cqw, 9px);
+  font-size: clamp(10px, 1.6cqw, 12px);
+}
+.talos-quyuan-capability-button svg {
+  width: clamp(12px, 2cqw, 15px);
+  height: clamp(12px, 2cqw, 15px);
+}
+
+/* Tab badges（会话标签行） */
+.talos-quyuan-shell .claudian-tab-badges {
+  gap: clamp(4px, 0.8cqw, 6px);
+}
+.talos-quyuan-shell .claudian-tab-badge {
+  height: clamp(26px, 4.3cqw, 32px);
+  padding: 0 clamp(7px, 1.4cqw, 10px);
+  gap: clamp(5px, 1cqw, 7px);
+  border-width: 1.5px;
+  border-radius: clamp(8px, 1.4cqw, 10px);
+  font-size: clamp(10px, 1.5cqw, 12px);
+}
+.talos-quyuan-tab-close {
+  font-size: clamp(12px, 2cqw, 15px);
+}
+
+/* Input nav row（输入框上方的操作图标行：新标签/历史等） */
+.talos-quyuan-shell .claudian-view-input-nav-row {
+  padding: 0 0 clamp(6px, 1.1cqw, 9px);
+}
+.talos-quyuan-shell .claudian-input-nav-actions {
+  gap: clamp(8px, 1.8cqw, 13px);
+}
+.talos-quyuan-shell .claudian-input-nav-btn svg {
+  width: clamp(12px, 2cqw, 15px);
+  height: clamp(12px, 2cqw, 15px);
+}
+
+/* Input wrapper（输入框外框 + 内部 textarea 高度）
+   注意：textarea 的 font-size 不缩——那是用户输入区，可读性优先。 */
+.talos-quyuan-shell .claudian-input-wrapper {
+  min-height: clamp(62px, 12.3cqw, 90px);
+  border-width: 1.5px;
+  border-radius: clamp(12px, 2.4cqw, 18px);
+}
+.talos-quyuan-shell .claudian-input-wrapper textarea.claudian-input {
+  min-height: clamp(44px, 8.6cqw, 63px);
+  padding: clamp(10px, 2.4cqw, 17px) clamp(12px, 2.7cqw, 20px);
+}
+
+/* Action row（输入框上方/下方的四宫格快捷动作按钮） */
+.talos-quyuan-action-row {
+  gap: clamp(5px, 1.1cqw, 9px);
+  padding: clamp(6px, 1.1cqw, 9px) 0 clamp(5px, 1cqw, 7px);
+}
+.talos-quyuan-action {
+  min-height: clamp(26px, 4.3cqw, 32px);
+  padding: 0 clamp(4px, 1.2cqw, 9px);
+  border-width: 1.5px;
+  border-radius: clamp(8px, 1.5cqw, 11px);
+  font-size: clamp(10px, 1.5cqw, 12px);
+  gap: clamp(3px, 0.7cqw, 5px);
+}
+.talos-quyuan-action svg {
+  width: clamp(11px, 1.8cqw, 13px);
+  height: clamp(11px, 1.8cqw, 13px);
+}
+
+/* Input toolbar（底栏：模型/思考/模式/权限/YOLO 一行） */
+.talos-quyuan-shell .claudian-input-toolbar {
+  gap: clamp(2px, 0.6cqw, 5px);
+  min-height: clamp(32px, 5.2cqw, 39px);
+  padding: clamp(5px, 1cqw, 7px) 0 0;
+  border-top-width: 1.5px;
+}
+.talos-quyuan-shell .claudian-model-btn,
+.talos-quyuan-shell .claudian-thinking-current,
+.talos-quyuan-shell .claudian-mode-selector,
+.talos-quyuan-shell .claudian-service-tier-button {
+  min-height: clamp(22px, 3.1cqw, 24px);
+}
+.talos-quyuan-shell .claudian-model-btn {
+  padding: clamp(3px, 0.6cqw, 5px) clamp(5px, 1cqw, 8px);
+  font-size: clamp(9px, 1.5cqw, 12px);
+}
+.talos-quyuan-shell .claudian-thinking-selector {
+  gap: clamp(2px, 0.6cqw, 5px);
+}
+.talos-quyuan-shell .claudian-thinking-label-text {
+  font-size: clamp(8px, 1.4cqw, 11px);
+}
+.talos-quyuan-shell .claudian-thinking-current {
+  min-width: clamp(22px, 3.4cqw, 25px);
+  padding: clamp(3px, 0.6cqw, 5px) clamp(5px, 0.9cqw, 7px);
+  font-size: clamp(9px, 1.5cqw, 12px);
+}
+.talos-quyuan-shell .claudian-permission-toggle {
+  gap: clamp(2px, 0.6cqw, 5px);
+  padding-left: clamp(2px, 0.8cqw, 6px);
+}
+.talos-quyuan-shell .claudian-permission-label {
+  font-size: clamp(8px, 1.4cqw, 11px);
+}
+
+/* Toggle switches（YOLO / 权限 / 语音 拨动开关，等比缩） */
+.talos-quyuan-shell .claudian-toggle-switch {
+  width: clamp(28px, 5.2cqw, 39px);
+  height: clamp(16px, 2.9cqw, 22px);
+  border-width: 1.5px;
+  border-radius: clamp(9px, 1.6cqw, 12px);
+}
+.talos-quyuan-shell .claudian-toggle-switch::after {
+  width: clamp(10px, 2.1cqw, 16px);
+  height: clamp(10px, 2.1cqw, 16px);
+}
+.talos-quyuan-shell .claudian-toggle-switch.active::after {
+  transform: translateX(clamp(12px, 2.24cqw, 17px));
+}
+.talos-quyuan-voice-toggle {
+  gap: clamp(2px, 0.8cqw, 6px);
+  font-size: clamp(8px, 1.4cqw, 11px);
+}
+.talos-quyuan-voice-track {
+  width: clamp(28px, 5.2cqw, 39px);
+  height: clamp(16px, 2.9cqw, 22px);
+  border-width: 1.5px;
+  border-radius: clamp(9px, 1.6cqw, 12px);
+}
+.talos-quyuan-voice-track::after {
+  width: clamp(10px, 2.1cqw, 16px);
+  height: clamp(10px, 2.1cqw, 16px);
+}
+.talos-quyuan-voice-toggle input:checked + .talos-quyuan-voice-track::after {
+  transform: translateX(clamp(12px, 2.24cqw, 17px));
+}
+
+.talos-quyuan-open-error {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-content: center;
+  gap: 14px;
+  padding: 28px;
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+.talos-quyuan-open-error-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--text-error);
+  background: color-mix(in srgb, var(--text-error) 12%, transparent);
+}
+.talos-quyuan-open-error-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.talos-quyuan-open-error-copy {
+  min-width: 0;
+}
+.talos-quyuan-open-error-copy h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+.talos-quyuan-open-error-copy p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.talos-quyuan-open-error-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.talos-quyuan-open-error-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+}
+.talos-quyuan-open-error-actions button:hover,
+.talos-quyuan-open-error-actions button:focus-visible {
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+.talos-quyuan-open-error-actions svg {
+  width: 14px;
+  height: 14px;
+}

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 总览 · 方案 2 + 3 对照</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			font-family: -apple-system,BlinkMacSystemFont,"PingFang SC",system-ui,sans-serif;
+			background: #050711;
+			color: #f7f9ff;
+		}
+		* { box-sizing: border-box; }
+		body { margin: 0; padding: 20px; }
+		header { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 14px; }
+		h1 { font-size: 20px; margin: 0; }
+		p { margin: 4px 0 0; color: #9aa8cb; font-size: 12px; }
+		.legend { color: #86a9ff; font-size: 12px; }
+		.compare { display: grid; grid-template-columns: minmax(0,.72fr) minmax(0,1.28fr); gap: 14px; align-items: start; }
+		.sources { display: grid; gap: 14px; min-width: 0; }
+		.frame {
+			margin: 0;
+			min-width: 0;
+			padding: 9px;
+			border: 1px solid rgba(140,160,255,.22);
+			border-radius: 10px;
+			background: rgba(12,17,34,.9);
+			box-shadow: 0 16px 42px rgba(0,0,0,.35);
+		}
+		.frame figcaption { display: flex; justify-content: space-between; gap: 12px; padding: 0 2px 8px; font-size: 12px; }
+		.frame figcaption span { color: #8493bb; }
+		img { display: block; width: 100%; max-width: 100%; min-width: 0; height: auto; border-radius: 5px; }
+		.implementation { border-color: rgba(56,225,255,.42); }
+		.implementation figcaption b { color: #38e1ff; }
+	</style>
+</head>
+<body>
+	<header>
+		<div>
+			<h1>方案 2 + 3 → TALOS 总览实现</h1>
+			<p>同一输入内核对信息架构、异常处理区与主题继承，不追求替换现有视觉语言。</p>
+		</div>
+		<div class="legend">3 定骨架 · 2 定工作区 · 现有主题定视觉</div>
+	</header>
+	<main class="compare">
+		<div class="sources">
+			<figure class="frame">
+				<figcaption><b>参考 3 · 运行态势</b><span>结论 / 三指标 / 异常 / 可信度</span></figcaption>
+				<img src="./overview-reference-option3.png" alt="方案 3 运行态势参考">
+			</figure>
+			<figure class="frame">
+				<figcaption><b>参考 2 · 待处理工作区</b><span>异常队列 / 处理建议 / 源文件</span></figcaption>
+				<img src="./overview-reference-option2.png" alt="方案 2 待处理工作区参考">
+			</figure>
+		</div>
+		<figure class="frame implementation">
+			<figcaption><b>实现 · Aurora 主题</b><span>1440 × 1024 · 真实数据映射</span></figcaption>
+			<img src="./overview-operations-aurora-1440.jpg" alt="TALOS 新总览实现">
+		</figure>
+	</main>
+</body>
+</html>

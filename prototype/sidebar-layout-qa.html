@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 右侧栏布局 QA</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		* { box-sizing: border-box; }
+		html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #171717; }
+		.compare { display: grid; grid-template-columns: 545px 545px; width: 1090px; height: 981px; }
+		.reference { width: 545px; height: 981px; object-fit: contain; background: #f4f0e6; }
+		.implementation { width: 545px; height: 981px; overflow: hidden; background: #f4f0e6; }
+		.workspace-leaf-content, .view-content { width: 100%; height: 100%; }
+		.jv-panel { margin: 0 !important; border-radius: 0 !important; }
+	</style>
+</head>
+<body>
+	<main class="compare">
+		<img class="reference" src="file:///Users/apple/Desktop/截屏2026-06-28%2016.47.25.png" alt="修复前截图">
+		<section class="implementation workspace-leaf-content" data-type="talos-jarvis-view">
+			<div class="view-content">
+				<div class="talos-console talos-jarvis-pane theme-geometric-modern page-jarvis">
+					<section class="panel jv-panel jv-agent">
+						<div class="section-title"><h2>屈原 · AGENTIC</h2></div>
+						<div class="jv-statusbar">
+							<div class="jv-status" data-state="idle">已停止</div>
+							<div class="jv-modewrap"><span class="jv-modelabel">权限</span><select class="jv-modesel"><option>每次询问</option></select></div>
+							<div class="jv-capsbtn">能力</div>
+						</div>
+						<div class="jv-tabsbar">
+							<div class="jv-tab"><span class="jv-tab-num">1</span><span class="jv-tab-title">测试</span><span class="jv-tab-close">×</span></div>
+							<div class="jv-tab is-active"><span class="jv-tab-num">2</span><span class="jv-tab-title">测试</span><span class="jv-tab-close">×</span></div>
+							<div class="jv-tab jv-tab-add">＋</div>
+						</div>
+						<div class="jv-tabscontent">
+							<div class="jv-log jv-agentlog">
+								<div class="jv-msg jv-assistant"><div class="jv-bubble">（`53640d10`，7/26 09:23 触发的 Phase 2 月度检查），跟「测试」循环无关。
+
+- **读 scheduled_tasks.json 被你拦了**：所以从 Claude 这一层看不到触发源。
+
+我的判断——「测试」+ 每次 resume 状态 + 1 篇，**不是 Claude 这边的循环**，是外部某个进程在用 `claude -p "测试"` 之类的反复拉起 session。可能位置：
+
+1. 系统 crontab（`crontab -l` 可查，需要你授权）
+2. pm2 / launchd / systemd 后台任务
+3. 某个 shell loop 脚本
+4. 你的某个 hook 在每次 session 启动时 echo "测试" 到 stdin
+
+修复后的答案区域会继续向下占用全部剩余高度，不再在 340px 处截断。长回答留在同一个滚动容器内，标签、输入框和底栏稳定贴在底部。
+
+这段额外文本用于验证消息超过旧高度上限后，仍然能完整滚动到最后一行。输出列宽与下方输入框严格对齐。</div></div>
+							</div>
+						</div>
+						<div class="jv-inputbar">
+							<textarea class="jv-input" rows="2" placeholder="问屈原，@引用文件、可贴图…（Enter 发送，Shift+Enter 换行）"></textarea>
+							<div class="jv-btns">
+								<button class="jv-btn">图</button>
+								<button class="jv-btn">语音</button>
+								<button class="jv-btn">停</button>
+								<button class="jv-btn jv-send">发送</button>
+							</div>
+						</div>
+						<div class="jv-bottombar">
+							<select class="jv-modelsel"><option>CLI 默认</option></select>
+							<div class="jv-thinkwrap"><span class="jv-bl">思考</span><select class="jv-thinksel"><option>高</option></select></div>
+							<div class="jv-ctx">2%</div>
+							<div class="jv-yolowrap"><span class="jv-bl">YOLO</span><input class="jv-yolo" type="checkbox"></div>
+						</div>
+					</section>
+				</div>
+			</div>
+		</section>
+	</main>
+</body>
+</html>

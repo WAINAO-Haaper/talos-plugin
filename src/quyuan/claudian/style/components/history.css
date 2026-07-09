@@ -1,0 +1,221 @@
+.claudian-history-container {
+  position: static;
+}
+
+/* History dropup menu (opens upward since it's at bottom of view) */
+.claudian-history-menu {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  max-height: 400px;
+  overflow: hidden;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+}
+
+.claudian-history-menu.visible {
+  display: block;
+}
+
+.claudian-history-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-history-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.claudian-history-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.claudian-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background 0.15s ease;
+}
+
+.claudian-history-item-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.claudian-history-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-history-item:last-child {
+  border-bottom: none;
+}
+
+.claudian-history-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-history-item.active {
+  background: var(--background-modifier-hover);
+  border-inline-start: 2px solid var(--interactive-accent);
+  padding-inline-start: 10px;
+}
+
+.claudian-history-item.active:hover {
+  background: var(--background-modifier-active-hover, var(--background-modifier-hover));
+}
+
+.claudian-history-item.active .claudian-history-item-icon {
+  color: var(--interactive-accent);
+}
+
+.claudian-history-item.active .claudian-history-item-content {
+  cursor: default;
+}
+
+.claudian-history-item.active .claudian-history-item-date {
+  color: var(--text-faint);
+}
+
+.claudian-history-item.open {
+  background: var(--background-modifier-hover);
+  border-inline-start: 2px solid var(--interactive-accent);
+  padding-inline-start: 10px;
+}
+
+.claudian-history-item.open:hover {
+  background: var(--background-modifier-active-hover, var(--background-modifier-hover));
+}
+
+.claudian-history-item.open .claudian-history-item-icon {
+  color: var(--interactive-accent);
+}
+
+.claudian-history-item.open .claudian-history-item-date {
+  color: var(--text-muted);
+}
+
+.claudian-history-item.running .claudian-history-item-icon {
+  color: var(--interactive-accent);
+}
+
+.claudian-history-item.running .claudian-history-item-icon svg {
+  animation: spin 1s linear infinite;
+}
+
+.claudian-history-item.running .claudian-history-item-date {
+  color: var(--interactive-accent);
+  font-weight: 500;
+}
+
+.claudian-history-item-content {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.claudian-history-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.claudian-history-item-date {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.claudian-history-item-actions {
+  display: flex;
+  gap: 4px;
+  margin-inline-start: 8px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.claudian-history-item:hover .claudian-history-item-actions {
+  opacity: 1;
+}
+
+.claudian-history-item:focus-within .claudian-history-item-actions {
+  opacity: 1;
+}
+
+.claudian-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.claudian-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.claudian-delete-btn:hover {
+  color: var(--color-red);
+}
+
+.claudian-open-new-tab-btn:hover {
+  color: var(--interactive-accent);
+}
+
+.claudian-rename-input {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.claudian-rename-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+/* Loading indicator for title generation */
+.claudian-action-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: spin 1s linear infinite;
+  opacity: 0.6;
+  cursor: default;
+}

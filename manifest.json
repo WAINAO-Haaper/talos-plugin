@@ -1,0 +1,9 @@
+{
+	"id": "talos",
+	"name": "TALOS",
+	"version": "0.2.0",
+	"minAppVersion": "1.8.0",
+	"description": "TALOS — 超级大脑控制台与屈原 AI Agent 工作台。",
+	"author": "外脑玩家 Haaper",
+	"isDesktopOnly": true
+}

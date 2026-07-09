@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 运行态势 · QA</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		html,body{margin:0;height:100%;overflow:hidden}
+		.qa-switch{position:fixed;right:12px;bottom:12px;z-index:30;display:flex;gap:5px;flex-wrap:wrap;max-width:min(680px,calc(100vw - 24px));justify-content:flex-end}
+		.qa-switch a{background:var(--background-primary,#111);border:1px solid var(--background-modifier-border,#555);color:var(--text-normal,#fff);font:11px system-ui;padding:5px 8px;text-decoration:none;border-radius:5px}
+		.logo-module .logo img{display:block;width:72%;height:72%;object-fit:contain}
+	</style>
+</head>
+<body>
+	<nav class="qa-switch" aria-label="主题切换">
+		<a href="?theme=aurora">Aurora</a>
+		<a href="?theme=cosmos-dark">Nebula</a>
+		<a href="?theme=animal-island">小岛</a>
+		<a href="?theme=system-classic">Mac</a>
+		<a href="?theme=data-stream">数据流</a>
+		<a href="?theme=soft-relief">柔光</a>
+		<a href="?theme=geometric-modern">几何</a>
+	</nav>
+	<div id="preview" class="talos-console" data-talos-page="overview">
+		<div class="bg-fx" aria-hidden="true">
+			<i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i><i class="orb o4"></i>
+			<div class="data-rain"></div>
+			<div class="geometry-field">
+				<i class="geometry-shape is-circle"></i>
+				<i class="geometry-shape is-square"></i>
+				<i class="geometry-shape is-triangle"></i>
+				<i class="geometry-shape is-bar"></i>
+			</div>
+		</div>
+		<div class="app">
+			<aside class="sidebar">
+				<section class="card pagenav-card">
+					<div class="section-title"><h2>导航</h2><small>PAGES</small></div>
+					<nav class="nav">
+						<div class="nav-group" data-nav-group="today">
+							<div class="nav-group-label">现在</div>
+							<div class="command active"><div class="mark">总</div><span class="nav-label">总览</span><span class="nav-meta is-alert">4 待处理</span></div>
+							<div class="command"><div class="mark">日</div><span class="nav-label">每日执行</span><span class="nav-meta">3 焦点</span></div>
+							<div class="command"><div class="mark">屈</div><span class="nav-label">屈原</span><span class="nav-meta">AI</span></div>
+						</div>
+						<div class="nav-group" data-nav-group="flow">
+							<div class="nav-group-label">流转</div>
+							<div class="command"><div class="mark">收</div><span class="nav-label">收件箱</span><span class="nav-meta is-alert">16</span></div>
+							<div class="command"><div class="mark">出</div><span class="nav-label">输出作战室</span><span class="nav-meta">0</span></div>
+							<div class="command"><div class="mark">项</div><span class="nav-label">项目场景</span><span class="nav-meta">11</span></div>
+						</div>
+						<div class="nav-group" data-nav-group="assets">
+							<div class="nav-group-label">资产</div>
+							<div class="command"><div class="mark">知</div><span class="nav-label">知识枢纽</span><span class="nav-meta">436</span></div>
+							<div class="command"><div class="mark">身</div><span class="nav-label">身份上下文</span><span class="nav-meta">7</span></div>
+							<div class="command"><div class="mark">T</div><span class="nav-label">TALOS 产品</span><span class="nav-meta">93</span></div>
+						</div>
+						<div class="nav-group" data-nav-group="system">
+							<div class="nav-group-label">系统</div>
+							<div class="command"><div class="mark">健</div><span class="nav-label">系统健康</span><span class="nav-meta">92</span></div>
+							<div class="command"><div class="mark">能</div><span class="nav-label">能力中心</span><span class="nav-meta">17</span></div>
+							<div class="command"><div class="mark">库</div><span class="nav-label">全库视图</span><span class="nav-meta">779</span></div>
+						</div>
+					</nav>
+				</section>
+			</aside>
+			<main class="main">
+				<header class="hero">
+					<div class="cosmos-scene" aria-hidden="true"></div>
+					<div class="hero-head">
+						<div class="brand brand-text">
+							<div>
+								<div class="eyebrow">超级大脑 · CONTEXT OS <span class="live"><i></i>ONLINE</span></div>
+								<h1>TALOS 系统控制台</h1>
+								<div class="sub">AI 系统架构师 · 个人上下文主权 · C 端布道 × B 端交付</div>
+							</div>
+						</div>
+						<div class="logo-module" role="button" tabindex="0" aria-label="打开屈原工作台">
+							<div class="logo logo-heart">
+								<img src="../TALOS-Favicon-64-v1.png" alt="TALOS">
+							</div>
+						</div>
+					</div>
+					<div class="hero-grid hero-grid--single">
+						<div class="quote">
+							<strong>模型会商品化，上下文会差异化。</strong>
+							<span>TALOS 核心主张 · 个人上下文操作系统</span>
+						</div>
+					</div>
+				</header>
+				<div class="page-content">
+					<section class="panel banner overview-verdict" style="--ac:var(--amber)">
+						<div class="overview-verdict-icon"></div>
+						<div class="overview-verdict-copy">
+							<small>TALOS 运行态势</small>
+							<strong>可运行，但有 4 项需要处理</strong>
+							<span>今日 3 个焦点可继续推进；异常按影响排序。</span>
+						</div>
+						<button class="btn overview-verdict-action" type="button">查看异常</button>
+					</section>
+
+					<section class="panel overview-progress" style="--ac:var(--violet)">
+						<div class="section-title"><h2>结果进度</h2><small>只保留会改变行动的三个指标</small></div>
+						<div class="metric-grid overview-progress-grid">
+							<div class="metric-card overview-progress-card">
+								<div class="overview-progress-head"><div class="overview-progress-icon"></div><b>今日执行</b></div>
+								<strong>62%</strong><small>3 焦点 · 5 open · 8 done</small>
+								<div class="bar"><i style="--talos-w:62%"></i></div>
+							</div>
+							<div class="metric-card overview-progress-card">
+								<div class="overview-progress-head"><div class="overview-progress-icon"></div><b>发布闭环</b></div>
+								<strong>2/3</strong><small>67% 已完成</small>
+								<div class="bar"><i style="--talos-w:67%"></i></div>
+							</div>
+							<div class="metric-card overview-progress-card">
+								<div class="overview-progress-head"><div class="overview-progress-icon"></div><b>系统准备度</b></div>
+								<strong>92</strong><small>+2 vs 上次</small>
+								<div class="bar"><i style="--talos-w:92%"></i></div>
+							</div>
+						</div>
+					</section>
+
+					<div class="overview-workspace">
+						<section class="panel overview-attention" style="--ac:var(--amber)">
+							<div class="section-title"><h2>需要你处理</h2><small>4 项 · 选择后查看处理建议</small></div>
+							<div class="detail-list overview-attention-list">
+								<div class="detail-row overview-attention-row tone-hot is-attention-selected" role="button" tabindex="0" data-testid="publication-alert" data-detail="发布停止条件已触发|当前发布节奏已经触发重估条件。继续建设前，先决定恢复发布、调整目标或正式暂停。|打开发布任务">
+									<div class="overview-attention-icon"></div><div class="detail-text"><b>发布停止条件已触发</b><span>34 天未形成发布闭环 · 高优先级</span></div><div class="overview-attention-arrow"></div>
+								</div>
+								<div class="detail-row overview-attention-row tone-warn" role="button" tabindex="0" data-testid="approval-alert" data-detail="待审批变更 9 项|先处理会阻塞当前工作流或影响身份、规则与系统结构的提案。|进入审批池">
+									<div class="overview-attention-icon"></div><div class="detail-text"><b>待审批变更 9 项</b><span>B/C 类变更 · 需要决策</span></div><div class="overview-attention-arrow"></div>
+								</div>
+								<div class="detail-row overview-attention-row tone-hot" role="button" tabindex="0" data-testid="inbox-alert" data-detail="收件箱积压 15 篇|优先处理长期滞留条目，避免收件箱变成第二个无人维护的知识库。|打开收件箱">
+									<div class="overview-attention-icon"></div><div class="detail-text"><b>收件箱积压 15 篇</b><span>最老 12 天 · 建议运行 /intake</span></div><div class="overview-attention-arrow"></div>
+								</div>
+								<div class="detail-row overview-attention-row tone-default" role="button" tabindex="0" data-testid="preference-alert" data-detail="偏好候选 3 条|集中确认候选偏好，避免未经验证的信号长期悬空。|打开候选池">
+									<div class="overview-attention-icon"></div><div class="detail-text"><b>偏好候选 3 条</b><span>待确认 · 运行 /digest</span></div><div class="overview-attention-arrow"></div>
+								</div>
+							</div>
+						</section>
+						<section class="panel overview-attention-detail" style="--ac:var(--blue)">
+							<div class="section-title"><h2>处理建议</h2><small>影响 · 建议 · 源文件</small></div>
+							<div class="overview-detail-body" data-tone="hot">
+								<div class="overview-detail-title"><div class="overview-detail-icon"></div><div><strong>发布停止条件已触发</strong><small>34 天未形成发布闭环 · 高优先级</small></div></div>
+								<p>当前发布节奏已经触发重估条件。继续建设前，先决定恢复发布、调整目标或正式暂停。</p>
+								<button class="btn overview-detail-action" type="button">打开发布任务</button>
+							</div>
+						</section>
+					</div>
+
+					<section class="panel overview-focus" style="--ac:var(--rose)">
+						<div class="section-title"><h2>今日焦点</h2><small>tasks.md · 任务流 62%</small></div>
+						<div class="focus-list">
+							<div class="focus"><div class="dot hot"></div><div class="ft"><b>TALOS 仪表台布局优化</b><span>done_when · 新总览通过视觉 QA 并完成部署</span></div></div>
+							<div class="focus"><div class="dot warn"></div><div class="ft"><b>发布首发件</b><span>done_when · 完成发布和链接回填</span></div></div>
+							<div class="focus"><div class="dot normal"></div><div class="ft"><b>处理关键审批</b><span>done_when · 阻塞项全部形成决策</span></div></div>
+						</div>
+					</section>
+
+					<section class="panel overview-trust" style="--ac:var(--green)">
+						<div class="section-title"><h2>数据新鲜度</h2><small>本次刷新与关键数据源</small></div>
+						<div class="overview-trust-grid">
+							<div class="stat overview-trust-item"><div class="overview-trust-icon"></div><div><span>本次刷新</span><b>15:42</b></div></div>
+							<div class="stat overview-trust-item"><div class="overview-trust-icon"></div><div><span>健康记录</span><b>6/28</b></div></div>
+							<div class="stat overview-trust-item"><div class="overview-trust-icon"></div><div><span>核心数据源</span><b>3/3 可读</b></div></div>
+						</div>
+					</section>
+				</div>
+			</main>
+		</div>
+	</div>
+	<script>
+		const root=document.getElementById("preview");
+		const params=new URLSearchParams(location.search);
+		const theme=params.get("theme")||"aurora";
+		const page=params.get("page")||"overview";
+		root.dataset.talosPage=page;
+		root.classList.add(`theme-${theme}`);
+		if(params.get("capture")==="1"){
+			root.style.width="400%";
+			root.style.height="400%";
+			root.style.transform="scale(.25)";
+			root.style.transformOrigin="0 0";
+		}
+		const detailBody=root.querySelector(".overview-detail-body");
+		const detailTitle=detailBody.querySelector("strong");
+		const detailText=detailBody.querySelector("p");
+		const detailAction=detailBody.querySelector("button");
+		const rows=[...root.querySelectorAll(".overview-attention-row")];
+		const selectRow=row=>{
+			rows.forEach(item=>item.classList.remove("is-attention-selected"));
+			row.classList.add("is-attention-selected");
+			const [title,text,action]=row.dataset.detail.split("|");
+			detailTitle.textContent=title;
+			detailText.textContent=text;
+			detailAction.textContent=action;
+		};
+		rows.forEach(row=>{
+			row.addEventListener("click",()=>selectRow(row));
+			row.addEventListener("keydown",event=>{
+				if(event.key==="Enter"||event.key===" "){
+					event.preventDefault();
+					selectRow(row);
+				}
+			});
+		});
+		const navCommands=[...root.querySelectorAll(".pagenav-card .command")];
+		const selectNav=command=>{
+			navCommands.forEach(item=>item.classList.remove("active"));
+			command.classList.add("active");
+		};
+		navCommands.forEach(command=>{
+			command.setAttribute("role","button");
+			command.setAttribute("tabindex","0");
+			command.addEventListener("click",()=>selectNav(command));
+			command.addEventListener("keydown",event=>{
+				if(event.key==="Enter"||event.key===" "){
+					event.preventDefault();
+					selectNav(command);
+				}
+			});
+		});
+		root.querySelector(".overview-verdict-action").addEventListener("click",()=>root.querySelector(".overview-attention").scrollIntoView({behavior:"smooth"}));
+		const rain=root.querySelector(".data-rain");
+		for(let i=0;i<20;i++){
+			const col=document.createElement("i");
+			col.textContent=["01\n10\nCTX\nSYS\nMEM","10\n01\nTALOS\nDATA","11\n00\nSIGNAL\nSYNC"][i%3];
+			col.style.setProperty("--rain-x",`${3+i*5}%`);
+			col.style.setProperty("--rain-delay",`${-(i%9)*1.7}s`);
+			col.style.setProperty("--rain-duration",`${16+(i%7)*2}s`);
+			rain.appendChild(col);
+		}
+	</script>
+</body>
+</html>
