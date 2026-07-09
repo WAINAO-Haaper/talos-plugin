@@ -58,6 +58,7 @@ export function normalizeForSpeech(text: string): string {
 export class StreamTts {
 	private settings: TalosSettings;
 	private onState: (s: SpeakState, text?: string) => void;
+	private onLevel: ((level: number) => void) | null;
 
 	private buf = ""; // 增量缓冲，凑满一句再播
 	private utterers: SpeechSynthesisUtterance[] = [];
@@ -66,10 +67,15 @@ export class StreamTts {
 	private audio: HTMLAudioElement | null = null;
 	private playing = false;
 	private gen = 0; // 代际令牌：stop() 自增，作废在途播放循环/挂起的 await
+	private analyser: AnalyserNode | null = null;
+	private audioCtx: AudioContext | null = null;
+	private audioSource: MediaElementAudioSourceNode | null = null;
+	private levelTimer: number | null = null;
 
-	constructor(settings: TalosSettings, onState: (s: SpeakState, text?: string) => void) {
+	constructor(settings: TalosSettings, onState: (s: SpeakState, text?: string) => void, onLevel?: ((level: number) => void)) {
 		this.settings = settings;
 		this.onState = onState;
+		this.onLevel = onLevel ?? null;
 	}
 
 	private usingApi(): boolean {
@@ -144,11 +150,14 @@ export class StreamTts {
 		u.onstart = () => {
 			this.onState("speaking", text);
 			this.startKeepAlive();
+			// 系统语音无法精确取样，用模拟值驱动粒子
+			if (this.onLevel) this.onLevel(0.6);
 		};
 		u.onend = () => {
 			this.utterers = this.utterers.filter((x) => x !== u);
 			if (this.utterers.length === 0 && !synth.speaking) {
 				this.stopKeepAlive();
+				if (this.onLevel) this.onLevel(0);
 				this.onState("idle");
 			}
 		};
@@ -317,10 +326,12 @@ export class StreamTts {
 			audio.playbackRate = Math.min(4, Math.max(0.25, rate));
 			(audio as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = true;
 			this.audio = audio;
+			this.attachAnalyser(audio, gen);
 			let done = false;
 			const finish = (): void => {
 				if (done) return;
 				done = true;
+				this.detachAnalyser();
 				if (src.startsWith("blob:")) URL.revokeObjectURL(src);
 				if (this.audio === audio) this.audio = null;
 				resolve();
@@ -333,6 +344,50 @@ export class StreamTts {
 		});
 	}
 
+	/**
+	 * 用 AudioContext + AnalyserNode 监听播放音量，驱动粒子系统。
+	 * 仅 API 引擎可用（系统 speechSynthesis 无法接入 Web Audio 分析）。
+	 */
+	private attachAnalyser(audio: HTMLAudioElement, gen: number): void {
+		if (!this.onLevel) return;
+		try {
+			const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			this.audioCtx = new Ctx();
+			this.audioSource = this.audioCtx.createMediaElementSource(audio);
+			this.analyser = this.audioCtx.createAnalyser();
+			this.analyser.fftSize = 256;
+			this.audioSource.connect(this.analyser);
+			this.analyser.connect(this.audioCtx.destination);
+			const buf = new Uint8Array(this.analyser.frequencyBinCount);
+			const sample = (): void => {
+				if (gen !== this.gen || !this.analyser) return;
+				this.analyser.getByteFrequencyData(buf);
+				let sum = 0;
+				for (let i = 0; i < buf.length; i++) sum += buf[i] ?? 0;
+				const avg = sum / buf.length / 255; // 归一化到 0-1
+				this.onLevel?.(Math.min(1, avg * 2.2));
+				this.levelTimer = window.requestAnimationFrame(sample);
+			};
+			this.levelTimer = window.requestAnimationFrame(sample);
+		} catch {
+			// AudioContext 创建失败（跨域或 CSP）——静默降级，不影响播放
+		}
+	}
+
+	private detachAnalyser(): void {
+		if (this.levelTimer !== null) {
+			window.cancelAnimationFrame(this.levelTimer);
+			this.levelTimer = null;
+		}
+		this.analyser = null;
+		this.audioSource = null;
+		if (this.audioCtx) {
+			try { void this.audioCtx.close(); } catch { /* noop */ }
+			this.audioCtx = null;
+		}
+		if (this.onLevel) this.onLevel(0);
+	}
+
 	stop(): void {
 		this.gen++; // 作废在途播放循环与挂起的 playUrl await
 		this.buf = "";
@@ -340,6 +395,7 @@ export class StreamTts {
 		this.playing = false;
 		this.utterers = [];
 		this.stopKeepAlive();
+		this.detachAnalyser();
 		if (this.audio) {
 			const a = this.audio;
 			this.audio = null;

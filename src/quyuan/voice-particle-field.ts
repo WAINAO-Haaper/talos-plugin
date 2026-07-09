@@ -28,8 +28,8 @@ interface StateMotion {
 	pulseCount: number;
 }
 
-const PARTICLE_COUNT = 420;
-const FRONT_ALPHA = 0.55;
+const PARTICLE_COUNT = 900;
+const FRONT_ALPHA = 0.68;
 
 function hexToRgb(value: string, fallback: Rgb): Rgb {
 	const normalized = value.trim().replace("#", "");
@@ -46,6 +46,23 @@ function mix(a: Rgb, b: Rgb, amount: number): Rgb {
 		r: Math.round(a.r + (b.r - a.r) * amount),
 		g: Math.round(a.g + (b.g - a.g) * amount),
 		b: Math.round(a.b + (b.b - a.b) * amount),
+	};
+}
+
+function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb {
+	return {
+		r: a.r + (b.r - a.r) * t,
+		g: a.g + (b.g - a.g) * t,
+		b: a.b + (b.b - a.b) * t,
+	};
+}
+
+/** 浅色主题下加深颜色，让粒子在浅底上更鲜明 */
+function deepen(color: Rgb, factor: number): Rgb {
+	return {
+		r: Math.round(color.r * factor),
+		g: Math.round(color.g * factor),
+		b: Math.round(color.b * factor),
 	};
 }
 
@@ -69,6 +86,8 @@ export class QuyuanVoiceParticleField {
 	private state: ParticleVoiceState = "idle";
 	private audioLevel = 0;
 	private smoothedLevel = 0;
+	private outputLevel = 0;
+	private smoothedOutput = 0;
 	private reducedMotion = false;
 	private lightSurface = false;
 	private stateEnteredAt = 0;
@@ -77,6 +96,11 @@ export class QuyuanVoiceParticleField {
 	private secondary: Rgb = { r: 124, g: 86, b: 255 };
 	private warm: Rgb = { r: 255, g: 112, b: 74 };
 	private stateColor: Rgb = { r: 45, g: 132, b: 255 };
+	// 目标色（syncPalette 设置，render 里每帧 lerp 靠近，实现平滑过渡）
+	private targetPrimary: Rgb = { r: 45, g: 132, b: 255 };
+	private targetSecondary: Rgb = { r: 124, g: 86, b: 255 };
+	private targetWarm: Rgb = { r: 255, g: 112, b: 74 };
+	private targetStateColor: Rgb = { r: 45, g: 132, b: 255 };
 
 	constructor(host: HTMLElement, backCanvas: HTMLCanvasElement, frontCanvas: HTMLCanvasElement) {
 		const back = backCanvas.getContext("2d");
@@ -106,6 +130,10 @@ export class QuyuanVoiceParticleField {
 		this.audioLevel = Math.max(0, Math.min(1, level));
 	}
 
+	setOutputLevel(level: number): void {
+		this.outputLevel = Math.max(0, Math.min(1, level));
+	}
+
 	destroy(): void {
 		window.cancelAnimationFrame(this.frame);
 		this.resizeObserver.disconnect();
@@ -119,8 +147,8 @@ export class QuyuanVoiceParticleField {
 			particles.push({
 				theta: golden * i,
 				phi: Math.acos(y),
-				shell: 0.68 + ((i * 37) % 100) / 310,
-				size: 0.55 + ((i * 17) % 19) / 14,
+				shell: 0.58 + ((i * 37) % 100) / 310,
+				size: 0.32 + ((i * 17) % 19) / 22,
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
 				colorMix: ((i * 41) % 100) / 100,
@@ -155,10 +183,11 @@ export class QuyuanVoiceParticleField {
 		].join("|");
 		if (!force && key === this.themeKey) return;
 		this.themeKey = key;
-		this.primary = hexToRgb(style.getPropertyValue("--tq-particle-a"), { r: 45, g: 132, b: 255 });
-		this.secondary = hexToRgb(style.getPropertyValue("--tq-particle-b"), { r: 124, g: 86, b: 255 });
-		this.warm = hexToRgb(style.getPropertyValue("--tq-particle-c"), { r: 255, g: 112, b: 74 });
 		this.lightSurface = style.colorScheme.includes("light");
+		const deepenFactor = this.lightSurface ? 0.72 : 1;
+		this.targetPrimary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-a"), { r: 45, g: 132, b: 255 }), deepenFactor);
+		this.targetSecondary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-b"), { r: 124, g: 86, b: 255 }), deepenFactor);
+		this.targetWarm = deepen(hexToRgb(style.getPropertyValue("--tq-particle-c"), { r: 255, g: 112, b: 74 }), deepenFactor);
 		const stateVariable =
 			this.state === "reco"
 				? "--tq-state-reco"
@@ -167,7 +196,7 @@ export class QuyuanVoiceParticleField {
 					: this.state === "speak"
 						? "--tq-state-speak"
 						: "--tq-state-listen";
-		this.stateColor = hexToRgb(style.getPropertyValue(stateVariable), this.primary);
+		this.targetStateColor = deepen(hexToRgb(style.getPropertyValue(stateVariable), this.targetPrimary), deepenFactor);
 	}
 
 	private stateMotion(): StateMotion {
@@ -186,15 +215,15 @@ export class QuyuanVoiceParticleField {
 				};
 			case "reco":
 				return {
-					rotationRate: 0.00015,
-					xScale: 0.92,
-					yScale: 1.04,
-					deformation: 0.18,
-					waveRate: 0.013,
-					twist: 0.24,
+					rotationRate: 0.00012,
+					xScale: 0.98,
+					yScale: 1.02,
+					deformation: 0.15,
+					waveRate: 0.006,
+					twist: 0.12,
 					orbitCount: 3,
-					orbitSquash: 0.24,
-					pulseCount: 4,
+					orbitSquash: 0.36,
+					pulseCount: 3,
 				};
 			case "think":
 				return {
@@ -238,10 +267,11 @@ export class QuyuanVoiceParticleField {
 	private stateEnergy(time: number): number {
 		const pulse = (Math.sin(time * 0.0032) + 1) / 2;
 		if (this.state === "listen") return Math.max(this.smoothedLevel, 0.1 + pulse * 0.08);
-		if (this.state === "reco") return 0.3 + pulse * 0.16;
+		if (this.state === "reco") return Math.max(this.smoothedLevel, 0.12 + pulse * 0.08);
 		if (this.state === "think") return 0.38 + Math.sin(time * 0.0054) * 0.12;
 		if (this.state === "speak") {
-			return 0.42 + Math.sin(time * 0.011) * 0.16 + Math.sin(time * 0.019) * 0.08;
+			// TTS 输出音量直接驱动粒子能量，加装饰性 sin 波动
+			return 0.28 + this.smoothedOutput * 0.5 + Math.sin(time * 0.011) * 0.08;
 		}
 		return 0.08 + pulse * 0.04;
 	}
@@ -271,8 +301,9 @@ export class QuyuanVoiceParticleField {
 				return mix(cool, this.stateColor, 0.22 + breath * 0.48);
 			}
 			case "reco": {
-				const scan = mix(this.primary, this.stateColor, 0.34 + band * 0.58);
-				return mix(scan, this.secondary, (1 - band) * 0.34 + shimmer * 0.12);
+				const breath = Math.min(1, this.smoothedLevel * 1.2 + energy * 0.4);
+				const cool = mix(this.primary, this.secondary, 0.2 + shimmer * 0.44);
+				return mix(cool, this.stateColor, 0.24 + breath * 0.44);
 			}
 			case "think": {
 				const vortex = mix(this.secondary, this.primary, stream);
@@ -300,7 +331,14 @@ export class QuyuanVoiceParticleField {
 		this.lastTime = time;
 		this.smoothedLevel += (this.audioLevel - this.smoothedLevel) * Math.min(1, delta / 70);
 		this.audioLevel *= 0.92;
+		this.smoothedOutput += (this.outputLevel - this.smoothedOutput) * Math.min(1, delta / 90);
+		this.outputLevel *= 0.94;
 		this.syncPalette();
+		// 颜色平滑过渡：每帧向目标色 lerp 8%（借鉴 ElevenLabs Orb 的 color.lerp）
+		this.primary = lerpRgb(this.primary, this.targetPrimary, 0.08);
+		this.secondary = lerpRgb(this.secondary, this.targetSecondary, 0.08);
+		this.warm = lerpRgb(this.warm, this.targetWarm, 0.08);
+		this.stateColor = lerpRgb(this.stateColor, this.targetStateColor, 0.08);
 
 		this.back.clearRect(0, 0, this.width, this.height);
 		this.front.clearRect(0, 0, this.width, this.height);
@@ -318,7 +356,7 @@ export class QuyuanVoiceParticleField {
 			: Math.max(0.04, this.stateEnergy(time) + transitionKick);
 		const cx = this.width * 0.5;
 		const cy = this.height * 0.5;
-		const radius = Math.max(88, Math.min(this.width * 0.405, this.height * 0.43));
+		const radius = Math.max(88, Math.min(this.width * 0.32, this.height * 0.36, 280));
 		const rotation = this.reducedMotion ? 0.22 : animationTime * motion.rotationRate;
 		const tilt = -0.18;
 
@@ -375,8 +413,8 @@ export class QuyuanVoiceParticleField {
 			const size = particle.size * (1.04 + depth * 0.9 + energy * 0.9);
 			const context = z >= 0.08 ? this.front : this.back;
 			const layerAlpha = z >= 0.08 ? FRONT_ALPHA : 1;
-			const surfaceAlpha = this.lightSurface ? 0.82 : 1;
-			if (particleIndex % 12 === 0) {
+			const surfaceAlpha = this.lightSurface ? 0.88 : 1;
+			if (particleIndex % 17 === 0) {
 				const haloSize = size * (2.8 + energy * 1.8);
 				context.beginPath();
 				context.arc(px, py, haloSize, 0, Math.PI * 2);
@@ -408,9 +446,10 @@ export class QuyuanVoiceParticleField {
 	): void {
 		context.beginPath();
 		context.arc(cx, cy, radius * (0.56 + energy * 0.04), 0, Math.PI * 2);
-		context.fillStyle = rgba(this.primary, 0.018 + energy * 0.022);
+		const centerAlpha = this.lightSurface ? 0.04 : 0.018;
+		context.fillStyle = rgba(this.primary, centerAlpha + energy * 0.022);
 		context.fill();
-		context.strokeStyle = rgba(this.stateColor, 0.09 + energy * 0.12);
+		context.strokeStyle = rgba(this.stateColor, (this.lightSurface ? 0.14 : 0.09) + energy * 0.12);
 		context.lineWidth = 1.2;
 		context.stroke();
 
@@ -469,7 +508,7 @@ export class QuyuanVoiceParticleField {
 				this.stateColor,
 				0.18 + ((Math.sin(time * 0.0017 + i * 0.9) + 1) / 2) * 0.42
 			);
-			const surfaceAlpha = this.lightSurface ? 0.78 : 1;
+			const surfaceAlpha = this.lightSurface ? 0.85 : 1;
 			context.strokeStyle = rgba(color, (0.13 + energy * 0.2) * surfaceAlpha);
 			context.lineWidth = 1 + energy * 1.55;
 			context.stroke();

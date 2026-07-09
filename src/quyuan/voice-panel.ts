@@ -122,6 +122,9 @@ export class QuyuanVoicePanel {
 				this.ttsSpeaking = false;
 				this.syncAsrBusy();
 			}
+		}, (level) => {
+			// TTS 输出音量驱动粒子（speak 态粒子跟随屈原声音起伏）
+			this.particleField?.setOutputLevel(level);
 		});
 		this.asr = this.buildAsr();
 		void this.driver.warmup("voice");

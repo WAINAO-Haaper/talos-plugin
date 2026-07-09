@@ -1220,6 +1220,18 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   color-scheme: light;
 }
 
+/* 浅色主题：stage 中心微暗角，让粒子在浅底上跳出 */
+.talos-console.theme-soft-relief[data-talos-page="jarvis"] .tq-stage,
+.talos-console.theme-geometric-modern[data-talos-page="jarvis"] .tq-stage {
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0.05) 0%,
+      transparent 58%
+    ),
+    var(--tq-surface);
+}
+
 .talos-console.theme-geometric-modern[data-talos-page="jarvis"] .sidebar {
   border-right-color: rgba(92, 76, 52, 0.18);
   background: #e6ddcb;
