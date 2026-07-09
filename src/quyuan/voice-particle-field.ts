@@ -452,31 +452,39 @@ export class QuyuanVoiceParticleField {
 		energy: number,
 		time: number
 	): void {
-		// 从采样点推算 T 形竖杠的实际位置（SVG 采样后坐标是 viewBox 全局的）
+		// 从采样点推算 T 形横杠的实际位置
 		const pts = getLogoSamplePoints();
-		// 找竖杠区域：y > 0（下半部分）的点的 x/y 边界
-		let stemXMin = 1, stemXMax = -1, stemYMin = 1, stemYMax = -1;
+		// 横杠 = y 最小的那批点（T 顶部最宽的部分）
+		// 先找全局 y 最小值，横杠在 y < (yMin + yRange*0.4) 范围
+		let yMin = 1, yMax = -1;
+		for (const p of pts) {
+			yMin = Math.min(yMin, p.y);
+			yMax = Math.max(yMax, p.y);
+		}
+		const yRange = yMax - yMin;
+		// 横杠 = 最顶部 40% 范围的点
+		const crossbarThreshold = yMin + yRange * 0.4;
+		let cbXMin = 1, cbXMax = -1, cbYMin = 1, cbYMax = -1;
 		let count = 0;
 		for (const p of pts) {
-			if (p.y > 0) {
-				stemXMin = Math.min(stemXMin, p.x);
-				stemXMax = Math.max(stemXMax, p.x);
-				stemYMin = Math.min(stemYMin, p.y);
-				stemYMax = Math.max(stemYMax, p.y);
+			if (p.y < crossbarThreshold) {
+				cbXMin = Math.min(cbXMin, p.x);
+				cbXMax = Math.max(cbXMax, p.x);
+				cbYMin = Math.min(cbYMin, p.y);
+				cbYMax = Math.max(cbYMax, p.y);
 				count++;
 			}
 		}
 		if (count === 0) return;
-		const stemCenterX = (stemXMin + stemXMax) / 2;
-		const stemCenterY = (stemYMin + stemYMax) / 2;
-		const stemHalfWidth = (stemXMax - stemXMin) / 2;
+		const cbCenterX = (cbXMin + cbXMax) / 2;
+		const cbCenterY = (cbYMin + cbYMax) / 2;
+		const cbHalfWidth = (cbXMax - cbXMin) / 2;
 
-		// 眼睛位置：竖杠中部偏上，左右对称
-		// 间距 = 竖杠半宽的 50%（确保在竖杠内）
-		const eyeSpacing = Math.min(stemHalfWidth * 0.5, 0.04);
-		const eyeY = stemCenterY - (stemYMax - stemYMin) * 0.15; // 中部偏上
-		// 眼睛半径基于竖杠宽度
-		const eyeRadius = Math.max(scale * 0.012, stemHalfWidth * scale * 2 * 0.18);
+		// 眼睛位置：横杠中部，左右对称
+		const eyeSpacing = cbHalfWidth * 0.22;   // 间距 = 横杠半宽的 22%
+		const eyeY = cbCenterY;                   // 横杠垂直中心
+		// 眼睛半径基于横杠高度
+		const eyeRadius = Math.max(scale * 0.014, (cbYMax - cbYMin) * scale * 2 * 0.28);
 
 		// 眨眼
 		const blinkCycle = 4000;
@@ -498,7 +506,7 @@ export class QuyuanVoiceParticleField {
 			: { r: 100, g: 180, b: 255 };
 
 		for (const side of [-1, 1]) {
-			const eyeNormX = stemCenterX + side * eyeSpacing;
+			const eyeNormX = cbCenterX + side * eyeSpacing;
 			const ex = cx + eyeNormX * scale * 2;
 			const ey = cy + eyeY * scale * 2;
 
