@@ -23,8 +23,11 @@ interface Rgb {
 	b: number;
 }
 
-const PARTICLE_COUNT = 900;
-const FRONT_ALPHA = 0.68;
+const PARTICLE_COUNT = 1600;
+const FRONT_ALPHA = 0.72;
+
+// 白色 T 主体：粒子基础色以白色为主，状态色只做点缀
+const WHITE = { r: 235, g: 245, b: 255 };
 
 // TALOS T 标志的归一化几何参数（从 SVG path 反推，归一化到 -0.5~0.5）
 // 横杠面积:竖杠面积 ≈ 46:54
@@ -154,7 +157,7 @@ export class QuyuanVoiceParticleField {
 				offX: 0,
 				offY: 0,
 				wanderSpeed: 0.3 + Math.random() * 0.7,
-				size: 0.32 + ((i * 17) % 19) / 22,
+				size: 0.18 + ((i * 17) % 19) / 30,
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
 				colorMix: ((i * 41) % 100) / 100,
@@ -223,6 +226,10 @@ export class QuyuanVoiceParticleField {
 	/**
 	 * 粒子颜色流动——基于粒子在 T 形内的位置 + 时间相位
 	 */
+	/**
+	 * 粒子颜色流动——白色 T 主体，状态色做轻微染色点缀。
+	 * 白色占主导（mix 0.55-0.85），状态色只在能量高时渗透。
+	 */
 	private stateColorFlow(
 		particle: Particle,
 		energy: number,
@@ -233,36 +240,31 @@ export class QuyuanVoiceParticleField {
 				: this.state === "reco" ? 0.0028
 					: this.state === "think" ? 0.0021
 						: 0.0015;
-		// 用粒子的 baseX 做横向流光（T 形从左到右）
 		const shimmer = (Math.sin(particle.baseX * 6.28 + particle.phase + time * colorRate) + 1) / 2;
-		// 用 baseY 做纵向呼吸（T 形从上到下）
-		const vertical = (particle.baseY + 0.5);
 
 		switch (this.state) {
 			case "listen": {
-				const breath = Math.min(1, this.smoothedLevel * 1.35 + energy * 0.45);
-				const cool = mix(this.primary, this.secondary, 0.18 + shimmer * 0.48);
-				return mix(cool, this.stateColor, 0.22 + breath * 0.48);
+				// 白色为主，听音时渗入冷青色
+				const tint = mix(WHITE, this.stateColor, 0.15 + energy * 0.2);
+				return mix(tint, WHITE, 0.45 - shimmer * 0.15);
 			}
 			case "reco": {
-				const breath = Math.min(1, this.smoothedLevel * 1.2 + energy * 0.4);
-				const cool = mix(this.primary, this.secondary, 0.2 + shimmer * 0.44);
-				return mix(cool, this.stateColor, 0.24 + breath * 0.44);
+				const tint = mix(WHITE, this.stateColor, 0.18 + energy * 0.18);
+				return mix(tint, WHITE, 0.42 - shimmer * 0.12);
 			}
 			case "think": {
-				// think 态：从左到右的扫描光带
-				const scan = mix(this.secondary, this.primary, shimmer);
-				return mix(scan, this.stateColor, 0.34 + shimmer * 0.38);
+				// think：白色基底 + 从左到右的淡紫扫描带
+				const scan = mix(WHITE, this.stateColor, 0.12 + shimmer * 0.28);
+				return mix(scan, WHITE, 0.38);
 			}
 			case "speak": {
-				const warmWave = mix(this.warm, this.stateColor, 0.24 + vertical * 0.54);
-				const coolFlash = mix(this.primary, this.secondary, shimmer);
-				const coolAmount = Math.max(0, (shimmer - 0.46) * 1.72);
-				return mix(warmWave, coolFlash, coolAmount);
+				// speak：白色基底 + 青绿点缀（TTS 音量驱动渗透强度）
+				const tint = mix(WHITE, this.stateColor, 0.2 + energy * 0.25);
+				return mix(tint, WHITE, 0.35 - shimmer * 0.15);
 			}
 			default: {
-				const quiet = mix(this.primary, this.secondary, particle.colorMix * 0.44);
-				return mix(quiet, this.stateColor, 0.18);
+				// idle/sleep：纯白主体 + 极淡状态色
+				return mix(WHITE, this.stateColor, 0.08);
 			}
 		}
 	}
@@ -303,23 +305,24 @@ export class QuyuanVoiceParticleField {
 		const cx = this.width * 0.5;
 		const cy = this.height * 0.5;
 		const baseRadius = Math.max(80, Math.min(this.width * 0.28, this.height * 0.32, 240));
-		const breathScale = 1 + energy * 0.06;
+		const breathScale = 1 + energy * 0.12;
 		// T 形尺寸：归一化坐标 × scale，scale 让 T 宽 ≈ baseRadius
 		const scale = baseRadius * breathScale;
 		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
 
-		// 游走幅度：energy 越高粒子越活泼（偏离 T 形边缘，模糊边界）
-		const wanderRange = 0.04 + energy * 0.08;
+		// 游走幅度：energy 越高粒子越活泼，动态更明显
+		const wanderRange = 0.06 + energy * 0.14;
 
 		for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
 			const particle = this.particles[particleIndex];
 
-			// 无序跳跃：每帧用 Perlin-like 噪声驱动偏移，粒子在基准位置附近随机游走
-			// 用两条不同频率的 sin 叠加模拟噪声，比纯随机更有机
-			const nx = Math.sin(particle.phase + animationTime * 0.0018 * particle.wanderSpeed)
-				+ Math.sin(particle.phase * 2.3 + animationTime * 0.0029 * particle.wanderSpeed) * 0.6;
-			const ny = Math.cos(particle.phase * 1.7 + animationTime * 0.0016 * particle.wanderSpeed)
-				+ Math.cos(particle.phase * 3.1 + animationTime * 0.0024 * particle.wanderSpeed) * 0.6;
+			// 无序跳跃：三频 sin 叠加模拟噪声，更快频率 → 更明显的动态
+			const nx = Math.sin(particle.phase + animationTime * 0.0028 * particle.wanderSpeed)
+				+ Math.sin(particle.phase * 2.3 + animationTime * 0.0041 * particle.wanderSpeed) * 0.7
+				+ Math.sin(particle.phase * 0.7 + animationTime * 0.0019 * particle.wanderSpeed) * 0.4;
+			const ny = Math.cos(particle.phase * 1.7 + animationTime * 0.0024 * particle.wanderSpeed)
+				+ Math.cos(particle.phase * 3.1 + animationTime * 0.0037 * particle.wanderSpeed) * 0.7
+				+ Math.cos(particle.phase * 0.5 + animationTime * 0.0015 * particle.wanderSpeed) * 0.4;
 			particle.offX = nx * wanderRange;
 			particle.offY = ny * wanderRange;
 
@@ -330,14 +333,11 @@ export class QuyuanVoiceParticleField {
 			const depth = 0.72 + particle.layer * 0.28;
 			const visible = Math.max(0.52, 0.76 + particle.layer * 0.4);
 
-			// 颜色
-			const baseColor = mix(
-				this.primary,
-				particle.colorMix > 0.72 ? this.warm : this.secondary,
-				particle.colorMix
-			);
+			// 颜色：白色主体 + 状态色点缀
 			const flowingColor = this.stateColorFlow(particle, energy, animationTime);
-			const color = mix(baseColor, flowingColor, 0.42 + energy * 0.2);
+			// baseColor 也偏白，只在 colorMix 高时极轻微掺入 secondary
+			const tint = mix(WHITE, this.secondary, particle.colorMix * 0.12);
+			const color = mix(tint, flowingColor, 0.55 + energy * 0.2);
 
 			const size = particle.size * (1.04 + depth * 0.9 + energy * 0.9);
 			const context = particle.layer > 0.5 ? this.front : this.back;
