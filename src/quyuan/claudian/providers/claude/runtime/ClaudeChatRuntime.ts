@@ -1195,28 +1195,10 @@ export class ClaudianService implements ChatRuntime {
           return;
         } catch (error) {
           if (isSessionExpiredError(error) && conversationHistory && conversationHistory.length > 0) {
-            this.sessionManager.invalidateSession();
-            const retryRequest = this.buildHistoryRebuildRequest(prompt, conversationHistory);
-
-            this.coldStartInProgress = true;
-            this.abortController = new AbortController();
-
-            try {
-              yield* this.queryViaSDK(
-                retryRequest.prompt,
-                vaultPath,
-                resolvedClaudePath,
-                // Use current message's images, fallback to history images
-                images ?? retryRequest.images,
-                effectiveQueryOptions
-              );
-            } catch (retryError) {
-              const msg = retryError instanceof Error ? retryError.message : 'Unknown error';
-              yield { type: 'error', content: msg };
-            } finally {
-              this.coldStartInProgress = false;
-              this.abortController = null;
-            }
+            yield* this.recoverFromSessionExpired(
+              prompt, images, conversationHistory, vaultPath, resolvedClaudePath, effectiveQueryOptions,
+              { manageAbortController: true },
+            );
             return;
           }
 
@@ -1234,22 +1216,10 @@ export class ClaudianService implements ChatRuntime {
       yield* this.queryViaSDK(promptToSend, vaultPath, resolvedClaudePath, images, effectiveQueryOptions);
     } catch (error) {
       if (isSessionExpiredError(error) && conversationHistory && conversationHistory.length > 0) {
-        this.sessionManager.invalidateSession();
-        const retryRequest = this.buildHistoryRebuildRequest(prompt, conversationHistory);
-
-        try {
-          yield* this.queryViaSDK(
-            retryRequest.prompt,
-            vaultPath,
-            resolvedClaudePath,
-            // Use current message's images, fallback to history images
-            images ?? retryRequest.images,
-            effectiveQueryOptions
-          );
-        } catch (retryError) {
-          const msg = retryError instanceof Error ? retryError.message : 'Unknown error';
-          yield { type: 'error', content: msg };
-        }
+        yield* this.recoverFromSessionExpired(
+          prompt, images, conversationHistory, vaultPath, resolvedClaudePath, effectiveQueryOptions,
+          { manageAbortController: false },
+        );
         return;
       }
 
@@ -1258,6 +1228,51 @@ export class ClaudianService implements ChatRuntime {
     } finally {
       this.coldStartInProgress = false;
       this.abortController = null;
+    }
+  }
+
+  /**
+   * Shared session-expired recovery: invalidates the stale session, rebuilds
+   * the prompt with conversation history, and re-runs via cold-start SDK.
+   *
+   * `manageAbortController` controls whether the retry manages its own
+   * AbortController (persistent path, where no outer try set one) or relies
+   * on the caller's finally to clean up (cold-start path).
+   */
+  private async *recoverFromSessionExpired(
+    prompt: string,
+    images: ImageAttachment[] | undefined,
+    conversationHistory: ChatMessage[],
+    vaultPath: string,
+    resolvedClaudePath: string,
+    queryOptions: QueryOptions | undefined,
+    opts: { manageAbortController: boolean },
+  ): AsyncGenerator<StreamChunk> {
+    this.sessionManager.invalidateSession();
+    const retryRequest = this.buildHistoryRebuildRequest(prompt, conversationHistory);
+
+    this.coldStartInProgress = true;
+    if (opts.manageAbortController) {
+      this.abortController = new AbortController();
+    }
+
+    try {
+      yield* this.queryViaSDK(
+        retryRequest.prompt,
+        vaultPath,
+        resolvedClaudePath,
+        // Use current message's images, fallback to history images
+        images ?? retryRequest.images,
+        queryOptions,
+      );
+    } catch (retryError) {
+      const msg = retryError instanceof Error ? retryError.message : 'Unknown error';
+      yield { type: 'error', content: msg };
+    } finally {
+      this.coldStartInProgress = false;
+      if (opts.manageAbortController) {
+        this.abortController = null;
+      }
     }
   }
 
