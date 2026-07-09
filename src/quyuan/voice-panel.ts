@@ -33,12 +33,12 @@ interface StateMeta {
 }
 
 const STATES: Record<VoiceState, StateMeta> = {
-	sleep: { color: "#66758a", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说“屈原”开始对话" },
-	idle: { color: "#888780", speed: "3.6s", icon: "mic-off", caption: "麦克风已关闭", sub: "点击下方按钮恢复监听" },
-	listen: { color: "#378ADD", speed: "2s", icon: "ear", caption: "我在听", sub: "说完，我会接住。" },
-	reco: { color: "#1D9E75", speed: "0.9s", icon: "audio-lines", caption: "正在识别", sub: "把你的声音变成清晰意图" },
-	think: { color: "#7F77DD", speed: "1.4s", icon: "loader", caption: "正在想透", sub: "按超级大脑规则理解意图" },
-	speak: { color: "#D85A30", speed: "1s", icon: "volume-2", caption: "屈原在回答", sub: "开口即可打断" },
+	sleep: { color: "#475569", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说“屈原”开始对话" },
+	idle: { color: "#64748b", speed: "3.6s", icon: "mic-off", caption: "麦克风已关闭", sub: "点击下方按钮恢复监听" },
+	listen: { color: "#38bdf8", speed: "2s", icon: "ear", caption: "我在听", sub: "说完，我会接住。" },
+	reco: { color: "#7dd3fc", speed: "0.9s", icon: "audio-lines", caption: "正在识别", sub: "把你的声音变成清晰意图" },
+	think: { color: "#a78bfa", speed: "1.4s", icon: "loader", caption: "正在想透", sub: "按超级大脑规则理解意图" },
+	speak: { color: "#5eead4", speed: "1s", icon: "volume-2", caption: "屈原在回答", sub: "开口即可打断" },
 };
 
 // 样式见 styles.quyuan-shell.css（.tq- 作用域），由 build-styles.mjs 合入 styles.css。

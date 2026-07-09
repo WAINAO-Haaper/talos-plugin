@@ -28,8 +28,8 @@ interface StateMotion {
 	pulseCount: number;
 }
 
-const PARTICLE_COUNT = 840;
-const FRONT_ALPHA = 0.72;
+const PARTICLE_COUNT = 420;
+const FRONT_ALPHA = 0.55;
 
 function hexToRgb(value: string, fallback: Rgb): Rgb {
 	const normalized = value.trim().replace("#", "");
@@ -177,48 +177,48 @@ export class QuyuanVoiceParticleField {
 					rotationRate: 0.00009,
 					xScale: 1.02,
 					yScale: 1,
-					deformation: 0.22,
-					waveRate: 0.007,
-					twist: 0.12,
-					orbitCount: 5,
+					deformation: 0.14,
+					waveRate: 0.005,
+					twist: 0.08,
+					orbitCount: 3,
 					orbitSquash: 0.38,
-					pulseCount: 4,
+					pulseCount: 3,
 				};
 			case "reco":
 				return {
 					rotationRate: 0.00015,
-					xScale: 0.84,
-					yScale: 1.08,
-					deformation: 0.28,
-					waveRate: 0.019,
-					twist: 0.38,
-					orbitCount: 4,
+					xScale: 0.92,
+					yScale: 1.04,
+					deformation: 0.18,
+					waveRate: 0.013,
+					twist: 0.24,
+					orbitCount: 3,
 					orbitSquash: 0.24,
-					pulseCount: 5,
+					pulseCount: 4,
 				};
 			case "think":
 				return {
 					rotationRate: 0.00025,
 					xScale: 1.08,
 					yScale: 0.82,
-					deformation: 0.32,
-					waveRate: 0.013,
-					twist: 1.35,
-					orbitCount: 9,
+					deformation: 0.22,
+					waveRate: 0.009,
+					twist: 0.8,
+					orbitCount: 6,
 					orbitSquash: 0.2,
-					pulseCount: 3,
+					pulseCount: 2,
 				};
 			case "speak":
 				return {
 					rotationRate: 0.00019,
 					xScale: 1.14,
 					yScale: 0.94,
-					deformation: 0.42,
-					waveRate: 0.026,
-					twist: 0.52,
-					orbitCount: 7,
+					deformation: 0.28,
+					waveRate: 0.018,
+					twist: 0.34,
+					orbitCount: 5,
 					orbitSquash: 0.34,
-					pulseCount: 6,
+					pulseCount: 4,
 				};
 			default:
 				return {
@@ -376,7 +376,7 @@ export class QuyuanVoiceParticleField {
 			const context = z >= 0.08 ? this.front : this.back;
 			const layerAlpha = z >= 0.08 ? FRONT_ALPHA : 1;
 			const surfaceAlpha = this.lightSurface ? 0.82 : 1;
-			if (particleIndex % 19 === 0) {
+			if (particleIndex % 12 === 0) {
 				const haloSize = size * (2.8 + energy * 1.8);
 				context.beginPath();
 				context.arc(px, py, haloSize, 0, Math.PI * 2);

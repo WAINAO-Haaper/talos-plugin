@@ -1076,24 +1076,24 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-voice {
   --tq-theme-key: aurora;
-  --tq-surface: #06101d;
-  --tq-surface-soft: #0a1727;
-  --tq-panel: rgba(10, 23, 39, 0.88);
-  --tq-panel-strong: rgba(13, 29, 49, 0.96);
-  --tq-border: rgba(143, 177, 228, 0.18);
-  --tq-text: #f3f6fb;
-  --tq-muted: #92a0b5;
-  --tq-faint: #657389;
-  --tq-brand: #dc2734;
-  --tq-particle-a: #2d84ff;
-  --tq-particle-b: #7558ff;
-  --tq-particle-c: #ff6f50;
-  --tq-state-listen: #378add;
-  --tq-state-reco: #1d9e75;
-  --tq-state-think: #7f77dd;
-  --tq-state-speak: #d85a30;
-  --tq-copy-shield: rgba(4, 12, 23, 0.54);
-  --tq-on-brand: #fff;
+  --tq-surface: #050810;
+  --tq-surface-soft: #0a0f1a;
+  --tq-panel: rgba(8, 12, 22, 0.72);
+  --tq-panel-strong: rgba(10, 16, 28, 0.92);
+  --tq-border: rgba(125, 211, 252, 0.12);
+  --tq-text: #e0f2fe;
+  --tq-muted: #64748b;
+  --tq-faint: #475569;
+  --tq-brand: #38bdf8;
+  --tq-particle-a: #7dd3fc;
+  --tq-particle-b: #c4b5fd;
+  --tq-particle-c: #38bdf8;
+  --tq-state-listen: #38bdf8;
+  --tq-state-reco: #7dd3fc;
+  --tq-state-think: #a78bfa;
+  --tq-state-speak: #5eead4;
+  --tq-copy-shield: rgba(4, 8, 16, 0.48);
+  --tq-on-brand: #050810;
   --tq-btn-radius: 10px;
   --tq-btn-height: 36px;
   --tq-btn-accent: var(--tq-brand);
@@ -1558,7 +1558,13 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--tq-surface);
+  background:
+    radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--tq-particle-a) 6%, transparent) 0%,
+      var(--tq-surface) 62%
+    ),
+    var(--tq-surface);
   isolation: isolate;
 }
 
@@ -1621,7 +1627,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   border-radius: 50%;
   color: var(--tq-text);
   background: color-mix(in srgb, var(--tq-state) 16%, transparent) !important;
-  opacity: 0.42;
+  opacity: 0.28;
 }
 
 .tq-core svg {
@@ -1635,10 +1641,10 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   right: clamp(28px, 4vw, 58px);
   bottom: 102px;
   width: min(58%, 640px);
-  padding: 34px 30px 28px;
+  padding: 48px 36px 36px;
   text-align: right;
   background: var(--tq-copy-shield);
-  border-radius: 30px;
+  border-radius: 40px;
   box-shadow: 0 0 64px 48px var(--tq-copy-shield);
   pointer-events: none;
 }
@@ -1654,9 +1660,9 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   gap: clamp(18px, 2.2vw, 34px);
   margin: 0;
   color: var(--tq-faint);
-  font-size: clamp(18px, 1.4vw, 22px);
-  font-weight: 560;
-  letter-spacing: 0.08em;
+  font-size: clamp(15px, 1.2vw, 19px);
+  font-weight: 500;
+  letter-spacing: 0.14em;
   pointer-events: none;
 }
 
@@ -2164,12 +2170,12 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-bub {
   max-width: 92%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid var(--tq-border);
-  border-radius: 14px;
+  border-radius: 18px;
   color: var(--tq-text);
   background: color-mix(in srgb, var(--tq-panel-strong) 84%, transparent);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
   font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
