@@ -9,6 +9,8 @@
 		"build": "npm run licenses:check && tsc -noEmit -skipLibCheck && node build-styles.mjs && node esbuild.config.mjs production",
 		"build:css": "node build-styles.mjs",
 		"typecheck": "tsc --noEmit --skipLibCheck",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"test:quyuan": "node --experimental-strip-types quyuan-v2.selftest.mjs",
 		"test:approval-actions": "node --experimental-strip-types approval-actions.selftest.mjs",
 		"test:approval-executor": "node --experimental-strip-types approval-executor.selftest.mjs",
@@ -30,7 +32,8 @@
 		"jiti": "^2.6.1",
 		"obsidian": "latest",
 		"typescript": "^5.8.3",
-		"typescript-eslint": "^8.59.1"
+		"typescript-eslint": "^8.59.1",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@anthropic-ai/claude-agent-sdk": "^0.3.190",
