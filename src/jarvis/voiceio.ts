@@ -251,7 +251,11 @@ export class StreamTts {
 		if (res.status !== 200) throw new Error(`阿里云 ${res.status}`);
 		const url = (res.json as { output?: { audio?: { url?: string } } })?.output?.audio?.url;
 		if (!url) throw new Error("阿里云无音频 URL");
-		return url;
+		// 下载远程音频转为 blob URL，避免 createMediaElementSource 跨域静音问题
+		const audioRes = await requestUrl({ url, throw: false });
+		if (audioRes.status !== 200) throw new Error(`阿里云音频下载 ${audioRes.status}`);
+		const audioBlob = new Blob([audioRes.arrayBuffer], { type: "audio/mpeg" });
+		return URL.createObjectURL(audioBlob);
 	}
 
 	// Edge 朗读语速：ttsRate(0.5–2) → SSML 百分比（1.0→+0%，1.5→+50%）
@@ -354,6 +358,8 @@ export class StreamTts {
 	 */
 	private attachAnalyser(audio: HTMLAudioElement, gen: number): void {
 		if (!this.onLevel) return;
+		// 只对 blob URL 做分析——远程 URL 会触发 createMediaElementSource 跨域静音
+		if (!audio.src.startsWith("blob:")) return;
 		try {
 			const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 			if (!Ctx) return;
