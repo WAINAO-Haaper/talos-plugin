@@ -383,7 +383,7 @@ export class QuyuanVoiceParticleField {
 
 		const cx = this.width * 0.5;
 		const cy = this.height * 0.5;
-		const baseRadius = Math.max(80, Math.min(this.width * 0.28, this.height * 0.32, 240));
+		const baseRadius = Math.max(100, Math.min(this.width * 0.38, this.height * 0.42, 320));
 		const breathScale = 1 + energy * 0.05;
 		const scale = baseRadius * breathScale;
 		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
@@ -434,6 +434,95 @@ export class QuyuanVoiceParticleField {
 			context.fill();
 		}
 
+		// 眼睛：T 形竖杠中部，两只对称眼睛
+		this.drawEyes(this.front, cx, cy, scale, energy, animationTime);
+
 		this.frame = window.requestAnimationFrame((next) => this.render(next));
+	}
+
+	/**
+	 * 在 T 形竖杠中部画两只动态眼睛。
+	 * - 眼睛位置：竖杠中部（baseY ≈ 0.05），左右对称
+	 * - 动态：眨眼（周期性闭眼）+ 朗读时瞳孔随 TTS 音量脉动
+	 */
+	private drawEyes(
+		context: CanvasRenderingContext2D,
+		cx: number,
+		cy: number,
+		scale: number,
+		energy: number,
+		time: number
+	): void {
+		// 眼睛在 T 形竖杠中部（归一化坐标）
+		const eyeOffsetX = 0.045;   // 左右眼间距
+		const eyeY = 0.05;          // 竖杠中部偏上
+		const eyeRadius = scale * 0.028;
+
+		// 眨眼：每 ~4 秒眨一次，持续 150ms
+		const blinkCycle = 4000;
+		const blinkDuration = 150;
+		const phase = time % blinkCycle;
+		const isBlinking = phase < blinkDuration;
+		// 眨眼时眼睑高度 0→1→0（快速闭合再张开）
+		const blinkClose = isBlinking
+			? Math.sin((phase / blinkDuration) * Math.PI)
+			: 0;
+
+		// 朗读时瞳孔放大（TTS 音量驱动）
+		const isSpeaking = this.state === "speak";
+		const pupilScale = isSpeaking
+			? 0.6 + this.smoothedOutput * 0.6
+			: 0.5;
+		// 朗读时眼睛发光更强
+		const glowIntensity = isSpeaking
+			? 0.4 + this.smoothedOutput * 0.5
+			: 0.15 + energy * 0.1;
+
+		// 眼睛颜色：白色眼球 + 深色瞳孔
+		const eyeballColor = WHITE;
+		const pupilColor = this.lightSurface
+			? { r: 40, g: 50, b: 70 }
+			: { r: 100, g: 180, b: 255 };
+
+		for (const side of [-1, 1]) {
+			const ex = cx + side * eyeOffsetX * scale * 2;
+			const ey = cy + eyeY * scale * 2;
+
+			// 外发光（朗读时更亮）
+			const glowRadius = eyeRadius * (2.5 + glowIntensity * 2);
+			const glowGrad = context.createRadialGradient(ex, ey, 0, ex, ey, glowRadius);
+			const glowColor = isSpeaking ? this.stateColor : this.primary;
+			glowGrad.addColorStop(0, rgba(glowColor, glowIntensity * 0.4));
+			glowGrad.addColorStop(1, rgba(glowColor, 0));
+			context.fillStyle = glowGrad;
+			context.beginPath();
+			context.arc(ex, ey, glowRadius, 0, Math.PI * 2);
+			context.fill();
+
+			// 眼球（白色），眨眼时压扁
+			const eyeHeight = eyeRadius * (1 - blinkClose * 0.9);
+			context.save();
+			context.translate(ex, ey);
+			context.scale(1, eyeHeight / eyeRadius);
+			context.beginPath();
+			context.arc(0, 0, eyeRadius, 0, Math.PI * 2);
+			context.fillStyle = rgba(eyeballColor, 0.95);
+			context.fill();
+			context.restore();
+
+			// 瞳孔（眨眼时不画）
+			if (blinkClose < 0.5) {
+				const pupilRadius = eyeRadius * pupilScale * (1 - blinkClose);
+				context.beginPath();
+				context.arc(ex, ey, pupilRadius, 0, Math.PI * 2);
+				context.fillStyle = rgba(pupilColor, 0.9);
+				context.fill();
+				// 瞳孔高光
+				context.beginPath();
+				context.arc(ex - pupilRadius * 0.3, ey - pupilRadius * 0.3, pupilRadius * 0.35, 0, Math.PI * 2);
+				context.fillStyle = rgba(WHITE, 0.7);
+				context.fill();
+			}
+		}
 	}
 }
