@@ -1,13 +1,18 @@
 export type ParticleVoiceState = "idle" | "listen" | "reco" | "think" | "speak";
 
 interface Particle {
-	theta: number;
-	phi: number;
-	shell: number;
+	/** T 形内基准坐标（归一化 -0.5~0.5，以 T 中心为原点） */
+	baseX: number;
+	baseY: number;
+	/** 随机微抖动（让粒子不完美对齐，更有机） */
+	jitterX: number;
+	jitterY: number;
 	size: number;
 	phase: number;
 	speed: number;
 	colorMix: number;
+	/** 0-1 深度层（前后景分配，保留立体感） */
+	layer: number;
 }
 
 interface Rgb {
@@ -16,20 +21,14 @@ interface Rgb {
 	b: number;
 }
 
-interface StateMotion {
-	rotationRate: number;
-	xScale: number;
-	yScale: number;
-	deformation: number;
-	waveRate: number;
-	twist: number;
-	orbitCount: number;
-	orbitSquash: number;
-	pulseCount: number;
-}
-
 const PARTICLE_COUNT = 900;
 const FRONT_ALPHA = 0.68;
+
+// TALOS T 标志的归一化几何参数（从 SVG path 反推，归一化到 -0.5~0.5）
+// 横杠面积:竖杠面积 ≈ 46:54
+const T_CROSSBAR = { xMin: -0.5, xMax: 0.5, yMin: -0.484, yMax: -0.333 };   // 横杠
+const T_STEM = { xMin: -0.115, xMax: 0.107, yMin: -0.333, yMax: 0.484 };   // 竖杠
+const T_CROSSBAR_RATIO = 0.46; // 46% 粒子分给横杠
 
 function hexToRgb(value: string, fallback: Rgb): Rgb {
 	const normalized = value.trim().replace("#", "");
@@ -96,7 +95,6 @@ export class QuyuanVoiceParticleField {
 	private secondary: Rgb = { r: 124, g: 86, b: 255 };
 	private warm: Rgb = { r: 255, g: 112, b: 74 };
 	private stateColor: Rgb = { r: 45, g: 132, b: 255 };
-	// 目标色（syncPalette 设置，render 里每帧 lerp 靠近，实现平滑过渡）
 	private targetPrimary: Rgb = { r: 45, g: 132, b: 255 };
 	private targetSecondary: Rgb = { r: 124, g: 86, b: 255 };
 	private targetWarm: Rgb = { r: 255, g: 112, b: 74 };
@@ -139,19 +137,25 @@ export class QuyuanVoiceParticleField {
 		this.resizeObserver.disconnect();
 	}
 
+	/** 在 T 形的横杠和竖杠矩形内均匀采样粒子位置 */
 	private createParticles(): Particle[] {
 		const particles: Particle[] = [];
-		const golden = Math.PI * (3 - Math.sqrt(5));
 		for (let i = 0; i < PARTICLE_COUNT; i++) {
-			const y = 1 - (i / (PARTICLE_COUNT - 1)) * 2;
+			// 按面积比例选横杠或竖杠
+			const useCrossbar = Math.random() < T_CROSSBAR_RATIO;
+			const rect = useCrossbar ? T_CROSSBAR : T_STEM;
+			const baseX = rect.xMin + Math.random() * (rect.xMax - rect.xMin);
+			const baseY = rect.yMin + Math.random() * (rect.yMax - rect.yMin);
 			particles.push({
-				theta: golden * i,
-				phi: Math.acos(y),
-				shell: 0.58 + ((i * 37) % 100) / 310,
+				baseX,
+				baseY,
+				jitterX: (Math.random() - 0.5) * 0.008,
+				jitterY: (Math.random() - 0.5) * 0.008,
 				size: 0.32 + ((i * 17) % 19) / 22,
 				phase: ((i * 53) % 360) * (Math.PI / 180),
 				speed: 0.72 + ((i * 29) % 31) / 48,
 				colorMix: ((i * 41) % 100) / 100,
+				layer: Math.random(),
 			});
 		}
 		return particles;
@@ -199,88 +203,25 @@ export class QuyuanVoiceParticleField {
 		this.targetStateColor = deepen(hexToRgb(style.getPropertyValue(stateVariable), this.targetPrimary), deepenFactor);
 	}
 
-	private stateMotion(): StateMotion {
-		switch (this.state) {
-			case "listen":
-				return {
-					rotationRate: 0.00009,
-					xScale: 1.02,
-					yScale: 1,
-					deformation: 0.14,
-					waveRate: 0.005,
-					twist: 0.08,
-					orbitCount: 3,
-					orbitSquash: 0.38,
-					pulseCount: 3,
-				};
-			case "reco":
-				return {
-					rotationRate: 0.00012,
-					xScale: 0.98,
-					yScale: 1.02,
-					deformation: 0.15,
-					waveRate: 0.006,
-					twist: 0.12,
-					orbitCount: 3,
-					orbitSquash: 0.36,
-					pulseCount: 3,
-				};
-			case "think":
-				return {
-					rotationRate: 0.00025,
-					xScale: 1.08,
-					yScale: 0.82,
-					deformation: 0.22,
-					waveRate: 0.009,
-					twist: 0.8,
-					orbitCount: 6,
-					orbitSquash: 0.2,
-					pulseCount: 2,
-				};
-			case "speak":
-				return {
-					rotationRate: 0.00019,
-					xScale: 1.14,
-					yScale: 0.94,
-					deformation: 0.28,
-					waveRate: 0.018,
-					twist: 0.34,
-					orbitCount: 5,
-					orbitSquash: 0.34,
-					pulseCount: 4,
-				};
-			default:
-				return {
-					rotationRate: 0.000045,
-					xScale: 0.94,
-					yScale: 0.94,
-					deformation: 0.1,
-					waveRate: 0.003,
-					twist: 0,
-					orbitCount: 3,
-					orbitSquash: 0.4,
-					pulseCount: 2,
-				};
-		}
-	}
-
+	/**
+	 * 各状态的能量值（驱动呼吸缩放幅度）
+	 */
 	private stateEnergy(time: number): number {
 		const pulse = (Math.sin(time * 0.0032) + 1) / 2;
 		if (this.state === "listen") return Math.max(this.smoothedLevel, 0.1 + pulse * 0.08);
 		if (this.state === "reco") return Math.max(this.smoothedLevel, 0.12 + pulse * 0.08);
 		if (this.state === "think") return 0.38 + Math.sin(time * 0.0054) * 0.12;
 		if (this.state === "speak") {
-			// TTS 输出音量直接驱动粒子能量，加装饰性 sin 波动
 			return 0.28 + this.smoothedOutput * 0.5 + Math.sin(time * 0.011) * 0.08;
 		}
 		return 0.08 + pulse * 0.04;
 	}
 
+	/**
+	 * 粒子颜色流动——基于粒子在 T 形内的位置 + 时间相位
+	 */
 	private stateColorFlow(
 		particle: Particle,
-		theta: number,
-		voiceBand: number,
-		flow: number,
 		energy: number,
 		time: number
 	): Rgb {
@@ -289,10 +230,10 @@ export class QuyuanVoiceParticleField {
 				: this.state === "reco" ? 0.0028
 					: this.state === "think" ? 0.0021
 						: 0.0015;
-		const shimmer =
-			(Math.sin(particle.phase + theta * 2.4 + time * colorRate) + 1) / 2;
-		const band = (voiceBand + 1) / 2;
-		const stream = (flow + 1) / 2;
+		// 用粒子的 baseX 做横向流光（T 形从左到右）
+		const shimmer = (Math.sin(particle.baseX * 6.28 + particle.phase + time * colorRate) + 1) / 2;
+		// 用 baseY 做纵向呼吸（T 形从上到下）
+		const vertical = (particle.baseY + 0.5);
 
 		switch (this.state) {
 			case "listen": {
@@ -306,12 +247,13 @@ export class QuyuanVoiceParticleField {
 				return mix(cool, this.stateColor, 0.24 + breath * 0.44);
 			}
 			case "think": {
-				const vortex = mix(this.secondary, this.primary, stream);
-				return mix(vortex, this.stateColor, 0.34 + shimmer * 0.38);
+				// think 态：从左到右的扫描光带
+				const scan = mix(this.secondary, this.primary, shimmer);
+				return mix(scan, this.stateColor, 0.34 + shimmer * 0.38);
 			}
 			case "speak": {
-				const warmWave = mix(this.warm, this.stateColor, 0.24 + band * 0.54);
-				const coolFlash = mix(this.primary, this.secondary, stream);
+				const warmWave = mix(this.warm, this.stateColor, 0.24 + vertical * 0.54);
+				const coolFlash = mix(this.primary, this.secondary, shimmer);
 				const coolAmount = Math.max(0, (shimmer - 0.46) * 1.72);
 				return mix(warmWave, coolFlash, coolAmount);
 			}
@@ -334,7 +276,7 @@ export class QuyuanVoiceParticleField {
 		this.smoothedOutput += (this.outputLevel - this.smoothedOutput) * Math.min(1, delta / 90);
 		this.outputLevel *= 0.94;
 		this.syncPalette();
-		// 颜色平滑过渡：每帧向目标色 lerp 8%（借鉴 ElevenLabs Orb 的 color.lerp）
+		// 颜色平滑过渡
 		this.primary = lerpRgb(this.primary, this.targetPrimary, 0.08);
 		this.secondary = lerpRgb(this.secondary, this.targetSecondary, 0.08);
 		this.warm = lerpRgb(this.warm, this.targetWarm, 0.08);
@@ -346,7 +288,6 @@ export class QuyuanVoiceParticleField {
 		this.back.globalCompositeOperation = composite;
 		this.front.globalCompositeOperation = composite;
 
-		const motion = this.stateMotion();
 		const animationTime = this.reducedMotion ? 0 : time;
 		const transitionKick = this.reducedMotion
 			? 0
@@ -354,66 +295,44 @@ export class QuyuanVoiceParticleField {
 		const energy = this.reducedMotion
 			? 0.08
 			: Math.max(0.04, this.stateEnergy(time) + transitionKick);
+
+		// T 形居中 + 呼吸缩放（整体脉动，形状不散）
 		const cx = this.width * 0.5;
 		const cy = this.height * 0.5;
-		const radius = Math.max(88, Math.min(this.width * 0.32, this.height * 0.36, 280));
-		const rotation = this.reducedMotion ? 0.22 : animationTime * motion.rotationRate;
-		const tilt = -0.18;
+		const baseRadius = Math.max(80, Math.min(this.width * 0.28, this.height * 0.32, 240));
+		const breathScale = 1 + energy * 0.06;
+		// T 形尺寸：归一化坐标 × scale，scale 让 T 宽 ≈ baseRadius
+		const scale = baseRadius * breathScale;
+		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
 
 		for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
 			const particle = this.particles[particleIndex];
-			const baseY = Math.cos(particle.phi);
-			const theta =
-				particle.theta
-				+ rotation * particle.speed
-				+ baseY * motion.twist
-				+ Math.sin(particle.phase + animationTime * motion.waveRate * 0.28) * energy * 0.12;
-			const sinPhi = Math.sin(particle.phi);
-			let x = Math.cos(theta) * sinPhi;
-			let y = baseY;
-			let z = Math.sin(theta) * sinPhi;
-			const y2 = y * Math.cos(tilt) - z * Math.sin(tilt);
-			const z2 = y * Math.sin(tilt) + z * Math.cos(tilt);
-			y = y2;
-			z = z2;
 
-			const bandFrequency =
-				this.state === "reco" ? 18 : this.state === "speak" ? 11 : 8;
-			const voiceBand = Math.sin(
-				particle.phi * bandFrequency + particle.phase - animationTime * motion.waveRate
-			);
-			const flow = Math.sin(theta * (this.state === "think" ? 7 : 4) + animationTime * motion.waveRate * 0.64 + particle.phase);
-			const speakWave = this.state === "speak"
-				? Math.sin(particle.phi * 7 - animationTime * 0.031) * 0.11
-				: 0;
-			const deformation =
-				1
-				+ energy * (motion.deformation + voiceBand * 0.15 + flow * 0.08)
-				+ speakWave * energy;
-			x *= deformation * motion.xScale;
-			y *= deformation * motion.yScale;
-			const depth = 0.72 + (z + 1) * 0.18;
-			const px = cx + x * radius * particle.shell * depth;
-			const py = cy + y * radius * particle.shell * depth;
-			const visible = Math.max(0.52, 0.76 + z * 0.4);
+			// 粒子位置 = T 形坐标 × scale（中心居中）
+			// 加基于相位的微小浮动（呼吸时粒子轻微位移，更有机）
+			const floatX = Math.sin(particle.phase + animationTime * 0.0012) * energy * 0.004;
+			const floatY = Math.cos(particle.phase + animationTime * 0.0014) * energy * 0.004;
+			const px = cx + (particle.baseX + particle.jitterX + floatX) * scale * 2;
+			const py = cy + (particle.baseY + particle.jitterY + floatY) * scale * 2;
+
+			// 深度：layer 决定前后景 + 大小变化
+			const depth = 0.72 + particle.layer * 0.28;
+			const visible = Math.max(0.52, 0.76 + particle.layer * 0.4);
+
+			// 颜色
 			const baseColor = mix(
 				this.primary,
 				particle.colorMix > 0.72 ? this.warm : this.secondary,
 				particle.colorMix
 			);
-			const flowingColor = this.stateColorFlow(
-				particle,
-				theta,
-				voiceBand,
-				flow,
-				energy,
-				animationTime
-			);
+			const flowingColor = this.stateColorFlow(particle, energy, animationTime);
 			const color = mix(baseColor, flowingColor, 0.42 + energy * 0.2);
+
 			const size = particle.size * (1.04 + depth * 0.9 + energy * 0.9);
-			const context = z >= 0.08 ? this.front : this.back;
-			const layerAlpha = z >= 0.08 ? FRONT_ALPHA : 1;
-			const surfaceAlpha = this.lightSurface ? 0.88 : 1;
+			const context = particle.layer > 0.5 ? this.front : this.back;
+			const layerAlpha = particle.layer > 0.5 ? FRONT_ALPHA : 1;
+
+			// halo 光晕（保留）
 			if (particleIndex % 17 === 0) {
 				const haloSize = size * (2.8 + energy * 1.8);
 				context.beginPath();
@@ -430,90 +349,6 @@ export class QuyuanVoiceParticleField {
 			context.fill();
 		}
 
-		this.drawPulse(this.back, cx, cy, radius, energy, animationTime, motion);
-		this.drawOrbits(this.back, cx, cy, radius, energy, animationTime, motion);
 		this.frame = window.requestAnimationFrame((next) => this.render(next));
-	}
-
-	private drawPulse(
-		context: CanvasRenderingContext2D,
-		cx: number,
-		cy: number,
-		radius: number,
-		energy: number,
-		time: number,
-		motion: StateMotion
-	): void {
-		context.beginPath();
-		context.arc(cx, cy, radius * (0.56 + energy * 0.04), 0, Math.PI * 2);
-		const centerAlpha = this.lightSurface ? 0.04 : 0.018;
-		context.fillStyle = rgba(this.primary, centerAlpha + energy * 0.022);
-		context.fill();
-		context.strokeStyle = rgba(this.stateColor, (this.lightSurface ? 0.14 : 0.09) + energy * 0.12);
-		context.lineWidth = 1.2;
-		context.stroke();
-
-		const count = motion.pulseCount;
-		const pulsePalette = [this.stateColor, this.primary, this.secondary, this.warm];
-		for (let i = 0; i < count; i++) {
-			const pulseRate = this.state === "speak" ? 0.00055 : this.state === "reco" ? 0.00038 : 0.00024;
-			const phase = ((time * pulseRate + i / count) % 1);
-			const pulseRadius = radius * (0.45 + phase * 0.72);
-			context.beginPath();
-			context.arc(cx, cy, pulseRadius, 0, Math.PI * 2);
-			const pulseColor = mix(
-				pulsePalette[i % pulsePalette.length],
-				this.stateColor,
-				0.34 + Math.sin(time * 0.002 + i) * 0.18
-			);
-			context.strokeStyle = rgba(
-				pulseColor,
-				Math.max(0, (1 - phase) * (0.055 + energy * 0.15))
-			);
-			context.lineWidth = 1;
-			context.stroke();
-		}
-	}
-
-	private drawOrbits(
-		context: CanvasRenderingContext2D,
-		cx: number,
-		cy: number,
-		radius: number,
-		energy: number,
-		time: number,
-		motion: StateMotion
-	): void {
-		context.save();
-		context.translate(cx, cy);
-		for (let i = 0; i < motion.orbitCount; i++) {
-			context.save();
-			const direction = this.state === "think" && i % 2 ? -1 : 1;
-			context.rotate(
-				time * direction * (motion.rotationRate * 0.36 + i * 0.000004) + i * 0.63
-			);
-			context.beginPath();
-			context.ellipse(
-				0,
-				0,
-				radius * (0.68 + i * 0.045),
-				radius * (motion.orbitSquash + i * 0.018),
-				0,
-				0,
-				Math.PI * 2
-			);
-			const orbitBase = i % 3 === 2 ? this.warm : i % 2 === 0 ? this.primary : this.secondary;
-			const color = mix(
-				orbitBase,
-				this.stateColor,
-				0.18 + ((Math.sin(time * 0.0017 + i * 0.9) + 1) / 2) * 0.42
-			);
-			const surfaceAlpha = this.lightSurface ? 0.85 : 1;
-			context.strokeStyle = rgba(color, (0.13 + energy * 0.2) * surfaceAlpha);
-			context.lineWidth = 1 + energy * 1.55;
-			context.stroke();
-			context.restore();
-		}
-		context.restore();
 	}
 }
