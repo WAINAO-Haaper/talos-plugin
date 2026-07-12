@@ -394,7 +394,7 @@ export async function deepResearch(
 	}
 	let spawnFn: typeof import("child_process").spawn | null = null;
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		spawnFn = (require("child_process") as typeof import("child_process")).spawn;
 	} catch {
 		spawnFn = null;

@@ -159,7 +159,7 @@ class CharacterAvatar {
 // ---------- 大脑：spawn claude -p ----------
 function resolveSpawn(): SpawnFn | null {
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const cp = require("child_process") as { spawn: SpawnFn };
 		return cp.spawn;
 	} catch {

@@ -58,7 +58,7 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 
 - `src/main.ts` 入口；`src/view.ts` ItemView + 全部 render；`src/settings.ts` 设置页
 - `src/quyuan/` **屈原 v2 融合层**：人格启动闸、能力契约、TALOS 治理适配、Claudian 2.0.25 固定快照与上游说明；第三方实现保留 MIT 溯源，面向用户统一使用 TALOS / 屈原命名
-- `src/quyuan/voice-panel.ts` + `voice-driver.ts` + `voice-particle-field.ts` **屈原粒子语音工作区**：屈原页隐藏旧时钟与长导航，保留原 TALOS 11 项 Lucide 图标导航并收窄为 68px 轨道；主区采用「左上放大状态流程 / 中央居中粒子核心 / 右下状态与回答」三点布局。Canvas 粒子由真实麦克风 RMS 驱动，并为聆听、识别、思考、回答分别提供呼吸扩散、扫描收束、双向涡旋和外扩波阵四套运动语言；颜色同步拆为矿蓝冷呼吸、蓝绿扫描、蓝紫涡旋、朱砂/矿蓝/苔绿回答波阵，每颗粒子按相位独立流色，重点粒子、脉冲与轨道带低透明彩色光晕。浅色宣纸提高粒子实体对比，深色主题保留发光混合。右侧为可调宽、可折叠的 TALOS 交互面板。按钮统一使用 `tq-btn` 基础契约与主行动 / 次行动 / 危险 / 图标 / 标签 / 列表变体，七主题只换变量，不再各自漂移尺寸与状态。持续监听增加转写后唤醒门控：说“屈原”唤醒，30 秒内可连续对话，说“退下”立即休眠，未唤醒内容不会进入 Agent。文字与语音为两条独立答复链路：语音 runtime 默认 Haiku + Low 并预热，只生成 2–5 句可直接朗读的自然口语和自动 TTS；文字 runtime 保持工作台原模型，允许结构化 Markdown 且不自动朗读。模型生成、TTS 排队与真实播放分开记账，麦克风保护直到音频播完才解除；自动声控打断仅在真实播放期启用。`StreamTts` 在播放前清除 Markdown、链接和代码围栏，避免符号被念出。注意：唤醒门控发生在 ASR 转写后；本地 Whisper 音频留在本机，千问云端档仍需先上传音频完成识别。
+- `src/quyuan/voice-panel.ts` + `voice-character-stage.ts` + `voice-particle-field.ts` + `voice-driver.ts` **屈原 Antigravity 球形粒子 Logo 语音工作区**：现行形态由五组圆角实体模块构成实心窄边 T-Shield，中央负形提供大眼部空间和贯通到底的嘴部开口；6247 个主体球形粒子 + 480 个圆眼粒子共 6727。所有方形像素点改为圆形核心，约每 10–11 点增加偏左上高光并保留稀疏柔光晕。休眠轨道速度、呼吸幅度、双轴流动与指针扰动提高；唤醒聚合、聆听呼吸、识别扫描、思考旋流和回答波幅同步增强。语音识别结果从全宽字幕层拆为圆环右上方独立编辑卡，42px 水平滑入，支持多行编辑与 Esc 收起；扇形菜单展开时编辑卡再上滑 64px 主动避让。AI 回复固定使用左侧阅读区，三者互不覆盖。悬浮菜单仍提供持久化“退出语音/开启语音”模式。
 - `src/data/stats.ts` 全库统计；`src/data/talos.ts` 发布作战室；`src/data/navigation.ts` 高频导航页数据采集；`src/actions.ts` 动作 + 模态框
 - `src/approval-actions.ts` 待审批批准/拒绝按钮的纯文本变换内核；`approval-actions.selftest.mjs` 用沙盘文本验证批准、拒绝、缺失状态和「回滚方案示例不误判」路径；控制台待审批卡片和总览「处理建议」下的「待审批按钮入口」均可直接点击「批准 / 拒绝」写回决策并刷新队列，点击后会留下本次操作回执，明确区分「审批已记录」与「实际变更已执行」
 - `src/approval-executor.ts` 审批授权执行器测试内核；`approval-executor.selftest.mjs` 验证审批项里的执行器/目标文件/执行指令解析、模拟模型追加内容和执行记录写回。当前 UI 提供「批准+模型」按钮，第一版仅支持 `mock-model-file-append` 本地模拟模型，用来验证授权→读文件→处理→写回→回执的闭环
@@ -66,9 +66,10 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 - `src/voice.ts` **旧屈原（一期·已停用，保留不删）**：SVG 角色 + `claude -p` 一次性 spawn + `speechSynthesis`。被 B 方案取代，view 不再引用；代码留存备查。
 - `LICENSE`：TALOS 自有代码的专有商业许可；不覆盖 Claudian 与其他第三方材料。客户使用、席位、期限和再分发权须由单独商业协议/EULA 授予。
 - `THIRD-PARTY-NOTICES.md`：Claudian MIT、Claude Agent SDK 商业条款、BYOK 边界和直接运行时依赖摘要。
-- `THIRD-PARTY-LICENSES.txt`：由 `third-party-licenses.mjs` 根据 lockfile 自动生成的生产依赖完整许可证包；当前覆盖 109 个已安装生产包。
+- `THIRD-PARTY-LICENSES.txt`：由 `third-party-licenses.mjs` 根据 lockfile 自动生成的生产依赖完整许可证包；当前覆盖 111 个已安装生产包。
 - `MaShanZheng-Regular.ttf` + `MaShanZheng-OFL.txt`：屈原语音主标题使用的本地毛笔字体与 SIL OFL 1.1 许可证；随插件部署，离线可用。
-- `TALOS-Favicon-64-v1.png`：来自 `02-品牌资产/` 的 TALOS Modular T-Shield 定稿图标，用于屈原语音页顶部品牌栏。
+- `TALOS-Favicon-64-v1.png`：来自 `02-品牌资产/` 的 TALOS Modular T-Shield 定稿图标，供控制台品牌识别使用。
+- `TALOS-Mascot-Character-Transparent-v1.png`：TALOS 动画人物概念资产与回滚参考；现行屈原粒子 Logo 不再依赖该图片运行。
 - `styles.css` 七套完整主题（scope 在 `.talos-console`），含 `.jv-agent`/`.jv-tool`/`.jv-perm` 等 Agentic 面板样式
 - `theme-preview.html` 三套新增主题的本地视觉回验页；`docs/design-qa.md` 对照参考页面的验收记录
 - `prototype/` 设计稿原型与视觉回验页面（详见 `docs/design-qa.md`）

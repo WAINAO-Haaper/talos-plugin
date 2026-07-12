@@ -65,10 +65,7 @@ function createHarness(initialContent = ""): Harness {
   const scheduler = new StreamRenderScheduler({
     getTargetEl: () => el as unknown as HTMLElement,
     getContent: () => content,
-    doRender: doRender as unknown as (
-      el: HTMLElement,
-      content: string
-    ) => Promise<void>,
+    doRender: doRender,
     afterRender,
     getWindow: () => null,
   });

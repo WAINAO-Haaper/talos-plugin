@@ -5,7 +5,7 @@
 ## 这是什么
 
 - TypeScript 编写的 **Obsidian community plugin**，不是 Obsidian Vault。
-- 插件 ID `talos`，显示名 `TALOS`，版本 `0.1.0`，最低 Obsidian `1.8.0`。
+- 插件 ID `talos`，显示名 `TALOS`，版本 `0.2.0`，最低 Obsidian `1.8.0`。
 - 定位：**超级大脑整个系统的原生控制台**。扫全库、实时统计、把每个系统模块的态势呈现在一个 Obsidian 视图里。
 - 取代旧方案：`07-控制台/dashboard.html` + `System/scripts/refresh-dashboard.py`（python 写 STATS）+ `超级大脑仪表盘.md` 的 DataviewJS iframe。`超级大脑仪表盘.md` 已于 2026-06-28 删除；`dashboard.html` + python 暂留为回退备份。
 

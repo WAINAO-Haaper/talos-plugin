@@ -1220,6 +1220,24 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   color-scheme: light;
 }
 
+/* === 屈原舞台锁定：粒子和背景固定为 Aurora 青白冷调，不受全局主题影响 ===
+   只锁粒子色 / 背景色 / 状态色 / color-scheme。
+   fab 按钮、侧栏面板、文字颜色仍跟随全局主题（不锁 --tq-panel/--tq-text/--tq-brand 等）。
+   !important 确保覆盖所有 .theme-XXX .tq-voice 规则（特异性相同时靠源顺序，
+   但 !important 是最无歧义的锁定声明，语义也最清晰）。 */
+.tq-voice {
+  --tq-surface: #050810 !important;
+  --tq-surface-soft: #0a0f1a !important;
+  --tq-particle-a: #7dd3fc !important;
+  --tq-particle-b: #c4b5fd !important;
+  --tq-particle-c: #38bdf8 !important;
+  --tq-state-listen: #38bdf8 !important;
+  --tq-state-reco: #7dd3fc !important;
+  --tq-state-think: #a78bfa !important;
+  --tq-state-speak: #5eead4 !important;
+  color-scheme: dark !important;
+}
+
 /* 浅色主题：stage 中心微暗角，让粒子在浅底上跳出 */
 .talos-console.theme-soft-relief[data-talos-page="jarvis"] .tq-stage,
 .talos-console.theme-geometric-modern[data-talos-page="jarvis"] .tq-stage {
@@ -1567,6 +1585,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-stage {
   position: relative;
+  container: tq-stage / size;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1578,6 +1597,607 @@ body[data-talos-vault-theme] .talos-quyuan-shell
     ),
     var(--tq-surface);
   isolation: isolate;
+}
+
+/* === 屈原 Antigravity 粒子磁场：休眠隐约成标，唤醒聚合为 TALOS T-Shield === */
+.tq-pixel-head-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+
+.tq-pixel-head-scene.is-ready,
+.tq-pixel-head-scene.is-fallback {
+  opacity: 1;
+}
+
+.tq-pixel-head-scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    circle at 50% 43%,
+    color-mix(in srgb, var(--tq-state) 10%, transparent) 0%,
+    color-mix(in srgb, var(--tq-surface) 30%, transparent) 26%,
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+.tq-pixel-head-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tq-pixel-head-canvas--back {
+  z-index: 1;
+  opacity: 0.76;
+}
+
+.tq-pixel-head-canvas--front {
+  z-index: 2;
+}
+
+.tq-pixel-head-fallback {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 43%;
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 48%, transparent);
+  border-radius: 28px;
+  color: var(--tq-state);
+  background: color-mix(in srgb, var(--tq-panel-strong) 82%, transparent);
+  box-shadow: 0 0 48px color-mix(in srgb, var(--tq-state) 28%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.tq-pixel-head-fallback svg {
+  width: 64px;
+  height: 64px;
+}
+
+.tq-pixel-head-scene[data-character-awake="true"]::before {
+  background: radial-gradient(
+    circle at 50% 43%,
+    color-mix(in srgb, var(--tq-state) 18%, transparent) 0%,
+    color-mix(in srgb, var(--tq-surface) 24%, transparent) 30%,
+    transparent 56%
+  );
+}
+
+.tq-pixel-head-scene.is-fallback .tq-pixel-head-canvas {
+  display: none;
+}
+
+.tq-pixel-head-scene.is-fallback .tq-pixel-head-fallback {
+  display: flex;
+}
+
+/* 上一版静态 PNG 全身/近景方案保留为 CSS 回滚层，现行 DOM 不再创建。 */
+.tq-character-scene {
+  --tq-input-level: 0;
+  --tq-input-scale: 1;
+  --tq-input-shift: 0px;
+  --tq-output-level: 0;
+  --tq-output-scale: 1;
+  --tq-portrait-zoom: 335%;
+  --tq-eye-opacity: 0.96;
+  --tq-eye-hue: 0deg;
+  --tq-eye-glow: 12px;
+  --tq-eye-scale: 1;
+  --tq-eye-brightness: 1;
+  --tq-patrol-cycle: 18s;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+
+.tq-character-scene.is-ready,
+.tq-character-scene.is-fallback {
+  opacity: 1;
+}
+
+/* Canvas replaced elements cannot reliably render ::after; keep the center shield here. */
+.tq-character-scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--tq-surface) 52%, transparent) 0%,
+    transparent 36%
+  );
+  pointer-events: none;
+}
+
+.tq-character-roam,
+.tq-character-closeup {
+  position: absolute;
+  inset: 0;
+  transition:
+    opacity 420ms ease,
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 420ms ease;
+}
+
+.tq-character-roam {
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tq-character-path {
+  position: absolute;
+  left: 12cqw;
+  top: 18cqh;
+  height: min(64cqh, 520px);
+  aspect-ratio: 0.55;
+  will-change: left, top, transform;
+  animation: tq-character-patrol var(--tq-patrol-cycle) linear infinite;
+}
+
+.tq-character-path::before,
+.tq-character-path::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.tq-character-path::before {
+  z-index: 0;
+  left: 58%;
+  top: 18%;
+  width: 136%;
+  height: 30%;
+  clip-path: polygon(0 43%, 100% 0, 100% 100%, 0 57%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tq-state) 28%, transparent), transparent 82%);
+  filter: blur(5px);
+  opacity: 0;
+  transform-origin: 0 50%;
+  animation: tq-character-patrol-beam 3.2s ease-in-out infinite;
+}
+
+.tq-character-path::after {
+  z-index: 0;
+  left: 50%;
+  bottom: 0;
+  width: 96%;
+  height: 13%;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 54%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--tq-state) 22%, transparent);
+  opacity: 0.24;
+  transform: translateX(-50%) scale(0.72);
+  animation: tq-character-patrol-ring 1.65s ease-out infinite;
+}
+
+.tq-character-bob {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 88%;
+  will-change: transform;
+  animation: tq-character-bob 1.65s ease-in-out infinite;
+}
+
+.tq-character-image {
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.tq-character-image--body {
+  position: absolute;
+  left: 50%;
+  bottom: -3%;
+  width: auto !important;
+  height: 110% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  transform: translateX(-50%);
+  transform-origin: 50% 85%;
+  filter:
+    drop-shadow(0 18px 24px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--tq-state) 18%, transparent));
+}
+
+.tq-character-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 64%;
+  height: 7%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tq-state) 28%, rgba(0, 0, 0, 0.48));
+  filter: blur(12px);
+  opacity: 0.6;
+  transform: translateX(-50%);
+}
+
+.tq-character-closeup {
+  z-index: 2;
+  opacity: 0;
+  transform: scale(0.82);
+  filter: blur(8px);
+}
+
+.tq-character-aura {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: min(86cqw, 88cqh, 960px);
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 42%, transparent);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--tq-state) 17%, transparent), transparent 66%),
+    conic-gradient(from 30deg, transparent, color-mix(in srgb, var(--tq-state) 24%, transparent), transparent 42%);
+  box-shadow:
+    0 0 70px color-mix(in srgb, var(--tq-state) 18%, transparent),
+    0 0 140px color-mix(in srgb, var(--tq-state) 10%, transparent) inset;
+  opacity: 0.7;
+  transform: translate(-50%, -50%);
+}
+
+.tq-character-portrait {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: min(78cqw, 82cqh, 860px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 34%, transparent);
+  border-radius: 46%;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tq-state) 13%, transparent), transparent 68%);
+  box-shadow:
+    0 24px 90px rgba(0, 0, 0, 0.32),
+    0 0 54px color-mix(in srgb, var(--tq-state) 18%, transparent) inset;
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 55%;
+  will-change: transform, filter;
+}
+
+.tq-character-face-rig {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 50% 43%;
+  will-change: transform;
+  transition: transform 90ms linear, filter 280ms ease;
+}
+
+.tq-character-image--portrait {
+  position: absolute;
+  left: 45.9%;
+  top: -24.3%;
+  width: auto !important;
+  height: var(--tq-portrait-zoom) !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  transform: translateX(-50%);
+  transform-origin: 50% 22%;
+  filter:
+    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.36))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--tq-state) 18%, transparent));
+}
+
+.tq-character-eyes {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.tq-character-eye {
+  position: absolute;
+  top: 40.5%;
+  width: 8%;
+  height: 5.1%;
+  border-radius: 18%;
+  color: #00f5d4;
+  background: currentColor;
+  box-shadow:
+    0 0 var(--tq-eye-glow) currentColor,
+    0 0 8px currentColor inset;
+  opacity: 0;
+  filter: hue-rotate(var(--tq-eye-hue)) brightness(var(--tq-eye-brightness));
+  transform: scale(var(--tq-eye-scale));
+  transition:
+    opacity 140ms ease,
+    filter 90ms linear,
+    transform 90ms linear;
+}
+
+.tq-character-eye--left {
+  left: 32.8%;
+}
+
+.tq-character-eye--right {
+  left: 62.2%;
+}
+
+.tq-character-face-light {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 31%;
+  width: 42%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--tq-state) 46%, transparent), transparent 72%);
+  filter: blur(8px);
+  opacity: 0.28;
+  transform: translate(-50%, var(--tq-input-shift));
+  transition: opacity 90ms linear, transform 90ms linear;
+}
+
+.tq-character-scan {
+  position: absolute;
+  z-index: 5;
+  left: 14%;
+  right: 14%;
+  top: 18%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--tq-state), transparent);
+  box-shadow: 0 0 18px var(--tq-state);
+  opacity: 0;
+}
+
+.tq-character-fallback {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 48%, transparent);
+  border-radius: 32px;
+  color: var(--tq-state);
+  background: color-mix(in srgb, var(--tq-panel-strong) 82%, transparent);
+  box-shadow: 0 0 48px color-mix(in srgb, var(--tq-state) 28%, transparent);
+  transform: translate(-50%, -50%);
+}
+
+.tq-character-fallback svg {
+  width: 54px;
+  height: 54px;
+}
+
+.tq-character-scene.is-fallback :is(.tq-character-roam, .tq-character-closeup) {
+  display: none;
+}
+
+.tq-character-scene.is-fallback .tq-character-fallback {
+  display: flex;
+}
+
+/* Awake uses a dedicated close-up instance, so the camera never jumps from a random roam position. */
+.tq-voice:is(
+  [data-wake-state="awake"],
+  [data-voice-state="think"],
+  [data-voice-state="speak"]
+) .tq-character-roam {
+  opacity: 0;
+  transform: scale(0.88);
+}
+
+.tq-voice:is(
+  [data-wake-state="awake"],
+  [data-voice-state="think"],
+  [data-voice-state="speak"]
+) :is(.tq-character-path, .tq-character-bob),
+.tq-voice:is(
+  [data-wake-state="awake"],
+  [data-voice-state="think"],
+  [data-voice-state="speak"]
+) .tq-character-path::before,
+.tq-voice:is(
+  [data-wake-state="awake"],
+  [data-voice-state="think"],
+  [data-voice-state="speak"]
+) .tq-character-path::after {
+  animation-play-state: paused;
+}
+
+.tq-voice:is(
+  [data-wake-state="awake"],
+  [data-voice-state="think"],
+  [data-voice-state="speak"]
+) .tq-character-closeup {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+.tq-voice[data-voice-state="listen"] .tq-character-portrait {
+  animation: tq-character-listen 2s ease-in-out infinite;
+}
+
+.tq-voice[data-voice-state="listen"] .tq-character-face-rig {
+  transform: translateY(var(--tq-input-shift)) scale(var(--tq-input-scale));
+}
+
+.tq-voice[data-voice-state="listen"] .tq-character-face-light {
+  opacity: calc(0.32 + var(--tq-input-level));
+}
+
+.tq-voice[data-wake-state="awake"][data-voice-state="reco"] .tq-character-scan {
+  animation: tq-character-scan 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.tq-voice[data-voice-state="think"] .tq-character-portrait {
+  animation: tq-character-think 3.4s ease-in-out infinite;
+}
+
+.tq-voice[data-voice-state="think"] .tq-character-aura {
+  animation: tq-character-aura 4.8s linear infinite;
+}
+
+.tq-voice[data-voice-state="speak"] .tq-character-face-rig {
+  transform: scale(var(--tq-output-scale));
+}
+
+.tq-voice[data-voice-state="speak"] .tq-character-eye {
+  opacity: var(--tq-eye-opacity);
+  animation: tq-character-eyes-speak 1.8s ease-in-out infinite alternate;
+}
+
+.tq-voice[data-voice-state="speak"] .tq-character-face-light {
+  opacity: calc(0.4 + var(--tq-output-level));
+  filter: blur(6px);
+}
+
+@keyframes tq-character-patrol {
+  0%, 8% { left: 12cqw; top: 18cqh; transform: rotate(-1deg); }
+  20%, 28% { left: 32cqw; top: 9cqh; transform: rotate(1.8deg); }
+  43%, 53% { left: 67cqw; top: 16cqh; transform: rotate(-1.2deg); }
+  68%, 77% { left: 50cqw; top: 31cqh; transform: rotate(2deg); }
+  91% { left: 18cqw; top: 27cqh; transform: rotate(-1.5deg); }
+  100% { left: 12cqw; top: 18cqh; transform: rotate(-1deg); }
+}
+
+@keyframes tq-character-bob {
+  0%, 100% { transform: translateY(0) rotate(-0.8deg) scaleY(1); }
+  28% { transform: translateY(-12px) rotate(0.8deg) scaleY(1.012); }
+  55% { transform: translateY(-3px) rotate(-0.3deg) scaleY(0.994); }
+  78% { transform: translateY(-10px) rotate(0.6deg) scaleY(1.008); }
+}
+
+@keyframes tq-character-patrol-beam {
+  0%, 18%, 100% { opacity: 0; transform: rotate(-11deg) scaleX(0.86); }
+  32%, 66% { opacity: 0.56; }
+  82% { opacity: 0; transform: rotate(13deg) scaleX(1.08); }
+}
+
+@keyframes tq-character-patrol-ring {
+  0% { opacity: 0.46; transform: translateX(-50%) scale(0.62); }
+  76%, 100% { opacity: 0; transform: translateX(-50%) scale(1.16); }
+}
+
+@keyframes tq-character-listen {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+  50% { transform: translate(-50%, -51.5%) rotate(-1deg); }
+}
+
+@keyframes tq-character-scan {
+  0% { top: 18%; opacity: 0; }
+  16%, 78% { opacity: 0.9; }
+  100% { top: 70%; opacity: 0; }
+}
+
+@keyframes tq-character-think {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-1.8deg) scale(0.985); }
+  50% { transform: translate(-50%, -51%) rotate(2.2deg) scale(1.015); }
+}
+
+@keyframes tq-character-aura {
+  from { transform: translate(-50%, -50%) rotate(0deg) scale(0.96); }
+  50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.04); }
+  to { transform: translate(-50%, -50%) rotate(360deg) scale(0.96); }
+}
+
+@keyframes tq-character-eyes-speak {
+  0% {
+    color: #00f5d4;
+    box-shadow: 0 0 var(--tq-eye-glow) currentColor, 0 0 8px currentColor inset;
+  }
+  48% {
+    color: #009dff;
+    box-shadow: 0 0 var(--tq-eye-glow) currentColor, 0 0 12px currentColor inset;
+  }
+  100% {
+    color: #9d4edd;
+    box-shadow: 0 0 var(--tq-eye-glow) currentColor, 0 0 9px currentColor inset;
+  }
+}
+
+@container tq-stage (max-width: 620px) {
+  .tq-character-path {
+    left: 4cqw;
+    top: 20cqh;
+    height: min(56cqh, 360px);
+    animation-name: tq-character-patrol-compact;
+  }
+
+  .tq-character-aura {
+    top: 42%;
+    width: min(100cqw, 88cqh);
+  }
+
+  .tq-character-portrait {
+    top: 42%;
+    width: min(94cqw, 78cqh);
+  }
+
+  @keyframes tq-character-patrol-compact {
+    0%, 10% { left: 4cqw; top: 20cqh; transform: rotate(-1deg); }
+    28%, 38% { left: 31cqw; top: 11cqh; transform: rotate(1.8deg); }
+    58%, 68% { left: 57cqw; top: 22cqh; transform: rotate(-1deg); }
+    83% { left: 27cqw; top: 30cqh; transform: rotate(1.5deg); }
+    100% { left: 4cqw; top: 20cqh; transform: rotate(-1deg); }
+  }
+}
+
+@container tq-stage (max-width: 420px) {
+  .tq-character-path {
+    height: min(50cqh, 280px);
+  }
+
+  .tq-character-aura {
+    top: 35%;
+    width: min(104cqw, 78cqh);
+  }
+
+  .tq-character-portrait {
+    top: 35%;
+    width: min(98cqw, 72cqh);
+  }
+}
+
+@container tq-stage (max-height: 520px) {
+  .tq-character-path {
+    top: 9cqh;
+    height: 64cqh;
+  }
+
+  .tq-character-aura,
+  .tq-character-portrait {
+    top: 39%;
+  }
+}
+
+@container tq-stage (max-width: 420px) and (max-height: 520px) {
+  .tq-character-aura,
+  .tq-character-portrait {
+    top: 35%;
+  }
 }
 
 .tq-particles {
@@ -1594,6 +2214,57 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-particles-front {
   z-index: 4;
+}
+
+/* === 屈原舞台背景层（LetterGlitch 字符故障 / GridScan 3D 网格扫描） === */
+.tq-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 1;
+}
+
+/* LetterGlitch 不需要鼠标交互；GridScan 需要鼠标跟踪 */
+.tq-bg[aria-hidden="true"] {
+  pointer-events: none;
+}
+/* GridScan 需要 mousemove——通过 JS 动态加 .tq-bg--interactive 标记 */
+.tq-bg.tq-bg--interactive {
+  pointer-events: auto;
+}
+
+/* 中心微暗角：只在中央 logo 区轻微压暗，让粒子 T 形跳出；四周不压暗，保持背景可见 */
+.tq-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--tq-surface) 40%, transparent) 0%,
+    transparent 32%
+  );
+}
+
+/* 外圈微暗角：只在最边缘轻微压暗，保留背景动态效果可见 */
+.tq-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 75%,
+    color-mix(in srgb, var(--tq-surface) 50%, transparent) 100%
+  );
+}
+
+/* 浅色主题：背景透明度降低，避免抢戏 */
+.theme-light .tq-bg {
+  opacity: 0.32;
 }
 
 .tq-stage.is-particle-fallback {
@@ -2767,6 +3438,30 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tq-character-roam,
+  .tq-character-closeup,
+  .tq-character-face-rig,
+  .tq-character-image--portrait,
+  .tq-character-face-light {
+    transition: none;
+  }
+
+  .tq-character-path,
+  .tq-character-path::before,
+  .tq-character-path::after,
+  .tq-character-bob,
+  .tq-character-portrait,
+  .tq-character-aura,
+  .tq-character-scan,
+  .tq-character-eye {
+    animation: none !important;
+  }
+
+  .tq-character-path {
+    left: 12cqw;
+    top: 18cqh;
+  }
+
   .tq-btn {
     transition: none;
   }
@@ -2781,6 +3476,11 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   }
 
   .tq-voice[data-voice-state="speak"] .tq-copy {
+    animation: none;
+  }
+
+  .tq-overlay-line,
+  .tq-fab-ring {
     animation: none;
   }
 
@@ -3077,7 +3777,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   grid-template-columns: minmax(0, 1fr) 0 0;
 }
 
-/* ---- 半透明文字覆盖层 ---- */
+/* ---- 电影字幕式文字覆盖层（亮白发光 + 顶部淡出） ---- */
 .tq-overlay-text {
   position: absolute;
   inset: 0;
@@ -3085,149 +3785,364 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 40px clamp(24px, 5vw, 72px) 90px;
+  padding: 40px clamp(24px, 5vw, 72px) 110px;
   pointer-events: none;
   overflow: hidden;
+  /* 顶部 mask 渐隐——滚出的旧行自然淡出消失 */
+  -webkit-mask-image: linear-gradient(to top, black 50%, transparent 100%);
+  mask-image: linear-gradient(to top, black 50%, transparent 100%);
 }
 
 .tq-overlay-reply {
   order: 2;
-  max-height: 42vh;
-  overflow-y: auto;
-  scrollbar-width: none;
-  color: color-mix(in srgb, var(--tq-text) 72%, transparent);
-  font-size: clamp(14px, 1.5vw, 17px);
-  line-height: 1.75;
+  /* 左侧回复阅读区与右侧语音转写编辑卡分栏，永不互相覆盖。 */
+  width: calc(100% - clamp(300px, 32vw, 430px));
+  max-width: 880px;
+  max-height: 48vh;
+  overflow: hidden;
+  /* 亮白色字体 + 青蓝发光 */
+  color: rgba(255, 255, 255, 0.95);
+  font-size: clamp(15px, 1.6vw, 19px);
+  line-height: 1.8;
   text-align: left;
-  text-shadow: 0 2px 12px var(--tq-surface);
+  text-shadow:
+    0 0 20px rgba(125, 211, 252, 0.5),
+    0 0 40px rgba(125, 211, 252, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.85);
   word-break: break-word;
-}
-.tq-overlay-reply::-webkit-scrollbar {
-  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .tq-overlay-reply:empty {
   display: none;
 }
 
-.tq-overlay-user {
-  order: 1;
-  margin-bottom: 14px;
-  color: color-mix(in srgb, var(--tq-text) 50%, transparent);
-  font-size: clamp(13px, 1.3vw, 15px);
-  line-height: 1.6;
-  text-align: right;
-  text-shadow: 0 2px 8px var(--tq-surface);
-  word-break: break-word;
+/* 字幕行：从底部淡入 */
+.tq-overlay-line {
+  animation: tq-line-enter 400ms ease-out;
 }
-.tq-overlay-user:empty {
-  display: none;
+@keyframes tq-line-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ---- 右下角悬浮圆环 fab ---- */
+/* ---- 圆环右上方：语音识别文字编辑卡 ---- */
+.tq-transcript-editor {
+  position: absolute;
+  right: clamp(28px, 3.5vw, 56px);
+  bottom: calc(clamp(205px, 18vh, 250px) + 92px);
+  z-index: 18;
+  width: clamp(240px, 24vw, 360px);
+  padding: 12px 14px 14px;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 48%, var(--tq-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--tq-panel-strong) 88%, transparent);
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.3),
+    0 0 28px color-mix(in srgb, var(--tq-state) 12%, transparent);
+  backdrop-filter: blur(18px);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(42px, 14px, 0) scale(0.96);
+  transform-origin: right bottom;
+  pointer-events: none;
+  transition:
+    opacity 220ms ease,
+    visibility 220ms ease,
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tq-transcript-editor.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+/* 扇形菜单展开时编辑卡继续上滑，给七个按钮和气泡让出完整空间。 */
+.tq-stage:has(.tq-fab.is-open) .tq-transcript-editor.is-visible {
+  transform: translate3d(0, -64px, 0) scale(1);
+}
+.tq-transcript-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--tq-text);
+}
+.tq-transcript-head span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.tq-transcript-head small {
+  color: var(--tq-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.tq-overlay-user {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 66px;
+  max-height: 132px;
+  margin: 0;
+  padding: 10px 12px;
+  resize: none;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 28%, transparent);
+  border-radius: 11px;
+  outline: none;
+  background: color-mix(in srgb, var(--tq-surface) 72%, transparent);
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
+  text-shadow: 0 0 14px rgba(125, 211, 252, 0.2);
+}
+.tq-overlay-user:focus {
+  border-color: color-mix(in srgb, var(--tq-state) 72%, white 8%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tq-state) 16%, transparent);
+}
+
+/* ============================================
+   BubbleMenu 风格悬浮控制（移植自 ReactBits）
+   中心大圆按钮 → 点击后 pill 胶囊按钮向上弹出
+   ============================================ */
+
+/* 容器：从右下角向舞台内侧留出完整扇形菜单和状态区空间 */
 .tq-fab {
   position: absolute;
-  right: clamp(16px, 2.5vw, 28px);
-  bottom: clamp(16px, 2.5vw, 28px);
+  /* 继续向左上内收，为转写文字和径向气泡留出更清晰的分区。 */
+  right: clamp(210px, 12vw, 260px);
+  bottom: clamp(205px, 18vh, 250px);
   z-index: 20;
+  width: 0;
+  height: 0;
+}
+
+/* 中心大圆——以 .tq-fab 原点为中心居中 */
+.tq-fab-ring {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  /* 向左上偏移半圆，使圆心对齐 .tq-fab 原点 */
+  margin-left: -60px;
+  margin-top: -60px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--tq-state) 60%, transparent);
+  background: color-mix(in srgb, var(--tq-surface) 80%, transparent);
+  backdrop-filter: blur(16px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  animation: tq-fab-pulse var(--tq-spd, 2s) ease-in-out infinite;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tq-fab-ring:hover {
+  transform: scale(1.05);
+}
+.tq-fab.is-open .tq-fab-ring {
+  animation: none;
+  transform: scale(0.88);
+  border-color: color-mix(in srgb, var(--tq-state) 85%, transparent);
+  background: color-mix(in srgb, var(--tq-state) 18%, transparent);
+}
+
+/* 中心汉堡线（闭合时）→ 展开时变 × */
+.tq-fab-core {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
 }
-
-/* 圆环本体 */
-.tq-fab-ring {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--tq-state) 70%, transparent);
-  background: color-mix(in srgb, var(--tq-state) 12%, transparent);
-  backdrop-filter: blur(12px);
-  cursor: pointer;
-  animation: tq-fab-pulse var(--tq-spd, 2s) ease-in-out infinite;
-  transition: transform 200ms ease;
-  flex-shrink: 0;
-}
-.tq-fab:hover .tq-fab-ring {
-  transform: scale(1.08);
-}
-
-.tq-fab-core {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.tq-fab-line {
+  width: 36px;
+  height: 3px;
+  border-radius: 3px;
   background: var(--tq-state);
-  box-shadow: 0 0 12px var(--tq-state);
-  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tq-state) 50%, transparent);
+  transition: transform 300ms ease, opacity 200ms ease;
+}
+.tq-fab.is-open .tq-fab-line:nth-child(1) {
+  transform: translateY(5.5px) rotate(45deg);
+}
+.tq-fab.is-open .tq-fab-line:nth-child(2) {
+  transform: translateY(-5.5px) rotate(-45deg);
 }
 
 @keyframes tq-fab-pulse {
   0%, 100% {
     box-shadow:
-      0 0 12px color-mix(in srgb, var(--tq-state) 30%, transparent),
-      0 0 0 0 color-mix(in srgb, var(--tq-state) 20%, transparent);
+      0 0 24px color-mix(in srgb, var(--tq-state) 25%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--tq-state) 15%, transparent);
   }
   50% {
     box-shadow:
-      0 0 28px color-mix(in srgb, var(--tq-state) 50%, transparent),
-      0 0 0 8px color-mix(in srgb, var(--tq-state) 0%, transparent);
+      0 0 52px color-mix(in srgb, var(--tq-state) 45%, transparent),
+      0 0 0 20px color-mix(in srgb, var(--tq-state) 0%, transparent);
   }
 }
 
-/* 展开菜单 */
+/* ---- 扇形展开区域（以圆心为原点） ---- */
 .tq-fab-menu {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
   pointer-events: none;
-  transform: translateY(16px);
-  transition: opacity 200ms ease, transform 200ms ease;
-  padding: 10px;
-  border-radius: 18px;
-  background: var(--tq-panel);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--tq-border);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-}
-.tq-fab:hover .tq-fab-menu,
-.tq-fab-menu:hover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
 }
 
-/* 菜单内按钮 */
+/* 单个 pill 胶囊按钮：定位在圆环中心，通过 --tx/--ty 平移到弧线位置 */
 .tq-fab-btn {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  padding: 8px 14px;
+  justify-content: center;
+  gap: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
   border: 1px solid var(--tq-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--tq-panel-strong) 60%, transparent);
+  background: color-mix(in srgb, var(--tq-panel-strong) 92%, transparent);
+  backdrop-filter: blur(20px);
   color: var(--tq-text);
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease;
+  white-space: nowrap;
+  /* 收拢态：缩小到圆心 */
+  opacity: 0;
+  transform: translate(0, 0) scale(0.2);
+  transition:
+    opacity 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 160ms ease,
+    border-color 160ms ease;
+  pointer-events: none;
+  transition-delay: 0ms;
 }
-.tq-fab-btn:hover {
-  background: color-mix(in srgb, var(--tq-state) 16%, transparent);
-  transform: translateX(-2px);
+/* 展开态：平移到弧线坐标（36px 按钮，-18px 使中心对齐弧线点） */
+.tq-fab.is-open .tq-fab-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(calc(var(--tx, 0px) - 18px), calc(var(--ty, 0px) - 18px)) scale(1);
+  transition-delay: calc(var(--idx, 0) * 50ms);
+}
+.tq-fab.is-open .tq-fab-btn:is(:hover, :focus-visible) {
+  z-index: 8;
+  background: color-mix(in srgb, var(--tq-state) 22%, transparent);
+  border-color: color-mix(in srgb, var(--tq-state) 55%, transparent);
+  transform: translate(calc(var(--tx, 0px) - 18px), calc(var(--ty, 0px) - 18px)) scale(1.2);
 }
 .tq-fab-btn svg {
-  width: 15px;
-  height: 15px;
-  opacity: 0.8;
+  width: 17px;
+  height: 17px;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+/* hover 时显示文字标签 */
+.tq-fab-btn::after {
+  content: attr(data-label);
+  position: absolute;
+  z-index: 9;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  right: auto;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-panel-strong) 94%, transparent);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tq-border);
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  pointer-events: none;
+}
+.tq-fab.is-open .tq-fab-btn:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+/* 扇形两翼的气泡沿径向向外展开，避免压住邻近操作按钮。 */
+.tq-fab-menu .tq-fab-btn:nth-child(-n + 2)::after {
+  top: 50%;
+  bottom: auto;
+  left: calc(100% + 10px);
+  transform: translate(6px, -50%);
+}
+.tq-fab-menu .tq-fab-btn:nth-child(-n + 2):is(:hover, :focus-visible)::after {
+  transform: translate(0, -50%);
+}
+.tq-fab-menu .tq-fab-btn:nth-child(n + 6)::after {
+  top: 50%;
+  bottom: auto;
+  right: calc(100% + 10px);
+  left: auto;
+  transform: translate(-6px, -50%);
+}
+.tq-fab-menu .tq-fab-btn:nth-child(n + 6):is(:hover, :focus-visible)::after {
+  transform: translate(0, -50%);
+}
+/* 文字 span 隐藏（纯图标模式）；图标 span（含 svg）保留显示 */
+.tq-fab-btn span:not(:has(svg)) {
+  display: none;
+}
+.tq-fab-btn span:has(svg) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tq-fab-btn .tq-fab-sr-label {
+  position: absolute;
+  display: block;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .tq-fab-btn--danger:hover {
-  background: color-mix(in srgb, var(--tq-brand) 20%, transparent);
+  background: color-mix(in srgb, #ef4444 24%, transparent) !important;
+  border-color: color-mix(in srgb, #ef4444 55%, transparent) !important;
+}
+
+/* 音量条 + 状态文字区（圆环正下方） */
+.tq-fab-extra {
+  position: absolute;
+  top: 72px;
+  left: -60px;
+  width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.tq-fab.is-open .tq-fab-extra {
+  opacity: 0.8;
+  pointer-events: auto;
 }
 
 /* 迷你音量条 */
@@ -3236,7 +4151,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   align-items: flex-end;
   gap: 2px;
   height: 24px;
-  padding: 4px 0;
 }
 .tq-fab-meter i {
   width: 3px;
@@ -3254,23 +4168,66 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   font-size: 11px;
   color: var(--tq-muted);
   text-align: right;
-  max-width: 140px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 响应式：窄屏缩小 fab */
+/* 遮罩：展开时覆盖全舞台，点击关闭 */
+.tq-fab-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  background: transparent;
+  pointer-events: none;
+}
+.tq-fab.is-open .tq-fab-backdrop {
+  pointer-events: auto;
+}
+
+/* 响应式：窄屏缩小 */
 @media (max-width: 760px) {
   .tq-overlay-text {
-    padding: 24px 20px 80px;
+    padding: 24px 20px 100px;
+  }
+  .tq-overlay-reply {
+    width: calc(100% - 150px);
+  }
+  .tq-transcript-editor {
+    right: 16px;
+    bottom: calc(clamp(175px, 24vh, 215px) + 78px);
+    width: min(72vw, 280px);
+    padding: 10px 11px 12px;
+  }
+  .tq-stage:has(.tq-fab.is-open) .tq-transcript-editor.is-visible {
+    transform: translate3d(0, -58px, 0) scale(1);
+  }
+  .tq-transcript-head small {
+    display: none;
+  }
+  .tq-overlay-user {
+    min-height: 58px;
+    max-height: 112px;
+  }
+  .tq-fab {
+    right: clamp(210px, 52vw, 240px);
+    bottom: clamp(175px, 24vh, 215px);
   }
   .tq-fab-ring {
-    width: 44px;
-    height: 44px;
+    width: 96px;
+    height: 96px;
+    margin-left: -48px;
+    margin-top: -48px;
+  }
+  .tq-fab-line {
+    width: 28px;
   }
   .tq-fab-btn {
-    min-width: 100px;
-    font-size: 12px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    font-size: 11px;
   }
 }

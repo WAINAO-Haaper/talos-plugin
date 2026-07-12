@@ -9,7 +9,7 @@ export function ensureProviderProjectionMap(
 ): Partial<Record<string, string>> {
   const current = settings[key];
   if (current && typeof current === 'object' && !Array.isArray(current)) {
-    return current as Partial<Record<string, string>>;
+    return current;
   }
 
   const next: Partial<Record<string, string>> = {};

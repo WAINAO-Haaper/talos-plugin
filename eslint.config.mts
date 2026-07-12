@@ -8,6 +8,8 @@ export default tseslint.config(
 		'node_modules',
 		'dist',
 		'prototype',
+		'*.selftest.mjs',
+		'build-styles.mjs',
 		'esbuild.config.mjs',
 		'third-party-licenses.mjs',
 		'version-bump.mjs',
@@ -37,6 +39,13 @@ export default tseslint.config(
 		rules: {
 			// UI 中英混排 + 含字面量 CLI 命令，句首大写规则不适用
 			'obsidianmd/ui/sentence-case': 'off',
+		},
+	},
+	{
+		// 测试跑在 Node（vitest），没有 window；Obsidian 弹窗兼容规则不适用
+		files: ['tests/**/*.ts'],
+		rules: {
+			'obsidianmd/prefer-window-timers': 'off',
 		},
 	},
 );

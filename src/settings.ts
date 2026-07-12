@@ -10,6 +10,9 @@ export type TalosVisualTheme =
 	| "soft-relief"
 	| "geometric-modern";
 
+/** 屈原语音舞台背景效果（独立于全局 visualTheme） */
+export type QuyuanBackgroundType = "letter-glitch" | "grid-scan";
+
 export function normalizeVisualTheme(value: unknown): TalosVisualTheme {
 	if (value === "cosmos-dark") return "cosmos-dark";
 	if (value === "animal-island") return "animal-island";
@@ -72,6 +75,8 @@ export interface TalosSettings {
 	quyuanLocalAsrCdn: string; // transformers.js CDN ESM 地址，留空用默认
 	quyuanVoiceModel: string; // Claude 语音通道独立模型，不影响文字工作台
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
+	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
+	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
@@ -127,6 +132,8 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanLocalAsrCdn: "",
 	quyuanVoiceModel: "haiku",
 	quyuanVoiceEffort: "low",
+	quyuanBackground: "letter-glitch",
+	quyuanVoiceRecognitionEnabled: true,
 	jarvisVoiceEnabled: false,
 	jarvisThinkingLevel: "off",
 	jarvisTabsJson: "",
@@ -135,7 +142,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 type TextSettingKey = {
 	[K in keyof TalosSettings]: TalosSettings[K] extends string ? K : never;
 }[keyof TalosSettings];
-type FreeTextSettingKey = Exclude<TextSettingKey, "visualTheme">;
+type FreeTextSettingKey = Exclude<TextSettingKey, "visualTheme" | "quyuanBackground">;
 
 type TabId = "ui" | "data" | "channel" | "voice" | "workbench";
 

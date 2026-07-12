@@ -13,16 +13,11 @@ import {
 	type QuyuanGovernanceResult,
 } from "./quyuan/governance";
 import { MicStt, StreamTts } from "./jarvis/voiceio";
+import { TALOS_ICON_SVG } from "./talos-mark";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
 export const TALOS_ICON = "talos-logo";
-const TALOS_ICON_SVG =
-	'<rect x="6" y="6" width="88" height="88" rx="20" fill="#005CFF"/>' +
-	'<g transform="translate(-27.5 -54.1) scale(0.2802)">' +
-	'<path fill="#FFFFFF" d="M180 247H249V286H304V247H374V286H405V411H374V460H306V496H247V460H180V411H148V286H180V247Z"/>' +
-	'<path fill="#005CFF" d="M199 326H353V373H306V460H247V373H199V326Z"/>' +
-	"</g>";
 const QUYUAN_SOUL_START = "<!-- TALOS_QUYUAN_SOUL:START -->";
 const QUYUAN_SOUL_END = "<!-- TALOS_QUYUAN_SOUL:END -->";
 const QUYUAN_RUNTIME_ERROR_LIMIT = 24;
@@ -298,6 +293,10 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		const namespaced = isRecord(stored.talos) ? stored.talos : stored;
 		this.talosSettings = Object.assign({}, DEFAULT_SETTINGS, namespaced);
 		this.talosSettings.visualTheme = normalizeVisualTheme(this.talosSettings.visualTheme);
+		// 屈原背景效果容错：只接受合法值，否则回退默认
+		if (this.talosSettings.quyuanBackground !== "letter-glitch" && this.talosSettings.quyuanBackground !== "grid-scan") {
+			this.talosSettings.quyuanBackground = "letter-glitch";
+		}
 	}
 
 	async saveTalosSettings(): Promise<void> {

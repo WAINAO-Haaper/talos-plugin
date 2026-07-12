@@ -308,7 +308,7 @@ export class JarvisAgentPanel {
 			return;
 		}
 		this.renderTabBar();
-		this.activateTab(this.store.activeId ?? this.store.tabs[0]!.id);
+		this.activateTab(this.store.activeId ?? this.store.tabs[0].id);
 	}
 
 	private activateTab(id: string): void {
@@ -982,7 +982,7 @@ export class JarvisAgentPanel {
 		this.settings.jarvisPermissionMode = mode;
 		void this.save?.();
 		if (this.modeSel) this.modeSel.value = mode;
-		void this.activeLive()?.engine?.setPermissionMode(mode as PermissionMode);
+		void this.activeLive()?.engine?.setPermissionMode(mode);
 	}
 
 	private setStatus(text: string, state: string): void {

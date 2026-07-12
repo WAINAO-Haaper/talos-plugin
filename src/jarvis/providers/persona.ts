@@ -31,7 +31,7 @@ export async function buildSystemPrompt(app: App, settings: TalosSettings): Prom
 
 export function hasChildProcess(): boolean {
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		require("child_process");
 		return true;
 	} catch {

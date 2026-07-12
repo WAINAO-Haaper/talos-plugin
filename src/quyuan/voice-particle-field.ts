@@ -1,17 +1,27 @@
-export type ParticleVoiceState = "idle" | "listen" | "reco" | "think" | "speak";
+import { generateTalosRoundedMarkPoints } from "../talos-mark";
+
+export type ParticleVoiceState = "sleep" | "idle" | "listen" | "reco" | "think" | "speak";
 
 interface Particle {
-	/** logo 白色主体内的基准坐标（归一化 -0.5~0.5，以 logo 中心为原点） */
+	logoX: number;
+	logoY: number;
+	freeRadius: number;
+	freeAngle: number;
+	freeSpeed: number;
+	currentX: number;
+	currentY: number;
+	phase: number;
+	size: number;
+	layer: number;
+	colorMix: number;
+}
+
+interface EyeParticle {
+	side: -1 | 1;
 	baseX: number;
 	baseY: number;
-	offX: number;
-	offY: number;
-	wanderSpeed: number;
-	size: number;
 	phase: number;
-	speed: number;
-	colorMix: number;
-	layer: number;
+	size: number;
 }
 
 interface Rgb {
@@ -20,132 +30,22 @@ interface Rgb {
 	b: number;
 }
 
-const PARTICLE_COUNT = 2000;
-const FRONT_ALPHA = 0.72;
-const WHITE = { r: 235, g: 245, b: 255 };
+const ACTIVE_FRAME_INTERVAL = 26;
+const SLEEP_FRAME_INTERVAL = 42;
+const REDUCED_MOTION_FRAME_INTERVAL = 180;
+const WHITE: Rgb = { r: 235, g: 245, b: 255 };
+const TALOS_MARK_POINTS = generateTalosRoundedMarkPoints(2);
+const EYE_PARTICLES_PER_SIDE = 240;
 
-const TALOS_LOGO_SVG =
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
-	'<rect x="6" y="6" width="88" height="88" rx="20" fill="#005CFF"/>' +
-	'<g transform="translate(-27.5 -54.1) scale(0.2802)">' +
-	'<path fill="#FFFFFF" d="M180 247H249V286H304V247H374V286H405V411H374V460H306V496H247V460H180V411H148V286H180V247Z"/>' +
-	'<path fill="#005CFF" d="M199 326H353V373H306V460H247V373H199V326Z"/>' +
-	'</g></svg>';
-
-interface SamplePoint { x: number; y: number; }
-
-/**
- * logo 采样点缓存 + 异步加载状态。
- * 初始化时先用 fallback 几何点，SVG 像素采样完成后替换为精确点。
- */
-let cachedSamplePoints: SamplePoint[] | null = null;
-let samplePointsReady = false;
-
-/**
- * 异步加载 SVG → 离屏 canvas → 读像素 → 提取白色区域采样点。
- * 完成后更新 cachedSamplePoints 和 samplePointsReady。
- */
-function startLogoSampling(onReady: () => void): void {
-	if (samplePointsReady) return;
-	const renderSize = 200;
-	const canvas = document.createElement("canvas");
-	canvas.width = renderSize;
-	canvas.height = renderSize;
-	const ctx = canvas.getContext("2d");
-	if (!ctx) return;
-	const img = new Image();
-	img.onload = (): void => {
-		ctx.drawImage(img, 0, 0, renderSize, renderSize);
-		try {
-			const imageData = ctx.getImageData(0, 0, renderSize, renderSize);
-			const data = imageData.data;
-			const points: SamplePoint[] = [];
-			// 采样步长：每 2px 取一个点（renderSize=200 → 100×100 网格）
-			const step = 2;
-			for (let py = 0; py < renderSize; py += step) {
-				for (let px = 0; px < renderSize; px += step) {
-					const idx = (py * renderSize + px) * 4;
-					const r = data[idx];
-					const g = data[idx + 1];
-					const b = data[idx + 2];
-					// 白色主体：RGB 都接近 255（白色 T 笔画）
-					if (r > 200 && g > 200 && b > 200) {
-						// 归一化到 -0.5~0.5（以 logo 中心为原点，以 logo 宽为单位）
-						points.push({
-							x: (px / renderSize - 0.5),
-							y: (py / renderSize - 0.5),
-						});
-					}
-				}
-			}
-			if (points.length > 50) {
-				// 追加嘴部模块：镂空区下半部分（竖杠左右两侧）两个小方块
-				// 镂空下半部分 norm 坐标：x[-0.217,-0.083]和[0.082,0.214], y[0.004,0.248]
-				const mouthRects = [
-					{ xMin: -0.185, xMax: -0.115, yMin: 0.08, yMax: 0.18 },  // 左嘴
-					{ xMin: 0.115, xMax: 0.185, yMin: 0.08, yMax: 0.18 },    // 右嘴
-				];
-				for (const r of mouthRects) {
-					for (let i = 0; i < 120; i++) {
-						points.push({
-							x: r.xMin + Math.random() * (r.xMax - r.xMin),
-							y: r.yMin + Math.random() * (r.yMax - r.yMin),
-						});
-					}
-				}
-				cachedSamplePoints = points;
-				samplePointsReady = true;
-				onReady();
-			}
-		} catch {
-			// CORS 或其他读取失败——保持 fallback
-		}
+function createSeededRandom(seed: number): () => number {
+	let value = seed >>> 0;
+	return () => {
+		value += 0x6D2B79F5;
+		let next = value;
+		next = Math.imul(next ^ (next >>> 15), next | 1);
+		next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+		return ((next ^ (next >>> 14)) >>> 0) / 4_294_967_296;
 	};
-	img.onerror = (): void => { /* 保持 fallback */ };
-	const svgBlob = new Blob([TALOS_LOGO_SVG], { type: "image/svg+xml" });
-	img.src = URL.createObjectURL(svgBlob);
-}
-
-/**
- * Fallback：用 SVG path 的精确坐标手工定义白色 T 的笔画。
- * 这些是 SVG transform 后的精确视框坐标（已验证）。
- */
-function generateFallbackPoints(): SamplePoint[] {
-	// T 外轮廓的精确 path（变换后在 100x100 视框中的坐标）：
-	// 横杠: x[14,86] y[15,26]，竖杠: x[42,58] y[26,85]
-	// 内镂空（蓝色十字）: x[28,72] y[37,75] 减去两侧
-	// 归一化到 -0.5~0.5（除以 72.01，T 的实际宽度）
-	const W = 72.01;
-	const H = 69.77;
-	const ox = 49.98; // T 中心 x
-	const oy = 49.99; // T 中心 y
-	const n = (v: number, o: number) => (v - o) / W;
-
-	const rects = [
-		// 横杠（宽条）
-		{ x1: n(14, ox), x2: n(86, ox), y1: n(15, oy), y2: n(26, oy) },
-		// 竖杠（窄条）
-		{ x1: n(42, ox), x2: n(58, ox), y1: n(26, oy), y2: n(85, oy) },
-		// 嘴部模块（镂空区下半部分，左右两个小方块）
-		{ x1: -0.185, x2: -0.115, y1: 0.08, y2: 0.18 },
-		{ x1: 0.115, x2: 0.185, y1: 0.08, y2: 0.18 },
-	];
-	const points: SamplePoint[] = [];
-	for (const r of rects) {
-		for (let i = 0; i < 400; i++) {
-			points.push({
-				x: r.x1 + Math.random() * (r.x2 - r.x1),
-				y: r.y1 + Math.random() * (r.y2 - r.y1),
-			});
-		}
-	}
-	return points;
-}
-
-function getLogoSamplePoints(): SamplePoint[] {
-	if (cachedSamplePoints) return cachedSamplePoints;
-	cachedSamplePoints = generateFallbackPoints();
-	return cachedSamplePoints;
 }
 
 function hexToRgb(value: string, fallback: Rgb): Rgb {
@@ -166,11 +66,11 @@ function mix(a: Rgb, b: Rgb, amount: number): Rgb {
 	};
 }
 
-function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb {
+function lerpRgb(a: Rgb, b: Rgb, amount: number): Rgb {
 	return {
-		r: a.r + (b.r - a.r) * t,
-		g: a.g + (b.g - a.g) * t,
-		b: a.b + (b.b - a.b) * t,
+		r: a.r + (b.r - a.r) * amount,
+		g: a.g + (b.g - a.g) * amount,
+		b: a.b + (b.b - a.b) * amount,
 	};
 }
 
@@ -183,39 +83,75 @@ function deepen(color: Rgb, factor: number): Rgb {
 }
 
 function rgba(color: Rgb, alpha: number): string {
-	return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+	return `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${alpha})`;
 }
 
+/**
+ * Antigravity-inspired magnetic particle field.
+ *
+ * React Bits' ring destination is replaced by the official TALOS mark samples:
+ * sleeping particles only weakly reveal the mark, while wake states increase the
+ * magnetic attraction until the negative-space T becomes unmistakable.
+ */
 export class QuyuanVoiceParticleField {
 	private readonly host: HTMLElement;
 	private readonly backCanvas: HTMLCanvasElement;
 	private readonly frontCanvas: HTMLCanvasElement;
 	private readonly back: CanvasRenderingContext2D;
 	private readonly front: CanvasRenderingContext2D;
-	private particles: Particle[];
+	private readonly activeDocument: Document;
+	private readonly activeWindow: Window;
+	private readonly particles: Particle[];
+	private readonly eyeParticles: EyeParticle[];
 	private readonly resizeObserver: ResizeObserver;
 	private frame = 0;
 	private lastTime = 0;
+	private lastPaletteCheck = 0;
 	private width = 1;
 	private height = 1;
 	private dpr = 1;
-	private state: ParticleVoiceState = "idle";
+	private state: ParticleVoiceState = "sleep";
+	private awake = false;
+	private disposed = false;
 	private audioLevel = 0;
 	private smoothedLevel = 0;
 	private outputLevel = 0;
 	private smoothedOutput = 0;
 	private reducedMotion = false;
+	private documentVisible = true;
 	private lightSurface = false;
 	private stateEnteredAt = 0;
+	private attraction = 0.08;
+	private pointerX = 0;
+	private pointerY = 0;
+	private pointerInside = false;
 	private themeKey = "";
 	private primary: Rgb = { r: 45, g: 132, b: 255 };
 	private secondary: Rgb = { r: 124, g: 86, b: 255 };
-	private warm: Rgb = { r: 255, g: 112, b: 74 };
+	private warm: Rgb = { r: 0, g: 245, b: 212 };
 	private stateColor: Rgb = { r: 45, g: 132, b: 255 };
 	private targetPrimary: Rgb = { r: 45, g: 132, b: 255 };
 	private targetSecondary: Rgb = { r: 124, g: 86, b: 255 };
-	private targetWarm: Rgb = { r: 255, g: 112, b: 74 };
+	private targetWarm: Rgb = { r: 0, g: 245, b: 212 };
 	private targetStateColor: Rgb = { r: 45, g: 132, b: 255 };
+
+	private readonly handleVisibilityChange = (): void => {
+		this.documentVisible = !this.activeDocument.hidden;
+		this.lastTime = 0;
+	};
+
+	private readonly handlePointerMove = (event: PointerEvent): void => {
+		const rect = this.host.getBoundingClientRect();
+		this.pointerInside = event.clientX >= rect.left && event.clientX <= rect.right
+			&& event.clientY >= rect.top && event.clientY <= rect.bottom;
+		if (!this.pointerInside) return;
+		this.pointerX = (event.clientX - rect.left) / Math.max(1, rect.width) - 0.5;
+		this.pointerY = (event.clientY - rect.top) / Math.max(1, rect.height) - 0.5;
+	};
+
+	private readonly handlePointerLeave = (): void => {
+		this.pointerInside = false;
+	};
 
 	constructor(host: HTMLElement, backCanvas: HTMLCanvasElement, frontCanvas: HTMLCanvasElement) {
 		const back = backCanvas.getContext("2d");
@@ -226,163 +162,335 @@ export class QuyuanVoiceParticleField {
 		this.frontCanvas = frontCanvas;
 		this.back = back;
 		this.front = front;
+		this.activeDocument = host.ownerDocument;
+		const activeWindow = this.activeDocument.defaultView;
+		if (!activeWindow) throw new Error("Window unavailable");
+		this.activeWindow = activeWindow;
 		this.particles = this.createParticles();
-		this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		this.eyeParticles = this.createEyeParticles();
+		this.reducedMotion = activeWindow.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		this.documentVisible = !this.activeDocument.hidden;
+		this.activeDocument.addEventListener("visibilitychange", this.handleVisibilityChange);
+		this.activeDocument.addEventListener("pointermove", this.handlePointerMove, { passive: true });
+		this.activeDocument.addEventListener("pointerleave", this.handlePointerLeave, { passive: true });
 		this.resizeObserver = new ResizeObserver(() => this.resize());
 		this.resizeObserver.observe(host);
 		this.resize();
 		this.syncPalette(true);
-		// 异步加载精确的 SVG 像素采样，完成后重建粒子位置
-		startLogoSampling(() => {
-			this.particles = this.createParticles();
-		});
-		this.frame = window.requestAnimationFrame((time) => this.render(time));
+		this.stateEnteredAt = this.activeWindow.performance.now();
+		this.frame = this.activeWindow.requestAnimationFrame((time) => this.render(time));
+	}
+
+	setAwake(awake: boolean): void {
+		if (awake !== this.awake) this.stateEnteredAt = this.activeWindow.performance.now();
+		this.awake = awake;
 	}
 
 	setState(state: ParticleVoiceState): void {
-		if (state !== this.state) this.stateEnteredAt = performance.now();
+		if (state !== this.state) this.stateEnteredAt = this.activeWindow.performance.now();
 		this.state = state;
 		this.syncPalette(true);
 	}
 
 	setAudioLevel(level: number): void {
-		this.audioLevel = Math.max(0, Math.min(1, level));
+		this.audioLevel = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
 	}
 
 	setOutputLevel(level: number): void {
-		this.outputLevel = Math.max(0, Math.min(1, level));
+		this.outputLevel = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
 	}
 
 	destroy(): void {
-		window.cancelAnimationFrame(this.frame);
+		if (this.disposed) return;
+		this.disposed = true;
+		this.activeWindow.cancelAnimationFrame(this.frame);
 		this.resizeObserver.disconnect();
+		this.activeDocument.removeEventListener("visibilitychange", this.handleVisibilityChange);
+		this.activeDocument.removeEventListener("pointermove", this.handlePointerMove);
+		this.activeDocument.removeEventListener("pointerleave", this.handlePointerLeave);
 	}
 
 	private createParticles(): Particle[] {
-		const samplePoints = getLogoSamplePoints();
-		const particles: Particle[] = [];
-		for (let i = 0; i < PARTICLE_COUNT; i++) {
-			const pt = samplePoints[i % samplePoints.length];
-			particles.push({
-				baseX: pt.x,
-				baseY: pt.y,
-				offX: 0,
-				offY: 0,
-				wanderSpeed: 0.3 + Math.random() * 0.5,
-				size: 0.25 + ((i * 17) % 19) / 32,
-				phase: ((i * 53) % 360) * (Math.PI / 180),
-				speed: 0.72 + ((i * 29) % 31) / 48,
-				colorMix: ((i * 41) % 100) / 100,
-				layer: Math.random(),
-			});
+		const random = createSeededRandom(0x54414C4F);
+		const points = [...TALOS_MARK_POINTS];
+		for (let i = points.length - 1; i > 0; i--) {
+			const swapIndex = Math.floor(random() * (i + 1));
+			[points[i], points[swapIndex]] = [points[swapIndex], points[i]];
 		}
-		return particles;
+		return points.map((point) => {
+			const angle = random() * Math.PI * 2;
+			const radius = 0.08 + Math.sqrt(random()) * 0.72;
+			return {
+				logoX: point.x + (random() - 0.5) * 0.006,
+				logoY: point.y + (random() - 0.5) * 0.006,
+				freeRadius: radius,
+				freeAngle: angle,
+				freeSpeed: 0.5 + random() * 0.9,
+				currentX: Math.cos(angle) * radius,
+				currentY: Math.sin(angle) * radius,
+				phase: random() * Math.PI * 2,
+				size: 0.62 + random() * 1.12,
+				layer: random(),
+				colorMix: random(),
+			};
+		});
+	}
+
+	/** 两组粒子眼位于官方标志的负形 T 横栏内，不回退为实心图形。 */
+	private createEyeParticles(): EyeParticle[] {
+		const random = createSeededRandom(0x45594553);
+		const eyes: EyeParticle[] = [];
+		for (const side of [-1, 1] as const) {
+			for (let index = 0; index < EYE_PARTICLES_PER_SIDE; index++) {
+				const angle = random() * Math.PI * 2;
+				const radius = Math.sqrt(random());
+				eyes.push({
+					side,
+					baseX: side * 0.155 + Math.cos(angle) * radius * 0.055,
+					baseY: -0.095 + Math.sin(angle) * radius * 0.055,
+					phase: random() * Math.PI * 2,
+					size: 0.62 + random() * 0.9,
+				});
+			}
+		}
+		return eyes;
 	}
 
 	private resize(): void {
 		const rect = this.host.getBoundingClientRect();
-		this.width = Math.max(1, Math.floor(rect.width));
-		this.height = Math.max(1, Math.floor(rect.height));
-		this.dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+		const width = Math.max(1, Math.floor(rect.width));
+		const height = Math.max(1, Math.floor(rect.height));
+		const dpr = Math.min(this.activeWindow.devicePixelRatio || 1, 1.25);
+		if (width === this.width && height === this.height && dpr === this.dpr) return;
+		this.width = width;
+		this.height = height;
+		this.dpr = dpr;
 		for (const canvas of [this.backCanvas, this.frontCanvas]) {
-			canvas.width = Math.floor(this.width * this.dpr);
-			canvas.height = Math.floor(this.height * this.dpr);
-			canvas.style.width = `${this.width}px`;
-			canvas.style.height = `${this.height}px`;
+			canvas.width = Math.floor(width * dpr);
+			canvas.height = Math.floor(height * dpr);
+			canvas.style.width = `${width}px`;
+			canvas.style.height = `${height}px`;
 		}
-		this.back.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-		this.front.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+		this.back.setTransform(dpr, 0, 0, dpr, 0, 0);
+		this.front.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
 
 	private syncPalette(force = false): void {
-		const style = getComputedStyle(this.host);
+		const style = this.activeWindow.getComputedStyle(this.host);
 		const key = [
 			style.getPropertyValue("--tq-theme-key"),
 			style.getPropertyValue("--tq-particle-a"),
 			style.getPropertyValue("--tq-particle-b"),
 			style.getPropertyValue("--tq-particle-c"),
+			style.getPropertyValue("--tq-state"),
 			this.state,
 		].join("|");
 		if (!force && key === this.themeKey) return;
 		this.themeKey = key;
 		this.lightSurface = style.colorScheme.includes("light");
-		const deepenFactor = this.lightSurface ? 0.72 : 1;
-		this.targetPrimary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-a"), { r: 45, g: 132, b: 255 }), deepenFactor);
-		this.targetSecondary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-b"), { r: 124, g: 86, b: 255 }), deepenFactor);
-		this.targetWarm = deepen(hexToRgb(style.getPropertyValue("--tq-particle-c"), { r: 255, g: 112, b: 74 }), deepenFactor);
-		const stateVariable =
-			this.state === "reco"
-				? "--tq-state-reco"
-				: this.state === "think"
-					? "--tq-state-think"
-					: this.state === "speak"
-						? "--tq-state-speak"
-						: "--tq-state-listen";
-		this.targetStateColor = deepen(hexToRgb(style.getPropertyValue(stateVariable), this.targetPrimary), deepenFactor);
+		const factor = this.lightSurface ? 0.72 : 1;
+		this.targetPrimary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-a"), { r: 45, g: 132, b: 255 }), factor);
+		this.targetSecondary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-b"), { r: 124, g: 86, b: 255 }), factor);
+		this.targetWarm = deepen(hexToRgb(style.getPropertyValue("--tq-particle-c"), { r: 0, g: 245, b: 212 }), factor);
+		this.targetStateColor = deepen(hexToRgb(style.getPropertyValue("--tq-state"), this.targetPrimary), factor);
+	}
+
+	private targetAttraction(): number {
+		if (this.reducedMotion) return this.awake ? 1 : 0.08;
+		if (!this.awake) return this.state === "idle" ? 0.055 : 0.08;
+		if (this.state === "reco") return 0.99;
+		if (this.state === "listen") return 0.96;
+		if (this.state === "think") return 0.95;
+		if (this.state === "speak") return 0.97;
+		return 0.92;
 	}
 
 	private stateEnergy(time: number): number {
 		const pulse = (Math.sin(time * 0.0032) + 1) / 2;
 		if (this.state === "listen") return Math.max(this.smoothedLevel, 0.1 + pulse * 0.08);
-		if (this.state === "reco") return Math.max(this.smoothedLevel, 0.12 + pulse * 0.08);
+		if (this.state === "reco") return 0.2 + pulse * 0.1;
 		if (this.state === "think") return 0.38 + Math.sin(time * 0.0054) * 0.12;
-		if (this.state === "speak") {
-			return 0.28 + this.smoothedOutput * 0.5 + Math.sin(time * 0.011) * 0.08;
-		}
-		return 0.08 + pulse * 0.04;
+		if (this.state === "speak") return 0.28 + this.smoothedOutput * 0.5 + Math.sin(time * 0.011) * 0.08;
+		return 0.05 + pulse * 0.03;
 	}
 
-	private stateColorFlow(
-		particle: Particle,
+	private neonCloudColor(seed: number, time: number): Rgb {
+		const palette: Rgb[] = [
+			{ r: 0, g: 255, b: 210 },
+			{ r: 45, g: 225, b: 255 },
+			{ r: 65, g: 125, b: 255 },
+			{ r: 154, g: 88, b: 255 },
+			{ r: 255, g: 72, b: 210 },
+			{ r: 255, g: 184, b: 64 },
+		];
+		const phase = ((seed + time * 0.000018) % 1 + 1) % 1;
+		const position = phase * palette.length;
+		const index = Math.floor(position) % palette.length;
+		return mix(palette[index], palette[(index + 1) % palette.length], position - Math.floor(position));
+	}
+
+	private particleColor(particle: Particle, energy: number, time: number): Rgb {
+		const shimmer = (Math.sin(particle.phase + time * 0.0028 + particle.logoX * 8) + 1) / 2;
+		if (!this.awake) return mix(this.neonCloudColor(particle.colorMix, time), WHITE, shimmer * 0.08);
+		const electricCyan: Rgb = { r: 72, g: 224, b: 255 };
+		const electricViolet: Rgb = { r: 174, g: 104, b: 255 };
+		const spectral = particle.colorMix < 0.34
+			? mix(this.primary, electricCyan, 0.58)
+			: particle.colorMix < 0.68
+				? mix(this.primary, this.secondary, 0.4 + shimmer * 0.32)
+				: mix(electricCyan, electricViolet, shimmer * 0.72);
+		let color: Rgb = spectral;
+		if (this.state === "listen") color = mix(spectral, this.targetWarm, 0.28 + energy * 0.42);
+		else if (this.state === "reco") color = mix(spectral, WHITE, 0.18 + shimmer * 0.32);
+		else if (this.state === "think") color = mix(spectral, electricViolet, 0.36 + shimmer * 0.42);
+		if (this.state === "speak") {
+			const cycle = (Math.sin(time * 0.0036 + particle.phase) + 1) / 2;
+			color = mix(mix(this.warm, electricCyan, cycle), electricViolet, Math.max(0, cycle - 0.58));
+		}
+		else if (this.state !== "listen" && this.state !== "reco" && this.state !== "think") {
+			color = mix(spectral, this.stateColor, 0.5);
+		}
+		return this.lightSurface ? color : mix(color, WHITE, 0.12);
+	}
+
+	private eyeColor(time: number): Rgb {
+		if (!this.awake || this.state === "sleep") return mix(this.primary, WHITE, 0.16);
+		if (this.state === "idle") return mix(this.primary, WHITE, 0.28);
+		if (this.state === "listen") return mix(this.warm, WHITE, 0.14 + this.smoothedLevel * 0.22);
+		if (this.state === "reco") return mix(this.stateColor, WHITE, 0.46);
+		if (this.state === "think") return mix(this.secondary, this.stateColor, 0.34);
+		const cycle = (Math.sin(time * 0.0042) + 1) / 2;
+		return cycle < 0.5
+			? mix(this.warm, this.primary, cycle * 2)
+			: mix(this.primary, this.secondary, (cycle - 0.5) * 2);
+	}
+
+	/** 圆形粒子主体 + 小范围高光；避免每点创建渐变，保持 6k+ 粒子的实时性能。 */
+	private drawSphereParticle(
+		context: CanvasRenderingContext2D,
+		x: number,
+		y: number,
+		radius: number,
+		color: Rgb,
+		alpha: number,
+		highlight: boolean
+	): void {
+		const safeRadius = Math.max(0.62, radius);
+		context.beginPath();
+		context.arc(x, y, safeRadius, 0, Math.PI * 2);
+		context.fillStyle = rgba(color, alpha);
+		context.fill();
+		if (!highlight) return;
+		context.beginPath();
+		context.arc(
+			x - safeRadius * 0.28,
+			y - safeRadius * 0.32,
+			Math.max(0.3, safeRadius * 0.24),
+			0,
+			Math.PI * 2
+		);
+		context.fillStyle = rgba(WHITE, Math.min(0.72, alpha * 0.62));
+		context.fill();
+	}
+
+	private drawParticleEyes(
+		centerX: number,
+		centerY: number,
+		scale: number,
 		energy: number,
 		time: number
-	): Rgb {
-		const colorRate =
-			this.state === "speak" ? 0.0038
-				: this.state === "reco" ? 0.0028
-					: this.state === "think" ? 0.0021
-						: 0.0015;
-		const shimmer = (Math.sin(particle.baseX * 6.28 + particle.phase + time * colorRate) + 1) / 2;
+	): void {
+		const stateEyeColor = this.eyeColor(time);
+		const blinkCycle = this.awake ? 5200 : 6400;
+		const blinkPhase = time % blinkCycle;
+		const blink = (this.state === "sleep" || this.state === "listen") && blinkPhase < 170
+			? Math.sin((blinkPhase / 170) * Math.PI)
+			: 0;
+		const verticalScale = Math.max(0.12, 1 - blink * 0.9);
+		const baseAlpha = !this.awake ? 0.5
+			: this.state === "idle" ? 0.62
+				: 0.82 + Math.max(this.smoothedLevel, this.smoothedOutput) * 0.16;
 
-		switch (this.state) {
-			case "listen": {
-				const tint = mix(WHITE, this.stateColor, 0.15 + energy * 0.2);
-				return mix(tint, WHITE, 0.45 - shimmer * 0.15);
+		for (let index = 0; index < this.eyeParticles.length; index++) {
+			const particle = this.eyeParticles[index];
+			const eyeColor = this.awake
+				? stateEyeColor
+				: this.neonCloudColor(particle.phase / (Math.PI * 2), time);
+			const eyeCenterX = particle.side * 0.155;
+			let localX = particle.baseX;
+			let localY = -0.095 + (particle.baseY + 0.095) * verticalScale;
+			const eyeOrbit = particle.phase + time * 0.00014;
+			const eyeFreeX = Math.cos(eyeOrbit) * (0.2 + (index % 17) * 0.018);
+			const eyeFreeY = Math.sin(eyeOrbit * 0.83) * (0.14 + (index % 13) * 0.016);
+			const eyeAttraction = this.awake ? Math.min(1, this.attraction + 0.04) : this.attraction * 0.75;
+			localX = eyeFreeX + (localX - eyeFreeX) * eyeAttraction;
+			localY = eyeFreeY + (localY - eyeFreeY) * eyeAttraction;
+			let stateAlpha = baseAlpha;
+			if (!this.reducedMotion && this.state === "reco") {
+				const alternate = (Math.sin(time * 0.011 + (particle.side > 0 ? Math.PI : 0)) + 1) / 2;
+				stateAlpha *= 0.58 + alternate * 0.42;
+				localX += Math.sin(particle.phase + time * 0.012) * 0.004;
+			} else if (!this.reducedMotion && this.state === "think") {
+				const dx = localX - eyeCenterX;
+				const dy = localY + 0.095;
+				const turn = Math.sin(time * 0.003 + particle.phase) * 0.08;
+				localX = eyeCenterX + dx * Math.cos(turn) - dy * Math.sin(turn);
+				localY = -0.095 + dx * Math.sin(turn) + dy * Math.cos(turn);
+			} else if (!this.reducedMotion && this.state === "speak") {
+				localY += Math.sin(time * 0.014 + particle.phase) * (0.002 + this.smoothedOutput * 0.006);
 			}
-			case "reco": {
-				const tint = mix(WHITE, this.stateColor, 0.18 + energy * 0.18);
-				return mix(tint, WHITE, 0.42 - shimmer * 0.12);
+
+			const px = centerX + localX * scale * 2;
+			const py = centerY + localY * scale * 2;
+			const pulse = this.reducedMotion ? 1 : 0.82 + (Math.sin(time * 0.006 + particle.phase) + 1) * 0.16;
+			const size = Math.max(0.72, particle.size * pulse * (1 + energy * 0.38));
+			if (index % 20 === 0) {
+				this.front.beginPath();
+				this.front.arc(px, py, size * 3.2, 0, Math.PI * 2);
+				this.front.fillStyle = rgba(eyeColor, stateAlpha * 0.12);
+				this.front.fill();
 			}
-			case "think": {
-				const scan = mix(WHITE, this.stateColor, 0.12 + shimmer * 0.28);
-				return mix(scan, WHITE, 0.38);
-			}
-			case "speak": {
-				const tint = mix(WHITE, this.stateColor, 0.2 + energy * 0.25);
-				return mix(tint, WHITE, 0.35 - shimmer * 0.15);
-			}
-			default: {
-				return mix(WHITE, this.stateColor, 0.08);
-			}
+			this.drawSphereParticle(
+				this.front,
+				px,
+				py,
+				size,
+				eyeColor,
+				stateAlpha,
+				index % 10 === 0
+			);
 		}
 	}
 
 	private render(time: number): void {
-		if (this.lastTime && time - this.lastTime < 30) {
-			this.frame = window.requestAnimationFrame((next) => this.render(next));
+		if (this.disposed) return;
+		if (!this.documentVisible || this.width <= 1 || this.height <= 1) {
+			this.frame = this.activeWindow.requestAnimationFrame((next) => this.render(next));
 			return;
 		}
-		const delta = Math.min(32, Math.max(8, time - (this.lastTime || time)));
+		const frameInterval = this.reducedMotion
+			? REDUCED_MOTION_FRAME_INTERVAL
+			: !this.awake ? SLEEP_FRAME_INTERVAL : ACTIVE_FRAME_INTERVAL;
+		if (this.lastTime && time - this.lastTime < frameInterval) {
+			this.frame = this.activeWindow.requestAnimationFrame((next) => this.render(next));
+			return;
+		}
+		const delta = Math.min(180, Math.max(8, time - (this.lastTime || time)));
 		this.lastTime = time;
 		this.smoothedLevel += (this.audioLevel - this.smoothedLevel) * Math.min(1, delta / 70);
-		this.audioLevel *= 0.92;
+		this.audioLevel *= Math.pow(0.92, delta / ACTIVE_FRAME_INTERVAL);
 		this.smoothedOutput += (this.outputLevel - this.smoothedOutput) * Math.min(1, delta / 90);
-		this.outputLevel *= 0.94;
-		this.syncPalette();
+		this.outputLevel *= Math.pow(0.94, delta / ACTIVE_FRAME_INTERVAL);
+		if (time - this.lastPaletteCheck >= 1000) {
+			this.lastPaletteCheck = time;
+			this.syncPalette();
+		}
 		this.primary = lerpRgb(this.primary, this.targetPrimary, 0.08);
 		this.secondary = lerpRgb(this.secondary, this.targetSecondary, 0.08);
 		this.warm = lerpRgb(this.warm, this.targetWarm, 0.08);
 		this.stateColor = lerpRgb(this.stateColor, this.targetStateColor, 0.08);
+		const attractionEase = 1 - Math.pow(1 - (this.awake ? 0.22 : 0.07), delta / 16.67);
+		this.attraction += (this.targetAttraction() - this.attraction) * attractionEase;
 
 		this.back.clearRect(0, 0, this.width, this.height);
 		this.front.clearRect(0, 0, this.width, this.height);
@@ -391,195 +499,117 @@ export class QuyuanVoiceParticleField {
 		this.front.globalCompositeOperation = composite;
 
 		const animationTime = this.reducedMotion ? 0 : time;
-		const transitionKick = this.reducedMotion
-			? 0
-			: Math.max(0, 1 - (time - this.stateEnteredAt) / 720) * 0.18;
-		const energy = this.reducedMotion
-			? 0.08
-			: Math.max(0.04, this.stateEnergy(time) + transitionKick);
+		const energy = this.reducedMotion ? 0.06 : this.stateEnergy(time);
+		const centerX = this.width * 0.5;
+		const centerY = this.height * (this.width <= 620 ? 0.43 : 0.46);
+		const baseRadius = Math.max(100, Math.min(this.width * (this.awake ? 0.31 : 0.285), this.height * 0.35, 340));
+		const scale = baseRadius * (1 + energy * (this.awake ? 0.045 : 0.018));
+		const pointerNormX = this.pointerX * (this.width / Math.max(1, scale * 2));
+		const pointerNormY = this.pointerY * (this.height / Math.max(1, scale * 2));
+		const particleEase = 1 - Math.pow(1 - (this.awake ? 0.22 : 0.085), delta / 16.67);
 
-		const cx = this.width * 0.5;
-		const cy = this.height * 0.5;
-		const baseRadius = Math.max(120, Math.min(this.width * 0.44, this.height * 0.48, 380));
-		const breathScale = 1 + energy * 0.05;
-		const scale = baseRadius * breathScale;
-		const surfaceAlpha = this.lightSurface ? 0.88 : 1;
+		for (let index = 0; index < this.particles.length; index++) {
+			const particle = this.particles[index];
+			const orbit = particle.freeAngle + animationTime * 0.000085 * particle.freeSpeed;
+			const freeBreath = 1 + Math.sin(animationTime * 0.0007 + particle.phase) * 0.18;
+			const freeX = Math.cos(orbit) * particle.freeRadius * freeBreath
+				+ Math.sin(animationTime * 0.00034 + particle.phase) * 0.11;
+			const freeY = Math.sin(orbit * 0.87) * particle.freeRadius * 0.72 * freeBreath
+				+ Math.cos(animationTime * 0.00031 + particle.phase) * 0.09;
 
-		// 游走幅度大幅降低：粒子锁定在 logo 形状内，只有微小抖动
-		const wanderRange = 0.012 + energy * 0.025;
+			let logoX = particle.logoX;
+			let logoY = particle.logoY;
+			const radius = Math.max(0.001, Math.hypot(logoX, logoY));
+			if (!this.reducedMotion) {
+				const ambient = Math.sin(animationTime * 0.0008 + particle.phase + radius * 9)
+					* (this.awake ? 0.012 + particle.layer * 0.007 : 0.024);
+				logoX += (logoX / radius) * ambient;
+				logoY += (logoY / radius) * ambient;
+				if (this.awake) {
+					logoX += Math.sin(animationTime * 0.0017 + particle.phase * 1.7) * 0.009;
+					logoY += Math.cos(animationTime * 0.0015 + particle.phase * 1.3) * 0.009;
+				}
+				if (this.state === "listen" && this.awake) {
+					const breath = this.smoothedLevel * (0.024 + particle.layer * 0.016);
+					logoX *= 1 + breath;
+					logoY *= 1 + breath;
+				} else if (this.state === "reco" && this.awake) {
+					const scanY = ((animationTime - this.stateEnteredAt) % 720) / 720 - 0.5;
+					const push = Math.max(0, 1 - Math.abs(logoY - scanY) / 0.09) * 0.021;
+					logoX += Math.sin(particle.phase + animationTime * 0.008) * push;
+				} else if (this.state === "think" && this.awake) {
+					const swirl = Math.sin(animationTime * 0.0027 + radius * 12 + particle.phase) * 0.017;
+					logoX += -particle.logoY * swirl;
+					logoY += particle.logoX * swirl;
+				} else if (this.state === "speak" && this.awake) {
+					const wave = Math.sin(animationTime * 0.012 - radius * 18 + particle.phase)
+						* (0.006 + this.smoothedOutput * 0.018);
+					logoX *= 1 + wave;
+					logoY *= 1 + wave;
+				}
+			}
 
-		for (let particleIndex = 0; particleIndex < this.particles.length; particleIndex++) {
-			const particle = this.particles[particleIndex];
+			// 休眠时全部粒子脱离形状进入无序轨道；唤醒后快速磁吸，但保留边缘流动。
+			const particleAttraction = this.awake
+				? Math.min(1, this.attraction + particle.layer * 0.035)
+				: this.attraction * (0.62 + particle.layer * 0.22);
+			let targetX = freeX + (logoX - freeX) * particleAttraction;
+			let targetY = freeY + (logoY - freeY) * particleAttraction;
+			if (this.pointerInside && !this.reducedMotion) {
+				const dx = targetX - pointerNormX;
+				const dy = targetY - pointerNormY;
+				const distance = Math.max(0.025, Math.hypot(dx, dy));
+				const influence = Math.max(0, 1 - distance / 0.3) * (this.awake ? 0.026 : 0.072);
+				targetX += (dx / distance) * influence;
+				targetY += (dy / distance) * influence;
+			}
+			if (!this.reducedMotion) {
+				const flow = (this.awake ? 0.003 : 0.008) + particle.layer * (this.awake ? 0.003 : 0.005);
+				targetX += Math.sin(animationTime * 0.0015 + particle.phase * 1.9) * flow;
+				targetY += Math.cos(animationTime * 0.0013 + particle.phase * 1.6) * flow;
+			}
 
-			// 低频慢速漂移（不是跳跃，是轻微浮动）
-			const t1 = animationTime * 0.0008 * particle.wanderSpeed;
-			const t2 = animationTime * 0.0014 * particle.wanderSpeed;
-			const nx = Math.sin(particle.phase + t1) * 0.6
-				+ Math.sin(particle.phase * 2.1 + t2) * 0.4;
-			const ny = Math.cos(particle.phase * 1.3 + t1 * 0.9) * 0.6
-				+ Math.cos(particle.phase * 2.8 + t2 * 1.1) * 0.4;
-			particle.offX = nx * wanderRange;
-			particle.offY = ny * wanderRange;
+			particle.currentX += (targetX - particle.currentX) * particleEase;
+			particle.currentY += (targetY - particle.currentY) * particleEase;
+			const px = centerX + particle.currentX * scale * 2;
+			const py = centerY + particle.currentY * scale * 2;
+			const color = this.particleColor(particle, energy, animationTime);
+			const twinkle = this.reducedMotion ? 0.82 : 0.68 + (Math.sin(animationTime * 0.0016 + particle.phase) + 1) * 0.15;
+			const logoClarity = 0.18 + particleAttraction * 0.72;
+			const alpha = this.awake
+				? logoClarity * twinkle * (0.56 + particle.layer * 0.5) * (this.lightSurface ? 0.88 : 1)
+				: (0.42 + particle.layer * 0.34) * twinkle * (this.lightSurface ? 0.9 : 1);
+			const spherePulse = this.reducedMotion
+				? 1
+				: 0.88 + (Math.sin(animationTime * 0.0038 + particle.phase * 1.4) + 1) * 0.12;
+			const size = Math.max(
+				0.7,
+				particle.size * (0.76 + particle.layer * 0.54 + energy * 0.3)
+					* (this.awake ? 1.08 : 1.22) * spherePulse
+			);
+			const context = particle.layer > 0.48 ? this.front : this.back;
 
-			const px = cx + (particle.baseX + particle.offX) * scale * 2;
-			const py = cy + (particle.baseY + particle.offY) * scale * 2;
-
-			const depth = 0.72 + particle.layer * 0.28;
-			const visible = Math.max(0.52, 0.76 + particle.layer * 0.4);
-
-			const flowingColor = this.stateColorFlow(particle, energy, animationTime);
-			const tint = mix(WHITE, this.secondary, particle.colorMix * 0.12);
-			const color = mix(tint, flowingColor, 0.55 + energy * 0.2);
-
-			const size = particle.size * (1.04 + depth * 0.9 + energy * 0.9);
-			const context = particle.layer > 0.5 ? this.front : this.back;
-			const layerAlpha = particle.layer > 0.5 ? FRONT_ALPHA : 1;
-
-			if (particleIndex % 17 === 0) {
-				const haloSize = size * (2.8 + energy * 1.8);
+			if (index % (this.awake ? 24 : 14) === 0) {
 				context.beginPath();
-				context.arc(px, py, haloSize, 0, Math.PI * 2);
-				context.fillStyle = rgba(
-					flowingColor,
-					(0.045 + energy * 0.075) * layerAlpha * surfaceAlpha
-				);
+				context.arc(px, py, size * (2.1 + energy), 0, Math.PI * 2);
+				context.fillStyle = rgba(color, alpha * (this.awake ? 0.08 : 0.16));
 				context.fill();
 			}
-			context.beginPath();
-			context.arc(px, py, size, 0, Math.PI * 2);
-			context.fillStyle = rgba(color, visible * layerAlpha * surfaceAlpha);
-			context.fill();
+			this.drawSphereParticle(
+				context,
+				px,
+				py,
+				size,
+				color,
+				alpha,
+				index % 11 === 0
+			);
 		}
 
-		// 眼睛：T 形竖杠中部，两只对称眼睛
-		this.drawEyes(this.front, cx, cy, scale, energy, animationTime);
+		this.drawParticleEyes(centerX, centerY, scale, energy, animationTime);
 
-		this.frame = window.requestAnimationFrame((next) => this.render(next));
-	}
-
-	/**
-	 * 在 T 形竖杠中部画两只动态眼睛。
-	 * 从粒子采样点动态推算 T 形的实际边界，确保眼睛在竖杠内。
-	 */
-	private drawEyes(
-		context: CanvasRenderingContext2D,
-		cx: number,
-		cy: number,
-		scale: number,
-		energy: number,
-		time: number
-	): void {
-		// 眼睛放在 T 的镂空区（笔画围出的黑色空间，不覆盖粒子）
-		// 镂空上半部分（横杠正下方）：x[-0.217,0.214] y[-0.128,0.004]
-		// 从采样点推算 T 横杠底部位置，眼睛放在横杠下方
-		const pts = getLogoSamplePoints();
-		let yMin = 1, yMax = -1;
-		for (const p of pts) {
-			yMin = Math.min(yMin, p.y);
-			yMax = Math.max(yMax, p.y);
-		}
-		const yRange = yMax - yMin;
-		// 横杠 = 最顶部 35% 范围的点
-		const crossbarThreshold = yMin + yRange * 0.35;
-		let cbXMin = 1, cbXMax = -1, cbYMin = 1, cbYMax = -1;
-		let count = 0;
-		for (const p of pts) {
-			if (p.y < crossbarThreshold) {
-				cbXMin = Math.min(cbXMin, p.x);
-				cbXMax = Math.max(cbXMax, p.x);
-				cbYMin = Math.min(cbYMin, p.y);
-				cbYMax = Math.max(cbYMax, p.y);
-				count++;
-			}
-		}
-		if (count === 0) return;
-		const cbCenterX = (cbXMin + cbXMax) / 2;
-		const cbHalfWidth = (cbXMax - cbXMin) / 2;
-
-		// 眼睛位置：横杠正下方的镂空区（不覆盖白色粒子）
-		// eyeY 在横杠底部和镂空中心之间
-		const eyeSpacing = cbHalfWidth * 0.28;
-		const eyeY = cbYMax + yRange * 0.04;           // 横杠底部下方一点（镂空区内）
-		const eyeRadius = Math.max(scale * 0.014, yRange * scale * 2 * 0.034);
-
-		// 眨眼
-		const blinkCycle = 4000;
-		const blinkDuration = 150;
-		const phase = time % blinkCycle;
-		const blinkClose = phase < blinkDuration
-			? Math.sin((phase / blinkDuration) * Math.PI)
-			: 0;
-
-		// 朗读动态
-		const isSpeaking = this.state === "speak";
-		const pupilScale = isSpeaking ? 0.65 + this.smoothedOutput * 0.6 : 0.55;
-		const glowIntensity = isSpeaking
-			? 0.6 + this.smoothedOutput * 0.6
-			: 0.25 + energy * 0.15;
-
-		// 瞳孔颜色随状态变化（变色更明显）
-		let pupilColor: Rgb;
-		if (isSpeaking) {
-			pupilColor = this.stateColor;   // 朗读时用状态色（青绿）
-		} else if (this.state === "think") {
-			pupilColor = this.secondary;     // 思考时紫色
-		} else if (this.state === "listen" || this.state === "reco") {
-			pupilColor = this.primary;       // 听音时亮青
-		} else {
-			pupilColor = this.lightSurface
-				? { r: 40, g: 50, b: 70 }
-				: { r: 120, g: 200, b: 255 };
-		}
-
-		for (const side of [-1, 1]) {
-			const eyeNormX = cbCenterX + side * eyeSpacing;
-			const ex = cx + eyeNormX * scale * 2;
-			const ey = cy + eyeY * scale * 2;
-
-			// 外发光（更亮更大）
-			const glowRadius = eyeRadius * (3 + glowIntensity * 2.5);
-			const glowGrad = context.createRadialGradient(ex, ey, 0, ex, ey, glowRadius);
-			const glowColor = isSpeaking ? this.stateColor : this.primary;
-			glowGrad.addColorStop(0, rgba(glowColor, glowIntensity * 0.6));
-			glowGrad.addColorStop(1, rgba(glowColor, 0));
-			context.fillStyle = glowGrad;
-			context.beginPath();
-			context.arc(ex, ey, glowRadius, 0, Math.PI * 2);
-			context.fill();
-
-			// 眼球（眨眼时压扁）
-			const eyeHeight = eyeRadius * (1 - blinkClose * 0.9);
-			context.save();
-			context.translate(ex, ey);
-			context.scale(1, eyeHeight / eyeRadius);
-			context.beginPath();
-			context.arc(0, 0, eyeRadius, 0, Math.PI * 2);
-			context.fillStyle = rgba(WHITE, 0.95);
-			context.fill();
-			context.restore();
-
-			// 瞳孔（颜色随状态变化，更饱和）
-			if (blinkClose < 0.5) {
-				const pupilRadius = eyeRadius * pupilScale * (1 - blinkClose);
-				// 瞳孔发光底
-				const pupilGlow = context.createRadialGradient(ex, ey, 0, ex, ey, pupilRadius * 1.8);
-				pupilGlow.addColorStop(0, rgba(pupilColor, 0.5));
-				pupilGlow.addColorStop(1, rgba(pupilColor, 0));
-				context.fillStyle = pupilGlow;
-				context.beginPath();
-				context.arc(ex, ey, pupilRadius * 1.8, 0, Math.PI * 2);
-				context.fill();
-				// 瞳孔实心
-				context.beginPath();
-				context.arc(ex, ey, pupilRadius, 0, Math.PI * 2);
-				context.fillStyle = rgba(pupilColor, 0.95);
-				context.fill();
-				// 高光
-				context.beginPath();
-				context.arc(ex - pupilRadius * 0.3, ey - pupilRadius * 0.3, pupilRadius * 0.35, 0, Math.PI * 2);
-				context.fillStyle = rgba(WHITE, 0.8);
-				context.fill();
-			}
+		if (!this.disposed) {
+			this.frame = this.activeWindow.requestAnimationFrame((next) => this.render(next));
 		}
 	}
 }

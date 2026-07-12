@@ -48,7 +48,7 @@ function resolveSpawn():
 	  })
 	| null {
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const cp = require("child_process");
 		return cp.spawn;
 	} catch {
@@ -86,7 +86,7 @@ async function resolveRuntime(settings: TalosSettings, cwd: string): Promise<Res
 				cwd,
 				shell: false,
 			});
-			child.stdout?.on("data", (d) => (out += (d as Buffer).toString()));
+			child.stdout?.on("data", (d) => (out += (d).toString()));
 			child.on("error", () => finish({ bin: explicit || "claude", env: base }));
 			child.on("close", () => {
 				const env: Record<string, string> = { ...base };
@@ -98,7 +98,7 @@ async function resolveRuntime(settings: TalosSettings, cwd: string): Promise<Res
 				const detected = (binPart || "").trim().split("\n").pop()?.trim() || "";
 				finish({ bin: explicit || detected || "claude", env });
 			});
-			setTimeout(() => {
+			window.setTimeout(() => {
 				try { child.kill(); } catch { /* noop */ }
 				finish({ bin: explicit || "claude", env: base });
 			}, 6000);
@@ -226,7 +226,7 @@ export class SdkCliEngine implements Engine {
 					description: opts.description,
 					blockedPath: opts.blockedPath,
 					decisionReason: opts.decisionReason,
-					suggestions: opts.suggestions as unknown[] | undefined,
+					suggestions: opts.suggestions,
 				});
 			},
 		};

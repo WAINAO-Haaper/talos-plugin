@@ -265,7 +265,7 @@ class OpenAiModelClient implements ModelClient {
 		const accs = Object.keys(calls)
 			.map((k) => Number(k))
 			.sort((a, b) => a - b)
-			.map((k) => calls[k] as CallAcc);
+			.map((k) => calls[k]);
 		if (finish === "tool_calls" && accs.length > 0) {
 			const toolCalls: OAToolCall[] = accs.map((c) => ({
 				id: c.id,

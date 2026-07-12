@@ -14,6 +14,21 @@ import {
 	SESSIONS_PATH,
 } from "./src/quyuan/claudian/core/bootstrap/StoragePaths.ts";
 import { VIEW_TYPE_CLAUDIAN } from "./src/quyuan/claudian/core/types/chat.ts";
+import {
+	generateTalosMarkOutlinePoints,
+	generateTalosMarkPoints,
+	generateTalosRoundedMarkPoints,
+	generateTalosSlimMarkPoints,
+	TALOS_ICON_SVG,
+} from "./src/talos-mark.ts";
+
+function sourceRegion(source, startMarker, endMarker) {
+	const start = source.indexOf(startMarker);
+	assert.notEqual(start, -1, `Missing source marker: ${startMarker}`);
+	const end = source.indexOf(endMarker, start + startMarker.length);
+	assert.notEqual(end, -1, `Missing source marker: ${endMarker}`);
+	return source.slice(start, end);
+}
 
 function request(overrides = {}) {
 	return {
@@ -23,6 +38,33 @@ function request(overrides = {}) {
 		...overrides,
 	};
 }
+
+const talosMarkPoints = generateTalosMarkPoints(4);
+const denseTalosMarkPoints = generateTalosMarkPoints(3);
+const outlineTalosMarkPoints = generateTalosMarkOutlinePoints(2, 13);
+const slimTalosMarkPoints = generateTalosSlimMarkPoints(2);
+const roundedTalosMarkPoints = generateTalosRoundedMarkPoints(2);
+assert.ok(talosMarkPoints.length > 1800, "TALOS 粒子采样密度不足");
+assert.ok(denseTalosMarkPoints.length > 4000, "TALOS 高密度采样不足");
+assert.ok(outlineTalosMarkPoints.length > 5000, "TALOS 窄边框采样密度不足");
+assert.ok(outlineTalosMarkPoints.length < generateTalosMarkPoints(2).length * 0.62);
+assert.ok(slimTalosMarkPoints.length >= 6000 && slimTalosMarkPoints.length <= 6400);
+assert.ok(roundedTalosMarkPoints.length >= 6100 && roundedTalosMarkPoints.length <= 6400);
+assert.equal(
+	slimTalosMarkPoints.some(({ x, y }) => Math.abs(x) < 0.16 && y > 0.08),
+	false,
+	"屈原粒子嘴部必须向底部贯通"
+);
+assert.deepEqual(talosMarkPoints, generateTalosMarkPoints(4));
+assert.ok(talosMarkPoints.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y)));
+assert.ok(talosMarkPoints.some(({ x, y }) => x < -0.45 && Math.abs(y) < 0.25));
+assert.ok(talosMarkPoints.some(({ x, y }) => x > 0.45 && Math.abs(y) < 0.25));
+assert.equal(
+	talosMarkPoints.some(({ x, y }) => Math.abs(x) < 0.08 && y > -0.15 && y < 0.3),
+	false,
+	"TALOS 标志中央负形 T 必须保持留空"
+);
+assert.match(TALOS_ICON_SVG, /M180 247H249/);
 
 assert.equal(
 	evaluateQuyuanGovernance(request({ toolName: "Read", input: {} })).decision,
@@ -208,19 +250,61 @@ assert.match(quyuanViewSource, /renderOpenError/);
 assert.match(quyuanViewSource, /writeQuyuanDiagnostics/);
 
 const voicePanelSource = readFileSync("src/quyuan/voice-panel.ts", "utf8");
+const voiceCharacterSource = readFileSync("src/quyuan/voice-character-stage.ts", "utf8");
 const voiceDriverSource = readFileSync("src/quyuan/voice-driver.ts", "utf8");
 const voiceParticleSource = readFileSync("src/quyuan/voice-particle-field.ts", "utf8");
 const vadSource = readFileSync("src/quyuan/vad-mic.ts", "utf8");
 const voiceIoSource = readFileSync("src/jarvis/voiceio.ts", "utf8");
-assert.match(voicePanelSource, /new QuyuanVoiceParticleField\(/);
+const particleCreateRegion = sourceRegion(
+	voiceParticleSource,
+	"private createParticles(): Particle[]",
+	"private resize(): void"
+);
+const particleColorRegion = sourceRegion(
+	voiceParticleSource,
+	"private particleColor(",
+	"private render(time: number)"
+);
+const particleRenderRegion = voiceParticleSource.slice(voiceParticleSource.indexOf("private render(time: number)"));
+const particleDestroyRegion = sourceRegion(
+	voiceParticleSource,
+	"destroy(): void",
+	"private createParticles(): Particle[]"
+);
+const panelAsrStateRegion = sourceRegion(
+	voicePanelSource,
+	"onState: (s) =>",
+	"onSpeechStart: () =>"
+);
+const panelTtsErrorRegion = sourceRegion(
+	voicePanelSource,
+	`} else if (s === "error") {`,
+	"}, (level) => {"
+);
+assert.match(voicePanelSource, /new QuyuanVoiceCharacterStage\(/);
+assert.doesNotMatch(voicePanelSource, /new QuyuanVoiceParticleField\(/);
+assert.match(voiceCharacterSource, /tq-pixel-head-scene/);
+assert.equal((voiceCharacterSource.match(/createEl\("canvas"/g) ?? []).length, 2);
+assert.match(voiceCharacterSource, /new QuyuanVoiceParticleField\(/);
+assert.match(voiceCharacterSource, /setAwake\(awake\)[\s\S]*setState\(state/);
+assert.match(voiceCharacterSource, /setInputLevel[\s\S]*setOutputLevel[\s\S]*destroy/);
+assert.match(voiceCharacterSource.slice(voiceCharacterSource.indexOf("destroy(): void")), /field\?\.destroy\(\)[\s\S]*root\.remove\(\)/);
+assert.doesNotMatch(voiceCharacterSource, /TALOS-Mascot-Character-Transparent-v1\.png/);
+assert.doesNotMatch(voiceCharacterSource, /createImage|getResourcePath/);
 assert.match(voicePanelSource, /buildFunctionalSidebar/);
+assert.match(talosSettingsSource, /quyuanVoiceRecognitionEnabled:\s*boolean/);
+assert.match(talosSettingsSource, /quyuanVoiceRecognitionEnabled:\s*true/);
+assert.match(voicePanelSource, /quyuanVoiceRecognitionEnabled === false[\s\S]*renderVoiceRecognitionOff/);
+assert.match(voicePanelSource, /setVoiceRecognitionEnabled[\s\S]*this\.asr\?\.stop\(\)/);
+assert.match(voicePanelSource, /toggleVoiceRecognitionMode[\s\S]*setVoiceRecognitionEnabled/);
+assert.match(voicePanelSource, /语音识别已退出，文字输入仍可使用/);
 assert.match(voicePanelSource, /当前语音会话[\s\S]*当前上下文[\s\S]*已启用能力/);
 assert.match(voicePanelSource, /talos-quyuan-side-width[\s\S]*installSideResizer/);
 assert.match(voicePanelSource, /tq-side-composer[\s\S]*给屈原发送文字消息/);
-assert.match(
-	voicePanelSource,
-	/tq-btn tq-btn--primary tq-btn--lg tq-listen-btn/
-);
+assert.match(voicePanelSource, /tq-fab[\s\S]*tq-fab-menu[\s\S]*tq-fab-ring/);
+assert.match(voicePanelSource, /setFabButtonLabel[\s\S]*aria-labelledby/);
+assert.match(voicePanelSource, /button\.removeAttribute\("aria-label"\)/);
+assert.match(voicePanelSource, /tq-fab-sr-label/);
 assert.match(
 	voicePanelSource,
 	/tq-btn tq-btn--danger tq-btn--sm[\s\S]*确认执行/
@@ -248,6 +332,11 @@ assert.match(
 	/syncAsrBusy[\s\S]*setBusy\(busy,\s*this\.ttsSpeaking\)/
 );
 assert.match(voicePanelSource, /ttsPending[\s\S]*ttsSpeaking[\s\S]*responseActive/);
+assert.match(voicePanelSource, /\(level\) => \{[\s\S]*characterStage\?\.setOutputLevel\(level\)/);
+assert.match(voicePanelSource, /onLevel: \(level\)[\s\S]*characterStage\?\.setInputLevel\(visualLevel\)/);
+assert.match(voicePanelSource, /characterStage\?\.setState\(state,\s*this\.wakeActive\)/);
+assert.match(panelAsrStateRegion, /if \(!this\.wakeActive\) this\.setState\("sleep"\)[\s\S]*else if \(s === "transcribing"\)/);
+assert.match(panelTtsErrorRegion, /setOutputLevel\(0\)[\s\S]*setState\(/);
 assert.match(
 	voiceDriverSource,
 	/runtimePlugin[\s\S]*scopedSettings[\s\S]*model:\s*this\.voiceRuntime\.model[\s\S]*effortLevel:\s*this\.voiceRuntime\.effortLevel/
@@ -264,6 +353,9 @@ assert.match(voicePanelSource, /wakeWord = "屈原"/);
 assert.match(voicePanelSource, /sleepWord = "退下"/);
 assert.match(voicePanelSource, /wakeWindowMs = 30_000/);
 assert.match(voicePanelSource, /onText: \(text\) => this\.handleVoiceTranscript\(text\)/);
+assert.match(voicePanelSource, /tq-transcript-editor[\s\S]*createEl\("textarea"[\s\S]*语音识别文字，可编辑/);
+assert.match(voicePanelSource, /channel === "voice"[\s\S]*showTranscriptEditor\(trimmed\)/);
+assert.match(voicePanelSource, /showTranscriptEditor[\s\S]*requestAnimationFrame[\s\S]*is-visible/);
 assert.match(
 	voicePanelSource,
 	/handleVoiceTranscript[\s\S]*activateWake[\s\S]*commitUser\(command,\s*"voice"\)/
@@ -317,40 +409,74 @@ assert.match(
 	quyuanShellCss,
 	/\.theme-geometric-modern\[data-talos-page="jarvis"\] \.sidebar[\s\S]*background:\s*#e6ddcb/
 );
-assert.match(
-	voicePanelSource,
-	/tq-head-brand[\s\S]*TALOS-Favicon-64-v1\.png[\s\S]*alt:\s*"TALOS"[\s\S]*tq-head-actions/
-);
-assert.match(
-	quyuanShellCss,
-	/\.tq-badge img[\s\S]*width:\s*56px[\s\S]*object-fit:\s*contain/
-);
+assert.match(quyuanShellCss, /\.tq-stage[\s\S]*container:\s*tq-stage \/ size/);
+assert.match(quyuanShellCss, /\.tq-pixel-head-scene[\s\S]*\.tq-pixel-head-canvas--back[\s\S]*\.tq-pixel-head-canvas--front/);
+assert.match(quyuanShellCss, /\.tq-pixel-head-scene\.is-fallback[\s\S]*\.tq-pixel-head-fallback/);
 assert.match(vadSource, /onLevel\?\:\s*\(level:\s*number\)/);
 assert.match(vadSource, /this\.h\.onLevel\?\.\(/);
-assert.match(voiceParticleSource, /requestAnimationFrame/);
-assert.match(voiceParticleSource, /time - this\.lastTime < 30/);
-assert.match(
-	voiceParticleSource,
-	/stateMotion[\s\S]*case "listen"[\s\S]*case "reco"[\s\S]*case "think"[\s\S]*case "speak"/
-);
-assert.match(
-	voiceParticleSource,
-	/stateColorFlow[\s\S]*case "listen"[\s\S]*case "reco"[\s\S]*case "think"[\s\S]*case "speak"/
-);
-assert.match(
-	voiceParticleSource,
-	/particleIndex % 19 === 0[\s\S]*haloSize[\s\S]*pulsePalette/
-);
-assert.match(voiceParticleSource, /const cx = this\.width \* 0\.5/);
-assert.match(voiceParticleSource, /const cy = this\.height \* 0\.5/);
+// 现行人物适配层内部使用 Antigravity 风格 TALOS Logo 粒子磁场；面板不直接依赖渲染器。
+assert.match(voiceParticleSource, /export class QuyuanVoiceParticleField/);
+assert.match(voiceParticleSource, /generateTalosRoundedMarkPoints\(2\)/);
+assert.match(voiceParticleSource, /createSeededRandom/);
+assert.match(particleCreateRegion, /swapIndex/);
+assert.match(particleCreateRegion, /freeRadius:[\s\S]*freeAngle:[\s\S]*freeSpeed:/);
+assert.match(voiceParticleSource, /private drawSphereParticle\([\s\S]*context\.arc\([\s\S]*safeRadius/);
+assert.doesNotMatch(voiceParticleSource, /fillRect\(/);
+assert.match(particleRenderRegion, /spherePulse[\s\S]*drawSphereParticle/);
+assert.match(particleRenderRegion, /0\.000085[\s\S]*freeBreath[\s\S]*0\.18/);
+assert.match(voiceParticleSource, /setAwake\(awake:\s*boolean\)/);
+assert.match(voiceParticleSource, /private targetAttraction\(\): number/);
+assert.match(voiceParticleSource, /!this\.awake[\s\S]*0\.08[\s\S]*"reco"[\s\S]*0\.99/);
+assert.match(particleRenderRegion, /particleAttraction[\s\S]*targetX = freeX \+ \(logoX - freeX\) \* particleAttraction/);
+assert.match(particleRenderRegion, /this\.awake \? 0\.22 : 0\.07/);
+assert.match(particleRenderRegion, /this\.awake \? 0\.22 : 0\.085/);
+assert.doesNotMatch(particleRenderRegion, /particle\.layer > 0\.52/);
+assert.match(voiceParticleSource, /eyeFreeX[\s\S]*eyeFreeY[\s\S]*eyeAttraction/);
+assert.match(voiceParticleSource, /EYE_PARTICLES_PER_SIDE = 240/);
+assert.match(voiceParticleSource, /private createEyeParticles\(\): EyeParticle\[]/);
+assert.match(voiceParticleSource, /baseX: side \* 0\.155 \+ Math\.cos\(angle\) \* radius \* 0\.055/);
+assert.match(voiceParticleSource, /baseY: -0\.095 \+ Math\.sin\(angle\) \* radius \* 0\.055/);
+assert.match(voiceParticleSource, /electricCyan[\s\S]*electricViolet[\s\S]*spectral/);
+assert.match(voiceParticleSource, /private neonCloudColor\(seed: number, time: number\): Rgb/);
+assert.match(voiceParticleSource, /r: 0, g: 255, b: 210[\s\S]*r: 255, g: 72, b: 210[\s\S]*r: 255, g: 184, b: 64/);
+assert.match(particleRenderRegion, /0\.42 \+ particle\.layer \* 0\.34/);
+assert.match(particleRenderRegion, /this\.awake \? 24 : 14/);
+assert.match(voiceParticleSource, /private eyeColor\(time: number\): Rgb/);
+assert.match(voiceParticleSource, /private drawParticleEyes\([\s\S]*state === "reco"[\s\S]*state === "think"[\s\S]*state === "speak"/);
+assert.match(particleRenderRegion, /this\.drawParticleEyes\(centerX, centerY, scale, energy, animationTime\)/);
+assert.match(particleRenderRegion, /this\.pointerInside[\s\S]*influence/);
+assert.match(particleRenderRegion, /this\.width <= 620/);
+assert.match(particleRenderRegion, /state === "listen"[\s\S]*state === "reco"[\s\S]*state === "think"[\s\S]*state === "speak"/);
+assert.match(particleRenderRegion, /index % \(this\.awake \? 24 : 14\)/);
+assert.match(voiceParticleSource, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+const reducedInterval = Number(voiceParticleSource.match(/REDUCED_MOTION_FRAME_INTERVAL = (\d+)/)?.[1]);
+assert.ok(reducedInterval >= 120 && reducedInterval <= 500);
+const dprLimit = Number(voiceParticleSource.match(/Math\.min\(this\.activeWindow\.devicePixelRatio \|\| 1,\s*([\d.]+)\)/)?.[1]);
+assert.ok(dprLimit > 0 && dprLimit <= 1.5);
+assert.match(voiceParticleSource, /"sleep" \| "idle" \| "listen" \| "reco" \| "think" \| "speak"/);
+assert.match(particleColorRegion, /!this\.awake[\s\S]*"listen"[\s\S]*"reco"[\s\S]*"think"[\s\S]*"speak"/);
+assert.doesNotMatch(voiceParticleSource, /drawEyes|eyeWidth/);
+assert.match(particleRenderRegion, /requestAnimationFrame/);
+assert.match(particleDestroyRegion, /this\.disposed = true[\s\S]*cancelAnimationFrame[\s\S]*resizeObserver\.disconnect[\s\S]*removeEventListener/);
+assert.doesNotMatch(voiceParticleSource, /\.png|new Image\(|createElement\("img"\)/i);
+assert.doesNotMatch(voiceParticleSource, /setInterval/);
+// 7/10 沉浸式界面已退役旧 tq-flow / tq-copy；当前契约是字幕 overlay + FAB。
+assert.match(quyuanShellCss, /\.tq-overlay-text[\s\S]*\.tq-overlay-reply[\s\S]*\.tq-transcript-editor[\s\S]*\.tq-overlay-user/);
 assert.match(
 	quyuanShellCss,
-	/\.tq-flow[\s\S]*top:\s*30px[\s\S]*left:\s*clamp\(24px,\s*3vw,\s*46px\)[\s\S]*font-size:\s*clamp\(18px/
+	/\.tq-transcript-editor\s*\{[\s\S]*right:\s*clamp\(28px,\s*3\.5vw,\s*56px\)[\s\S]*bottom:\s*calc\(clamp\(205px,\s*18vh,\s*250px\) \+ 92px\)[\s\S]*translate3d\(42px,\s*14px,\s*0\)/
 );
+assert.match(quyuanShellCss, /\.tq-overlay-reply\s*\{[\s\S]*width:\s*calc\(100% - clamp\(300px,\s*32vw,\s*430px\)\)/);
+assert.match(quyuanShellCss, /\.tq-stage:has\(\.tq-fab\.is-open\) \.tq-transcript-editor\.is-visible[\s\S]*translate3d\(0,\s*-64px,\s*0\)/);
+assert.match(quyuanShellCss, /\.tq-fab[\s\S]*\.tq-fab-menu[\s\S]*\.tq-fab-ring/);
 assert.match(
 	quyuanShellCss,
-	/\.tq-copy[\s\S]*right:\s*clamp\(28px,\s*4vw,\s*58px\)[\s\S]*bottom:\s*102px[\s\S]*text-align:\s*right/
+	/\.tq-fab\s*\{[\s\S]*right:\s*clamp\(210px,\s*12vw,\s*260px\)[\s\S]*bottom:\s*clamp\(205px,\s*18vh,\s*250px\)/
 );
+assert.match(quyuanShellCss, /\.tq-fab\.is-open \.tq-fab-btn:is\(:hover, :focus-visible\)\s*\{[\s\S]*z-index:\s*8/);
+assert.match(quyuanShellCss, /\.tq-fab-btn::after\s*\{[\s\S]*z-index:\s*9[\s\S]*bottom:\s*calc\(100% \+ 10px\)/);
+assert.match(quyuanShellCss, /nth-child\(-n \+ 2\)::after[\s\S]*left:\s*calc\(100% \+ 10px\)/);
+assert.match(quyuanShellCss, /nth-child\(n \+ 6\)::after[\s\S]*right:\s*calc\(100% \+ 10px\)/);
 assert.match(
 	quyuanShellCss,
 	/theme-cosmos-dark[\s\S]*theme-animal-island[\s\S]*theme-system-classic[\s\S]*theme-data-stream[\s\S]*theme-soft-relief[\s\S]*theme-geometric-modern/

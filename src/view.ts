@@ -1395,7 +1395,7 @@ export class TalosView extends ItemView {
 			const { QuyuanVoicePanel } = await import("./quyuan/voice-panel");
 			if (this.activePage !== "jarvis") return;
 			page.empty();
-			if (!this.jarvis) this.jarvis = new QuyuanVoicePanel(this.app, this.plugin as never, this.plugin.talosSettings, () => this.plugin.saveTalosSettings());
+			if (!this.jarvis) this.jarvis = new QuyuanVoicePanel(this.app, this.plugin, this.plugin.talosSettings, () => this.plugin.saveTalosSettings());
 			this.jarvis.mount(page);
 			this.jarvisMounted = true;
 		} catch (error) {
