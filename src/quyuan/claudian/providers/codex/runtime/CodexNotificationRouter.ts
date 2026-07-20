@@ -118,6 +118,9 @@ export class CodexNotificationRouter {
   beginTurn(params: { isPlanTurn: boolean }): void {
     this.isPlanTurn = params.isPlanTurn;
     this.sawPlanDelta = false;
+    // 与其他跟踪集合一致按轮清空：不清会无限增长，且新线程重新编号的
+    // item id 撞上旧记录时，webSearch 工具卡会被误判为重复而不显示。
+    this.seenWebSearchIds.clear();
     this.startedUserMessageIds.clear();
     this.startedAgentMessageIds.clear();
     this.agentMessageDeltaIds.clear();
@@ -133,6 +136,7 @@ export class CodexNotificationRouter {
   endTurn(): void {
     this.isPlanTurn = false;
     this.sawPlanDelta = false;
+    this.seenWebSearchIds.clear();
     this.startedUserMessageIds.clear();
     this.startedAgentMessageIds.clear();
     this.agentMessageDeltaIds.clear();
@@ -875,8 +879,10 @@ function stringifyRawOutput(value: unknown): string {
 
   try {
     const result = JSON.stringify(value);
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- 兜底序列化：JSON.stringify 返回 undefined 时退回 String()，保持原有行为
     return typeof result === 'string' ? result : String(value);
   } catch {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- 兜底序列化：JSON.stringify 抛错（如循环引用）时退回 String()，保持原有行为
     return String(value);
   }
 }

@@ -412,6 +412,10 @@ export async function deepResearch(
 	let out = "";
 	child.stdout?.on("data", (d: Buffer) => (out += d.toString()));
 	child.stderr?.on("data", (d: Buffer) => (out += d.toString()));
+	// 命令不存在等 spawn 失败：不处理 error 事件会变成渲染进程未捕获异常
+	child.on("error", (err: Error) => {
+		new Notice(`Deep Research 无法启动「${bin}」：${err.message}`);
+	});
 	child.on("close", (code: number | null) => {
 		void (async () => {
 			await ensureFolder(app, settings.reportsFolder);

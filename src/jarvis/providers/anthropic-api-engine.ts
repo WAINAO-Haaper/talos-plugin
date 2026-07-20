@@ -141,10 +141,16 @@ class AnthropicModelClient implements ModelClient {
 
 	constructor(private settings: TalosSettings, private model: string, private system: string) {}
 
-	// 恢复：把历史转写作为既有轮次灌入 messages[]，模型据此续接上下文
+	// 恢复：把历史转写作为既有轮次灌入 messages[]，模型据此续接上下文。
+	// Anthropic API 要求 user/assistant 交替，连续同角色的转写合并进同一条消息。
 	seed(turns: SeedTurn[]): void {
 		for (const t of turns) {
-			this.messages.push({ role: t.role, content: [{ type: "text", text: t.text }] });
+			const last = this.messages[this.messages.length - 1];
+			if (last && last.role === t.role) {
+				last.content.push({ type: "text", text: t.text });
+			} else {
+				this.messages.push({ role: t.role, content: [{ type: "text", text: t.text }] });
+			}
 		}
 	}
 
@@ -241,11 +247,16 @@ class AnthropicModelClient implements ModelClient {
 					this.handle(evt, h, assistant, cur, (r) => (stopReason = r));
 				}
 			}
-			this.messages.push({ role: "assistant", content: assistant });
+			// content 为空数组的 assistant 消息对 API 非法（下一轮请求会 400），只在有内容时入列
+			if (assistant.length > 0) this.messages.push({ role: "assistant", content: assistant });
 			h.onDone(stopReason === "tool_use" ? "tool_use" : "end");
 		} catch (e) {
 			if (this.controller?.signal.aborted) {
-				this.messages.push({ role: "assistant", content: assistant });
+				// 打断收尾只保留文本块：带 tool_use 却无 tool_result 的 assistant 消息会毒化会话
+				const textOnly = assistant.filter(
+					(b) => (b as { type?: string }).type === "text"
+				);
+				if (textOnly.length > 0) this.messages.push({ role: "assistant", content: textOnly });
 				h.onDone("end"); // 用户打断：干净收尾，不当错误
 				return;
 			}

@@ -1220,14 +1220,23 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   color-scheme: light;
 }
 
-/* === 屈原舞台锁定：粒子和背景固定为 Aurora 青白冷调，不受全局主题影响 ===
-   只锁粒子色 / 背景色 / 状态色 / color-scheme。
-   fab 按钮、侧栏面板、文字颜色仍跟随全局主题（不锁 --tq-panel/--tq-text/--tq-brand 等）。
+/* === 屈原语音工作区锁定：整个 .tq-voice 自成一体的深色沉浸区 ===
+   左侧粒子舞台永远深色；若面板/气泡/识别卡跟随浅色主题（如几何现代的米色），
+   会与舞台格格不入。故把 .tq-voice 内部所有 --tq-* 变量固定为 Aurora 深色套——
+   只影响语音工作区，控制台其他页面的主题不变。
    !important 确保覆盖所有 .theme-XXX .tq-voice 规则（特异性相同时靠源顺序，
    但 !important 是最无歧义的锁定声明，语义也最清晰）。 */
 .tq-voice {
   --tq-surface: #050810 !important;
   --tq-surface-soft: #0a0f1a !important;
+  --tq-panel: rgba(8, 12, 22, 0.72) !important;
+  --tq-panel-strong: rgba(10, 16, 28, 0.92) !important;
+  --tq-border: rgba(125, 211, 252, 0.12) !important;
+  --tq-text: #e0f2fe !important;
+  --tq-muted: #8aa0b8 !important;
+  --tq-faint: #5b7288 !important;
+  --tq-brand: #38bdf8 !important;
+  --tq-on-brand: #050810 !important;
   --tq-particle-a: #7dd3fc !important;
   --tq-particle-b: #c4b5fd !important;
   --tq-particle-c: #38bdf8 !important;
@@ -1235,7 +1244,12 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-state-reco: #7dd3fc !important;
   --tq-state-think: #a78bfa !important;
   --tq-state-speak: #5eead4 !important;
+  --tq-copy-shield: rgba(4, 8, 16, 0.48) !important;
   color-scheme: dark !important;
+  /* 极光设计令牌（沉浸式美化使用，不随主题/状态变化） */
+  --tq-aurora: linear-gradient(120deg, #7dd3fc 0%, #a78bfa 52%, #f0abfc 100%);
+  --tq-ink: #e0f2fe;
+  --tq-ink-dim: #8aa0b8;
 }
 
 /* 浅色主题：stage 中心微暗角，让粒子在浅底上跳出 */
@@ -3100,9 +3114,13 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-btn-fill: var(--tq-state-listen);
 }
 
-.tq-btn.tq-stop:not(.tq-btn--tab):not(.tq-btn--row),
-.tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+.tq-btn.tq-stop:not(.tq-btn--tab):not(.tq-btn--row) {
   --tq-btn-fill: #f53844;
+}
+
+/* 发送按钮：极光青填充，与语音工作区深色极光主题一致（打断键保持红色语义） */
+.tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  --tq-btn-fill: #38bdf8;
 }
 
 .tq-btn.tq-text-btn:not(.tq-btn--tab):not(.tq-btn--row) {
@@ -3244,6 +3262,226 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 
   100% {
     transform: translateY(-1px) rotate(0deg);
+  }
+}
+
+/* ============================================
+   语音工作区 · 右侧交互面板沉浸式美化（2026-07-19）
+   .tq-voice 变量已在上方锁定为 Aurora 深色套，本节把侧栏做成
+   与左侧深色舞台一体的玻璃区：极光顶边、渐变标题、玻璃气泡/
+   列表行/输入区。选择器均以 .talos-console .tq-voice 起头，
+   只影响语音工作区。按钮的胶囊外形与上升填充交互沿用 Uiverse
+   体系，这里只做加法（玻璃底、发光、上浮），不改交互逻辑。
+   ============================================ */
+
+/* —— 面板整体：深色玻璃 + 发丝边 + 顶部极光渐变细边（呼应 Aurora 卡彩虹顶边） —— */
+.talos-console .tq-voice .tq-side {
+  position: relative;
+  border-left: 1px solid rgba(125, 211, 252, 0.14);
+  background: linear-gradient(180deg, rgba(10, 16, 28, 0.78), rgba(5, 8, 16, 0.7));
+  box-shadow: -18px 0 44px rgba(0, 0, 0, 0.35);
+}
+.talos-console .tq-voice .tq-side::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 2px;
+  background: var(--tq-aurora);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* —— 顶栏：玻璃底 + 「TALOS 交互面板」极光渐变标题 —— */
+.talos-console .tq-voice .tq-side-topbar {
+  border-bottom-color: rgba(125, 211, 252, 0.1);
+  background: rgba(10, 16, 28, 0.42);
+}
+.talos-console .tq-voice .tq-side-identity b {
+  background: var(--tq-aurora);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* —— 顶栏/会话圆形小按钮：玻璃质感 + hover 发光（上浮由基础交互提供） —— */
+.talos-console .tq-voice .tq-side .tq-mini-btn {
+  background-color: rgba(125, 211, 252, 0.05);
+  border-color: rgba(125, 211, 252, 0.16);
+}
+.talos-console .tq-voice .tq-side .tq-mini-btn:hover:not(:disabled),
+.talos-console .tq-voice .tq-side .tq-mini-btn:focus-visible {
+  box-shadow:
+    0 0 16px rgba(125, 211, 252, 0.28),
+    0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* —— 三个 tab：玻璃胶囊轨道 + 选中态发光（选中填充沿用状态色 Uiverse 填充） —— */
+.talos-console .tq-voice .tq-side-tabs {
+  border-color: rgba(125, 211, 252, 0.12);
+  background: rgba(5, 8, 16, 0.55);
+  box-shadow: inset 0 1px 0 rgba(224, 242, 254, 0.04);
+}
+.talos-console .tq-voice .tq-side .tq-side-tab.is-active {
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--tq-state) 32%, transparent),
+    0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* —— 「当前语音会话」头卡玻璃化 —— */
+.talos-console .tq-voice .tq-session-head {
+  border-bottom-color: rgba(125, 211, 252, 0.1);
+  background: rgba(10, 16, 28, 0.3);
+}
+
+/* —— 会话气泡：深色玻璃 + 进入时轻微上浮淡入 —— */
+.talos-console .tq-voice .tq-bub {
+  border-color: rgba(125, 211, 252, 0.12);
+  background: rgba(15, 23, 42, 0.5);
+  box-shadow: 0 6px 22px rgba(2, 8, 16, 0.35);
+  backdrop-filter: blur(10px);
+  animation: tq-bub-enter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes tq-bub-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+/* 用户气泡（右）：青色渐变玻璃 */
+.talos-console .tq-voice .tq-me {
+  border-color: rgba(125, 211, 252, 0.24);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.08) 55%, rgba(10, 16, 28, 0.55));
+  box-shadow:
+    0 6px 22px rgba(2, 8, 16, 0.4),
+    0 0 20px rgba(56, 189, 248, 0.1);
+}
+/* 屈原气泡（左）：中性玻璃 + 左侧极光强调条 */
+.talos-console .tq-voice .tq-qy {
+  position: relative;
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(13, 20, 34, 0.55);
+}
+.talos-console .tq-voice .tq-qy::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #7dd3fc, #a78bfa);
+  opacity: 0.9;
+}
+/* 角色小字：极光渐变色 */
+.talos-console .tq-voice .tq-bub-role {
+  background: linear-gradient(100deg, #7dd3fc, #c4b5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* —— 快捷 prompts：玻璃小胶囊，hover 提亮发光 —— */
+.talos-console .tq-voice .tq-quick-prompt {
+  --tq-btn-fill: #7dd3fc;
+  box-shadow: 0 2px 10px rgba(2, 8, 16, 0.3);
+}
+.talos-console .tq-voice .tq-quick-prompt:hover:not(:disabled),
+.talos-console .tq-voice .tq-quick-prompt:focus-visible {
+  box-shadow: 0 0 14px rgba(125, 211, 252, 0.3);
+}
+
+/* —— 空会话图标：加一点状态色光晕 —— */
+.talos-console .tq-voice .tq-session-empty-icon {
+  box-shadow: 0 0 22px color-mix(in srgb, var(--tq-state) 22%, transparent);
+}
+
+/* —— 输入区 composer：玻璃底 + focus 极光描边发光 —— */
+.talos-console .tq-voice .tq-side-composer {
+  border-color: rgba(125, 211, 252, 0.16);
+  background: rgba(8, 12, 22, 0.62);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 34px rgba(2, 8, 16, 0.4);
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+.talos-console .tq-voice .tq-side-composer:focus-within {
+  border-color: rgba(125, 211, 252, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(125, 211, 252, 0.22),
+    0 0 26px rgba(125, 211, 252, 0.18),
+    0 12px 36px rgba(2, 8, 16, 0.45);
+}
+
+/* —— 发送按钮：极光青光晕（填充色见上方 .tq-send-btn 的 --tq-btn-fill） —— */
+.talos-console .tq-voice .tq-side .tq-send-btn:not(:disabled) {
+  box-shadow:
+    0 0 18px rgba(56, 189, 248, 0.35),
+    0 6px 18px rgba(2, 8, 16, 0.4);
+}
+.talos-console .tq-voice .tq-side .tq-send-btn:hover:not(:disabled),
+.talos-console .tq-voice .tq-side .tq-send-btn:focus-visible {
+  box-shadow:
+    0 0 26px rgba(56, 189, 248, 0.5),
+    0 8px 22px rgba(2, 8, 16, 0.45);
+}
+
+/* —— 上下文/能力列表行：玻璃列表项 + 图标小玻璃块，hover 整行提亮微浮 —— */
+.talos-console .tq-voice .tq-side .tq-side-row {
+  border-color: rgba(125, 211, 252, 0.1);
+  background: rgba(15, 23, 42, 0.38);
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+.talos-console .tq-voice .tq-side .tq-side-row:hover,
+.talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
+  border-color: rgba(125, 211, 252, 0.36);
+  background: rgba(125, 211, 252, 0.08);
+  box-shadow:
+    0 8px 22px rgba(2, 8, 16, 0.35),
+    0 0 16px rgba(125, 211, 252, 0.12);
+  transform: translateY(-1px);
+}
+.talos-console .tq-voice .tq-side .tq-side-row-icon {
+  border-color: rgba(125, 211, 252, 0.16);
+  background: rgba(125, 211, 252, 0.06);
+}
+
+/* —— 页脚：低调次要色 —— */
+.talos-console .tq-voice .tq-side-footer {
+  border-top-color: rgba(125, 211, 252, 0.08);
+  color: var(--tq-faint);
+}
+
+/* 窄屏堆叠模式：侧栏移到舞台下方，左边框改为顶部发丝边 */
+@media (max-width: 1080px) {
+  .talos-console .tq-voice .tq-side {
+    border-left: 0;
+    border-top: 1px solid rgba(125, 211, 252, 0.14);
+    box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* 动效降级：系统开启减弱动态效果时，取消气泡进入动画与行 hover 位移 */
+@media (prefers-reduced-motion: reduce) {
+  .talos-console .tq-voice .tq-bub {
+    animation: none;
+  }
+  .talos-console .tq-voice .tq-side-composer,
+  .talos-console .tq-voice .tq-side .tq-side-row {
+    transition: none;
+  }
+  .talos-console .tq-voice .tq-side .tq-side-row:hover,
+  .talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
+    transform: none;
   }
 }
 
@@ -3833,83 +4071,163 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   }
 }
 
-/* ---- 圆环右上方：语音识别文字编辑卡 ---- */
+/* ---- 圆环右上方：语音识别文字编辑卡（透明悬浮玻璃 + 字幕滚动） ---- */
+/* 识别文字并入输出端阅读栏：叠在回复字幕正上方、左对齐同宽，
+   共享容器顶部 mask——旧行随滚动向上渐隐（滚动隐藏，节省空间）。
+   无底板纯文字悬浮；折叠时 max-height:0 不占位，展开平滑生长。 */
 .tq-transcript-editor {
-  position: absolute;
-  right: clamp(28px, 3.5vw, 56px);
-  bottom: calc(clamp(205px, 18vh, 250px) + 92px);
-  z-index: 18;
-  width: clamp(240px, 24vw, 360px);
-  padding: 12px 14px 14px;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 48%, var(--tq-border));
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--tq-panel-strong) 88%, transparent);
-  box-shadow:
-    0 18px 46px rgba(0, 0, 0, 0.3),
-    0 0 28px color-mix(in srgb, var(--tq-state) 12%, transparent);
-  backdrop-filter: blur(18px);
+  order: 1;
+  width: calc(100% - clamp(300px, 32vw, 430px));
+  max-width: 880px;
+  margin-bottom: 10px;
+  padding: 0;
+  overflow: hidden;
+  max-height: 0;
   opacity: 0;
   visibility: hidden;
-  transform: translate3d(42px, 14px, 0) scale(0.96);
-  transform-origin: right bottom;
+  transform: translate3d(0, 10px, 0);
   pointer-events: none;
   transition:
+    max-height 380ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 220ms ease,
     visibility 220ms ease,
     transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tq-transcript-editor.is-visible {
+  max-height: 300px;
   opacity: 1;
   visibility: visible;
-  transform: translate3d(0, 0, 0) scale(1);
+  transform: translate3d(0, 0, 0);
   pointer-events: auto;
-}
-/* 扇形菜单展开时编辑卡继续上滑，给七个按钮和气泡让出完整空间。 */
-.tq-stage:has(.tq-fab.is-open) .tq-transcript-editor.is-visible {
-  transform: translate3d(0, -64px, 0) scale(1);
 }
 .tq-transcript-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 7px;
   color: var(--tq-text);
 }
+/* 小巧浮动标注：小字 + 状态小圆点（跟随当前语音状态色），无底板靠底光可读 */
 .tq-transcript-head span {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tq-ink-dim, #8aa0b8);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+}
+.tq-transcript-head span::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tq-state, #7dd3fc);
+  box-shadow: 0 0 8px var(--tq-state, #7dd3fc);
 }
 .tq-transcript-head small {
   color: var(--tq-muted);
   font-size: 10px;
   white-space: nowrap;
+  opacity: 0.75;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
 }
-.tq-overlay-user {
+
+/* 字幕行容器：最新行最亮，向上逐渐变淡；超过 5 行由 TS 移除最旧行。
+   限高 72px（约 3 行），旧行顶部 mask 渐隐——滚动隐藏，节省空间。 */
+.tq-transcript-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 72px;
+  margin-bottom: 8px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 26px);
+  mask-image: linear-gradient(to bottom, transparent 0, black 26px);
+}
+.tq-transcript-lines:empty {
+  display: none;
+}
+.tq-transcript-lines::-webkit-scrollbar {
+  display: none;
+}
+.tq-transcript-line {
+  opacity: 0.45;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  line-height: 1.8;
+  text-shadow:
+    0 0 20px rgba(125, 211, 252, 0.45),
+    0 0 40px rgba(125, 211, 252, 0.18),
+    0 2px 8px rgba(0, 0, 0, 0.85);
+  word-break: break-word;
+  animation: tq-transcript-line-enter 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tq-transcript-line:nth-last-child(3) {
+  opacity: 0.62;
+}
+.tq-transcript-line:nth-last-child(2) {
+  opacity: 0.82;
+}
+.tq-transcript-line:last-child {
+  opacity: 1;
+  text-shadow:
+    0 0 20px rgba(125, 211, 252, 0.55),
+    0 0 40px rgba(125, 211, 252, 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.85);
+}
+/* 新行淡入 + 上滑进入（只写 from，终点取各行自身的渐淡透明度） */
+@keyframes tq-transcript-line-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+/* 可编辑原文：纯文字无框无底，与左侧回复字幕同款亮白+青蓝辉光（左右文字效果同步）。
+   第二条选择器专门压 vault 主题同步桥（body[data-talos-vault-theme] 会给所有
+   textarea 强制刷 !important 的主题底色/文字色）：用更高特异性的 !important 赢回透明。 */
+.tq-overlay-user,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 66px;
-  max-height: 132px;
+  min-height: 46px;
+  max-height: 96px;
   margin: 0;
-  padding: 10px 12px;
+  padding: 2px 0;
   resize: none;
   overflow: auto;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 28%, transparent);
-  border-radius: 11px;
+  border: none !important;
   outline: none;
-  background: color-mix(in srgb, var(--tq-surface) 72%, transparent);
-  color: rgba(255, 255, 255, 0.92);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(255, 255, 255, 0.95) !important;
   font: inherit;
-  font-size: 14px;
-  line-height: 1.55;
+  /* 略小于回复字幕（15-19px），形成「用户轻声、屈原主答」的层级比例 */
+  font-size: clamp(13px, 1.3vw, 16px);
+  line-height: 1.7;
   text-align: left;
-  text-shadow: 0 0 14px rgba(125, 211, 252, 0.2);
+  caret-color: #7dd3fc;
+  text-shadow:
+    0 0 20px rgba(125, 211, 252, 0.5),
+    0 0 40px rgba(125, 211, 252, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.85) !important;
 }
 .tq-overlay-user:focus {
-  border-color: color-mix(in srgb, var(--tq-state) 72%, white 8%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tq-state) 16%, transparent);
+  text-shadow:
+    0 0 24px rgba(125, 211, 252, 0.65),
+    0 0 48px rgba(125, 211, 252, 0.28),
+    0 2px 8px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* 动效降级：系统开启减弱动态效果时，字幕行取消进入动画 */
+@media (prefers-reduced-motion: reduce) {
+  .tq-transcript-line {
+    animation: none;
+  }
 }
 
 /* ============================================
@@ -4195,13 +4513,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     width: calc(100% - 150px);
   }
   .tq-transcript-editor {
-    right: 16px;
-    bottom: calc(clamp(175px, 24vh, 215px) + 78px);
-    width: min(72vw, 280px);
-    padding: 10px 11px 12px;
-  }
-  .tq-stage:has(.tq-fab.is-open) .tq-transcript-editor.is-visible {
-    transform: translate3d(0, -58px, 0) scale(1);
+    width: calc(100% - 150px);
   }
   .tq-transcript-head small {
     display: none;

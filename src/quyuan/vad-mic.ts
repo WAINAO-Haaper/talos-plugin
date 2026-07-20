@@ -16,9 +16,11 @@ const SILENCE_MS = 550;
 const MIN_SPEECH_MS = 500;
 const MIN_PEAK_RMS = 0.045;
 const PRE_ROLL = 12;
-const BARGE_RMS = 0.09;
-const BARGE_FRAMES = 75;
-const BARGE_GUARD_MS = 600;
+const BARGE_RMS = 0.05;
+const BARGE_FRAMES = 40;
+const BARGE_GUARD_MS = 500;
+// 打断窗口内的滚动缓冲长度：覆盖触发打断的那段语音，让打断句本身也能被完整转写
+const BARGE_PREROLL = PRE_ROLL + BARGE_FRAMES + 12;
 
 export interface VadMicHandlers {
 	onListeningChange: (on: boolean) => void;
@@ -96,25 +98,36 @@ export abstract class VadMic {
 			this.h.onError(`麦克风不可用：${error instanceof Error ? error.message : String(error)}`);
 			return;
 		}
-		const Ctor =
-			window.AudioContext ||
-			(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-		this.ctx = new Ctor({ sampleRate: 16000 });
-		this.sampleRate = this.ctx.sampleRate;
-		const url = URL.createObjectURL(new Blob([PCM_WORKLET_SRC], { type: "application/javascript" }));
+		// getUserMedia 成功后任何一步失败（AudioContext / addModule / 接线）都必须
+		// 释放已占用的麦克风与音频上下文，否则指示灯常亮、设备被占用。
 		try {
-			await this.ctx.audioWorklet.addModule(url);
-		} finally {
-			URL.revokeObjectURL(url);
+			const Ctor =
+				window.AudioContext ||
+				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			this.ctx = new Ctor({ sampleRate: 16000 });
+			this.sampleRate = this.ctx.sampleRate;
+			const url = URL.createObjectURL(new Blob([PCM_WORKLET_SRC], { type: "application/javascript" }));
+			try {
+				await this.ctx.audioWorklet.addModule(url);
+			} finally {
+				URL.revokeObjectURL(url);
+			}
+			this.resetVad();
+			this.source = this.ctx.createMediaStreamSource(this.stream);
+			this.node = new AudioWorkletNode(this.ctx, "tq-pcm");
+			this.node.port.onmessage = (ev: MessageEvent<ArrayBuffer>): void => {
+				this.onFrame(new Float32Array(ev.data));
+			};
+			this.source.connect(this.node);
+			this.node.connect(this.ctx.destination);
+		} catch (error) {
+			this.teardownNodes();
+			this.cleanupAudio();
+			this.h.onError(
+				`语音链路初始化失败：${error instanceof Error ? error.message : String(error)}`
+			);
+			return;
 		}
-		this.resetVad();
-		this.source = this.ctx.createMediaStreamSource(this.stream);
-		this.node = new AudioWorkletNode(this.ctx, "tq-pcm");
-		this.node.port.onmessage = (ev: MessageEvent<ArrayBuffer>): void => {
-			this.onFrame(new Float32Array(ev.data));
-		};
-		this.source.connect(this.node);
-		this.node.connect(this.ctx.destination);
 		this.on = true;
 		this.h.onListeningChange(true);
 		this.h.onState("listening");
@@ -162,16 +175,27 @@ export abstract class VadMic {
 		this.h.onLevel?.(Math.min(1, rms / 0.12));
 
 		if (this.busy) {
+			// 打断窗口内也维护滚动缓冲：用户开口打断后，随后的话语能被完整收进来
+			this.preRoll.push(frame);
+			if (this.preRoll.length > BARGE_PREROLL) this.preRoll.shift();
 			if (!this.bargeEnabled || performance.now() - this.busySince < BARGE_GUARD_MS) {
 				this.bargeFrames = 0;
 				return;
 			}
+			// 阈值按「正常音量即可打断」标定（AEC 开启时扬声器回授残响远低于此值）
 			if (rms > BARGE_RMS) {
 				this.bargeFrames++;
 				if (this.bargeFrames >= BARGE_FRAMES) {
 					this.busy = false;
 					this.bargeFrames = 0;
 					this.h.onSpeechStart();
+					// 打断成功后直接转入收音：打断句可以作为新指令转写，无需重说
+					this.capturing = true;
+					this.silenceMs = 0;
+					this.peakRms = rms;
+					this.captured = this.preRoll.slice();
+					this.preRoll = [];
+					this.h.onState("capturing");
 				}
 			} else {
 				this.bargeFrames = 0;

@@ -40,7 +40,7 @@ const STATE_PALETTES: Record<GridScanVoiceState, Palette> = {
 /** hex → 原始 sRGB 归一化值（不做 gamma 转换，保证颜色数值足够大，在深色背景上可见） */
 function hexToLinear(hex: string): [number, number, number] {
 	const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-	const normalized = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+	const normalized = hex.replace(shorthandRegex, (m: string, r: string, g: string, b: string) => r + r + g + g + b + b);
 	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
 	if (!result) return [0, 0, 0];
 	// 直接归一化到 0~1（不做 gamma 转换），保持色值足够大
@@ -324,8 +324,9 @@ export class GridScanField {
 	// 鼠标跟踪状态
 	private lookTarget = { x: 0, y: 0 };
 	private lookCurrent = { x: 0, y: 0 };
-	private lookVelX = 0;
-	private lookVelY = 0;
+	// smoothDamp 靠 velRef 对象跨帧携带速度，必须传持久对象（每帧新建字面量会丢速度状态）
+	private lookVelX = { v: 0 };
+	private lookVelY = { v: 0 };
 	private tiltCurrent = 0;
 	private tiltVel = { v: 0 };
 	private yawCurrent = 0;
@@ -529,8 +530,8 @@ export class GridScanField {
 		this.lastTime = now;
 
 		// smoothDamp 鼠标位置
-		this.lookCurrent.x = smoothDampFloat(this.lookCurrent.x, this.lookTarget.x, { v: this.lookVelX }, this.smoothTime, Infinity, dt);
-		this.lookCurrent.y = smoothDampFloat(this.lookCurrent.y, this.lookTarget.y, { v: this.lookVelY }, this.smoothTime, Infinity, dt);
+		this.lookCurrent.x = smoothDampFloat(this.lookCurrent.x, this.lookTarget.x, this.lookVelX, this.smoothTime, Infinity, dt);
+		this.lookCurrent.y = smoothDampFloat(this.lookCurrent.y, this.lookTarget.y, this.lookVelY, this.smoothTime, Infinity, dt);
 		this.tiltCurrent = smoothDampFloat(this.tiltCurrent, this.lookTarget.x * 0.4, this.tiltVel, this.smoothTime, Infinity, dt);
 		this.yawCurrent = smoothDampFloat(this.yawCurrent, this.lookTarget.y * 0.3, this.yawVel, this.smoothTime, Infinity, dt);
 

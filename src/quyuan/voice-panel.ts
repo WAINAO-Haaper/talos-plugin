@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer, setIcon } from "obsidian";
+import { App, Component, MarkdownRenderer, Notice, setIcon } from "obsidian";
 import type { TalosSettings } from "../settings";
 import { StreamTts } from "../jarvis/voiceio";
 import type { VadMic, VadMicHandlers } from "./vad-mic";
@@ -81,6 +81,7 @@ export class QuyuanVoicePanel {
 	// 沉浸式 overlay 文字层（舞台半透明覆盖）
 	private overlayTranscriptEl: HTMLElement | null = null;
 	private overlayUser: HTMLTextAreaElement | null = null;
+	private overlayTranscriptLinesEl: HTMLElement | null = null;
 	private overlayReply: HTMLElement | null = null;
 	// 字幕式滚动：overlay 可见行管理
 	private overlayLines: HTMLElement[] = [];
@@ -100,6 +101,13 @@ export class QuyuanVoicePanel {
 	private mounted = false;
 	private readonly sideWidthKey = "talos-quyuan-side-width";
 	private readonly wakeWord = "屈原";
+	// 本地 Whisper 对中文专有名词识别不稳，"屈原"常被听成近音字或拼音；
+	// 唤醒用这组别名做模糊匹配，命中任一即唤醒（云端千问准，一般直接命中"屈原"）。
+	private readonly wakeAliases = [
+		"屈原", "曲原", "去原", "屈源", "渠原", "趋原", "区原", "取原",
+		"屈园", "曲园", "驱原", "瞿原", "屈元", "曲元", "居原", "取源",
+		"quyuan", "qu yuan", "chuyuan", "chu yuan", "qvyuan",
+	];
 	private readonly sleepWord = "退下";
 	private readonly wakeWindowMs = 30_000;
 
@@ -181,13 +189,17 @@ export class QuyuanVoicePanel {
 		// 半透明 AI 回复层：流式字幕自动滚动，不与右侧语音转写编辑卡混排。
 		const overlay = stage.createDiv({ cls: "tq-overlay-text", attr: { "aria-live": "polite" } });
 		this.overlayReply = overlay.createDiv({ cls: "tq-overlay-reply" });
-		this.overlayTranscriptEl = stage.createDiv({
+		// 识别文字卡并入回复字幕所在容器：作为 order:1 成员叠在回复正上方，
+		// 与输出端同一左对齐阅读栏，共享顶部 mask 滚动渐隐。
+		this.overlayTranscriptEl = overlay.createDiv({
 			cls: "tq-transcript-editor",
 			attr: { "aria-hidden": "true" },
 		});
 		const transcriptHead = this.overlayTranscriptEl.createDiv({ cls: "tq-transcript-head" });
 		transcriptHead.createSpan({ text: "识别文字" });
 		transcriptHead.createEl("small", { text: "可编辑 · Esc 收起" });
+		// 字幕行容器：每次最终识别追加一行，最新最亮、向上渐淡（样式见 .tq-transcript-lines）
+		this.overlayTranscriptLinesEl = this.overlayTranscriptEl.createDiv({ cls: "tq-transcript-lines" });
 		this.overlayUser = this.overlayTranscriptEl.createEl("textarea", {
 			cls: "tq-overlay-user",
 			attr: {
@@ -514,7 +526,10 @@ export class QuyuanVoicePanel {
 	private savedSideWidth(): number {
 		const fallback = 360;
 		try {
-			const saved = Number(window.localStorage.getItem(this.sideWidthKey));
+			// 无存储时 getItem 返回 null，Number(null)=0 会被钳到 280 —— 必须先判空再转数
+			const raw = window.localStorage.getItem(this.sideWidthKey);
+			if (raw == null || raw.trim() === "") return fallback;
+			const saved = Number(raw);
 			return Number.isFinite(saved) ? Math.min(560, Math.max(280, saved)) : fallback;
 		} catch {
 			return fallback;
@@ -634,7 +649,12 @@ export class QuyuanVoicePanel {
 		const local = this.settings.quyuanAsrEngine === "local";
 		this.engBtn.empty();
 		setIcon(this.engBtn.createSpan(), local ? "cpu" : "cloud");
-		this.engBtn.setAttribute("data-label", local ? "本地引擎" : "千问引擎");
+		// empty() 会删掉 sr-label span；经 setFabButtonLabel 重建，保持 aria-labelledby 有效
+		this.setFabButtonLabel(
+			this.engBtn,
+			local ? "本地引擎" : "千问引擎",
+			local ? "当前本地 Whisper，点击切换识别引擎" : "当前千问云端，点击切换识别引擎"
+		);
 		this.engBtn.setAttribute("aria-pressed", String(local));
 	}
 
@@ -644,7 +664,12 @@ export class QuyuanVoicePanel {
 		const isGlitch = this.settings.quyuanBackground === "letter-glitch";
 		this.bgBtn.empty();
 		setIcon(this.bgBtn.createSpan(), isGlitch ? "type" : "grid-3x3");
-		this.bgBtn.setAttribute("data-label", isGlitch ? "字符流背景" : "网格扫描背景");
+		// 同 renderEngineBtn：经 setFabButtonLabel 重建 sr-label，保持 aria-labelledby 有效
+		this.setFabButtonLabel(
+			this.bgBtn,
+			isGlitch ? "字符流背景" : "网格扫描背景",
+			"切换背景效果"
+		);
 	}
 
 	// 切换背景效果：LetterGlitch ⇄ GridScan，持久化 + 即时切换
@@ -695,7 +720,12 @@ export class QuyuanVoicePanel {
 			},
 			onText: (text) => this.handleVoiceTranscript(text),
 			onError: (msg) => {
-				if (this.fabStatusEl) this.fabStatusEl.setText(`语音输入：${msg}`);
+				const line = `语音输入：${msg}`;
+				if (this.fabStatusEl) this.fabStatusEl.setText(line);
+				// 本地引擎的加载/转写错误此前只写进不显眼的状态文本，sleep 态根本看不到；
+				// 改用 Notice 弹出并打日志，故障一眼可见。
+				new Notice(line, 10000);
+				console.error("[TALOS 屈原] 语音识别错误", msg);
 			},
 		};
 	}
@@ -848,9 +878,30 @@ export class QuyuanVoicePanel {
 		}, this.wakeWindowMs);
 	}
 
-	private stripWakeWord(text: string): string {
+	// 冻结唤醒倒计时（回答/朗读期间调用）：只停表，不改变唤醒状态
+	private pauseWakeWindow(): void {
+		if (this.wakeTimer != null) {
+			window.clearTimeout(this.wakeTimer);
+			this.wakeTimer = null;
+		}
+	}
+
+	private normalizeForWake(text: string): string {
+		return text.toLowerCase().replace(/[\s，。！？、,.:：；;!?~·]/g, "");
+	}
+
+	// 模糊匹配唤醒词：命中返回对应别名，未命中返回 null
+	private matchWake(text: string): string | null {
+		const norm = this.normalizeForWake(text);
+		for (const alias of this.wakeAliases) {
+			if (norm.includes(this.normalizeForWake(alias))) return alias;
+		}
+		return null;
+	}
+
+	private stripWakeWord(text: string, hit: string = this.wakeWord): string {
 		return text
-			.split(this.wakeWord)
+			.split(hit)
 			.join("")
 			.replace(/^[\s，。！？、,:：；;]+/, "")
 			.trim();
@@ -859,6 +910,9 @@ export class QuyuanVoicePanel {
 	private handleVoiceTranscript(rawText: string): void {
 		const text = rawText.trim();
 		if (!text) return;
+		// 记录识别原文：便于核对本地引擎把唤醒词听成了什么，据此补充 wakeAliases。
+		// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：核对本地引擎听写原文以补充唤醒词别名，保留
+		console.info("[TALOS 屈原] 语音识别原文：", JSON.stringify(rawText));
 
 		if (this.wakeActive && text.includes(this.sleepWord)) {
 			this.deactivateWake();
@@ -869,14 +923,15 @@ export class QuyuanVoicePanel {
 		}
 
 		if (!this.wakeActive) {
-			if (!text.includes(this.wakeWord)) {
+			const hit = this.matchWake(text);
+			if (!hit) {
 				this.setState("sleep");
 				if (this.fabStatusEl) this.fabStatusEl.setText("待唤醒 · 说「屈原」");
 				if (this.overlayReply) this.setOverlayMessage("等待唤醒词「屈原」。");
 				return;
 			}
 			this.activateWake();
-			const command = this.stripWakeWord(text);
+			const command = this.stripWakeWord(text, hit);
 			if (!command) {
 				this.tts?.feed("我在，你说。");
 				this.tts?.flush();
@@ -903,8 +958,13 @@ export class QuyuanVoicePanel {
 
 	private syncAsrBusy(): void {
 		const busy = this.responseActive || this.ttsPending || this.ttsSpeaking;
-		// 自动声控打断只在真正播放声音时开启；思考和 TTS 网络排队阶段用按钮打断。
-		this.asr?.setBusy(busy, this.ttsSpeaking);
+		// 声控打断覆盖整个忙碌期：思考/排队阶段没有外放声音不会误触发；
+		// 朗读阶段靠 VAD 阈值 + AEC 防自触发，正常音量即可打断。
+		this.asr?.setBusy(busy, busy);
+		// 回答/朗读期间冻结唤醒倒计时，避免长回答把 30 秒连续对话窗耗尽；
+		// 等回复生成完且朗读也结束后，才重新计 30 秒。
+		if (busy) this.pauseWakeWindow();
+		else this.refreshWakeWindow();
 	}
 
 	// ---------- 状态机 ----------
@@ -952,6 +1012,7 @@ export class QuyuanVoicePanel {
 	private showTranscriptEditor(text: string): void {
 		if (!this.overlayTranscriptEl || !this.overlayUser) return;
 		this.overlayUser.value = text;
+		this.pushTranscriptLine(text);
 		this.overlayUser.tabIndex = 0;
 		this.overlayTranscriptEl.setAttribute("aria-hidden", "false");
 		this.overlayTranscriptEl.removeClass("is-visible");
@@ -959,6 +1020,17 @@ export class QuyuanVoicePanel {
 			if (!this.mounted) return;
 			this.overlayTranscriptEl?.addClass("is-visible");
 		});
+	}
+
+	/** 字幕行追加：最新行最亮，超过 5 行移除最旧并滚到底部（纯展示追加，不影响发送流程） */
+	private pushTranscriptLine(text: string): void {
+		const lines = this.overlayTranscriptLinesEl;
+		if (!lines) return;
+		lines.createDiv({ cls: "tq-transcript-line", text });
+		while (lines.childElementCount > 5) {
+			lines.firstElementChild?.remove();
+		}
+		lines.scrollTop = lines.scrollHeight;
 	}
 
 	private hideTranscriptEditor(): void {
@@ -969,6 +1041,7 @@ export class QuyuanVoicePanel {
 
 	private clearTranscriptEditor(): void {
 		if (this.overlayUser) this.overlayUser.value = "";
+		this.overlayTranscriptLinesEl?.empty();
 		this.hideTranscriptEditor();
 	}
 
@@ -985,15 +1058,19 @@ export class QuyuanVoicePanel {
 			.filter((s) => s.length > 0);
 		// 只保留最后 5 行显示（旧行已滚出视野）
 		const visible = allLines.slice(-5);
-		// 如果行数没变且最后一行内容一致，只更新最后一行（避免重建闪烁）
-		if (this.overlayLines.length === visible.length) {
-			const lastIdx = visible.length - 1;
-			if (lastIdx >= 0 && this.overlayLines[lastIdx]) {
-				this.overlayLines[lastIdx].setText(visible[lastIdx]);
+		// 仅当窗口未滑动（除最后一行外内容逐行一致）时，只更新最后一行避免闪烁；
+		// 超过 5 行后每来一句窗口整体滑动一位，行数不变但前几行内容已换，必须重建，
+		// 否则前 4 行会永远停留在过期内容上。
+		if (this.overlayLines.length === visible.length && visible.length > 0) {
+			const stable = visible
+				.slice(0, -1)
+				.every((text, i) => this.overlayLines[i]?.textContent === text);
+			if (stable) {
+				this.overlayLines[visible.length - 1]?.setText(visible[visible.length - 1] ?? "");
 				return;
 			}
 		}
-		// 行数变了（新增了行）：重建可见行
+		// 行数变了或窗口滑动了：重建可见行
 		this.overlayReply.empty();
 		this.overlayLines = [];
 		for (const text of visible) {
@@ -1094,8 +1171,8 @@ export class QuyuanVoicePanel {
 				this.replyEl = null;
 				this.replyBuffer = "";
 				this.responseActive = false;
+				// 唤醒倒计时由 syncAsrBusy 统一接管：朗读未结束时保持冻结，朗读结束后重新计 30 秒
 				this.syncAsrBusy();
-				if (channel === "voice") this.refreshWakeWindow();
 				if (this.mounted && !this.ttsPending) this.setState(this.restingState());
 			},
 			onError: (message) => {
@@ -1138,16 +1215,21 @@ export class QuyuanVoicePanel {
 			this.tts?.feed(`${ask}请点确认或取消。`);
 			this.tts?.flush();
 			let done = false;
+			let timer: number | null = null;
 			const finish = (v: boolean): void => {
 				if (done) return;
 				done = true;
+				if (timer != null) {
+					window.clearTimeout(timer);
+					timer = null;
+				}
 				yes.disabled = true;
 				no.disabled = true;
 				resolve(v);
 			};
 			yes.addEventListener("click", () => finish(true));
 			no.addEventListener("click", () => finish(false));
-			window.setTimeout(() => finish(false), 30000);
+			timer = window.setTimeout(() => finish(false), 30000);
 		});
 	}
 
@@ -1215,6 +1297,7 @@ export class QuyuanVoicePanel {
 		this.sideToggleBtn = null;
 		this.activateSideTab = null;
 		this.overlayTranscriptEl = null;
+		this.overlayTranscriptLinesEl = null;
 		this.overlayUser = null;
 		this.overlayReply = null;
 		this.overlayLines = [];

@@ -15,9 +15,6 @@
 
 export type GlitchVoiceState = "sleep" | "idle" | "listen" | "reco" | "think" | "speak";
 
-/** 统一背景层状态类型（与 background-field.ts 的 BackgroundVoiceState 结构兼容） */
-type BackgroundVoiceState = GlitchVoiceState;
-
 interface GlitchCell {
 	char: string;
 	color: string;
@@ -54,7 +51,7 @@ const COLOR_STEP = 0.09;
 
 function hexToRgb(hex: string): Rgb | null {
 	const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-	const normalized = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+	const normalized = hex.replace(shorthandRegex, (m: string, r: string, g: string, b: string) => r + r + g + g + b + b);
 	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
 	return result
 		? {
@@ -63,6 +60,19 @@ function hexToRgb(hex: string): Rgb | null {
 			b: parseInt(result[3], 16),
 		}
 		: null;
+}
+
+/** 解析 hex 或 rgb(...) 字符串——过渡中的格子颜色已是 rgb() 格式，只用 hexToRgb 会解析失败 */
+function parseColor(value: string): Rgb | null {
+	const rgbMatch = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/.exec(value);
+	if (rgbMatch) {
+		return {
+			r: parseInt(rgbMatch[1], 10),
+			g: parseInt(rgbMatch[2], 10),
+			b: parseInt(rgbMatch[3], 10),
+		};
+	}
+	return hexToRgb(value);
 }
 
 function interpolateColor(start: Rgb, end: Rgb, factor: number): string {
@@ -158,7 +168,7 @@ export class LetterGlitchField {
 
 	private initializeCells(): void {
 		const total = this.columns * this.rows;
-		this.cells = new Array(total);
+		this.cells = new Array<GlitchCell>(total);
 		for (let i = 0; i < total; i++) {
 			const color = this.randomColor();
 			this.cells[i] = {
@@ -218,8 +228,8 @@ export class LetterGlitchField {
 		for (const cell of this.cells) {
 			if (cell.colorProgress < 1) {
 				cell.colorProgress = Math.min(1, cell.colorProgress + COLOR_STEP);
-				const start = hexToRgb(cell.color) ?? hexToRgb(this.palette[0])!;
-				const end = hexToRgb(cell.targetColor);
+				const start = parseColor(cell.color) ?? hexToRgb(this.palette[0])!;
+				const end = parseColor(cell.targetColor);
 				if (end) {
 					cell.color = interpolateColor(start, end, cell.colorProgress);
 					needsRedraw = true;

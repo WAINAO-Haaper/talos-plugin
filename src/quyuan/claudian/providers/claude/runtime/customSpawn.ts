@@ -53,6 +53,12 @@ export function createCustomSpawnFunction(
         killChild();
       } else {
         signal.addEventListener('abort', killChild, { once: true });
+        // The signal is often session-scoped and reused across many spawns.
+        // Without cleanup every exited child leaves a dangling listener (and a
+        // retained ChildProcess reference) on the signal for the session's lifetime.
+        child.once('exit', () => {
+          signal.removeEventListener('abort', killChild);
+        });
       }
     }
 
@@ -61,6 +67,12 @@ export function createCustomSpawnFunction(
     }
 
     if (!child.stdin || !child.stdout) {
+      // Kill the freshly spawned process before bailing out, otherwise it is orphaned.
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* noop */
+      }
       throw new Error('Failed to create process streams');
     }
 
@@ -73,12 +85,12 @@ function installTreeAwareKill(child: ChildProcess, spawnSpec: WindowsCmdShimSpaw
     return;
   }
 
-  const originalKill = child.kill;
+  const originalKill = child.kill.bind(child);
   const killableChild = {
     get pid(): number | undefined {
       return child.pid;
     },
-    kill: (signal?: NodeJS.Signals | number): boolean => originalKill.call(child, signal),
+    kill: (signal?: NodeJS.Signals | number): boolean => originalKill(signal),
   };
 
   child.kill = ((signal?: NodeJS.Signals | number): boolean =>

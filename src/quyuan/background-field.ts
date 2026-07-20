@@ -32,14 +32,19 @@ export class QuyuanBackgroundField {
 		return this.currentType;
 	}
 
-	/** 启动指定类型的背景。重复调用同一类型不会重建。 */
+	/** 启动指定类型的背景。重复调用同一类型不会重建；类型不同则走完整切换（销毁旧实例）。 */
 	start(type: QuyuanBackgroundType): void {
-		if (this.currentType === type && this.current) {
-			this.current.start();
+		if (this.current) {
+			if (this.currentType === type) {
+				this.current.start();
+				return;
+			}
+			// 已有其他类型的实例在跑：必须经 switchTo 销毁旧 field + 重建 canvas，
+			// 直接覆盖 this.current 会让旧实例的 rAF 循环泄漏。
+			this.switchTo(type);
 			return;
 		}
-		this.createField(type);
-		this.current?.start();
+		this.createField(type).start();
 	}
 
 	/** 切换背景类型。销毁旧 field → 重建 canvas → 创建新 field → 启动 → 保留 state。 */
@@ -73,7 +78,7 @@ export class QuyuanBackgroundField {
 	 */
 	private recreateCanvas(): void {
 		const old = this.canvas;
-		const fresh = document.createElement("canvas");
+		const fresh = activeDocument.createElement("canvas");
 		fresh.className = old.className;
 		// 清掉可能残留的 interactive 标记（createField 会按需重新加）
 		fresh.classList.remove("tq-bg--interactive");
@@ -82,15 +87,16 @@ export class QuyuanBackgroundField {
 		this.canvas = fresh;
 	}
 
-	private createField(type: QuyuanBackgroundType): void {
+	private createField(type: QuyuanBackgroundType): IBackgroundField {
 		// GridScan 需要鼠标交互（mousemove 驱动透视倾斜）；LetterGlitch 不需要
 		this.canvas.classList.toggle("tq-bg--interactive", type === "grid-scan");
-		if (type === "letter-glitch") {
-			this.current = new LetterGlitchField(this.canvas);
-		} else {
-			this.current = new GridScanField(this.canvas);
-		}
+		const field: IBackgroundField =
+			type === "letter-glitch"
+				? new LetterGlitchField(this.canvas)
+				: new GridScanField(this.canvas);
+		this.current = field;
 		this.currentType = type;
+		return field;
 	}
 
 	private destroyCurrent(): void {

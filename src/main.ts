@@ -325,7 +325,10 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			`${folder}/talos-quyuan-diagnostics-${timestampForPath()}.md`
 		);
 		const report = this.buildQuyuanDiagnosticsReport(path);
-		await this.app.vault.create(path, report);
+		// 同一秒内重复生成时文件已存在，create 会抛错——存在则改为覆盖
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		if (existing instanceof TFile) await this.app.vault.modify(existing, report);
+		else await this.app.vault.create(path, report);
 		if (openReport) {
 			const file = this.app.vault.getAbstractFileByPath(path);
 			if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
@@ -374,7 +377,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 
 		// 样式表审计：.tq-voice 规则是否真的进了 document、样式是否被截断
 		lines.push("## 样式表审计", "");
-		const styleTags = Array.from(document.head.querySelectorAll("style"));
+		const styleTags = Array.from(activeDocument.head.querySelectorAll("style"));
 		styleTags.forEach((tag, i) => {
 			const text = tag.textContent ?? "";
 			if (!text.includes("talos-console") && !text.includes("tq-voice")) return;
@@ -388,7 +391,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		});
 		let tqRuleCount = 0;
 		let jarvisGuardCount = 0;
-		for (const sheet of Array.from(document.styleSheets)) {
+		for (const sheet of Array.from(activeDocument.styleSheets)) {
 			let rules: CSSRuleList;
 			try {
 				rules = sheet.cssRules;
@@ -455,13 +458,16 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			const rect = container.getBoundingClientRect();
 			const cx = rect.left + rect.width / 2;
 			const cy = rect.top + rect.height / 2;
-			const stack = document.elementsFromPoint(cx, cy).slice(0, 14);
+			const stack = activeDocument.elementsFromPoint(cx, cy).slice(0, 14);
 			lines.push(`### 中心点 (${Math.round(cx)},${Math.round(cy)}) 元素堆叠（上→下）`, "");
 			stack.forEach((el, j) => lines.push(describe(el, `#${j + 1}`)));
 			lines.push("");
 		});
 
-		await this.app.vault.create(path, lines.join("\n"));
+		// 同一秒内重复生成时文件已存在，create 会抛错——存在则改为覆盖
+		const existingVisual = this.app.vault.getAbstractFileByPath(path);
+		if (existingVisual instanceof TFile) await this.app.vault.modify(existingVisual, lines.join("\n"));
+		else await this.app.vault.create(path, lines.join("\n"));
 		new Notice(`屈原视觉诊断已生成：${path}`);
 		return path;
 	}

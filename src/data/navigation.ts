@@ -2,6 +2,7 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { TalosSettings } from "../settings";
 import type {
 	HealthDigest,
+	InboxAgeBucket,
 	InboxCluster,
 	InboxDigest,
 	KnowledgeHub,
@@ -192,8 +193,17 @@ export async function collectInboxDigest(app: App, settings: TalosSettings): Pro
 		const cluster = clusters[index];
 		if (cluster) cluster.count++;
 	};
+	const ageBuckets: InboxAgeBucket[] = [
+		{ label: "0–3d", count: 0, tone: "info" },
+		{ label: "4–7d", count: 0, tone: "good" },
+		{ label: "8–14d", count: 0, tone: "warn" },
+		{ label: ">14d", count: 0, tone: "hot" },
+	];
 	for (const f of notes) {
-		oldestDays = Math.max(oldestDays, daysOld(f.stat.ctime));
+		const age = daysOld(f.stat.ctime);
+		oldestDays = Math.max(oldestDays, age);
+		const bucket = age <= 3 ? ageBuckets[0] : age <= 7 ? ageBuckets[1] : age <= 14 ? ageBuckets[2] : ageBuckets[3];
+		if (bucket) bucket.count++;
 		const text = `${f.basename} ${titleFor(app, f)}`;
 		if (/loop|循环/i.test(text)) addCluster(0);
 		else if (/微信|黑曜石|同步/.test(text)) addCluster(1);
@@ -209,7 +219,7 @@ export async function collectInboxDigest(app: App, settings: TalosSettings): Pro
 			meta: `${daysOld(f.stat.ctime)}d · ${f.path}`,
 			path: f.path,
 		}));
-	return { count: notes.length, oldestDays, clusters: clusters.filter((c) => c.count > 0), recent };
+	return { count: notes.length, oldestDays, clusters: clusters.filter((c) => c.count > 0), recent, ageBuckets };
 }
 
 export async function collectHealthDigest(
@@ -271,15 +281,37 @@ export async function collectHealthDigest(
 	return { metrics, errors, loopStatus: loopRows };
 }
 
-export function collectProjectScenes(app: App): ProjectScene[] {
+/** 单项目任务进度：读最近改动的 md（上限 40 个，防爆量），统计复选框完成率 */
+async function projectProgress(
+	app: App,
+	folderPath: string
+): Promise<ProjectScene["progress"]> {
+	const files = notesUnder(app, folderPath)
+		.sort((a, b) => b.stat.mtime - a.stat.mtime)
+		.slice(0, 40);
+	let done = 0;
+	let total = 0;
+	await Promise.all(
+		files.map(async (f) => {
+			const raw = await app.vault.cachedRead(f);
+			const boxes = raw.match(/^\s*[-*]\s+\[[ x~]\]/gm);
+			if (!boxes) return;
+			total += boxes.length;
+			done += boxes.filter((b) => b.includes("[x]")).length;
+		})
+	);
+	return total > 0 ? { done, total } : undefined;
+}
+
+export async function collectProjectScenes(app: App): Promise<ProjectScene[]> {
 	const root = app.vault.getAbstractFileByPath("04-项目");
 	if (!(root instanceof TFolder)) return [];
 	const folders: TFolder[] = [];
 	for (const item of root.children) {
 		if (item instanceof TFolder) folders.push(item);
 	}
-	return folders
-		.map((folder) => {
+	const scenes = await Promise.all(
+		folders.map(async (folder) => {
 			const latest = latestOf(app, folder.path);
 			const name = folder.name;
 			const priority: ProjectScene["priority"] = /TALOS|医美|AI社群|云心/.test(name) ? "p0" : "p1";
@@ -291,12 +323,14 @@ export function collectProjectScenes(app: App): ProjectScene[] {
 				latestTitle: latest ? titleFor(app, latest) : "—",
 				latestPath: latest?.path,
 				priority,
+				progress: await projectProgress(app, folder.path),
 			};
 		})
-		.sort((a, b) => {
-			const pr = { p0: 0, p1: 1, p2: 2 };
-			return pr[a.priority] - pr[b.priority] || b.count - a.count;
-		});
+	);
+	return scenes.sort((a, b) => {
+		const pr = { p0: 0, p1: 1, p2: 2 };
+		return pr[a.priority] - pr[b.priority] || b.count - a.count;
+	});
 }
 
 export function collectKnowledgeHub(app: App): KnowledgeHub {

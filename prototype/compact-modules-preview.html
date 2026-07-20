@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TALOS 留白治理 · 现状 vs 填充式布局</title>
+<style>
+	:root {
+		--paper: #f1ede3;
+		--paper-2: #e9e4d6;
+		--ink: #16150f;
+		--muted: #6b675c;
+		--blue: #1d4ed8;
+		--red: #e23c2f;
+		--yellow: #f5c400;
+		--green: #0f8a4d;
+		--mono: ui-monospace, "SF Mono", Menlo, monospace;
+		--sans: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+	}
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	body { background: var(--paper-2); font-family: var(--sans); color: var(--ink); padding: 28px 22px 60px; }
+	.pagehead { max-width: 1480px; margin: 0 auto 22px; }
+	.pagehead h1 { font-size: 30px; font-weight: 900; letter-spacing: .02em; text-transform: uppercase; }
+	.pagehead p { margin-top: 6px; font-size: 13px; color: var(--muted); max-width: 100ch; }
+	.pagehead .tag { display: inline-block; margin-top: 10px; padding: 3px 10px; background: var(--yellow); border: 2px solid var(--ink); font-size: 11px; font-weight: 700; font-family: var(--mono); }
+
+	section.case { max-width: 1480px; margin: 26px auto 0; }
+	.case > h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 10px; }
+	.case > h2::before { content: ""; width: 12px; height: 12px; background: var(--red); border: 2px solid var(--ink); }
+	.case > p { margin: 6px 0 12px; font-size: 12px; color: var(--muted); max-width: 100ch; }
+	.case > p b { color: var(--ink); }
+	.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+	@media (max-width: 1100px) { .compare { grid-template-columns: 1fr; } }
+	.col { border: 2px solid var(--ink); background: var(--paper); }
+	.col > header { padding: 8px 14px; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; border-bottom: 2px solid var(--ink); display: flex; justify-content: space-between; }
+	.col.before > header { background: #d8d2c2; }
+	.col.after > header { background: var(--ink); color: var(--yellow); }
+	.col .body { padding: 14px; }
+
+	/* ========== ① 指标卡 ========== */
+	/* 现状：数字+文字挤在左侧，右侧 60% 是空的；3 列网格第 4 张折行留死区 */
+	.mgrid-before { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+	.metric-before { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 11px; min-height: 96px; position: relative; }
+	.metric-before::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
+	.metric-before b { display: block; font-family: var(--mono); font-size: 25px; color: var(--blue); margin: 7px 0 3px; }
+	.metric-before span { display: block; font-size: 12.5px; font-weight: 600; }
+	.metric-before small { display: block; font-size: 11px; color: var(--muted); }
+	.metric-before .void { position: absolute; right: 10px; top: 10px; bottom: 10px; width: 46%; border: 1.5px dashed #c3402f; display: grid; place-items: center; font-size: 10px; color: #c3402f; font-family: var(--mono); }
+	/* 填充式：卡尺寸不变，左数字｜中文字｜右辅助信息，auto-fit 无折行死区 */
+	.mgrid-after { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 9px; }
+	.metric-after { display: flex; align-items: center; gap: 14px; border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 11px 14px; min-height: 96px; position: relative; }
+	.metric-after::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--blue); }
+	.metric-after > b { font-family: var(--mono); font-size: 30px; color: var(--blue); line-height: 1; }
+	.metric-after .txt { min-width: 0; }
+	.metric-after .txt span { display: block; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+	.metric-after .txt small { display: block; font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+	.metric-after .aux { margin-left: auto; text-align: right; flex: 0 0 auto; }
+	.metric-after .aux .chip { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 8px; border: 2px solid var(--ink); }
+	.metric-after .aux .chip.up { background: var(--yellow); }
+	.metric-after .aux .chip.ok { background: var(--green); color: #fff; }
+	.metric-after .aux .bar { width: 64px; height: 8px; border: 2px solid var(--ink); margin-top: 6px; margin-left: auto; position: relative; }
+	.metric-after .aux .bar i { position: absolute; inset: 0; width: 62%; background: var(--blue); }
+	.metric-after .aux .cap { display: block; font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-top: 4px; }
+
+	/* ========== ② 列表行 ========== */
+	.list-before { display: flex; flex-direction: column; gap: 7px; }
+	.row-before { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 10px 11px; position: relative; }
+	.row-before b { display: block; font-size: 12.5px; }
+	.row-before span { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+	.row-before .void { position: absolute; right: 10px; top: 10px; bottom: 10px; width: 52%; border: 1.5px dashed #c3402f; display: grid; place-items: center; font-size: 10px; color: #c3402f; font-family: var(--mono); background: rgba(195,64,47,.04); }
+	/* 填充式：盒子保留，单行双栏——标题左、meta 右、箭头收尾 */
+	.list-after { display: flex; flex-direction: column; gap: 7px; }
+	.row-after { display: flex; align-items: center; gap: 12px; border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 10px 12px 10px 14px; position: relative; cursor: pointer; transition: background .15s; }
+	.row-after::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--blue); }
+	.row-after:hover { background: rgba(29,78,216,.10); }
+	.row-after b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.row-after .meta { margin-left: auto; flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+	.row-after .meta span { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+	.row-after .meta .tag2 { font-family: var(--mono); font-size: 9.5px; font-weight: 700; border: 1.5px solid var(--ink); padding: 1px 7px; background: var(--paper); }
+	.row-after .meta .tag2.hot { background: var(--red); color: #fff; }
+	.row-after .meta .arr { font-weight: 900; font-size: 13px; }
+
+	/* ========== ③ 时间轴 ========== */
+	.slot-before { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 12px 14px; display: flex; gap: 16px; margin-bottom: 8px; position: relative; }
+	.slot-before .t b { display: block; font-family: var(--mono); font-size: 14px; }
+	.slot-before .t small { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+	.slot-before .c b { display: block; font-size: 13px; margin-bottom: 3px; }
+	.slot-before .c p { font-size: 11.5px; color: var(--muted); }
+	.slot-before .void { position: absolute; right: 12px; top: 12px; bottom: 12px; width: 40%; border: 1.5px dashed #c3402f; display: grid; place-items: center; font-size: 10px; color: #c3402f; font-family: var(--mono); }
+	/* 填充式：三段——时间｜内容｜状态徽章，右侧不再空 */
+	.slot-after { display: flex; align-items: center; gap: 16px; border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 12px 14px; margin-bottom: 8px; }
+	.slot-after .t { flex: 0 0 74px; border-right: 2px solid var(--ink); padding-right: 12px; }
+	.slot-after .t b { display: block; font-family: var(--mono); font-size: 15px; }
+	.slot-after .t small { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+	.slot-after .c { min-width: 0; }
+	.slot-after .c b { display: block; font-size: 13px; margin-bottom: 3px; }
+	.slot-after .c p { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.slot-after .st { margin-left: auto; flex: 0 0 auto; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 10px; border: 2px solid var(--ink); }
+	.slot-after .st.doing { background: var(--yellow); }
+	.slot-after .st.todo { background: var(--paper); color: var(--muted); }
+	.slot-after .st.done { background: var(--green); color: #fff; }
+	.slot-after.now { box-shadow: 6px 6px 0 var(--ink); background: #fff; }
+
+	/* ========== ④ 命令卡 ========== */
+	.cmd-before { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+	.cmd-b-card { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 12px; position: relative; }
+	.cmd-b-card b { display: block; font-family: var(--mono); font-size: 14px; margin-bottom: 4px; }
+	.cmd-b-card p { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+	.cmd-b-card .btns { display: flex; gap: 6px; }
+	.cmd-b-card .btns i { font-style: normal; font-size: 10px; font-family: var(--mono); border: 2px solid var(--ink); padding: 2px 8px; background: var(--paper); }
+	.cmd-b-card .void { position: absolute; right: 12px; top: 12px; width: 34%; height: 30px; border: 1.5px dashed #c3402f; display: grid; place-items: center; font-size: 10px; color: #c3402f; font-family: var(--mono); }
+	/* 填充式：标题行 = 命令左 + 按钮右；底部补来源路径，上下都填满 */
+	.cmd-after { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+	.cmd-a-card { border: 2px solid var(--ink); background: rgba(255,255,255,.46); border-left: 6px solid var(--blue); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+	.cmd-a-card .top { display: flex; align-items: center; gap: 10px; }
+	.cmd-a-card .top b { font-family: var(--mono); font-size: 14px; }
+	.cmd-a-card .top .btns { margin-left: auto; display: flex; gap: 5px; }
+	.cmd-a-card .top .btns i { font-style: normal; font-size: 10px; font-family: var(--mono); border: 2px solid var(--ink); padding: 2px 8px; background: var(--paper); cursor: pointer; }
+	.cmd-a-card .top .btns i:hover { background: var(--yellow); }
+	.cmd-a-card p { font-size: 11.5px; color: var(--muted); }
+	.cmd-a-card .src { font-family: var(--mono); font-size: 9.5px; color: var(--muted); border-top: 1.5px dashed #b7b1a2; padding-top: 5px; display: flex; justify-content: space-between; }
+
+	/* ========== ⑤ 空态面板 ========== */
+	.empty-before { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 12px; min-height: 130px; position: relative; }
+	.empty-before p { font-size: 12px; color: var(--muted); }
+	.empty-before .void { position: absolute; left: 12px; right: 12px; top: 40px; bottom: 12px; border: 1.5px dashed #c3402f; display: grid; place-items: center; font-size: 10px; color: #c3402f; font-family: var(--mono); }
+	.empty-after { border: 2px solid var(--ink); background: rgba(255,255,255,.46); padding: 12px; min-height: 130px; display: flex; align-items: center; justify-content: center; }
+	.empty-after .zen { text-align: center; border: 2px dashed var(--muted); padding: 16px 34px; }
+	.empty-after .zen .ico { width: 26px; height: 26px; margin: 0 auto 8px; background: var(--green); border: 2px solid var(--ink); border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 13px; }
+	.empty-after .zen b { display: block; font-size: 12.5px; }
+	.empty-after .zen small { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 3px; }
+</style>
+</head>
+<body>
+	<div class="pagehead">
+		<h1>留白治理 · 填充式布局</h1>
+		<p>新原则：<b>盒子保留、尺寸不减</b>——问题不是模块太大，而是内容只占左半边。做法：左锚点｜中内容｜右辅助信息 的三段式填满横宽；网格 auto-fit 消除折行死区；空面板做空态设计。红虚线 = 现状的留白死区。</p>
+		<span class="tag">左 = 现状（标出留白）· 右 = 填充式（不缩尺寸）</span>
+	</div>
+
+	<!-- ① 指标卡 -->
+	<section class="case">
+		<h2>① 指标卡：右侧死区 → 辅助信息位</h2>
+		<p>卡片尺寸不变（96px），内部改三段：<b>左 = 30px 大数字</b>｜<b>中 = label + sub</b>｜<b>右 = 辅助信息</b>（趋势徽章 / 占比条 / 状态点，用已有数据，不造假）。网格 repeat(3) → auto-fit minmax(220px,1fr)：身份页 5/2/0/1 四张卡不再折行留空。</p>
+		<div class="compare">
+			<div class="col before">
+				<header><span>现状</span><span>右侧 ~50% 空白</span></header>
+				<div class="body">
+					<div class="mgrid-before">
+						<div class="metric-before"><b>90</b><span>健康分</span><small>来自 health-log</small><div class="void">留白</div></div>
+						<div class="metric-before"><b>0</b><span>待审批</span><small>B/C 类变更需确认</small><div class="void">留白</div></div>
+						<div class="metric-before"><b>1</b><span>偏好候选</span><small>候选池待晋升</small><div class="void">留白</div></div>
+					</div>
+				</div>
+			</div>
+			<div class="col after">
+				<header><span>填充式</span><span>三段填满</span></header>
+				<div class="body">
+					<div class="mgrid-after">
+						<div class="metric-after"><b>90</b><div class="txt"><span>健康分</span><small>来自 health-log</small></div><div class="aux"><span class="chip up">↑ 2 vs 上次</span><span class="cap">7-19 评估</span></div></div>
+						<div class="metric-after"><b>0</b><div class="txt"><span>待审批</span><small>B/C 类变更需确认</small></div><div class="aux"><span class="chip ok">清空</span><span class="cap">容量 5 内</span></div></div>
+						<div class="metric-after"><b>1</b><div class="txt"><span>偏好候选</span><small>候选池待晋升</small></div><div class="aux"><div class="bar"><i></i></div><span class="cap">晋升进度</span></div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ② 列表行 -->
+	<section class="case">
+		<h2>② 列表行：盒子保留，单行双栏填满</h2>
+		<p>不去框、不缩行高——盒子是 Bauhaus 的语言，保留。把「标题 + 下沉 meta」改为<b>同一行：标题居左、meta 右对齐、箭头收尾</b>，右侧空白变成信息位（类型标签 / 年龄 / 状态）。</p>
+		<div class="compare">
+			<div class="col before">
+				<header><span>现状</span><span>meta 下沉 + 右侧空</span></header>
+				<div class="body">
+					<div class="list-before">
+						<div class="row-before"><b>财神1号技术方案 · 已修/未修对账表</b><span>[财神1号技术方案-已修未修对账表.md] · 0d</span><div class="void">留白</div></div>
+						<div class="row-before"><b>知本枢院 2.0 完整系统架构报告</b><span>[知本枢院2.0.md] · 0d</span><div class="void">留白</div></div>
+						<div class="row-before"><b>TALOS 个性化部署需求文档 v0.1(1)</b><span>[TALOS-个性化部署需求文档.md] · 0d</span><div class="void">留白</div></div>
+					</div>
+				</div>
+			</div>
+			<div class="col after">
+				<header><span>填充式</span><span>同行双栏</span></header>
+				<div class="body">
+					<div class="list-after">
+						<div class="row-after"><b>财神1号技术方案 · 已修/未修对账表</b><div class="meta"><span class="tag2 hot">8d 超龄</span><span>财神1号技术方案.md</span><span class="arr">›</span></div></div>
+						<div class="row-after"><b>知本枢院 2.0 完整系统架构报告</b><div class="meta"><span class="tag2">0d</span><span>知本枢院2.0.md</span><span class="arr">›</span></div></div>
+						<div class="row-after"><b>TALOS 个性化部署需求文档 v0.1(1)</b><div class="meta"><span class="tag2">0d</span><span>部署需求文档.md</span><span class="arr">›</span></div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ③ 时间轴 -->
+	<section class="case">
+		<h2>③ 时间轴：右侧 → 状态徽章位</h2>
+		<p>时段卡尺寸不变，内部三段：<b>时间列（右侧 2px 分隔线）</b>｜<b>标题 + 描述</b>｜<b>状态徽章</b>（已完成 / 进行中 / 待开始，复用主题黄绿）。当前时段加 Bauhaus 硬投影强调——空白变成状态信息。</p>
+		<div class="compare">
+			<div class="col before">
+				<header><span>现状</span><span>右侧 ~40% 空白</span></header>
+				<div class="body">
+					<div class="slot-before"><div class="t"><b>08:30</b><small>15 min</small></div><div class="c"><b>开工 · 接收系统指令</b><p>只确认焦点与 done_when，不重新规划人生。</p></div><div class="void">留白</div></div>
+					<div class="slot-before"><div class="t"><b>09:00</b><small>120 min</small></div><div class="c"><b>深度块① · 输出闭环</b><p>完成选、改、发、回填中的最短可验证闭环。</p></div><div class="void">留白</div></div>
+				</div>
+			</div>
+			<div class="col after">
+				<header><span>填充式</span><span>状态徽章</span></header>
+				<div class="body">
+					<div class="slot-after"><div class="t"><b>08:30</b><small>15m</small></div><div class="c"><b>开工 · 接收系统指令</b><p>只确认焦点与 done_when，不重新规划人生。</p></div><span class="st done">已完成</span></div>
+					<div class="slot-after now"><div class="t"><b>09:00</b><small>120m</small></div><div class="c"><b>深度块① · 输出闭环</b><p>完成选、改、发、回填中的最短可验证闭环。</p></div><span class="st doing">进行中</span></div>
+					<div class="slot-after"><div class="t"><b>11:00</b><small>45m</small></div><div class="c"><b>分发回填 · 数据与消息</b><p>发布后立即回填链接、状态与运营观察。</p></div><span class="st todo">待开始</span></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ④ 命令卡 -->
+	<section class="case">
+		<h2>④ 命令卡：按钮上移 + 底部来源行</h2>
+		<p>保持 2 列不缩卡。顶部行 = <b>命令左 + 按钮右</b>（按钮不再独占一行）；底部加<b>来源路径行</b>（真实数据 .claude/commands/xx.md），上下空白都变成信息。</p>
+		<div class="compare">
+			<div class="col before">
+				<header><span>现状</span><span>右上 + 底部空</span></header>
+				<div class="body">
+					<div class="cmd-before">
+						<div class="cmd-b-card"><b>/intake</b><p>智能归档：扫描收件箱，自动分流交互式/动态工作流归档</p><div class="btns"><i>复制调用</i><i>打开源文件</i></div><div class="void">留白</div></div>
+						<div class="cmd-b-card"><b>/maintain</b><p>系统自检：全库健康扫描，检测知识坏味道</p><div class="btns"><i>复制调用</i><i>打开源文件</i></div><div class="void">留白</div></div>
+					</div>
+				</div>
+			</div>
+			<div class="col after">
+				<header><span>填充式</span><span>三段填满</span></header>
+				<div class="body">
+					<div class="cmd-after">
+						<div class="cmd-a-card"><div class="top"><b>/intake</b><div class="btns"><i>复制调用</i><i>源文件</i></div></div><p>智能归档：扫描收件箱，自动分流交互式/动态工作流归档</p><div class="src"><span>.claude/commands/intake.md</span><span>命令</span></div></div>
+						<div class="cmd-a-card"><div class="top"><b>/maintain</b><div class="btns"><i>复制调用</i><i>源文件</i></div></div><p>系统自检：全库健康扫描，检测知识坏味道</p><div class="src"><span>.claude/commands/maintain.md</span><span>命令</span></div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ⑤ 空态 -->
+	<section class="case">
+		<h2>⑤ 空态面板：空白 → 有设计感的空态</h2>
+		<p>「无待审批」「今日尚未设置焦点」这类面板目前只有一个孤零零的小字+一大块空。做空态卡：居中虚线框 + 状态图标 + 一句说明，空白变成明确的状态表达。</p>
+		<div class="compare">
+			<div class="col before">
+				<header><span>现状</span><span>一个大空框</span></header>
+				<div class="body">
+					<div class="empty-before"><p>无待审批</p><div class="void">留白</div></div>
+				</div>
+			</div>
+			<div class="col after">
+				<header><span>填充式</span><span>空态卡</span></header>
+				<div class="body">
+					<div class="empty-after"><div class="zen"><div class="ico">✓</div><b>审批池清空</b><small>B/C 类变更已全部处理 · 容量 5 内</small></div></div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="case">
+		<h2>说明</h2>
+		<p>① 全部为布局与内容重排，<b>不缩小任何模块尺寸</b>；② 右侧辅助信息只用已有数据（趋势、年龄、状态、路径），不编造；③ 需要少量 DOM 配合：指标卡 aux 位、列表行 meta 右置、时间轴状态徽章、命令卡来源行——view.ts 渲染函数会做对应小改，数据层不动；④ 确认后按 指标卡 → 列表行 → 时间轴 → 命令卡 → 空态 顺序实施。</p>
+	</section>
+</body>
+</html>

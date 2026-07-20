@@ -209,7 +209,9 @@ export class StreamTts {
 			// 仅当仍是当前代际才复位，避免冲掉 stop() 后新启动的播放
 			if (myGen === this.gen) {
 				this.playing = false;
-				this.onState("idle");
+				// 半句仍留在缓冲说明回复还在流式生成，句间空档不上报 idle——
+				// 否则面板状态会 speak→listen→speak 抖动、唤醒倒计时被误解冻。
+				if (!this.buf.trim()) this.onState("idle");
 			}
 		}
 	}

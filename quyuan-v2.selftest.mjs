@@ -329,8 +329,11 @@ assert.match(voicePanelSource, /commitUser\(text,\s*"text"\)/);
 assert.match(voicePanelSource, /channel === "voice"[\s\S]*this\.tts\?\.feed\(delta\)/);
 assert.match(
 	voicePanelSource,
-	/syncAsrBusy[\s\S]*setBusy\(busy,\s*this\.ttsSpeaking\)/
+	/syncAsrBusy[\s\S]*setBusy\(busy,\s*busy\)/
 );
+// 唤醒窗口：忙碌期冻结、结束重计（长回答不再掉唤醒）
+assert.match(voicePanelSource, /private pauseWakeWindow\(\)/);
+assert.match(voicePanelSource, /if \(busy\) this\.pauseWakeWindow\(\);\s*else this\.refreshWakeWindow\(\);/);
 assert.match(voicePanelSource, /ttsPending[\s\S]*ttsSpeaking[\s\S]*responseActive/);
 assert.match(voicePanelSource, /\(level\) => \{[\s\S]*characterStage\?\.setOutputLevel\(level\)/);
 assert.match(voicePanelSource, /onLevel: \(level\)[\s\S]*characterStage\?\.setInputLevel\(visualLevel\)/);
@@ -341,8 +344,12 @@ assert.match(
 	voiceDriverSource,
 	/runtimePlugin[\s\S]*scopedSettings[\s\S]*model:\s*this\.voiceRuntime\.model[\s\S]*effortLevel:\s*this\.voiceRuntime\.effortLevel/
 );
-assert.match(vadSource, /BARGE_RMS = 0\.09[\s\S]*BARGE_FRAMES = 75/);
-assert.match(vadSource, /BARGE_GUARD_MS = 600/);
+// 打断阈值：正常音量即可打断（AEC 开启时回授残响远低于阈值）
+assert.match(vadSource, /BARGE_RMS = 0\.05[\s\S]*BARGE_FRAMES = 40/);
+assert.match(vadSource, /BARGE_GUARD_MS = 500/);
+// 打断成功后转入收音：打断句本身可被转写为新指令
+assert.match(vadSource, /BARGE_PREROLL = PRE_ROLL \+ BARGE_FRAMES \+ 12/);
+assert.match(vadSource, /onSpeechStart\(\)[\s\S]*this\.capturing = true/);
 assert.match(vadSource, /SILENCE_MS = 550/);
 assert.match(voiceIoSource, /rest\.length > 28/);
 assert.match(
@@ -462,12 +469,15 @@ assert.doesNotMatch(voiceParticleSource, /\.png|new Image\(|createElement\("img"
 assert.doesNotMatch(voiceParticleSource, /setInterval/);
 // 7/10 沉浸式界面已退役旧 tq-flow / tq-copy；当前契约是字幕 overlay + FAB。
 assert.match(quyuanShellCss, /\.tq-overlay-text[\s\S]*\.tq-overlay-reply[\s\S]*\.tq-transcript-editor[\s\S]*\.tq-overlay-user/);
+// 识别文字并入输出端阅读栏：order:1 叠在回复正上方、同宽左对齐；
+// 折叠 max-height:0 不占位，展开生长；共享容器顶部 mask 滚动渐隐。
 assert.match(
 	quyuanShellCss,
-	/\.tq-transcript-editor\s*\{[\s\S]*right:\s*clamp\(28px,\s*3\.5vw,\s*56px\)[\s\S]*bottom:\s*calc\(clamp\(205px,\s*18vh,\s*250px\) \+ 92px\)[\s\S]*translate3d\(42px,\s*14px,\s*0\)/
+	/\.tq-transcript-editor\s*\{[\s\S]*order:\s*1;[\s\S]*width:\s*calc\(100% - clamp\(300px,\s*32vw,\s*430px\)\)[\s\S]*max-height:\s*0;[\s\S]*\.tq-transcript-editor\.is-visible\s*\{[\s\S]*max-height:\s*300px;/
 );
 assert.match(quyuanShellCss, /\.tq-overlay-reply\s*\{[\s\S]*width:\s*calc\(100% - clamp\(300px,\s*32vw,\s*430px\)\)/);
-assert.match(quyuanShellCss, /\.tq-stage:has\(\.tq-fab\.is-open\) \.tq-transcript-editor\.is-visible[\s\S]*translate3d\(0,\s*-64px,\s*0\)/);
+// 识别文字锚定右上角空白带（不遮挡粒子与控件），与右下角扇形菜单无交叠，无需展开避让规则
+assert.doesNotMatch(quyuanShellCss, /\.tq-stage:has\(\.tq-fab\.is-open\) \.tq-transcript-editor\.is-visible/);
 assert.match(quyuanShellCss, /\.tq-fab[\s\S]*\.tq-fab-menu[\s\S]*\.tq-fab-ring/);
 assert.match(
 	quyuanShellCss,

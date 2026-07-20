@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收件箱分诊台 · 预览</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+	body { margin: 0; background: #222; }
+	.preview-label { font: 12px monospace; color: #fff; padding: 6px 12px; background: #111; position: sticky; top: 0; z-index: 99; }
+	.preview-frame { height: 860px; overflow: hidden; border-bottom: 4px solid #111; }
+	.talos-console { height: 100%; }
+</style>
+</head>
+<body>
+
+<!--  mock 数据与用户真实库一致：25 待处理 / 31d oldest / 聚类 8,1,1,3,12
+      年龄桶 mock：0–3d:8 · 4–7d:5 · 8–14d:4 · >14d:8  -->
+
+<template id="inbox-page">
+	<div class="panel module-hero" style="--ac:#FBBF24">
+		<div class="module-hero-main">
+			<div class="module-hero-icon"></div>
+			<div class="module-hero-copy">
+				<small>INTAKE DIGEST</small>
+				<h2>收件箱</h2>
+				<p>先看积压、年龄和主题包，再决定今天是归档、消化，还是只挑高价值条目。</p>
+			</div>
+		</div>
+		<div class="module-hero-stats">
+			<div class="module-hero-stat tone-warn is-clickable"><span>待处理</span><b>25</b><small>31d oldest</small></div>
+			<div class="module-hero-stat tone-default is-clickable"><span>主题包</span><b>5</b><small>按标题自动聚类</small></div>
+			<div class="module-hero-stat tone-default is-clickable"><span>最近进入</span><b>8 条</b><small>最近改动的收件箱文件</small></div>
+		</div>
+		<div class="module-hero-actions">
+			<button type="button" class="module-hero-action" aria-label="开始归档">开始归档</button>
+			<button type="button" class="module-hero-action" aria-label="消化偏好">消化偏好</button>
+			<button type="button" class="module-hero-action" aria-label="收件地图">收件地图</button>
+		</div>
+	</div>
+
+	<div class="panel" style="--ac:#FBBF24">
+		<div class="section-title"><h2>收件箱消化台</h2><small>积压年龄 · 主题聚类</small></div>
+		<div class="age-dist">
+			<div class="age-dist-title">积压年龄 · 共 25 篇 · 最老 31d</div>
+			<div class="age-dist-track" role="img" aria-label="积压年龄分布：0–3d 8 篇，4–7d 5 篇，8–14d 4 篇，>14d 8 篇">
+				<div class="age-seg tone-info" style="width:32%" aria-label="0–3d：8 篇"></div>
+				<div class="age-seg tone-good" style="width:20%" aria-label="4–7d：5 篇"></div>
+				<div class="age-seg tone-warn" style="width:16%" aria-label="8–14d：4 篇"></div>
+				<div class="age-seg tone-hot"  style="width:32%" aria-label=">14d：8 篇"></div>
+			</div>
+			<div class="age-dist-legend">
+				<div class="age-legend-item"><span class="age-dot tone-info"></span><span>0–3d · 8 篇</span></div>
+				<div class="age-legend-item"><span class="age-dot tone-good"></span><span>4–7d · 5 篇</span></div>
+				<div class="age-legend-item"><span class="age-dot tone-warn"></span><span>8–14d · 4 篇</span></div>
+				<div class="age-legend-item"><span class="age-dot tone-hot"></span><span>&gt;14d · 8 篇</span></div>
+			</div>
+		</div>
+		<div class="cluster-grid">
+			<div class="cluster-card">
+				<b>Loop / 循环工程</b><span class="big">8</span>
+				<div class="cluster-hint-row"><small>适合进洞察或素材聚类</small><small class="cluster-pct">32%</small></div>
+				<div class="cluster-bar"><div class="cluster-bar-fill" style="width:67%"></div></div>
+			</div>
+			<div class="cluster-card">
+				<b>微信同步</b><span class="big">1</span>
+				<div class="cluster-hint-row"><small>适合沉淀为自动化模块</small><small class="cluster-pct">4%</small></div>
+				<div class="cluster-bar"><div class="cluster-bar-fill" style="width:9%"></div></div>
+			</div>
+			<div class="cluster-card">
+				<b>AI 控制台</b><span class="big">1</span>
+				<div class="cluster-hint-row"><small>适合回流 TALOS 插件</small><small class="cluster-pct">4%</small></div>
+				<div class="cluster-bar"><div class="cluster-bar-fill" style="width:9%"></div></div>
+			</div>
+			<div class="cluster-card">
+				<b>Agent 工程</b><span class="big">3</span>
+				<div class="cluster-hint-row"><small>适合进 Claude / Agent 素材</small><small class="cluster-pct">12%</small></div>
+				<div class="cluster-bar"><div class="cluster-bar-fill" style="width:25%"></div></div>
+			</div>
+			<div class="cluster-card">
+				<b>其他</b><span class="big">12</span>
+				<div class="cluster-hint-row"><small>需要人工判断</small><small class="cluster-pct">48%</small></div>
+				<div class="cluster-bar"><div class="cluster-bar-fill is-manual" style="width:100%"></div></div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<div class="preview-label">theme-geometric-modern（Bauhaus · 用户当前主题）</div>
+<div class="preview-frame"><div class="talos-console theme-geometric-modern" data-inbox-mock></div></div>
+
+<div class="preview-label">theme-aurora（深色主主题）</div>
+<div class="preview-frame"><div class="talos-console theme-aurora" data-inbox-mock></div></div>
+
+<div class="preview-label">theme-soft-relief（浅色主题）</div>
+<div class="preview-frame"><div class="talos-console theme-soft-relief" data-inbox-mock></div></div>
+
+<script>
+	const tpl = document.getElementById("inbox-page");
+	for (const host of document.querySelectorAll("[data-inbox-mock]")) {
+		host.appendChild(tpl.content.cloneNode(true));
+	}
+</script>
+</body>
+</html>

@@ -67,6 +67,15 @@ const DAILY_ROTA = [
 	{ day: 6, code: "SAT", label: "周六", project: "缓冲日", desc: "补阻塞、学习、修小破口", path: "System/working-memory/tasks.md" },
 	{ day: 0, code: "SUN", label: "周日", project: "休息 + 周重置", desc: "刷新上下文并摆好下周轨道", path: "Identity/CONTEXT.md" },
 ];
+// 每日固定骨架时间轴（pageDaily 渲染与像素小人里程碑共用同一数据源）
+const DAILY_TIMELINE = [
+	{ time: "08:30", mins: 510, dur: 15, length: "15 min", title: "开工 · 接收系统指令", desc: "只确认焦点与 done_when，不重新规划人生。", starter: "复制「开工」，接今天第一步。", path: "System/working-memory/tasks.md", deep: false },
+	{ time: "09:00", mins: 540, dur: 120, length: "120 min", title: "深度块① · 输出闭环", desc: "完成选、改、发、回填中的最短可验证闭环。", starter: "只处理统一出口今日待发的一条。", path: "输出/统一出口.md", deep: true },
+	{ time: "11:00", mins: 660, dur: 45, length: "45 min", title: "分发回填 · 数据与消息", desc: "发布后立即回填链接、状态与运营观察。", starter: "检查 publish_url、signal 与 views。", path: "输出/运营/运营候选池.md", deep: false },
+	{ time: "14:00", mins: 840, dur: 120, length: "120 min", title: "深度块② · 当日轮值项目", desc: "", starter: "只做一个能留下痕迹的下一步。", path: "04-项目/_README.md", deep: true },
+	{ time: "16:00", mins: 960, dur: 45, length: "45 min", title: "轻输入 · 客户沟通", desc: "最多处理 3 条，只捞能变成输出或交付的信号。", starter: "不做全库清仓。", path: "00-收件箱/_README.md", deep: false },
+	{ time: "17:00", mins: 1020, dur: 20, length: "20 min", title: "收工 · 关环并铺明天", desc: "记录实质碎片、更新任务池、留下明早第一步。", starter: "复制「收工」，写结果与阻塞。", path: "System/working-memory/_README.md", deep: false },
+];
 const SELECTABLE_MODULES = [
 	".commands .command",
 	".overview-card",
@@ -211,6 +220,9 @@ export class TalosView extends ItemView {
 	private approvalSideEl!: HTMLElement;
 	private pageEl!: HTMLElement;
 	private stampEl!: HTMLElement;
+	private patrolEl!: HTMLElement;
+	/** 上次渲染时的发布数，用于 output 场景检测「新发布」触发火箭升空 */
+	private lastPublished: number | undefined;
 
 	private data: Collected | null = null;
 	private activePage = "overview";
@@ -377,7 +389,10 @@ export class TalosView extends ItemView {
 			"theme-system-classic",
 			"theme-data-stream",
 			"theme-soft-relief",
-			"theme-geometric-modern"
+			"theme-geometric-modern",
+			"theme-executive-brief",
+			"theme-paper-ink",
+			"theme-swiss-modern"
 		);
 		this.contentEl.classList.add(`theme-${theme}`);
 		this.contentEl.setAttribute("data-talos-theme", theme);
@@ -579,17 +594,7 @@ export class TalosView extends ItemView {
 		const logo = logoModule.createDiv({ cls: "logo logo-heart" });
 		this.buildLogo(logo);
 
-		const patrol = hero.createDiv({ cls: "talos-pixel-patrol" });
-		patrol.setAttribute("aria-hidden", "true");
-		patrol.createDiv({ cls: "talos-pixel-track" });
-		const bot = patrol.createDiv({ cls: "talos-pixel-bot" });
-		bot.createSpan({ cls: "talos-pixel-shadow" });
-		bot.createSpan({ cls: "talos-pixel-antenna" });
-		const head = bot.createSpan({ cls: "talos-pixel-head" });
-		head.createSpan({ cls: "talos-pixel-eye left" });
-		head.createSpan({ cls: "talos-pixel-eye right" });
-		head.createSpan({ cls: "talos-pixel-mark" });
-		bot.createSpan({ cls: "talos-pixel-body" });
+		this.patrolEl = this.buildPixelPatrol(hero);
 
 		// 页容器
 		this.pageEl = main.createDiv({ cls: "page-content" });
@@ -612,6 +617,89 @@ export class TalosView extends ItemView {
 		footer.appendText("TALOS CONSOLE · AURORA EDITION · 数据刷新 ");
 		this.stampEl = footer.createSpan({ text: "—" });
 		footer.appendText(" · 原生插件");
+	}
+
+	/**
+	 * 像素小人舞台（design-system/talos/pixel-bot-system.md）。
+	 * 同一个 DOM 用于两处：共享 Hero（总览页巡航）与各业务页的
+	 * module-hero（场景皮肤按 data-talos-page 切换）。道具常驻 DOM、
+	 * 默认隐藏，显隐/位置由 syncPixelScene 在渲染后一次性写入。
+	 */
+	private buildPixelPatrol(parent: HTMLElement): HTMLElement {
+		const patrol = parent.createDiv({ cls: "talos-pixel-patrol" });
+		patrol.setAttribute("aria-hidden", "true");
+		patrol.createDiv({ cls: "talos-pixel-track" });
+		const bot = patrol.createDiv({ cls: "talos-pixel-bot" });
+		bot.createSpan({ cls: "talos-pixel-shadow" });
+		bot.createSpan({ cls: "talos-pixel-antenna" });
+		const head = bot.createSpan({ cls: "talos-pixel-head" });
+		head.createSpan({ cls: "talos-pixel-eye left" });
+		head.createSpan({ cls: "talos-pixel-eye right" });
+		head.createSpan({ cls: "talos-pixel-mark" });
+		head.createSpan({ cls: "pixel-prop bandage" });
+		bot.createSpan({ cls: "talos-pixel-body" });
+		const parcelRack = patrol.createDiv({ cls: "pixel-props pixel-props-parcels" });
+		for (let i = 0; i < 6; i++) {
+			parcelRack.createSpan({ cls: "pixel-prop parcel" });
+		}
+		const flagLine = patrol.createDiv({ cls: "pixel-props pixel-props-flags" });
+		for (let i = 0; i < DAILY_TIMELINE.length; i++) {
+			flagLine.createSpan({ cls: "pixel-prop flag" });
+		}
+		patrol.createSpan({ cls: "pixel-prop zzz", text: "Zzz" });
+		// 批次 2 道具：health 心电脉冲 / talos 闸门 / output 火箭 + 停止牌
+		const ecgLine = patrol.createDiv({ cls: "pixel-props pixel-props-ecg" });
+		for (let i = 0; i < 5; i++) {
+			ecgLine.createSpan({ cls: "pixel-prop pulse" });
+		}
+		const gateLine = patrol.createDiv({ cls: "pixel-props pixel-props-gates" });
+		for (let i = 0; i < 3; i++) {
+			gateLine.createSpan({ cls: "pixel-prop gate" });
+		}
+		const rocketRack = patrol.createDiv({ cls: "pixel-props pixel-props-rockets" });
+		for (let i = 0; i < 5; i++) {
+			rocketRack.createSpan({ cls: "pixel-prop rocket" });
+		}
+		patrol.createSpan({ cls: "pixel-prop sign" });
+		// 批次 3 道具：projects 安全帽 + 集装箱 / knowledge 悬浮岛 + 幼苗 /
+		// vault 雷达盘 + 热力 blip（zzz 复用 daily 的元素）
+		head.createSpan({ cls: "pixel-prop helmet" });
+		const crateLine = patrol.createDiv({ cls: "pixel-props pixel-props-crates" });
+		for (let i = 0; i < 3; i++) {
+			crateLine.createSpan({ cls: "pixel-prop crate" });
+		}
+		const isleLine = patrol.createDiv({ cls: "pixel-props pixel-props-isles" });
+		for (let i = 0; i < 5; i++) {
+			isleLine.createSpan({ cls: "pixel-prop isle" });
+		}
+		const sproutLine = patrol.createDiv({ cls: "pixel-props pixel-props-sprouts" });
+		for (let i = 0; i < 3; i++) {
+			sproutLine.createSpan({ cls: "pixel-prop sprout" });
+		}
+		patrol.createSpan({ cls: "pixel-prop radar" });
+		const blipLine = patrol.createDiv({ cls: "pixel-props pixel-props-blips" });
+		for (let i = 0; i < 5; i++) {
+			blipLine.createSpan({ cls: "pixel-prop blip" });
+		}
+		// 批次 4 道具：identity 镜厅（镜框 + 刻痕 + 镜像小人，全系统唯一双 bot）/
+		// capability 接线员（交换机 + 插线，线缆挂在板内定位）
+		const mirror = patrol.createSpan({ cls: "pixel-prop mirror" });
+		for (let i = 0; i < 4; i++) {
+			mirror.createSpan({ cls: "notch" });
+		}
+		const reflection = patrol.createDiv({ cls: "talos-pixel-bot reflection" });
+		reflection.createSpan({ cls: "talos-pixel-shadow" });
+		reflection.createSpan({ cls: "talos-pixel-antenna" });
+		const rHead = reflection.createSpan({ cls: "talos-pixel-head" });
+		rHead.createSpan({ cls: "talos-pixel-eye left" });
+		rHead.createSpan({ cls: "talos-pixel-eye right" });
+		rHead.createSpan({ cls: "talos-pixel-mark" });
+		reflection.createSpan({ cls: "talos-pixel-body" });
+		const board = patrol.createSpan({ cls: "pixel-prop board" });
+		for (let i = 0; i < 6; i++) {
+			board.createSpan({ cls: "pixel-prop cord" });
+		}
+		return patrol;
 	}
 
 	private buildLogo(host: HTMLElement): void {
@@ -682,7 +770,7 @@ export class TalosView extends ItemView {
 		const output = await collectOutputCenter(app);
 		const inbox = await collectInboxDigest(app, s);
 		const healthDigest = await collectHealthDigest(app, s, approvals, candidates);
-		const projects = collectProjectScenes(app);
+		const projects = await collectProjectScenes(app);
 		const knowledge = collectKnowledgeHub(app);
 		const talosProduct = collectTalosProduct(app);
 
@@ -797,32 +885,34 @@ export class TalosView extends ItemView {
 		const icon = button.createSpan({ cls: "approval-action-icon" });
 		setIcon(icon, iconName);
 		button.createSpan({ cls: "approval-action-label", text: label });
-		button.addEventListener("click", async (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			const siblingButtons = Array.from(
-				parent.querySelectorAll<HTMLButtonElement>(".approval-action")
-			);
-			for (const btn of siblingButtons) btn.disabled = true;
-			button.addClass("is-loading");
-			const ok = await decidePendingApproval(
-				this.app,
-				this.plugin.talosSettings,
-				it.title,
-				decision
-			);
-			if (ok) {
-				this.lastApprovalFeedback = {
-					title: it.title,
-					decision,
-					path: it.path,
-					at: this.shortTime(),
-				};
-				await this.refresh();
-			} else {
-				button.removeClass("is-loading");
-				for (const btn of siblingButtons) btn.disabled = false;
-			}
+		button.addEventListener("click", (event) => {
+			void (async () => {
+				event.preventDefault();
+				event.stopPropagation();
+				const siblingButtons = Array.from(
+					parent.querySelectorAll<HTMLButtonElement>(".approval-action")
+				);
+				for (const btn of siblingButtons) btn.disabled = true;
+				button.addClass("is-loading");
+				const ok = await decidePendingApproval(
+					this.app,
+					this.plugin.talosSettings,
+					it.title,
+					decision
+				);
+				if (ok) {
+					this.lastApprovalFeedback = {
+						title: it.title,
+						decision,
+						path: it.path,
+						at: this.shortTime(),
+					};
+					await this.refresh();
+				} else {
+					button.removeClass("is-loading");
+					for (const btn of siblingButtons) btn.disabled = false;
+				}
+			})();
 		});
 	}
 
@@ -835,31 +925,33 @@ export class TalosView extends ItemView {
 		const icon = button.createSpan({ cls: "approval-action-icon" });
 		setIcon(icon, "bot");
 		button.createSpan({ cls: "approval-action-label", text: "批准+模型" });
-		button.addEventListener("click", async (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			const siblingButtons = Array.from(
-				parent.querySelectorAll<HTMLButtonElement>(".approval-action")
-			);
-			for (const btn of siblingButtons) btn.disabled = true;
-			button.addClass("is-loading");
-			const ok = await approveAndExecuteApprovalWithMockModel(
-				this.app,
-				this.plugin.talosSettings,
-				it.title
-			);
-			if (ok) {
-				this.lastApprovalFeedback = {
-					title: it.title,
-					decision: "execute",
-					path: it.path,
-					at: this.shortTime(),
-				};
-				await this.refresh();
-			} else {
-				button.removeClass("is-loading");
-				for (const btn of siblingButtons) btn.disabled = false;
-			}
+		button.addEventListener("click", (event) => {
+			void (async () => {
+				event.preventDefault();
+				event.stopPropagation();
+				const siblingButtons = Array.from(
+					parent.querySelectorAll<HTMLButtonElement>(".approval-action")
+				);
+				for (const btn of siblingButtons) btn.disabled = true;
+				button.addClass("is-loading");
+				const ok = await approveAndExecuteApprovalWithMockModel(
+					this.app,
+					this.plugin.talosSettings,
+					it.title
+				);
+				if (ok) {
+					this.lastApprovalFeedback = {
+						title: it.title,
+						decision: "execute",
+						path: it.path,
+						at: this.shortTime(),
+					};
+					await this.refresh();
+				} else {
+					button.removeClass("is-loading");
+					for (const btn of siblingButtons) btn.disabled = false;
+				}
+			})();
 		});
 	}
 
@@ -919,7 +1011,8 @@ export class TalosView extends ItemView {
 		setIcon(icon, options.icon);
 		const copy = main.createDiv({ cls: "module-hero-copy" });
 		copy.createEl("small", { text: options.eyebrow });
-		copy.createEl("h2", { text: options.title });
+		// h1：与首页标题共用各主题的 h1 字体处理（字号/字重/渐变），突出页面名称
+		copy.createEl("h1", { cls: "module-hero-title", text: options.title });
 		copy.createEl("p", { text: options.desc });
 
 		const stats = hero.createDiv({ cls: "module-hero-stats" });
@@ -934,6 +1027,11 @@ export class TalosView extends ItemView {
 				item.addEventListener("click", () => void openFile(this.app, statPath));
 			}
 		}
+
+		// 像素小人舞台行：插在统计卡与操作按钮之间，占满整行。
+		// 场景皮肤按 data-talos-page 由 CSS 切换（批次 1：inbox 搬运工 / daily 通勤者）。
+		const scene = this.buildPixelPatrol(hero);
+		scene.addClass("in-module-hero");
 
 		if (options.actions?.length) {
 			const actions = hero.createDiv({ cls: "module-hero-actions" });
@@ -999,6 +1097,162 @@ export class TalosView extends ItemView {
 			case "vault": this.pageVault(page, d); break;
 		}
 		this.wireModuleSelection(page, this.activePage);
+		this.syncPixelScene(d);
+	}
+
+	/**
+	 * 像素小人场景数据契约（design-system/talos/pixel-bot-system.md §1.2）。
+	 * 只在渲染/刷新时写 CSS 变量与道具内联样式，动画全部交给 CSS steps()，
+	 * 不引入任何 JS 帧循环。批次 1：inbox 搬运工 + daily 通勤者；
+	 * 批次 2：health 心电监护 + talos 闸门守卫 + output 发射指挥；
+	 * 批次 3：projects 工地巡视 + knowledge 星图园丁 + vault 雷达守夜人；
+	 * 批次 4：identity 镜厅（双 bot 镜像）+ capability 接线员。
+	 */
+	private syncPixelScene(d: Collected): void {
+		// 总览页舞台在共享 Hero；业务页舞台在该页 module-hero 内（每次渲染重建，需重新查询）
+		const patrol = this.activePage === "overview"
+			? this.patrolEl
+			: this.pageEl?.querySelector<HTMLElement>(".talos-pixel-patrol");
+		if (!patrol) return;
+		const parcels = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.parcel"));
+		const flags = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.flag"));
+		const zzz = patrol.querySelector<HTMLElement>(".pixel-prop.zzz");
+		// inbox 搬运工：包裹数 = min(count, 6)，最老 ≥14d 时末尾包裹落灰抖动；
+		// 清空时回到普通巡航（data-scene-empty 还原步态）
+		const parcelCount = Math.min(d.inbox.count, parcels.length);
+		parcels.forEach((el, i) => {
+			el.classList.toggle("is-on", i < parcelCount);
+			el.classList.toggle(
+				"is-stale",
+				i === parcelCount - 1 && parcelCount > 0 && d.inbox.oldestDays >= 14
+			);
+		});
+		patrol.dataset.sceneEmpty = String(d.inbox.count === 0);
+		// daily 通勤者：小人位置 = 当前时刻在骨架窗口中的进度；里程碑旗按时段分布
+		// （--scene-progress 的语义按页不同，只在 daily 页写时间进度，避免污染其他场景）
+		if (this.activePage === "daily") {
+			const dayStart = DAILY_TIMELINE[0]?.mins ?? 510;
+			const lastSlot = DAILY_TIMELINE[DAILY_TIMELINE.length - 1];
+			const dayEnd = (lastSlot?.mins ?? 1020) + (lastSlot?.dur ?? 20);
+			const now = new Date();
+			const minsNow = now.getHours() * 60 + now.getMinutes();
+			const progress = Math.min(1, Math.max(0, (minsNow - dayStart) / (dayEnd - dayStart)));
+			// --scene-progress = 真实时间进度（轨道色带/旗帜用）；
+			// --bot-progress = 小人通勤终点，保底 15%——早于首时段时终点=起点
+			// 会原地不动（2026-07-20 07:58 实机反馈），给一段可见行程
+			patrol.setCssProps({
+				"--scene-progress": progress.toFixed(3),
+				"--bot-progress": Math.max(progress, 0.15).toFixed(3),
+			});
+			flags.forEach((el, i) => {
+				const slot = DAILY_TIMELINE[i];
+				if (!slot) {
+					el.removeClass("is-on");
+					return;
+				}
+				el.addClass("is-on");
+				el.style.left = `${(((slot.mins - dayStart) / (dayEnd - dayStart)) * 100).toFixed(1)}%`;
+				el.classList.toggle("is-done", minsNow >= slot.mins + slot.dur);
+				el.classList.toggle("is-now", minsNow >= slot.mins && minsNow < slot.mins + slot.dur);
+			});
+			zzz?.classList.toggle("is-visible", progress >= 1);
+		}
+		// 批次 2 · health 心电监护：健康分 <90 → 创可贴 + 步频减半（tone=hurt）；
+		// 断链 >0 → 心电图纸带毛刺抖动
+		if (this.activePage === "health") {
+			const score = Number.parseInt(
+				d.healthDigest.metrics.find((m) => m.label === "健康分")?.value ?? "",
+				10
+			);
+			const broken = Number.parseInt(
+				d.healthDigest.metrics.find((m) => m.label === "断链")?.value ?? "",
+				10
+			) || 0;
+			patrol.dataset.sceneTone = Number.isFinite(score) && score < 90 ? "hurt" : "";
+			patrol.dataset.sceneGlitch = String(broken > 0);
+		}
+		// 批次 2 · talos 闸门守卫：闸门位置均布轨道，done=常开绿灯 / ready=闪烁 /
+		// blocked=红灯闭合；--scene-progress = 当前闸门前站位（已过闸门比例推算）
+		if (this.activePage === "talos") {
+			const gateEls = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.gate"));
+			const gates = d.warRoom.gates.slice(0, gateEls.length);
+			const doneCount = gates.filter((g) => g.state === "done").length;
+			gateEls.forEach((el, i) => {
+				const gate = gates[i];
+				el.classList.toggle("is-on", Boolean(gate));
+				if (!gate) return;
+				el.style.left = `${(((i + 1) / (gates.length + 1)) * 100).toFixed(1)}%`;
+				el.classList.toggle("is-open", gate.state === "done");
+				el.classList.toggle("is-now", gate.state === "ready");
+				el.classList.toggle("is-blocked", gate.state === "blocked");
+			});
+			const progress = gates.length > 0
+				? (doneCount + 0.7) / (gates.length + 1)
+				: 0.4;
+			patrol.setCssProps({ "--scene-progress": progress.toFixed(3) });
+		}
+		// 批次 2 · output 发射指挥：待发队列 = 排队火箭（cap 5）；published 增加时
+		// 队首火箭一次性点火升空；stopTriggered → 红灯 + 小人举停止牌静止。
+		// lastPublished 只在 output 页更新，「发布后再进作战室」同样能看到升空。
+		if (this.activePage === "output") {
+			const rockets = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.rocket"));
+			const queued = Math.min(d.output.queue.length, rockets.length);
+			rockets.forEach((el, i) => el.classList.toggle("is-on", i < queued));
+			patrol.dataset.sceneTone = d.warRoom.stopTriggered ? "hot" : "";
+			const published = d.warRoom.published;
+			if (this.lastPublished !== undefined && published > this.lastPublished) {
+				const top = rockets.find((el) => el.classList.contains("is-on"));
+				top?.classList.add("is-launch");
+			}
+			this.lastPublished = published;
+		}
+		// 批次 3 · projects 工地巡视：P0 项目 = 发光集装箱（cap 3），小人戴安全帽巡检
+		if (this.activePage === "projects") {
+			const crates = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.crate"));
+			const p0Count = d.projects.filter((p) => p.priority === "p0").length;
+			const shown = Math.min(p0Count, crates.length);
+			crates.forEach((el, i) => el.classList.toggle("is-on", i < shown));
+		}
+		// 批次 3 · knowledge 星图园丁：MOC = 悬浮岛（cap 5），近期洞察 = 岛间幼苗（cap 3）
+		if (this.activePage === "knowledge") {
+			const isles = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.isle"));
+			const isleCount = Math.min(d.knowledge.mocs.length, isles.length);
+			isles.forEach((el, i) => el.classList.toggle("is-on", i < isleCount));
+			const sprouts = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.sprout"));
+			const sproutCount = Math.min(d.knowledge.recentInsights.length, sprouts.length);
+			sprouts.forEach((el, i) => el.classList.toggle("is-on", i < sproutCount));
+		}
+		// 批次 3 · vault 雷达守夜人：热力密集天数 → 雷达 blip（cap 5）；
+		// 小人全程打盹，zzz 常显（复用 daily 的 zzz 元素）
+		if (this.activePage === "vault") {
+			let hotCells = 0;
+			for (const month of d.heatmap.months) {
+				for (const week of month.weeks) {
+					for (const cell of week) {
+						if (cell.date !== "" && cell.level >= 3) hotCells++;
+					}
+				}
+			}
+			const blips = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.blip"));
+			const blipCount = Math.min(hotCells, blips.length);
+			blips.forEach((el, i) => el.classList.toggle("is-on", i < blipCount));
+			zzz?.classList.add("is-visible");
+		}
+		// 批次 4 · identity 镜厅：Identity/灵魂文件数 → 镜框刻痕（cap 4）；
+		// 镜像小人为纯 CSS 实例，无需 JS 写入
+		if (this.activePage === "identity") {
+			const countOf = (name: string) => d.modules.find((m) => m.name === name)?.count ?? 0;
+			const notches = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.mirror .notch"));
+			const shown = Math.min(countOf("Identity") + countOf("灵魂"), notches.length);
+			notches.forEach((el, i) => el.classList.toggle("is-on", i < shown));
+		}
+		// 批次 4 · capability 接线员：可用命令数 = 已插线缆数（cap 6）
+		if (this.activePage === "capability") {
+			const cords = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.board .cord"));
+			const commandCount = d.capGroups.find((g) => g.key === "commands")?.items.length ?? 0;
+			const shown = Math.min(commandCount, cords.length);
+			cords.forEach((el, i) => el.classList.toggle("is-on", i < shown));
+		}
 	}
 
 	private wireModuleSelection(scope: HTMLElement, selectionScope: string): void {
@@ -1017,12 +1271,12 @@ export class TalosView extends ItemView {
 			module.setAttribute("aria-pressed", "false");
 
 			const select = () => this.selectModule(module, selectionScope, key);
-			module.addEventListener("pointerdown", select);
+			// 只绑 click：pointerdown+click 双绑会让一次点击选中两次；
+			// 键盘激活直接派发 click（click 监听里已含 select），避免三重执行。
 			module.addEventListener("click", select);
 			module.addEventListener("keydown", (ev) => {
 				if (ev.key !== "Enter" && ev.key !== " ") return;
 				ev.preventDefault();
-				select();
 				module.click();
 			});
 
@@ -1315,78 +1569,9 @@ export class TalosView extends ItemView {
 			row.addEventListener("click", () => void openFile(this.app, path));
 		}
 
-		private fillOverviewCommandMetric(
-			parent: HTMLElement,
-			label: string,
-			value: string,
-		meta: string,
-			percent: number,
-			iconName: string,
-			path: string,
-			tone: "default" | "warn" | "hot" | "good"
-		): void {
-			const card = parent.createDiv({ cls: `overview-command-metric tone-${tone}` });
-			const head = card.createDiv({ cls: "overview-progress-head" });
-			const icon = head.createDiv({ cls: "overview-progress-icon" });
-			setIcon(icon, iconName);
-		head.createEl("b", { text: label });
-		card.createEl("strong", { text: value });
-		card.createEl("small", { text: meta });
-		const bar = card.createDiv({ cls: "bar" });
-		const fill = bar.createEl("i");
-			fill.setCssProps({ "--talos-w": `${percent}%` });
-			card.addEventListener("click", () => void openFile(this.app, path));
-		}
 
-		private fillOverviewSecondary(
-			parent: HTMLElement,
-			label: string,
-			value: string,
-			meta: string,
-			iconName: string,
-			path: string,
-			tone: "default" | "warn" | "hot" | "good"
-		): void {
-			const item = parent.createDiv({ cls: `overview-secondary-item tone-${tone}` });
-			const icon = item.createDiv({ cls: "overview-secondary-icon" });
-			setIcon(icon, iconName);
-			const copy = item.createDiv({ cls: "overview-secondary-copy" });
-			copy.createEl("span", { text: label });
-			copy.createEl("b", { text: value });
-			copy.createEl("small", { text: meta });
-			item.addEventListener("click", () => void openFile(this.app, path));
-		}
 
-	private renderOverviewAttentionDetail(parent: HTMLElement, item: OverviewAttention): void {
-		parent.empty();
-		parent.setAttribute("data-tone", item.tone);
-		const title = parent.createDiv({ cls: "overview-detail-title" });
-		const icon = title.createDiv({ cls: "overview-detail-icon" });
-		setIcon(icon, item.icon);
-		const copy = title.createDiv();
-		copy.createEl("strong", { text: item.title });
-		copy.createEl("small", { text: item.meta });
-		parent.createEl("p", { text: item.detail });
-		const action = parent.createEl("button", { cls: "btn overview-detail-action", text: item.action });
-		action.type = "button";
-		action.addEventListener("click", () => void openFile(this.app, item.path));
-	}
 
-	private fillOverviewTrust(
-		parent: HTMLElement,
-		label: string,
-		value: string,
-		iconName: string,
-		path: string
-	): void {
-		const item = parent.createDiv({ cls: "stat overview-trust-item" });
-		const icon = item.createDiv({ cls: "overview-trust-icon" });
-		setIcon(icon, iconName);
-		const copy = item.createDiv();
-		copy.createEl("span", { text: label });
-		copy.createEl("b", { text: value });
-		item.addEventListener("click", () => void openFile(this.app, path));
-	}
 
 	private async pageJarvis(page: HTMLElement): Promise<void> {
 		try {
@@ -1473,6 +1658,38 @@ export class TalosView extends ItemView {
 			],
 		});
 
+		const work = page.createDiv({ cls: "daily-work-grid" });
+		const timelinePanel = this.panel(work, "#38E1FF", "每日固定骨架", "ZERO DECISION TIMELINE");
+		const timeline = timelinePanel.createDiv({ cls: "daily-timeline" });
+		for (const slot of DAILY_TIMELINE) {
+			// 08:30 开工入口指向任务池设置项；14:00 深度块② 跟随周轮值动态变化
+			const slotPath = slot.time === "08:30"
+				? this.plugin.talosSettings.tasksPath
+				: slot.time === "14:00"
+					? today?.path || slot.path
+					: slot.path;
+			const slotDesc = slot.time === "14:00"
+				? `${today?.label || "今日"}推进「${today?.project || "周轮值项目"}」的一个可见结果。`
+				: slot.desc;
+			const item = timeline.createDiv({ cls: `daily-slot daily-item${slot.deep ? " is-deep" : ""}` });
+			const time = item.createDiv({ cls: "daily-slot-time" });
+			time.createEl("b", { text: slot.time });
+			time.createEl("small", { text: slot.length });
+			const body = item.createDiv({ cls: "daily-slot-body" });
+			body.createEl("h3", { text: slot.title });
+			body.createEl("p", { text: slotDesc });
+			body.createEl("span", { text: slot.starter });
+			// 填充式布局：右侧状态徽章（已完成/进行中/待开始），消除右侧留白
+			const minsNow = new Date().getHours() * 60 + new Date().getMinutes();
+			const state = minsNow >= slot.mins + slot.dur ? "done" : minsNow >= slot.mins ? "now" : "todo";
+			item.addClass(`is-${state}`);
+			item.createSpan({
+				cls: `daily-slot-badge is-${state}`,
+				text: state === "done" ? "已完成" : state === "now" ? "进行中" : "待开始",
+			});
+			item.addEventListener("click", () => void openFile(this.app, slotPath));
+		}
+
 		const cockpit = this.panel(page, "#FB7185", "每日执行舱", `LIVE EXECUTION · ${dateLabel}`);
 		cockpit.addClass("daily-cockpit");
 		const overview = cockpit.createDiv({ cls: "daily-overview" });
@@ -1511,28 +1728,6 @@ export class TalosView extends ItemView {
 			button.addEventListener("click", () => void this.copyText(action.command));
 		}
 
-		const work = page.createDiv({ cls: "daily-work-grid" });
-		const timelinePanel = this.panel(work, "#38E1FF", "每日固定骨架", "ZERO DECISION TIMELINE");
-		const timeline = timelinePanel.createDiv({ cls: "daily-timeline" });
-		for (const slot of [
-			{ time: "08:30", length: "15 min", title: "开工 · 接收系统指令", desc: "只确认焦点与 done_when，不重新规划人生。", starter: "复制「开工」，接今天第一步。", path: this.plugin.talosSettings.tasksPath },
-			{ time: "09:00", length: "120 min", title: "深度块① · 输出闭环", desc: "完成选、改、发、回填中的最短可验证闭环。", starter: "只处理统一出口今日待发的一条。", path: "输出/统一出口.md", deep: true },
-			{ time: "11:00", length: "45 min", title: "分发回填 · 数据与消息", desc: "发布后立即回填链接、状态与运营观察。", starter: "检查 publish_url、signal 与 views。", path: "输出/运营/运营候选池.md" },
-			{ time: "14:00", length: "120 min", title: "深度块② · 当日轮值项目", desc: `${today?.label || "今日"}推进「${today?.project || "周轮值项目"}」的一个可见结果。`, starter: "只做一个能留下痕迹的下一步。", path: today?.path || "04-项目/_README.md", deep: true },
-			{ time: "16:00", length: "45 min", title: "轻输入 · 客户沟通", desc: "最多处理 3 条，只捞能变成输出或交付的信号。", starter: "不做全库清仓。", path: "00-收件箱/_README.md" },
-			{ time: "17:00", length: "20 min", title: "收工 · 关环并铺明天", desc: "记录实质碎片、更新任务池、留下明早第一步。", starter: "复制「收工」，写结果与阻塞。", path: "System/working-memory/_README.md" },
-		]) {
-			const item = timeline.createDiv({ cls: `daily-slot daily-item${slot.deep ? " is-deep" : ""}` });
-			const time = item.createDiv({ cls: "daily-slot-time" });
-			time.createEl("b", { text: slot.time });
-			time.createEl("small", { text: slot.length });
-			const body = item.createDiv({ cls: "daily-slot-body" });
-			body.createEl("h3", { text: slot.title });
-			body.createEl("p", { text: slot.desc });
-			body.createEl("span", { text: slot.starter });
-			item.addEventListener("click", () => void openFile(this.app, slot.path));
-		}
-
 		const rails = this.panel(work, "#F472B6", "执行铁轨", "NO SECOND GUESSING");
 		const railList = rails.createDiv({ cls: "daily-rails" });
 		for (const rail of [
@@ -1554,7 +1749,9 @@ export class TalosView extends ItemView {
 			item.addEventListener("click", () => void openFile(this.app, focus.path || this.plugin.talosSettings.tasksPath));
 		}
 
-		const protocol = this.panel(page, "#FBBF24", "抗选择瘫痪协议", "FOUR SWITCHES");
+		// 排列密排：协议卡与执行入口并排（都是卡片组，半栏刚好）；周轮值 7 项保通栏
+		const pair = page.createDiv({ cls: "panel-grid" });
+		const protocol = this.panel(pair, "#FBBF24", "抗选择瘫痪协议", "FOUR SWITCHES");
 		const protocolGrid = protocol.createDiv({ cls: "daily-protocol" });
 		for (const item of [
 			["唯一胜利条件", "一天只盯第一个 done_when，其他进展都是 bonus。"],
@@ -1567,17 +1764,7 @@ export class TalosView extends ItemView {
 			card.createEl("span", { text: item[1] });
 		}
 
-		const weekPanel = this.panel(page, "#A78BFA", "周轮值表 · 深度块②", "WEEK ROUTER");
-		const week = weekPanel.createDiv({ cls: "daily-week" });
-		for (const item of DAILY_ROTA) {
-			const day = week.createDiv({ cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}` });
-			day.createEl("small", { text: `${item.code} · ${item.label}` });
-			day.createEl("b", { text: item.project });
-			day.createEl("span", { text: item.desc });
-			day.addEventListener("click", () => void openFile(this.app, item.path));
-		}
-
-		const mapPanel = this.panel(page, "#34D399", "执行入口", "LIVE FILES");
+		const mapPanel = this.panel(pair, "#34D399", "执行入口", "LIVE FILES");
 		const map = mapPanel.createDiv({ cls: "daily-map" });
 		for (const node of [
 			{ label: "每日操作系统", desc: "原始说明与规则", path: "每日操作系统.md", icon: "calendar-check" },
@@ -1593,6 +1780,16 @@ export class TalosView extends ItemView {
 			copy.createEl("b", { text: node.label });
 			copy.createEl("span", { text: node.desc });
 			card.addEventListener("click", () => void openFile(this.app, node.path));
+		}
+
+		const weekPanel = this.panel(page, "#A78BFA", "周轮值表 · 深度块②", "WEEK ROUTER");
+		const week = weekPanel.createDiv({ cls: "daily-week" });
+		for (const item of DAILY_ROTA) {
+			const day = week.createDiv({ cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}` });
+			day.createEl("small", { text: `${item.code} · ${item.label}` });
+			day.createEl("b", { text: item.project });
+			day.createEl("span", { text: item.desc });
+			day.addEventListener("click", () => void openFile(this.app, item.path));
 		}
 	}
 
@@ -1706,26 +1903,12 @@ export class TalosView extends ItemView {
 				{ label: "收件地图", icon: "external-link", path: "00-收件箱/_README.md" },
 			],
 		});
-		const p = this.panel(page, "#FBBF24", "收件箱消化台", "主题聚类 · 最近进入 · 归档入口");
-		const metrics: MetricTile[] = [
-			{
-				label: "待处理",
-				value: String(d.inbox.count),
-				sub: `${d.inbox.oldestDays}d oldest`,
-				path: "00-收件箱/_README.md",
-				tone: d.inbox.count > 0 ? "warn" : "good",
-			},
-			{
-				label: "主题包",
-				value: String(d.inbox.clusters.length),
-				sub: "按标题自动聚类",
-				path: "00-收件箱/_README.md",
-				tone: "default",
-			},
-		];
-		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), metrics);
+		// 排列密排：消化台与最近进入并排，不再两个整行长条
+		const grid = page.createDiv({ cls: "panel-grid" });
+		const p = this.panel(grid, "#FBBF24", "收件箱消化台", "积压年龄 · 主题聚类");
+		this.fillInboxAgeDist(p.createDiv({ cls: "age-dist" }), d.inbox);
 		this.fillInboxClusters(p.createDiv({ cls: "cluster-grid" }), d.inbox.clusters);
-		const recent = this.panel(page, "#38E1FF", "最近进入", "点击打开原文件");
+		const recent = this.panel(grid, "#38E1FF", "最近进入", "点击打开原文件");
 		this.fillSignalList(recent.createDiv({ cls: "detail-list" }), d.inbox.recent, "收件箱已清空");
 	}
 
@@ -1733,6 +1916,14 @@ export class TalosView extends ItemView {
 		const health = d.healthDigest.metrics.find((item) => item.label === "健康分") || d.healthDigest.metrics[0];
 		const approvals = d.healthDigest.metrics.find((item) => item.label === "待审批") || d.healthDigest.metrics[1];
 		const candidates = d.healthDigest.metrics.find((item) => item.label === "偏好候选") || d.healthDigest.metrics[2];
+		// 填充式布局 aux：健康分趋势差值（已有 healthTrend 数据）、审批池清空态
+		if (health && d.healthTrend.length > 1) {
+			const last = d.healthTrend[d.healthTrend.length - 1];
+			const prev = d.healthTrend[d.healthTrend.length - 2];
+			const delta = (last?.score ?? 0) - (prev?.score ?? 0);
+			health.aux = delta > 0 ? `↑ ${delta} vs 上次` : delta < 0 ? `↓ ${Math.abs(delta)} vs 上次` : "→ 持平";
+		}
+		if (approvals && d.approvals.length === 0) approvals.aux = "清空";
 		this.moduleHero(page, {
 			ac: "#34D399",
 			icon: "activity",
@@ -1752,17 +1943,18 @@ export class TalosView extends ItemView {
 		});
 		const p = this.panel(page, "#34D399", "系统健康中心", "健康分 · 审批 · 候选 · 错误模式");
 		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.healthDigest.metrics);
-		const row = page.createDiv({ cls: "dashboard-grid" });
-		const trendP = this.panel(row, "#F472B6", "健康分趋势", "health-log · 近 9 次");
+		// 排列密排：趋势图通栏（图表需要横宽），四个列表 panel 2×2 密排，消灭整行长条
+		const grid = page.createDiv({ cls: "panel-grid" });
+		const trendP = this.panel(grid, "#F472B6", "健康分趋势", "health-log · 近 9 次");
+		trendP.addClass("span-2");
 		this.fillTrend(trendP, d.healthTrend);
-		const loops = this.panel(row, "#38E1FF", "循环状态", "loop-health-log");
+		const loops = this.panel(grid, "#38E1FF", "循环状态", "loop-health-log");
 		this.fillSignalList(loops.createDiv({ cls: "detail-list" }), d.healthDigest.loopStatus, "暂无循环状态记录");
-		const signals = page.createDiv({ cls: "dashboard-grid" });
-		const apP = this.panel(signals, "#FBBF24", "待审批", "pending-approvals");
+		const apP = this.panel(grid, "#FBBF24", "待审批", "pending-approvals");
 		this.fillSignalList(apP.createDiv({ cls: "detail-list" }), d.approvals, "无待审批");
-		const caP = this.panel(signals, "#A78BFA", "偏好候选", "candidates");
+		const caP = this.panel(grid, "#A78BFA", "偏好候选", "candidates");
 		this.fillSignalList(caP.createDiv({ cls: "detail-list" }), d.candidates, "无待确认偏好");
-		const errors = this.panel(page, "#FB7185", "错误模式", "error-patterns");
+		const errors = this.panel(grid, "#FB7185", "错误模式", "error-patterns");
 		this.fillSignalList(errors.createDiv({ cls: "detail-list" }), d.healthDigest.errors, "暂无活跃错误模式");
 	}
 
@@ -1786,13 +1978,30 @@ export class TalosView extends ItemView {
 				{ label: "检索项目", icon: "copy", command: "/retrieval" },
 			],
 		});
-		const p = this.panel(page, "#4D8DFF", "项目场景地图", "04-项目 · 高频项目优先");
+		// 排列密排：项目地图与场景索引并排（场景索引只有 2 条，整行拉满留白严重）
+		const grid = page.createDiv({ cls: "panel-grid" });
+		const p = this.panel(grid, "#4D8DFF", "项目场景地图", "04-项目 · 高频项目优先");
 		const cards = p.createDiv({ cls: "project-grid" });
 		for (const project of d.projects) {
 			const card = cards.createDiv({ cls: `project-card priority-${project.priority}` });
 			card.createEl("b", { text: project.name });
 			card.createEl("span", { cls: "big", text: String(project.count) });
 			card.createEl("small", { text: project.status });
+			// 任务进度条：复选框完成率（无任务清单的项目给空态提示）
+			if (project.progress) {
+				const pct = Math.round((project.progress.done / project.progress.total) * 100);
+				const prog = card.createDiv({ cls: "proj-progress" });
+				const head = prog.createDiv({ cls: "proj-progress-head" });
+				head.createEl("small", { text: "任务进度" });
+				head.createEl("small", {
+					cls: "proj-progress-num",
+					text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+				});
+				const track = prog.createDiv({ cls: "proj-progress-track" });
+				track.createDiv({ cls: "proj-progress-fill" }).style.width = `${pct}%`;
+			} else {
+				card.createEl("small", { cls: "proj-progress-none", text: "无任务清单 · 进度未跟踪" });
+			}
 			const latest = card.createEl("small", { cls: "module-latest", text: `最新：${project.latestTitle}` });
 			if (project.latestPath) {
 				latest.addEventListener("click", (ev) => {
@@ -1802,7 +2011,7 @@ export class TalosView extends ItemView {
 			}
 			card.addEventListener("click", () => void openFile(this.app, project.readme));
 		}
-		const scene = this.panel(page, "#A78BFA", "场景索引", "项目入口总地图");
+		const scene = this.panel(grid, "#A78BFA", "场景索引", "项目入口总地图");
 		this.fillSignalList(scene.createDiv({ cls: "detail-list" }), [
 			{ title: "打开场景索引", meta: "04-项目/场景索引.md", path: "04-项目/场景索引.md" },
 			{ title: "打开项目总 README", meta: "04-项目/_README.md", path: "04-项目/_README.md" },
@@ -1832,12 +2041,13 @@ export class TalosView extends ItemView {
 		});
 		const p = this.panel(page, "#A78BFA", "知识枢纽", "MOC · 原创洞察 · 外部素材");
 		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.knowledge.metrics);
-		const row = page.createDiv({ cls: "dashboard-grid" });
+		// 排列密排：三个同级列表 panel 三列并排，素材不再独占整行
+		const row = page.createDiv({ cls: "panel-grid cols-3" });
 		const moc = this.panel(row, "#38E1FF", "MOC 概念入口", "02-洞察/MOC");
 		this.fillSignalList(moc.createDiv({ cls: "detail-list" }), d.knowledge.mocs, "暂无 MOC");
 		const insights = this.panel(row, "#F472B6", "最近原创洞察", "02-洞察");
 		this.fillSignalList(insights.createDiv({ cls: "detail-list" }), d.knowledge.recentInsights, "暂无洞察");
-		const materials = this.panel(page, "#FBBF24", "最近外部素材", "03-素材");
+		const materials = this.panel(row, "#FBBF24", "最近外部素材", "03-素材");
 		this.fillSignalList(materials.createDiv({ cls: "detail-list" }), d.knowledge.recentMaterials, "暂无素材");
 	}
 
@@ -1935,53 +2145,8 @@ export class TalosView extends ItemView {
 		], "工作记忆入口未找到");
 	}
 
-	private pageModules(page: HTMLElement, d: Collected): void {
-		const p = this.panel(page, "#4D8DFF", "系统模块地图", "13 顶层模块 · README / 最新文件");
-		const grid = p.createDiv({ cls: "note-grid" });
-		for (const m of d.modules) {
-			const note = grid.createDiv({ cls: m.readmeExists ? "note module-card" : "note module-card missing-readme" });
-			note.createEl("b", { text: m.name });
-			note.createEl("span", { cls: "big", text: String(m.count) });
-			note.createEl("span", { text: `更新 ${m.lastChange} · ${m.readmeExists ? "README OK" : "缺 README"}` });
-			const latest = note.createEl("small", { cls: "module-latest", text: `最新：${m.latestTitle}` });
-			if (m.latestPath) {
-				latest.addEventListener("click", (ev) => {
-					ev.stopPropagation();
-					void openFile(this.app, m.latestPath || "");
-				});
-			}
-			note.addEventListener("click", () => void openFile(this.app, m.readme));
-		}
-	}
 
-	private pageCharts(page: HTMLElement, d: Collected): void {
-		const row = page.createDiv({ cls: "chart-row" });
-		const distP = this.panel(row, "#34D399", "知识库分布", `共 ${d.total} 篇`);
-		this.fillDist(distP.createDiv({ cls: "barchart" }), d.dist);
-		const trendP = this.panel(row, "#F472B6", "健康分趋势", "health-log · 近 9 次");
-		this.fillTrend(trendP, d.healthTrend);
-	}
 
-	private pageHeatmap(page: HTMLElement, d: Collected): void {
-		const p = this.panel(page, "#A78BFA", "笔记创建热力图", d.heatmap.meta);
-		const wrap = p.createDiv({ cls: "heatmap" });
-		for (const month of d.heatmap.months) {
-			const mEl = wrap.createDiv({ cls: "heat-month" });
-			mEl.createEl("span", { cls: "heat-mlabel", text: month.label });
-			const weeks = mEl.createDiv({ cls: "heat-weeks" });
-			for (const week of month.weeks) {
-				const wEl = weeks.createDiv({ cls: "heat-week" });
-				for (const cell of week) {
-					const cEl = wEl.createDiv({ cls: "heat-cell" });
-					if (cell.date === "") cEl.addClass("is-empty");
-					else {
-						cEl.setAttribute("data-level", String(cell.level));
-						cEl.setAttribute("title", `${cell.date} · ${cell.count}`);
-					}
-				}
-			}
-		}
-	}
 
 	private pageVault(page: HTMLElement, d: Collected): void {
 		const activeDays = d.heatmap.meta.split(" · ")[0] || d.heatmap.meta;
@@ -2009,6 +2174,26 @@ export class TalosView extends ItemView {
 		const trendP = this.panel(row, "#F472B6", "健康分趋势", "health-log · 近 9 次");
 		this.fillTrend(trendP, d.healthTrend);
 
+		// 热力图上移：紧跟分布/趋势（数据图表区），模块地图沉底（2026-07-20 实机反馈）
+		const heat = this.panel(page, "#A78BFA", "笔记创建热力图", d.heatmap.meta);
+		const heatWrap = heat.createDiv({ cls: "heatmap" });
+		for (const month of d.heatmap.months) {
+			const mEl = heatWrap.createDiv({ cls: "heat-month" });
+			mEl.createEl("span", { cls: "heat-mlabel", text: month.label });
+			const weeks = mEl.createDiv({ cls: "heat-weeks" });
+			for (const week of month.weeks) {
+				const wEl = weeks.createDiv({ cls: "heat-week" });
+				for (const cell of week) {
+					const cEl = wEl.createDiv({ cls: "heat-cell" });
+					if (cell.date === "") cEl.addClass("is-empty");
+					else {
+						cEl.setAttribute("data-level", String(cell.level));
+						cEl.setAttribute("title", `${cell.date} · ${cell.count}`);
+					}
+				}
+			}
+		}
+
 		const modules = this.panel(page, "#4D8DFF", "系统模块地图", "顶层模块 · README / 最新文件");
 		const grid = modules.createDiv({ cls: "note-grid" });
 		for (const m of d.modules) {
@@ -2024,25 +2209,6 @@ export class TalosView extends ItemView {
 				});
 			}
 			note.addEventListener("click", () => void openFile(this.app, m.readme));
-		}
-
-		const heat = this.panel(page, "#A78BFA", "笔记创建热力图", d.heatmap.meta);
-		const wrap = heat.createDiv({ cls: "heatmap" });
-		for (const month of d.heatmap.months) {
-			const mEl = wrap.createDiv({ cls: "heat-month" });
-			mEl.createEl("span", { cls: "heat-mlabel", text: month.label });
-			const weeks = mEl.createDiv({ cls: "heat-weeks" });
-			for (const week of month.weeks) {
-				const wEl = weeks.createDiv({ cls: "heat-week" });
-				for (const cell of week) {
-					const cEl = wEl.createDiv({ cls: "heat-cell" });
-					if (cell.date === "") cEl.addClass("is-empty");
-					else {
-						cEl.setAttribute("data-level", String(cell.level));
-						cEl.setAttribute("title", `${cell.date} · ${cell.count}`);
-					}
-				}
-			}
 		}
 	}
 
@@ -2078,9 +2244,10 @@ export class TalosView extends ItemView {
 			if (!group || group.items.length === 0) { grid.createDiv({ cls: "empty", text: "无可用项" }); return; }
 			for (const it of group.items) {
 				const card = grid.createDiv({ cls: "command" });
-				card.createEl("code", { text: it.name });
-				card.createEl("small", { text: it.desc || "—" });
-				const actions = card.createDiv({ cls: "cap-actions" });
+				// 填充式布局：顶部行 = 命令左 + 按钮右；底部来源路径行
+				const top = card.createDiv({ cls: "cap-top" });
+				top.createEl("code", { text: it.name });
+				const actions = top.createDiv({ cls: "cap-actions" });
 				actions.createSpan({ text: "复制调用" });
 				if (it.path) {
 					const src = actions.createSpan();
@@ -2089,6 +2256,12 @@ export class TalosView extends ItemView {
 						ev.stopPropagation();
 						void openFile(this.app, it.path || "");
 					});
+				}
+				card.createEl("small", { text: it.desc || "—" });
+				if (it.path) {
+					const srcLine = card.createDiv({ cls: "cap-src" });
+					srcLine.createSpan({ text: it.path });
+					srcLine.createEl("em", { text: group.label });
 				}
 				card.addEventListener("click", () => void this.copyText(it.invoke));
 			}
@@ -2110,42 +2283,20 @@ export class TalosView extends ItemView {
 		drawGrid();
 	}
 
-	private pageWarroom(page: HTMLElement, d: Collected): void {
-		const banner = page.createDiv({ cls: "panel banner" });
-		banner.setCssProps({ "--ac": d.warRoom.stopTriggered ? "#FB7185" : "#4D8DFF" });
-		this.fillBanner(banner, d.warRoom);
-		const p = this.panel(page, "#FBBF24", "TALOS 发布作战室", "04-项目/TALOS系统/tasks.md");
-		p.createEl("p", { cls: "war-sub", text: "前置闸门" });
-		this.fillGates(p.createDiv({ cls: "gates" }), d.warRoom.gates);
-		p.createEl("p", { cls: "war-sub", text: "发布动作" });
-		this.fillGates(p.createDiv({ cls: "gates" }), d.warRoom.pubActions);
-	}
 
-	private pageSignals(page: HTMLElement, d: Collected): void {
-		const row = page.createDiv({ cls: "chart-row" });
-		const apP = this.panel(row, "#FBBF24", "待审批", "pending-approvals");
-		const ap = apP.createDiv({ cls: "approval" });
-		if (d.approvals.length === 0) ap.createDiv({ cls: "ok", text: "✓ 无待审批" });
-		else for (const it of d.approvals) {
-			this.renderApprovalItem(ap, it);
-		}
-		const caP = this.panel(row, "#A78BFA", "偏好候选", "candidates · 待确认");
-		const ca = caP.createDiv({ cls: "approval" });
-		if (d.candidates.length === 0) ca.createDiv({ cls: "ok", text: "无待确认偏好" });
-		else for (const it of d.candidates) {
-			const item = ca.createDiv({ cls: "item" });
-			item.createEl("span", { text: it.title });
-			if (it.path) item.addEventListener("click", () => void openFile(this.app, it.path || ""));
-		}
-	}
 
 	// ---------- 填充 ----------
 	private fillMetricGrid(parent: HTMLElement, metrics: MetricTile[]): void {
 		for (const m of metrics) {
 			const card = parent.createDiv({ cls: `metric-card tone-${m.tone || "default"}` });
 			card.createEl("b", { text: m.value });
-			card.createEl("span", { text: m.label });
-			card.createEl("small", { text: m.sub });
+			const txt = card.createDiv({ cls: "metric-txt" });
+			txt.createEl("span", { text: m.label });
+			txt.createEl("small", { text: m.sub });
+			if (m.aux) {
+				const aux = card.createDiv({ cls: "metric-aux" });
+				aux.createSpan({ cls: "chip", text: m.aux });
+			}
 			if (m.path) card.addEventListener("click", () => void openFile(this.app, m.path || ""));
 		}
 	}
@@ -2193,11 +2344,48 @@ export class TalosView extends ItemView {
 			parent.createDiv({ cls: "empty", text: "暂无待消化主题" });
 			return;
 		}
+		const total = clusters.reduce((sum, c) => sum + c.count, 0);
+		const max = Math.max(...clusters.map((c) => c.count), 1);
 		for (const cluster of clusters) {
 			const card = parent.createDiv({ cls: "cluster-card" });
 			card.createEl("b", { text: cluster.name });
 			card.createEl("span", { cls: "big", text: String(cluster.count) });
-			card.createEl("small", { text: cluster.hint });
+			const hintRow = card.createDiv({ cls: "cluster-hint-row" });
+			hintRow.createEl("small", { text: cluster.hint });
+			if (total > 0) {
+				hintRow.createEl("small", {
+					cls: "cluster-pct",
+					text: `${Math.round((cluster.count / total) * 100)}%`,
+				});
+			}
+			const bar = card.createDiv({ cls: "cluster-bar" });
+			const fill = bar.createDiv({ cls: "cluster-bar-fill" });
+			if (cluster.name === "其他") fill.addClass("is-manual");
+			fill.style.width = `${Math.max(2, Math.round((cluster.count / max) * 100))}%`;
+		}
+	}
+
+	/** 积压年龄分布：design-system/talos/pages/inbox.md §组件规格 */
+	private fillInboxAgeDist(parent: HTMLElement, inbox: InboxDigest): void {
+		if (inbox.count === 0) return;
+		const buckets = inbox.ageBuckets.filter((b) => b.count > 0);
+		parent.createDiv({ cls: "age-dist-title", text: `积压年龄 · 共 ${inbox.count} 篇 · 最老 ${inbox.oldestDays}d` });
+		const track = parent.createDiv({ cls: "age-dist-track" });
+		for (const bucket of buckets) {
+			const seg = track.createDiv({ cls: `age-seg tone-${bucket.tone}` });
+			seg.style.width = `${Math.max(1.5, (bucket.count / inbox.count) * 100)}%`;
+			seg.setAttr("aria-label", `${bucket.label}：${bucket.count} 篇`);
+		}
+		track.setAttr("role", "img");
+		track.setAttr(
+			"aria-label",
+			`积压年龄分布：${buckets.map((b) => `${b.label} ${b.count} 篇`).join("，")}`
+		);
+		const legend = parent.createDiv({ cls: "age-dist-legend" });
+		for (const bucket of buckets) {
+			const item = legend.createDiv({ cls: "age-legend-item" });
+			item.createSpan({ cls: `age-dot tone-${bucket.tone}` });
+			item.createSpan({ text: `${bucket.label} · ${bucket.count} 篇` });
 		}
 	}
 
@@ -2232,18 +2420,6 @@ export class TalosView extends ItemView {
 		item("停止条件", w.stopTriggered ? "已触发" : "正常");
 	}
 
-	private fillFocus(el: HTMLElement, focus: FocusItem[]): void {
-		if (focus.length === 0) { el.createDiv({ cls: "empty", text: "无焦点任务" }); return; }
-		for (const f of focus) {
-			const item = el.createDiv({ cls: "focus" });
-			item.createDiv({ cls: `dot ${f.level === "hot" ? "hot" : f.level === "warn" ? "warn" : "normal"}` });
-			const ft = item.createDiv({ cls: "ft" });
-			ft.createEl("b", { text: f.title });
-			if (f.doneWhen) ft.createEl("span", { text: `done_when · ${f.doneWhen}` });
-			else if (f.desc) ft.createEl("span", { text: f.desc });
-			if (f.path) item.addEventListener("click", () => void openFile(this.app, f.path || ""));
-		}
-	}
 
 	private fillDist(el: HTMLElement, dist: DistBar[]): void {
 		const max = Math.max(1, ...dist.map((d) => d.count));

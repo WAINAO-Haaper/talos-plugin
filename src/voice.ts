@@ -269,7 +269,7 @@ async function askBrain(
 			if (done) return;
 			done = true;
 			try { child.kill(); } catch { /* noop */ }
-			reject(new Error("超时（>120s）：claude 未返回；可在设置把「工具权限」切到「不加」、或确认终端里 claude -p 能正常应答"));
+			reject(new Error(`超时（>${Math.round(BRAIN_TIMEOUT_MS / 1000)}s）：claude 未返回；可在设置把「工具权限」切到「不加」、或确认终端里 claude -p 能正常应答`));
 		}, BRAIN_TIMEOUT_MS);
 		// 关闭 stdin 给 EOF——避免 claude 在任何情况下空等输入而卡死
 		try {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
 /**
  * 用 vi.hoisted 创建一个可被 mock 引用的帧队列。
@@ -50,7 +50,7 @@ async function flushAndTick(): Promise<void> {
 
 interface Harness {
   scheduler: StreamRenderScheduler;
-  doRender: ReturnType<typeof vi.fn>;
+  doRender: Mock<() => Promise<void>>;
   afterRender: ReturnType<typeof vi.fn>;
   setContent: (text: string) => void;
   setEl: (el: { mockEl: boolean } | null) => void;
@@ -133,10 +133,7 @@ describe("StreamRenderScheduler — 渲染期间新内容到达", () => {
     const scheduler = new StreamRenderScheduler({
       getTargetEl: () => ({ mockEl: true }) as unknown as HTMLElement,
       getContent: () => content,
-      doRender: h.doRender as unknown as (
-        el: HTMLElement,
-        c: string
-      ) => Promise<void>,
+      doRender: h.doRender,
       afterRender: h.afterRender,
       getWindow: () => null,
     });
@@ -246,7 +243,7 @@ describe("StreamRenderScheduler — 边界", () => {
     h.doRender.mockRejectedValueOnce(new Error("render failed"));
 
     let resolved = false;
-    h.scheduler.schedule().then(() => {
+    void h.scheduler.schedule().then(() => {
       resolved = true;
     });
     await flushAndTick();

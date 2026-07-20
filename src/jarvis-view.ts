@@ -21,6 +21,9 @@ const THEME_CLASSES = [
 	"theme-data-stream",
 	"theme-soft-relief",
 	"theme-geometric-modern",
+	"theme-executive-brief",
+	"theme-paper-ink",
+	"theme-swiss-modern",
 ];
 
 export class JarvisView extends ItemView {

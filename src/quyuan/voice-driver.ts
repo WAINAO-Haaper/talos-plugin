@@ -85,8 +85,9 @@ export class QuyuanVoiceDriver {
 		const name = toolName.toLowerCase();
 		if (/delete|remove|trash|destroy|\brm\b/.test(name)) return true;
 		if (name === "bash") {
-			const cmd = typeof input.command === "string" ? input.command.toLowerCase() : "";
-			return /\brm\b|rmdir|\bmv\b|delete|truncate|>\s/.test(cmd) || cmd.length > 0;
+			// 设计取向：任何非空 Bash 命令一律视为高风险要求确认（不做危险模式白名单细分）
+			const cmd = typeof input.command === "string" ? input.command.trim() : "";
+			return cmd.length > 0;
 		}
 		return false;
 	}
@@ -214,18 +215,24 @@ export class QuyuanVoiceDriver {
 			}
 			if (sawText) {
 				const now = Date.now();
-				this.histories[channel].push({
+				const history = this.histories[channel];
+				history.push({
 					id: `${channel}-u-${now}`,
 					role: "user",
 					content: trimmed,
 					timestamp: now,
 				});
-				this.histories[channel].push({
+				history.push({
 					id: `${channel}-a-${now}`,
 					role: "assistant",
 					content: full,
 					timestamp: now,
 				});
+				// 长会话防膨胀：历史只保留最近 40 条（20 轮），避免内存与每轮 token 无上限增长
+				const MAX_HISTORY_MESSAGES = 40;
+				if (history.length > MAX_HISTORY_MESSAGES) {
+					history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+				}
 				cb.onDone(full);
 			}
 		} catch (error) {

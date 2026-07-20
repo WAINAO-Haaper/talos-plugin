@@ -16,8 +16,9 @@ function stripMd(s: string): string {
 
 function gateState(mark: string, body: string): GateItem["state"] {
 	if (mark === "x") return "done";
-	if (/待|未|卡|阻/.test(body) && mark === "~") return "ready";
 	if (mark === "~") return "ready";
+	// 视图与像素小人场景都为 blocked 准备了样式；正文出现卡点/阻塞措辞时标记为 blocked
+	if (/卡点|卡住|阻塞|受阻|blocked/i.test(body)) return "blocked";
 	return "todo";
 }
 

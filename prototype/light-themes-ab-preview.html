@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TALOS 浅色主题 A/B 预览</title>
+<style>
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	body { background: #2a2c30; font-size: 14px; padding: 28px; }
+	.versus { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1560px; margin: 0 auto; }
+	.theme-col { border-radius: 12px; overflow: hidden; min-height: 90vh; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+	.theme-banner { padding: 18px 24px; display: flex; align-items: baseline; justify-content: space-between; }
+	.theme-banner b { font-size: 17px; }
+	.theme-banner span { font-size: 12px; opacity: .72; }
+	.canvas { padding: 20px 22px 30px; display: flex; flex-direction: column; gap: 14px; }
+
+	/* ========== 共享组件骨架（结构同 TALOS 控制台） ========== */
+	.panel { position: relative; padding: 14px; }
+	.section-title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+	.section-title h2 { font-size: 15px; }
+	.section-title small { font-size: 10.5px; }
+	.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+	.metric-card { display: flex; align-items: center; gap: 12px; padding: 11px 13px; }
+	.metric-card > b { font-size: 28px; line-height: 1; }
+	.metric-txt span { display: block; font-size: 12px; font-weight: 700; }
+	.metric-txt small { display: block; font-size: 10.5px; margin-top: 3px; opacity: .68; }
+	.chip { margin-left: auto; font-size: 10px; font-weight: 700; padding: 2px 8px; white-space: nowrap; }
+	.detail-list { display: flex; flex-direction: column; }
+	.detail-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; }
+	.detail-row .t { flex: 1; min-width: 0; font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.detail-row .m { font-size: 10.5px; opacity: .66; white-space: nowrap; }
+	.proj-progress { margin-top: 4px; }
+	.proj-progress-head { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10.5px; }
+	.proj-progress-track { height: 8px; overflow: hidden; }
+	.proj-progress-fill { height: 100%; }
+	.btn-row { display: flex; gap: 9px; }
+	.btn { padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: default; }
+	.btn.ghost { font-weight: 600; }
+	.badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+	.badge { font-size: 10.5px; font-weight: 700; padding: 3px 9px; }
+
+	/* ============================================================
+	   备选 A · Paper 纸感墨水（E-Ink / Paper）
+	   米白纸底 + 墨黑 + 衬线 + 无动效 + 颗粒纹理
+	   ============================================================ */
+	.paper { background: #f5f1e8; color: #1a1a1a; font-family: Georgia, "Songti SC", "STSong", "SimSun", serif; }
+	.paper .theme-banner { background: #1a1a1a; color: #f5f1e8; }
+	.paper .canvas { background:
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"),
+		#fdfbf7; }
+	.paper .panel { background: #fdfbf7; border: 1px solid #e0dcd2; border-radius: 2px; box-shadow: none; }
+	.paper .panel::before { content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 2px; background: #1a1a1a; opacity: .82; }
+	.paper .section-title h2 { font-weight: 700; letter-spacing: .02em; }
+	.paper .section-title small { color: #6b6558; font-style: italic; }
+	.paper .metric-card { background: #f7f3ea; border: 1px solid #e0dcd2; border-radius: 2px; }
+	.paper .metric-card > b { font-weight: 700; }
+	.paper .chip { border: 1.5px solid #1a1a1a; border-radius: 1px; color: #1a1a1a; background: #fdfbf7; font-family: Georgia, serif; }
+	.paper .detail-row { border-bottom: 1px solid #e8e3d7; }
+	.paper .detail-row:last-child { border-bottom: 0; }
+	.paper .detail-row .t { color: #1a1a1a; }
+	.paper .proj-progress-head { color: #6b6558; font-style: italic; }
+	.paper .proj-progress-track { border: 1px solid #1a1a1a; border-radius: 1px; background: #fdfbf7; }
+	.paper .proj-progress-fill { background: #1a1a1a; }
+	.paper .btn { background: #1a1a1a; color: #fdfbf7; border: 1px solid #1a1a1a; border-radius: 1px; }
+	.paper .btn.ghost { background: transparent; color: #1a1a1a; }
+	.paper .badge { border: 1px solid #8b8474; color: #4a463c; border-radius: 1px; background: #f7f3ea; }
+	.paper .stamp { display: inline-block; border: 2px solid #9c2b2b; color: #9c2b2b; padding: 2px 8px; font-size: 11px; font-weight: 700; transform: rotate(-3deg); border-radius: 2px; }
+
+	/* ============================================================
+	   备选 B · Swiss Modernism 瑞士现代主义 2.0
+	   纯白 + 严格网格 + 无衬线 + 单一瑞士红 + 数学间距
+	   ============================================================ */
+	.swiss { background: #e8e8e8; color: #000; font-family: "Helvetica Neue", Inter, Arial, "PingFang SC", sans-serif; }
+	.swiss .theme-banner { background: #da291c; color: #fff; }
+	.swiss .theme-banner b { text-transform: uppercase; letter-spacing: .06em; }
+	.swiss .canvas { background: #fff; }
+	.swiss .panel { background: #fff; border: 1px solid #000; border-radius: 0; box-shadow: none; padding: 16px; }
+	.swiss .panel::before { content: ""; position: absolute; top: -1px; left: -1px; width: 24px; height: 4px; background: #da291c; }
+	.swiss .section-title h2 { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 14px; }
+	.swiss .section-title small { color: #666; font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+	.swiss .metric-grid { gap: 8px; }
+	.swiss .metric-card { background: #fff; border: 1px solid #000; border-radius: 0; }
+	.swiss .metric-card > b { font-weight: 700; font-variant-numeric: tabular-nums; }
+	.swiss .metric-txt span { text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
+	.swiss .chip { border: 2px solid #da291c; border-radius: 0; color: #da291c; background: #fff; font-family: "SF Mono", Menlo, monospace; text-transform: uppercase; }
+	.swiss .detail-row { border-bottom: 1px solid #e5e5e5; }
+	.swiss .detail-row:last-child { border-bottom: 0; }
+	.swiss .detail-row .m { font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-transform: uppercase; }
+	.swiss .proj-progress-head { color: #666; font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+	.swiss .proj-progress-track { border: 1px solid #000; border-radius: 0; background: #fff; height: 10px; }
+	.swiss .proj-progress-fill { background: #da291c; }
+	.swiss .btn { background: #000; color: #fff; border: 1px solid #000; border-radius: 0; text-transform: uppercase; letter-spacing: .05em; font-size: 11.5px; }
+	.swiss .btn.ghost { background: #fff; color: #000; }
+	.swiss .btn.red { background: #da291c; border-color: #da291c; }
+	.swiss .badge { border: 1px solid #000; color: #000; border-radius: 0; background: #fff; font-family: "SF Mono", Menlo, monospace; text-transform: uppercase; font-size: 10px; }
+	.swiss .badge.red { border-color: #da291c; color: #da291c; border-width: 2px; }
+</style>
+</head>
+<body>
+<div class="versus">
+
+	<!-- ============ 备选 A · Paper 纸感墨水 ============ -->
+	<div class="theme-col paper">
+		<div class="theme-banner"><b>备选 A · Paper 纸感墨水</b><span>E-Ink / Paper · 米白 + 墨黑 + 衬线 · WCAG AAA</span></div>
+		<div class="canvas">
+
+			<div class="panel">
+				<div class="section-title"><h2>系统健康中心</h2><small>健康分 · 审批 · 候选</small></div>
+				<div class="metric-grid">
+					<div class="metric-card"><b>90</b><div class="metric-txt"><span>健康分</span><small>满分 100</small></div><span class="chip">↓ 2 vs 上次</span></div>
+					<div class="metric-card"><b>0</b><div class="metric-txt"><span>待审批</span><small>pending-approvals</small></div><span class="chip">清空</span></div>
+					<div class="metric-card"><b>3</b><div class="metric-txt"><span>偏好候选</span><small>candidates</small></div></div>
+				</div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>最近原创洞察</h2><small>02-洞察</small></div>
+				<div class="detail-list">
+					<div class="detail-row"><span class="t">行为数字化与连续动力：技术革命的「能力翻译器」</span><span class="m">2d · 02-洞察</span></div>
+					<div class="detail-row"><span class="t">财神 1 号交易系统 · 原始需求文档</span><span class="m">3d · 04-项目</span></div>
+					<div class="detail-row"><span class="t">短期执行计划（5.18-5.31）</span><span class="m">9d · 05-归档</span></div>
+				</div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>项目场景地图</h2><small>04-项目 · 高频优先</small></div>
+				<div class="detail-list">
+					<div class="detail-row"><span class="t">TALOS系统</span><span class="m">184 篇</span></div>
+				</div>
+				<div class="proj-progress">
+					<div class="proj-progress-head"><span>任务进度</span><span>38% · 441/1164</span></div>
+					<div class="proj-progress-track"><div class="proj-progress-fill" style="width:38%"></div></div>
+				</div>
+				<div class="proj-progress">
+					<div class="proj-progress-head"><span>云心守护</span><span>62% · 47/76</span></div>
+					<div class="proj-progress-track"><div class="proj-progress-fill" style="width:62%"></div></div>
+				</div>
+				<div style="margin-top:12px"><span class="stamp">已归档</span></div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>执行入口</h2><small>LIVE FILES</small></div>
+				<div class="btn-row">
+					<span class="btn">开工</span><span class="btn ghost">晨间</span><span class="btn ghost">收工</span>
+				</div>
+				<div class="badge-row" style="margin-top:12px">
+					<span class="badge">已完成</span><span class="badge">进行中</span><span class="badge">待开始</span>
+				</div>
+			</div>
+
+		</div>
+	</div>
+
+	<!-- ============ 备选 B · Swiss Modernism ============ -->
+	<div class="theme-col swiss">
+		<div class="theme-banner"><b>备选 B · Swiss Modernism</b><span>瑞士现代主义 2.0 · 纯白 + 网格 + 瑞士红 · WCAG AAA</span></div>
+		<div class="canvas">
+
+			<div class="panel">
+				<div class="section-title"><h2>系统健康中心</h2><small>SYSTEM / HEALTH</small></div>
+				<div class="metric-grid">
+					<div class="metric-card"><b>90</b><div class="metric-txt"><span>健康分</span><small>满分 100</small></div><span class="chip">↓ 2</span></div>
+					<div class="metric-card"><b>0</b><div class="metric-txt"><span>待审批</span><small>PENDING</small></div><span class="chip">清空</span></div>
+					<div class="metric-card"><b>3</b><div class="metric-txt"><span>偏好候选</span><small>CANDIDATES</small></div></div>
+				</div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>最近原创洞察</h2><small>02 / INSIGHTS</small></div>
+				<div class="detail-list">
+					<div class="detail-row"><span class="t">行为数字化与连续动力：技术革命的「能力翻译器」</span><span class="m">2D</span></div>
+					<div class="detail-row"><span class="t">财神 1 号交易系统 · 原始需求文档</span><span class="m">3D</span></div>
+					<div class="detail-row"><span class="t">短期执行计划（5.18-5.31）</span><span class="m">9D</span></div>
+				</div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>项目场景地图</h2><small>04 / PROJECTS</small></div>
+				<div class="proj-progress">
+					<div class="proj-progress-head"><span>TALOS 系统</span><span>38% · 441/1164</span></div>
+					<div class="proj-progress-track"><div class="proj-progress-fill" style="width:38%"></div></div>
+				</div>
+				<div class="proj-progress" style="margin-top:10px">
+					<div class="proj-progress-head"><span>云心守护</span><span>62% · 47/76</span></div>
+					<div class="proj-progress-track"><div class="proj-progress-fill" style="width:62%"></div></div>
+				</div>
+			</div>
+
+			<div class="panel">
+				<div class="section-title"><h2>执行入口</h2><small>LIVE / FILES</small></div>
+				<div class="btn-row">
+					<span class="btn red">开工</span><span class="btn">晨间</span><span class="btn ghost">收工</span>
+				</div>
+				<div class="badge-row" style="margin-top:12px">
+					<span class="badge red">已完成</span><span class="badge">进行中</span><span class="badge">待开始</span>
+				</div>
+			</div>
+
+		</div>
+	</div>
+
+</div>
+</body>
+</html>

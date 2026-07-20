@@ -8,7 +8,10 @@ export type TalosVisualTheme =
 	| "system-classic"
 	| "data-stream"
 	| "soft-relief"
-	| "geometric-modern";
+	| "geometric-modern"
+	| "executive-brief"
+	| "paper-ink"
+	| "swiss-modern";
 
 /** 屈原语音舞台背景效果（独立于全局 visualTheme） */
 export type QuyuanBackgroundType = "letter-glitch" | "grid-scan";
@@ -20,6 +23,9 @@ export function normalizeVisualTheme(value: unknown): TalosVisualTheme {
 	if (value === "data-stream" || value === "matrix-rain") return "data-stream";
 	if (value === "soft-relief" || value === "neumorphism") return "soft-relief";
 	if (value === "geometric-modern" || value === "bauhaus") return "geometric-modern";
+	if (value === "executive-brief") return "executive-brief";
+	if (value === "paper-ink") return "paper-ink";
+	if (value === "swiss-modern") return "swiss-modern";
 	return "aurora";
 }
 
@@ -237,7 +243,7 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.textIn(c, "主标题", "Header 主标题", "mainTitle");
 		new Setting(c)
 			.setName("视觉风格")
-			.setDesc("七套 TALOS 视觉风格；开启全库同步后也会驱动 Obsidian 主界面。")
+			.setDesc("十套 TALOS 视觉风格；开启全库同步后也会驱动 Obsidian 主界面。")
 			.addDropdown((d) =>
 				d
 					.addOption("aurora", "Aurora 原版（默认）")
@@ -247,6 +253,9 @@ export class TalosSettingTab extends PluginSettingTab {
 					.addOption("data-stream", "数据流 · 动态终端")
 					.addOption("soft-relief", "柔光浮雕 · Neumorphism")
 					.addOption("geometric-modern", "几何现代主义 · Bauhaus")
+					.addOption("executive-brief", "Executive Brief 商务简约（浅色）")
+					.addOption("paper-ink", "Paper 纸感墨水（浅色）")
+					.addOption("swiss-modern", "Swiss Modernism 瑞士现代主义（浅色）")
 					.setValue(this.plugin.talosSettings.visualTheme)
 					.onChange(async (v) => {
 						this.plugin.talosSettings.visualTheme = normalizeVisualTheme(v);

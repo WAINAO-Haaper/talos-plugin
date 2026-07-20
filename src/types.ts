@@ -80,6 +80,8 @@ export interface MetricTile {
 	sub: string;
 	path?: string;
 	tone?: "default" | "warn" | "hot" | "good";
+	/** 右侧辅助信息徽章（填充式布局，2026-07-20）：趋势/状态等短文本，只用已有数据 */
+	aux?: string;
 }
 
 export interface OutputPlatform {
@@ -105,11 +107,18 @@ export interface InboxCluster {
 	hint: string;
 }
 
+export interface InboxAgeBucket {
+	label: string;
+	count: number;
+	tone: "info" | "good" | "warn" | "hot";
+}
+
 export interface InboxDigest {
 	count: number;
 	oldestDays: number;
 	clusters: InboxCluster[];
 	recent: SignalItem[];
+	ageBuckets: InboxAgeBucket[];
 }
 
 export interface HealthDigest {
@@ -126,6 +135,8 @@ export interface ProjectScene {
 	latestTitle: string;
 	latestPath?: string;
 	priority: "p0" | "p1" | "p2";
+	/** 任务进度：文件夹内 Markdown 复选框完成/总数；无复选框时缺省 */
+	progress?: { done: number; total: number };
 }
 
 export interface KnowledgeHub {

@@ -40,7 +40,25 @@ export class AgentLoop {
 		try {
 			while (steps++ < MAX_STEPS && !this.aborted) {
 				const { stop, calls } = await this.once();
-				if (stop === "tool_use" && calls.length && !this.aborted) {
+				if (stop === "tool_use" && calls.length) {
+					// 中断或已达步数上限：不执行工具，但必须回灌错误结果——
+					// 否则 assistant 消息里的 tool_use 没有对应 tool_result，
+					// 会话被毒化，下一轮请求直接 400。
+					if (this.aborted || steps >= MAX_STEPS) {
+						this.model.pushToolResults(
+							calls.map((c) => ({
+								id: c.id,
+								content: this.aborted
+									? "已被用户中断，工具未执行"
+									: `已达单轮工具循环上限（${MAX_STEPS}），工具未执行`,
+								isError: true,
+							}))
+						);
+						if (!this.aborted) {
+							this.ev.onError?.(new Error(`已达单轮工具循环上限（${MAX_STEPS}），本轮提前收尾`));
+						}
+						break;
+					}
 					const results: ToolResult[] = [];
 					for (const c of calls) {
 						this.ev.onToolUse?.(c);
