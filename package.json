@@ -1,7 +1,7 @@
 {
 	"name": "talos",
-	"version": "0.2.0",
-	"description": "TALOS — 超级大脑系统控制台原生插件。",
+	"version": "0.3.0",
+	"description": "TALOS — Obsidian 原生插件：超级大脑控制台 + 屈原 AI Agent 工作台。",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
