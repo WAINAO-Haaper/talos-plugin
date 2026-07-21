@@ -1,5 +1,16 @@
-import { App, DropdownComponent, PluginSettingTab, Setting } from "obsidian";
+import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from "obsidian";
 import type TalosPlugin from "./main";
+import {
+	MODULE_KEYS,
+	SCHEMA_LABELS,
+	SCHEMA_PRESET_CN,
+	SCHEMA_PRESETS,
+	detectSchemaDetailed,
+	resolveSchema,
+	type DataSourceKey,
+	type SchemaDetectionResult,
+	type TalosVaultSchema,
+} from "./data/schema";
 
 export type TalosVisualTheme =
 	| "aurora"
@@ -86,6 +97,10 @@ export interface TalosSettings {
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
+	/** 首次运行是否已自动识别过库结构（避免重复打扰；重新检测请用设置页按钮） */
+	schemaAutoDetected: boolean;
+	/** 库目录映射：客户库命名与默认不同时在此覆盖（设置 → 目录映射，支持自动检测） */
+	vaultSchema: Partial<TalosVaultSchema>;
 }
 
 export const DEFAULT_SETTINGS: TalosSettings = {
@@ -143,6 +158,8 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	jarvisVoiceEnabled: false,
 	jarvisThinkingLevel: "off",
 	jarvisTabsJson: "",
+	schemaAutoDetected: false,
+	vaultSchema: {},
 };
 
 type TextSettingKey = {
@@ -150,12 +167,14 @@ type TextSettingKey = {
 }[keyof TalosSettings];
 type FreeTextSettingKey = Exclude<TextSettingKey, "visualTheme" | "quyuanBackground">;
 
-type TabId = "ui" | "data" | "channel" | "voice" | "workbench";
+type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
 
 export class TalosSettingTab extends PluginSettingTab {
 	plugin: TalosPlugin;
 	private activeTab: TabId = "ui";
 	private workbenchSettingsTab: { display(): void; containerEl: HTMLElement } | null = null;
+	/** 最近一次识别结果（用于在设置页展示检测报告，供客户核对） */
+	private lastDetection: SchemaDetectionResult | null = null;
 
 	constructor(app: App, plugin: TalosPlugin) {
 		super(app, plugin);
@@ -169,6 +188,7 @@ export class TalosSettingTab extends PluginSettingTab {
 
 		const tabs: { id: TabId; label: string }[] = [
 			{ id: "ui", label: "界面" },
+			{ id: "schema", label: "目录映射" },
 			{ id: "data", label: "数据源" },
 			{ id: "channel", label: "屈原 · 通道" },
 			{ id: "voice", label: "屈原 · 语音" },
@@ -181,6 +201,7 @@ export class TalosSettingTab extends PluginSettingTab {
 		const renderActive = (): void => {
 			content.empty();
 			if (this.activeTab === "ui") this.renderUi(content);
+			else if (this.activeTab === "schema") this.renderSchema(content);
 			else if (this.activeTab === "data") this.renderData(content);
 			else if (this.activeTab === "channel") this.renderChannel(content);
 			else if (this.activeTab === "voice") this.renderVoice(content);
@@ -284,6 +305,145 @@ export class TalosSettingTab extends PluginSettingTab {
 			);
 	}
 
+	// ---------- Tab：目录映射 ----------
+	// 客户库的目录命名与默认不同时，在这里改一次，整个控制台随之适配。
+	private renderSchema(c: HTMLElement): void {
+		new Setting(c).setDesc(
+			"TALOS 控制台按下面这份映射去库里读数据。如果你的目录叫别的名字（例如英文 00-Inbox），"
+			+ "在这里改成实际名称即可，无需改动任何代码。改完点页面底部「保存并刷新」。"
+		);
+
+		new Setting(c)
+			.setName("自动检测")
+			.setDesc(
+				"扫描当前库的真实目录，按名称智能匹配（支持任意命名，如「笔记」「资料」「Projects」）。"
+				+ "同时自动定位 tasks / 待审批 / 候选池 / 健康日志等统计来源文件。"
+			)
+			.addButton((b) =>
+				b.setButtonText("扫描当前库").setCta().onClick(async () => {
+					const result = detectSchemaDetailed(this.app);
+					this.plugin.talosSettings.vaultSchema = { ...result.schema };
+					const sourceKeys: DataSourceKey[] = [
+						"tasksPath",
+						"pendingApprovalsPath",
+						"candidatesPath",
+						"healthLogPath",
+					];
+					for (const key of sourceKeys) {
+						const found = result.dataSources[key];
+						if (found) this.plugin.talosSettings[key] = found;
+					}
+					this.plugin.talosSettings.inboxFolder = result.schema.inbox;
+					this.plugin.talosSettings.dailyFolder = result.schema.logs;
+					await this.plugin.saveTalosSettings();
+					this.plugin.applyViewSettings();
+					this.plugin.refreshAllViews();
+					this.lastDetection = result;
+					new Notice(
+						`识别完成：匹配 ${result.matchedCount}/${result.entries.length} 个模块`
+						+ `，定位 ${Object.keys(result.dataSources).length} 个数据源文件`
+					);
+					this.display();
+				})
+			);
+
+		// 检测报告：让客户看清「哪个目录被认成了哪个模块」，可核对可纠正
+		if (this.lastDetection) {
+			const report = c.createDiv({ cls: "talos-schema-report" });
+			report.createEl("b", { text: "上次识别结果" });
+			const list = report.createEl("ul");
+			for (const entry of this.lastDetection.entries) {
+				const li = list.createEl("li");
+				const label = SCHEMA_LABELS[entry.key];
+				if (entry.how === "none") {
+					li.setText(`⚠️ ${label} —— 库内未找到，保留默认「${SCHEMA_PRESET_CN[entry.key]}」`);
+				} else {
+					li.setText(
+						`${entry.how === "exact" ? "✅" : "🔎"} ${label} → ${entry.matched}`
+						+ (entry.how === "alias" ? "（按你的命名智能匹配）" : "")
+					);
+				}
+			}
+			const sources = Object.entries(this.lastDetection.dataSources);
+			if (sources.length > 0) {
+				report.createEl("b", { text: "统计来源文件" });
+				const slist = report.createEl("ul");
+				for (const [key, path] of sources) slist.createEl("li", { text: `${key} → ${path}` });
+			}
+		}
+
+		new Setting(c)
+			.setName("套用预设")
+			.setDesc("中文＝超级大脑默认结构；英文＝TALOS Starter Kit 交付包结构。")
+			.addDropdown((d) => {
+				d.addOption("", "（选择预设）");
+				d.addOption("cn", "中文目录（00-收件箱 …）");
+				d.addOption("en", "英文目录（00-Inbox …）");
+				d.setValue("");
+				d.onChange(async (v) => {
+					const preset = SCHEMA_PRESETS[v];
+					if (!preset) return;
+					this.plugin.talosSettings.vaultSchema = { ...preset };
+					await this.plugin.saveTalosSettings();
+					this.plugin.applyViewSettings();
+					new Notice(`已套用${v === "en" ? "英文" : "中文"}目录预设`);
+					this.display();
+				});
+			});
+
+		new Setting(c).setName("逐项映射").setHeading();
+
+		const current = resolveSchema(this.plugin.talosSettings.vaultSchema);
+		for (const key of MODULE_KEYS) {
+			const exists = this.app.vault.getAbstractFileByPath(current[key]) !== null;
+			new Setting(c)
+				.setName(SCHEMA_LABELS[key])
+				.setDesc(
+					(exists ? "✅ 库内存在" : "⚠️ 库内未找到此目录")
+					+ ` · 默认：${SCHEMA_PRESET_CN[key]}`
+				)
+				.addText((t) =>
+					t
+						.setPlaceholder(SCHEMA_PRESET_CN[key])
+						.setValue(current[key])
+						.onChange(async (v) => {
+							const next = { ...this.plugin.talosSettings.vaultSchema };
+							const trimmed = v.trim().replace(/^\/+|\/+$/g, "");
+							if (trimmed) next[key] = trimmed;
+							else delete next[key];
+							this.plugin.talosSettings.vaultSchema = next;
+							await this.plugin.saveTalosSettings();
+						})
+				);
+		}
+
+		new Setting(c)
+			.setName("保存并刷新控制台")
+			.setDesc("改完目录名后点这里，控制台按新映射重新统计。")
+			.addButton((b) =>
+				b.setButtonText("刷新").setCta().onClick(() => {
+					this.plugin.applyViewSettings();
+					this.plugin.refreshAllViews();
+					new Notice("控制台已按新的目录映射刷新");
+					this.display();
+				})
+			);
+
+		new Setting(c)
+			.setName("恢复默认")
+			.setDesc("清空全部自定义映射，回到中文默认结构。")
+			.addButton((b) =>
+				b.setButtonText("恢复默认").setWarning().onClick(async () => {
+					this.plugin.talosSettings.vaultSchema = {};
+					await this.plugin.saveTalosSettings();
+					this.plugin.applyViewSettings();
+					this.plugin.refreshAllViews();
+					new Notice("已恢复默认目录映射");
+					this.display();
+				})
+			);
+	}
+
 	// ---------- Tab：数据源 ----------
 	private renderData(c: HTMLElement): void {
 		this.textIn(c, "系统焦点任务", "今日焦点解析源", "tasksPath");
@@ -329,7 +489,7 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.textIn(c, "OpenAI 模型", "留空用 gpt-4o。可填 gpt-5-codex / gpt-4.1 等。", "openaiModel", "(gpt-4o)");
 
 		new Setting(c).setName("本机 CLI（claude-cli）").setHeading();
-		this.textIn(c, "claude CLI 路径", "留空自动探测（which claude）。也可填绝对路径，如 /opt/homebrew/bin/claude。", "jarvisClaudeBin", "(自动探测)");
+		this.textIn(c, "claude CLI 路径", "留空自动探测（macOS 用 command -v，Windows 用 where）。也可填绝对路径，如 /opt/homebrew/bin/claude 或 C:\\Users\\你\\AppData\\Roaming\\npm\\claude.cmd。", "jarvisClaudeBin", "(自动探测)");
 		this.textIn(c, "模型", "留空用 CLI 默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(CLI 默认)");
 
 		new Setting(c).setName("通用").setHeading();

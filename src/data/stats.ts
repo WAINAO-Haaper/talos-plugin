@@ -1,6 +1,7 @@
 import { App, TFile, normalizePath } from "obsidian";
 import { isPendingApprovalStatusLine } from "../approval-actions";
 import type { TalosSettings } from "../settings";
+import { CONTENT_KEYS, MODULE_KEYS, SCHEMA_LABELS, type VaultPaths } from "./schema";
 import type {
 	DistBar,
 	FocusItem,
@@ -14,21 +15,6 @@ import type {
 
 const DAY = 86400000;
 
-// 六大内容目录（知识笔记口径，与 refresh-dashboard.py 一致）：显示名 -> 相对路径
-const CONTENT_DIRS: [string, string][] = [
-	["项目", "04-项目"],
-	["素材", "03-素材"],
-	["洞察", "02-洞察"],
-	["归档", "05-归档"],
-	["日志", "01-日志"],
-	["收件箱", "00-收件箱"],
-];
-
-// 全部系统模块（顶层组织/器官）
-const SYSTEM_MODULES: string[] = [
-	"00-收件箱", "01-日志", "02-洞察", "03-素材", "04-项目", "05-归档",
-	"Identity", "灵魂", "输出", "System", "模板", "自动化", "配置",
-];
 
 // 计数排除：嵌套交付副本 / 依赖目录，不算知识笔记
 const EXCLUDE = ["/node_modules/", "/客户交付物/", "/交付包/", "/talos-system-promo"];
@@ -79,17 +65,18 @@ function stripMd(s: string): string {
 }
 
 // ---------- 分布 + 模块地图 + 总览 ----------
-export function collectDist(app: App): { dist: DistBar[]; total: number } {
-	const dist: DistBar[] = CONTENT_DIRS.map(([name, rel]) => ({
-		name,
-		count: countMd(app, rel),
-		readme: `${rel}/_README.md`,
+export function collectDist(app: App, paths: VaultPaths): { dist: DistBar[]; total: number } {
+	const dist: DistBar[] = CONTENT_KEYS.map((key) => ({
+		name: SCHEMA_LABELS[key],
+		count: countMd(app, paths.dir(key)),
+		readme: paths.readme(key),
 	}));
 	return { dist, total: dist.reduce((a, b) => a + b.count, 0) };
 }
 
-export function collectModules(app: App): ModuleTile[] {
-	return SYSTEM_MODULES.map((rel) => {
+export function collectModules(app: App, paths: VaultPaths): ModuleTile[] {
+	return MODULE_KEYS.map((key) => {
+		const rel = paths.dir(key);
 		const notes = notesUnder(app, rel);
 		let lastMtime = 0;
 		let latest: TFile | undefined;
@@ -99,7 +86,7 @@ export function collectModules(app: App): ModuleTile[] {
 				latest = f;
 			}
 		}
-		const readme = `${rel}/_README.md`;
+		const readme = paths.readme(key);
 		return {
 			name: rel,
 			count: notes.length,
@@ -114,6 +101,7 @@ export function collectModules(app: App): ModuleTile[] {
 
 export function collectOverview(
 	app: App,
+	paths: VaultPaths,
 	total: number,
 	inboxCount: number,
 	taskFlow: StatCard,
@@ -125,7 +113,7 @@ export function collectOverview(
 	health: StatCard;
 } {
 	// 收件箱细节
-	const inboxNotes = notesUnder(app, "00-收件箱");
+	const inboxNotes = notesUnder(app, paths.dir("inbox"));
 	let oldest = 0;
 	const now = Date.now();
 	for (const f of inboxNotes) {
@@ -135,8 +123,8 @@ export function collectOverview(
 	// 本周新增（全库知识笔记）
 	const weekAgo = now - 7 * DAY;
 	let weekNew = 0;
-	for (const [, rel] of CONTENT_DIRS) {
-		for (const f of notesUnder(app, rel)) if (f.stat.ctime >= weekAgo) weekNew++;
+	for (const key of CONTENT_KEYS) {
+		for (const f of notesUnder(app, paths.dir(key))) if (f.stat.ctime >= weekAgo) weekNew++;
 	}
 
 	const last = healthTrend.length ? healthTrend[healthTrend.length - 1] : undefined;

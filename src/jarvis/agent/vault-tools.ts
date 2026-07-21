@@ -152,10 +152,15 @@ export class VaultToolHost {
 				on(ev: "close" | "error", cb: (a: unknown) => void): void;
 			};
 		};
-		const shell = process.env.SHELL || "/bin/zsh";
+		// 跨平台：Windows 走 cmd.exe（/d 跳过 AutoRun，/s 保留引号语义），POSIX 走登录 shell
+		const isWin = process.platform === "win32";
+		const shell = isWin
+			? process.env.ComSpec || "cmd.exe"
+			: process.env.SHELL || "/bin/zsh";
+		const shellArgs = isWin ? ["/d", "/s", "/c", command] : ["-lc", command];
 		return new Promise<ToolOutcome>((resolve) => {
 			let out = "";
-			const child = cp.spawn(shell, ["-lc", command], { cwd, shell: false });
+			const child = cp.spawn(shell, shellArgs, { cwd, shell: false });
 			child.stdout?.on("data", (d) => (out += d.toString()));
 			child.stderr?.on("data", (d) => (out += d.toString()));
 			child.on("error", (e) => resolve({ content: String(e), isError: true }));

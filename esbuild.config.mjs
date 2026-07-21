@@ -38,6 +38,26 @@ This generated bundle contains third-party software governed by separate
 licenses and service terms. Any distribution of this file MUST include:
 LICENSE, THIRD-PARTY-NOTICES.md, and THIRD-PARTY-LICENSES.txt.
 */
+// import.meta.url 运行时 shim（跨平台）：
+// 旧实现 define 成写死的 'file:///talos-plugin/main.js'——POSIX 上碰巧合法，
+// 但 Windows 的 file URL 必须带盘符，createRequire(import.meta.url) 在客户
+// Windows 机器上加载即抛 TypeError（2026-07-21 客户实测定位）。
+// 现优先用真实 __filename 计算；拿不到时按平台给合法占位（仅作占位，
+// SDK 始终显式传 pathToClaudeCodeExecutable，不靠它解析真实路径）。
+var __talosImportMetaUrl = (() => {
+	try {
+		if (typeof __filename === "string" && __filename) {
+			return require("node:url").pathToFileURL(__filename).href;
+		}
+	} catch (_e) { /* fall through */ }
+	try {
+		return typeof process !== "undefined" && process.platform === "win32"
+			? "file:///C:/talos-plugin/main.js"
+			: "file:///talos-plugin/main.js";
+	} catch (_e) {
+		return "file:///talos-plugin/main.js";
+	}
+})();
 `;
 
 const prod = process.argv[2] === 'production';
@@ -68,10 +88,10 @@ const context = await esbuild.context({
 	],
 	format: 'cjs',
 	// claude-agent-sdk 顶层调用 createRequire(import.meta.url)；cjs 打包下 import.meta.url
-	// 会变 undefined 导致加载即崩。给一个合法 file URL 占位（运行时不会真用它解析原生二进制，
-	// 因为我们始终传 pathToClaudeCodeExecutable）。
+	// 会变 undefined 导致加载即崩。指向 banner 里的运行时 shim（跨平台安全，
+	// 写死 POSIX 假 URL 会让 Windows 加载即崩——见 banner 注释）。
 	define: {
-		'import.meta.url': JSON.stringify('file:///talos-plugin/main.js'),
+		'import.meta.url': '__talosImportMetaUrl',
 	},
 	target: 'es2021',
 	logLevel: 'info',

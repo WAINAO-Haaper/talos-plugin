@@ -1,5 +1,6 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { TalosSettings } from "../settings";
+import type { VaultPaths } from "./schema";
 import type {
 	HealthDigest,
 	InboxAgeBucket,
@@ -127,15 +128,15 @@ function isPublished(app: App, file: TFile): boolean {
 	);
 }
 
-export async function collectOutputCenter(app: App): Promise<OutputCenter> {
-	const outletPath = "输出/统一出口.md";
-	const opsPath = "输出/运营/运营候选池.md";
+export async function collectOutputCenter(app: App, paths: VaultPaths): Promise<OutputCenter> {
+	const outletPath = paths.outletFile;
+	const opsPath = paths.opsCandidatesFile;
 	const outlet = await readFile(app, outletPath);
 	const queue = extractWikiItems(app, outlet, outletPath, 8);
 	const opsCandidates = bulletItems(await readFile(app, opsPath), opsPath, 6);
 
 	const platforms: OutputPlatform[] = OUTPUT_PLATFORMS.map((name) => {
-		const rel = `输出/${name}`;
+		const rel = paths.outputPlatform(name);
 		const notes = notesUnder(app, rel);
 		const latest = latestOf(app, rel);
 		const published = notes.filter((f) => isPublished(app, f)).length;
@@ -164,7 +165,7 @@ export async function collectOutputCenter(app: App): Promise<OutputCenter> {
 			label: "平台稿件",
 			value: String(total),
 			sub: `${published} 已发布 · ${Math.max(0, total - published)} 待闭环`,
-			path: "输出/_README.md",
+			path: paths.readme("output"),
 			tone: total > published ? "warn" : "good",
 		},
 		{
@@ -224,13 +225,14 @@ export async function collectInboxDigest(app: App, settings: TalosSettings): Pro
 
 export async function collectHealthDigest(
 	app: App,
+	paths: VaultPaths,
 	settings: TalosSettings,
 	approvals: SignalItem[],
 	candidates: SignalItem[]
 ): Promise<HealthDigest> {
 	const healthLog = await readFile(app, settings.healthLogPath);
-	const errPath = "System/working-memory/error-patterns.md";
-	const loopPath = "System/working-memory/loop-health-log.md";
+	const errPath = paths.errorPatternsFile;
+	const loopPath = paths.loopHealthFile;
 	const errors = bulletItems(await readFile(app, errPath), errPath, 6);
 	const loopRows = (await readFile(app, loopPath))
 		.split("\n")
@@ -303,8 +305,8 @@ async function projectProgress(
 	return total > 0 ? { done, total } : undefined;
 }
 
-export async function collectProjectScenes(app: App): Promise<ProjectScene[]> {
-	const root = app.vault.getAbstractFileByPath("04-项目");
+export async function collectProjectScenes(app: App, paths: VaultPaths): Promise<ProjectScene[]> {
+	const root = app.vault.getAbstractFileByPath(paths.dir("projects"));
 	if (!(root instanceof TFolder)) return [];
 	const folders: TFolder[] = [];
 	for (const item of root.children) {
@@ -333,15 +335,15 @@ export async function collectProjectScenes(app: App): Promise<ProjectScene[]> {
 	});
 }
 
-export function collectKnowledgeHub(app: App): KnowledgeHub {
-	const mocs = notesUnder(app, "02-洞察/MOC")
+export function collectKnowledgeHub(app: App, paths: VaultPaths): KnowledgeHub {
+	const mocs = notesUnder(app, paths.mocDir)
 		.sort((a, b) => b.stat.mtime - a.stat.mtime)
 		.map((f) => ({ title: titleFor(app, f), meta: "MOC", path: f.path }));
-	const recentInsights = notesUnder(app, "02-洞察")
+	const recentInsights = notesUnder(app, paths.dir("insights"))
 		.sort((a, b) => b.stat.mtime - a.stat.mtime)
 		.slice(0, 8)
 		.map((f) => ({ title: titleFor(app, f), meta: "原创洞察", path: f.path }));
-	const recentMaterials = notesUnder(app, "03-素材")
+	const recentMaterials = notesUnder(app, paths.dir("assets"))
 		.sort((a, b) => b.stat.mtime - a.stat.mtime)
 		.slice(0, 8)
 		.map((f) => ({ title: titleFor(app, f), meta: "外部素材", path: f.path }));
@@ -350,29 +352,29 @@ export function collectKnowledgeHub(app: App): KnowledgeHub {
 			label: "MOC 枢纽",
 			value: String(mocs.length),
 			sub: "概念入口",
-			path: "02-洞察/MOC/_README.md",
+			path: paths.mocReadme,
 			tone: "good",
 		},
 		{
 			label: "原创洞察",
-			value: String(notesUnder(app, "02-洞察").length),
-			sub: "02-洞察",
-			path: "02-洞察/_README.md",
+			value: String(notesUnder(app, paths.dir("insights")).length),
+			sub: paths.dir("insights"),
+			path: paths.readme("insights"),
 			tone: "default",
 		},
 		{
 			label: "外部素材",
-			value: String(notesUnder(app, "03-素材").length),
-			sub: "03-素材",
-			path: "03-素材/_README.md",
+			value: String(notesUnder(app, paths.dir("assets")).length),
+			sub: paths.dir("assets"),
+			path: paths.readme("assets"),
 			tone: "default",
 		},
 	];
 	return { metrics, mocs, recentInsights, recentMaterials };
 }
 
-export function collectTalosProduct(app: App): TalosProduct {
-	const root = app.vault.getAbstractFileByPath("04-项目/TALOS系统");
+export function collectTalosProduct(app: App, paths: VaultPaths): TalosProduct {
+	const root = app.vault.getAbstractFileByPath(paths.talosProjectDir);
 	const modules: TalosModule[] = [];
 	if (root instanceof TFolder) {
 		for (const child of root.children) {
@@ -396,21 +398,21 @@ export function collectTalosProduct(app: App): TalosProduct {
 			label: "TALOS 资产",
 			value: String(total),
 			sub: `${modules.length} 个产品分区`,
-			path: "04-项目/TALOS系统/_README.md",
+			path: `${paths.talosProjectDir}/_README.md`,
 			tone: "default",
 		},
 		{
 			label: "交付 SOP",
 			value: String(delivery?.count ?? 0),
 			sub: "B 端交付资产",
-			path: delivery?.readme || "04-项目/TALOS系统/06-交付与SOP/_README.md",
+			path: delivery?.readme || `${paths.talosProjectDir}/_README.md`,
 			tone: "good",
 		},
 		{
 			label: "控制台",
 			value: String(consoleMod?.count ?? 0),
 			sub: "插件与仪表盘",
-			path: consoleMod?.readme || "04-项目/TALOS系统/07-控制台/_README.md",
+			path: consoleMod?.readme || `${paths.talosProjectDir}/_README.md`,
 			tone: "warn",
 		},
 	];

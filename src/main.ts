@@ -14,6 +14,12 @@ import {
 } from "./quyuan/governance";
 import { MicStt, StreamTts } from "./jarvis/voiceio";
 import { TALOS_ICON_SVG } from "./talos-mark";
+import {
+	VaultPaths,
+	detectSchemaDetailed,
+	resolveSchema,
+	type DataSourceKey,
+} from "./data/schema";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -141,6 +147,9 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		void this.initializeQuyuanWorkbench();
 
 		this.app.workspace.onLayoutReady(() => {
+			// 部署即自适应：首次加载（尚无目录映射）时自动识别客户库结构并落盘。
+			// 必须等 onLayoutReady——此时 vault 索引才完整，否则扫不到目录。
+			void this.autoDetectVaultSchemaOnFirstRun();
 			if (this.talosSettings.openOnStartup) void this.activateHomeView();
 		});
 
@@ -163,6 +172,78 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			const view = leaf.view;
 			if (view instanceof TalosView) void view.refresh();
 		}
+	}
+
+	/** 供设置页调用：改完目录映射后立即按新 schema 重新统计 */
+	refreshAllViews(): void {
+		this.refreshViews();
+	}
+
+	/**
+	 * 首次运行自动识别库结构（部署即用，客户零操作）。
+	 *
+	 * 只在「用户从未配置过目录映射」时执行一次，绝不覆盖用户的手动设置。
+	 * 识别结果同时写入目录映射与统计来源文件路径，并弹一次可见提示，
+	 * 让客户知道插件已按他的库结构对齐（也知道去哪儿改）。
+	 */
+	private async autoDetectVaultSchemaOnFirstRun(): Promise<void> {
+		try {
+			const configured = this.talosSettings.vaultSchema;
+			if (configured && Object.keys(configured).length > 0) return; // 用户已配置，不动
+			if (this.talosSettings.schemaAutoDetected) return; // 已自动检测过，不重复打扰
+
+			const result = detectSchemaDetailed(this.app);
+			this.talosSettings.schemaAutoDetected = true;
+
+			// 库里几乎没有可识别目录（例如全新空库）：不硬套，留默认，也不弹窗打扰
+			if (result.matchedCount < 3) {
+				await this.saveTalosSettings();
+				return;
+			}
+
+			this.talosSettings.vaultSchema = { ...result.schema };
+			// 统计来源文件：只在识别到时覆盖，避免把用户已改的路径冲掉
+			const sourceKeys: DataSourceKey[] = [
+				"tasksPath",
+				"pendingApprovalsPath",
+				"candidatesPath",
+				"healthLogPath",
+			];
+			for (const key of sourceKeys) {
+				const found = result.dataSources[key];
+				if (found) this.talosSettings[key] = found;
+			}
+			// 收件箱/日记目录跟随识别结果
+			this.talosSettings.inboxFolder = result.schema.inbox;
+			this.talosSettings.dailyFolder = result.schema.logs;
+
+			await this.saveTalosSettings();
+			this.refreshViews();
+
+			const renamed = result.entries.filter((e) => e.how === "alias" && e.matched);
+			const detail = renamed.length > 0
+				? `其中 ${renamed.length} 项按你的命名自动对齐（如 ${renamed
+					.slice(0, 2)
+					.map((e) => e.matched)
+					.join("、")}）`
+				: "全部与标准结构一致";
+			new Notice(
+				`TALOS 已自动识别你的库结构：匹配 ${result.matchedCount}/${result.entries.length} 个模块，${detail}。`
+					+ "\n如需调整：设置 → TALOS → 目录映射。",
+				12000
+			);
+		} catch (error) {
+			this.recordQuyuanRuntimeError("autoDetectVaultSchema", error);
+			console.error("TALOS auto schema detection failed", error);
+		}
+	}
+
+	/**
+	 * 当前库目录映射（唯一真源）。数据层与视图层一律经此取路径，
+	 * 不再各自拼裸字符串——客户改设置即可整体适配自己的目录命名。
+	 */
+	get paths(): VaultPaths {
+		return new VaultPaths(resolveSchema(this.talosSettings?.vaultSchema));
 	}
 
 	applyViewSettings(): void {
@@ -759,7 +840,12 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 
 	private async initializeQuyuanSoul(): Promise<void> {
 		try {
-			this.quyuanSoul = await loadQuyuanSoulContext(this.app);
+			const P = this.paths;
+			this.quyuanSoul = await loadQuyuanSoulContext(this.app, [
+				P.personaFile,
+				P.personaMemoryFile,
+				P.contextFile,
+			]);
 			this.quyuanSoulError = "";
 			this.syncQuyuanSoulPrompt();
 		} catch (error) {

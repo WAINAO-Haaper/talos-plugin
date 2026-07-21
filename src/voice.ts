@@ -41,6 +41,11 @@ function getShellEnv(spawnFn: SpawnFn, cwd: string): Promise<Record<string, stri
 	const base: Record<string, string> = {};
 	for (const [k, v] of Object.entries(process.env)) if (v != null) base[k] = v;
 	if (cachedShellEnv) return Promise.resolve(cachedShellEnv);
+	// Windows：GUI 进程直接继承用户环境变量，无需（也没有）登录 shell 可捞
+	if (process.platform === "win32") {
+		cachedShellEnv = base;
+		return Promise.resolve(base);
+	}
 	return new Promise((resolve) => {
 		let out = "";
 		let settled = false;
@@ -258,12 +263,17 @@ async function askBrain(
 	const args = [...perm, ...parts.slice(1), buildPrompt(settings, history, question)];
 	const cwd = adapter.getBasePath();
 	const env = await getShellEnv(spawnFn, cwd);
+	// Windows：npm 安装的 claude 实为 claude.cmd（批处理垫片），不带 shell 直接 spawn
+	// 会 ENOENT/EINVAL；经 cmd.exe /d /s /c 中转执行
+	const isWin = typeof process !== "undefined" && process.platform === "win32";
+	const spawnBin = isWin ? (env.ComSpec || "cmd.exe") : bin;
+	const spawnArgs = isWin ? ["/d", "/s", "/c", bin, ...args] : args;
 
 	return new Promise<string>((resolve, reject) => {
 		let out = "";
 		let err = "";
 		let done = false;
-		const child = spawnFn(bin, args, { cwd, shell: false, env });
+		const child = spawnFn(spawnBin, spawnArgs, { cwd, shell: false, env });
 		onSpawn?.(child); // 暴露子进程句柄，供控制器在卸载/换页时中止
 		const timer = window.setTimeout(() => {
 			if (done) return;

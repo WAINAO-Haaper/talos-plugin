@@ -10,9 +10,12 @@ import type { InteractionChannel } from "./voice-driver";
 import { QuyuanBackgroundField } from "./background-field";
 import type { QuyuanBackgroundType } from "./background-field";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
+import type { VaultPaths } from "../data/schema";
 
 interface TalosQuyuanPlugin extends ClaudianPlugin {
 	activateQuyuanV2View(): Promise<void>;
+	/** 库目录映射（唯一真源，见 data/schema.ts） */
+	readonly paths: VaultPaths;
 }
 
 // ============================================================
@@ -476,9 +479,9 @@ export class QuyuanVoicePanel {
 		const contextPanel = addTab("context", "上下文", "layers-3");
 		this.addSideSection(contextPanel, "当前上下文", "4 个核心");
 		for (const item of [
-			{ icon: "fingerprint", label: "PERSONA", meta: "屈原 · 人格契约", path: "灵魂/PERSONA.md" },
-			{ icon: "brain", label: "自我记忆", meta: "persona-memory", path: "灵魂/persona-memory.md" },
-			{ icon: "compass", label: "当前状态", meta: "Identity / CONTEXT", path: "Identity/CONTEXT.md" },
+			{ icon: "fingerprint", label: "PERSONA", meta: "屈原 · 人格契约", path: this.plugin.paths.personaFile },
+			{ icon: "brain", label: "自我记忆", meta: "persona-memory", path: this.plugin.paths.personaMemoryFile },
+			{ icon: "compass", label: "当前状态", meta: "Identity / CONTEXT", path: this.plugin.paths.contextFile },
 			{ icon: "list-checks", label: "今日焦点", meta: "tasks.md", path: this.settings.tasksPath },
 		]) this.addSideRow(contextPanel, item.icon, item.label, item.meta, () => this.openPath(item.path));
 		this.addSideSection(contextPanel, "运行状态", "实时");

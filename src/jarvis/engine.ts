@@ -80,6 +80,25 @@ async function resolveRuntime(settings: TalosSettings, cwd: string): Promise<Res
 			resolve(rt);
 		};
 		try {
+			if (process.platform === "win32") {
+				// Windows：GUI 进程直接继承用户环境变量，无需登录 shell 捞 env；
+				// claude 路径用 where.exe 探测（结果多为 claude.cmd/claude.exe）。
+				const child = spawn("where", ["claude"], { cwd, shell: false });
+				child.stdout?.on("data", (d) => (out += (d).toString()));
+				child.on("error", () => finish({ bin: explicit || "claude", env: base }));
+				child.on("close", () => {
+					const detected = out
+						.split(/\r?\n/)
+						.map((line) => line.trim())
+						.filter(Boolean)[0] || "";
+					finish({ bin: explicit || detected || "claude", env: base });
+				});
+				window.setTimeout(() => {
+					try { child.kill(); } catch { /* noop */ }
+					finish({ bin: explicit || "claude", env: base });
+				}, 6000);
+				return;
+			}
 			const shell = base.SHELL || "/bin/zsh";
 			// 一次性把完整 env 和 claude 路径都捞回来
 			const child = spawn(shell, ["-lic", "env; echo __BIN__; command -v claude"], {

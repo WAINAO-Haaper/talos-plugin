@@ -29,6 +29,7 @@ import {
 	collectOverview,
 } from "./data/stats";
 import { collectWarRoom } from "./data/talos";
+import type { TalosSchemaKey, VaultPaths } from "./data/schema";
 import { collectCapabilities, type CapabilityGroup } from "./data/capabilities";
 import {
 	collectHealthDigest,
@@ -58,23 +59,23 @@ type QuyuanVoicePanelLike = {
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const SVG_NS = "http://www.w3.org/2000/svg";
-const DAILY_ROTA = [
-	{ day: 1, code: "MON", label: "周一", project: "TALOS 系统", desc: "产品脊柱、交付包、控制台", path: "04-项目/TALOS系统/_README.md" },
-	{ day: 2, code: "TUE", label: "周二", project: "输出器官 / 首发件", desc: "发布流程、首发件、承接口", path: "输出/_README.md" },
-	{ day: 3, code: "WED", label: "周三", project: "B 端交付", desc: "样板项目与客户推进", path: "04-项目/_README.md" },
-	{ day: 4, code: "THU", label: "周四", project: "GEO 站点 + TALOS 支撑", desc: "公开资产、搜索入口、理论支撑", path: "04-项目/TALOS系统/_README.md" },
-	{ day: 5, code: "FRI", label: "周五", project: "私域承接 / AI 社群", desc: "CTA、社群与模板包", path: "输出/运营/运营候选池.md" },
-	{ day: 6, code: "SAT", label: "周六", project: "缓冲日", desc: "补阻塞、学习、修小破口", path: "System/working-memory/tasks.md" },
-	{ day: 0, code: "SUN", label: "周日", project: "休息 + 周重置", desc: "刷新上下文并摆好下周轨道", path: "Identity/CONTEXT.md" },
+const dailyRota = (P: VaultPaths, tasksPath: string) => [
+	{ day: 1, code: "MON", label: "周一", project: "TALOS 系统", desc: "产品脊柱、交付包、控制台", path: `${P.talosProjectDir}/_README.md` },
+	{ day: 2, code: "TUE", label: "周二", project: "输出器官 / 首发件", desc: "发布流程、首发件、承接口", path: P.readme("output") },
+	{ day: 3, code: "WED", label: "周三", project: "B 端交付", desc: "样板项目与客户推进", path: P.readme("projects") },
+	{ day: 4, code: "THU", label: "周四", project: "GEO 站点 + TALOS 支撑", desc: "公开资产、搜索入口、理论支撑", path: `${P.talosProjectDir}/_README.md` },
+	{ day: 5, code: "FRI", label: "周五", project: "私域承接 / AI 社群", desc: "CTA、社群与模板包", path: P.opsCandidatesFile },
+	{ day: 6, code: "SAT", label: "周六", project: "缓冲日", desc: "补阻塞、学习、修小破口", path: tasksPath },
+	{ day: 0, code: "SUN", label: "周日", project: "休息 + 周重置", desc: "刷新上下文并摆好下周轨道", path: P.contextFile },
 ];
 // 每日固定骨架时间轴（pageDaily 渲染与像素小人里程碑共用同一数据源）
-const DAILY_TIMELINE = [
-	{ time: "08:30", mins: 510, dur: 15, length: "15 min", title: "开工 · 接收系统指令", desc: "只确认焦点与 done_when，不重新规划人生。", starter: "复制「开工」，接今天第一步。", path: "System/working-memory/tasks.md", deep: false },
-	{ time: "09:00", mins: 540, dur: 120, length: "120 min", title: "深度块① · 输出闭环", desc: "完成选、改、发、回填中的最短可验证闭环。", starter: "只处理统一出口今日待发的一条。", path: "输出/统一出口.md", deep: true },
-	{ time: "11:00", mins: 660, dur: 45, length: "45 min", title: "分发回填 · 数据与消息", desc: "发布后立即回填链接、状态与运营观察。", starter: "检查 publish_url、signal 与 views。", path: "输出/运营/运营候选池.md", deep: false },
-	{ time: "14:00", mins: 840, dur: 120, length: "120 min", title: "深度块② · 当日轮值项目", desc: "", starter: "只做一个能留下痕迹的下一步。", path: "04-项目/_README.md", deep: true },
-	{ time: "16:00", mins: 960, dur: 45, length: "45 min", title: "轻输入 · 客户沟通", desc: "最多处理 3 条，只捞能变成输出或交付的信号。", starter: "不做全库清仓。", path: "00-收件箱/_README.md", deep: false },
-	{ time: "17:00", mins: 1020, dur: 20, length: "20 min", title: "收工 · 关环并铺明天", desc: "记录实质碎片、更新任务池、留下明早第一步。", starter: "复制「收工」，写结果与阻塞。", path: "System/working-memory/_README.md", deep: false },
+const dailyTimeline = (P: VaultPaths, tasksPath: string) => [
+	{ time: "08:30", mins: 510, dur: 15, length: "15 min", title: "开工 · 接收系统指令", desc: "只确认焦点与 done_when，不重新规划人生。", starter: "复制「开工」，接今天第一步。", path: tasksPath, deep: false },
+	{ time: "09:00", mins: 540, dur: 120, length: "120 min", title: "深度块① · 输出闭环", desc: "完成选、改、发、回填中的最短可验证闭环。", starter: "只处理统一出口今日待发的一条。", path: P.outletFile, deep: true },
+	{ time: "11:00", mins: 660, dur: 45, length: "45 min", title: "分发回填 · 数据与消息", desc: "发布后立即回填链接、状态与运营观察。", starter: "检查 publish_url、signal 与 views。", path: P.opsCandidatesFile, deep: false },
+	{ time: "14:00", mins: 840, dur: 120, length: "120 min", title: "深度块② · 当日轮值项目", desc: "", starter: "只做一个能留下痕迹的下一步。", path: P.readme("projects"), deep: true },
+	{ time: "16:00", mins: 960, dur: 45, length: "45 min", title: "轻输入 · 客户沟通", desc: "最多处理 3 条，只捞能变成输出或交付的信号。", starter: "不做全库清仓。", path: P.readme("inbox"), deep: false },
+	{ time: "17:00", mins: 1020, dur: 20, length: "20 min", title: "收工 · 关环并铺明天", desc: "记录实质碎片、更新任务池、留下明早第一步。", starter: "复制「收工」，写结果与阻塞。", path: `${P.workingMemoryDir}/_README.md`, deep: false },
 ];
 const SELECTABLE_MODULES = [
 	".commands .command",
@@ -236,6 +237,17 @@ export class TalosView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+	}
+
+	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
+	private get paths() { return this.plugin.paths; }
+
+	private dailyRota() { return dailyRota(this.paths, this.plugin.talosSettings.tasksPath); }
+	private dailyTimeline() { return dailyTimeline(this.paths, this.plugin.talosSettings.tasksPath); }
+
+	/** 按 schema 键取模块笔记数（模块名即当前 schema 下的目录名） */
+	private moduleCount(d: Collected, key: TalosSchemaKey): number {
+		return d.modules.find((item) => item.name === this.paths.dir(key))?.count ?? 0;
 	}
 
 	getViewType(): string { return VIEW_TYPE_TALOS; }
@@ -511,7 +523,6 @@ export class TalosView extends ItemView {
 	private navMeta(key: string): { value: string; alert?: boolean } | null {
 		const d = this.data;
 		if (!d) return null;
-		const moduleCount = (name: string) => d.modules.find((item) => item.name === name)?.count ?? 0;
 		switch (key) {
 			case "overview": {
 				const count = this.collectOverviewAttention(d).length;
@@ -527,7 +538,7 @@ export class TalosView extends ItemView {
 				const materials = Number(d.knowledge.metrics.find((item) => item.label === "外部素材")?.value || 0);
 				return { value: String(insights + materials) };
 			}
-			case "identity": return { value: String(moduleCount("Identity") + moduleCount("灵魂")) };
+			case "identity": return { value: String(this.moduleCount(d, "identity") + this.moduleCount(d, "soul")) };
 			case "talos": return { value: d.talosProduct.metrics[0]?.value || "0" };
 			case "health": {
 				const score = d.overview.health.value;
@@ -643,7 +654,7 @@ export class TalosView extends ItemView {
 			parcelRack.createSpan({ cls: "pixel-prop parcel" });
 		}
 		const flagLine = patrol.createDiv({ cls: "pixel-props pixel-props-flags" });
-		for (let i = 0; i < DAILY_TIMELINE.length; i++) {
+		for (let i = 0; i < this.dailyTimeline().length; i++) {
 			flagLine.createSpan({ cls: "pixel-prop flag" });
 		}
 		patrol.createSpan({ cls: "pixel-prop zzz", text: "Zzz" });
@@ -756,23 +767,24 @@ export class TalosView extends ItemView {
 	async refresh(): Promise<void> {
 		const app = this.app;
 		const s = this.plugin.talosSettings;
-		const { dist, total } = collectDist(app);
+		const paths = this.paths;
+		const { dist, total } = collectDist(app, paths);
 		const inboxCount = dist.find((d) => d.name === "收件箱")?.count ?? 0;
-		const modules = collectModules(app);
+		const modules = collectModules(app, paths);
 		const { focus, taskFlow } = await collectFocusAndFlow(app, s);
 		const healthTrend = await collectHealthTrend(app, s);
-		const overview = collectOverview(app, total, inboxCount, taskFlow, healthTrend);
+		const overview = collectOverview(app, paths, total, inboxCount, taskFlow, healthTrend);
 		const approvals = await collectApprovals(app, s);
 		const candidates = await collectCandidates(app, s);
 		const heatmap = collectHeatmap(app);
 		const warRoom = await collectWarRoom(app, s);
 		const capGroups = await collectCapabilities(app);
-		const output = await collectOutputCenter(app);
+		const output = await collectOutputCenter(app, paths);
 		const inbox = await collectInboxDigest(app, s);
-		const healthDigest = await collectHealthDigest(app, s, approvals, candidates);
-		const projects = await collectProjectScenes(app);
-		const knowledge = collectKnowledgeHub(app);
-		const talosProduct = collectTalosProduct(app);
+		const healthDigest = await collectHealthDigest(app, paths, s, approvals, candidates);
+		const projects = await collectProjectScenes(app, paths);
+		const knowledge = collectKnowledgeHub(app, paths);
+		const talosProduct = collectTalosProduct(app, paths);
 
 		this.data = {
 			total,
@@ -1131,8 +1143,9 @@ export class TalosView extends ItemView {
 		// daily 通勤者：小人位置 = 当前时刻在骨架窗口中的进度；里程碑旗按时段分布
 		// （--scene-progress 的语义按页不同，只在 daily 页写时间进度，避免污染其他场景）
 		if (this.activePage === "daily") {
-			const dayStart = DAILY_TIMELINE[0]?.mins ?? 510;
-			const lastSlot = DAILY_TIMELINE[DAILY_TIMELINE.length - 1];
+			const timeline = this.dailyTimeline();
+			const dayStart = timeline[0]?.mins ?? 510;
+			const lastSlot = timeline[timeline.length - 1];
 			const dayEnd = (lastSlot?.mins ?? 1020) + (lastSlot?.dur ?? 20);
 			const now = new Date();
 			const minsNow = now.getHours() * 60 + now.getMinutes();
@@ -1145,7 +1158,7 @@ export class TalosView extends ItemView {
 				"--bot-progress": Math.max(progress, 0.15).toFixed(3),
 			});
 			flags.forEach((el, i) => {
-				const slot = DAILY_TIMELINE[i];
+				const slot = timeline[i];
 				if (!slot) {
 					el.removeClass("is-on");
 					return;
@@ -1241,9 +1254,8 @@ export class TalosView extends ItemView {
 		// 批次 4 · identity 镜厅：Identity/灵魂文件数 → 镜框刻痕（cap 4）；
 		// 镜像小人为纯 CSS 实例，无需 JS 写入
 		if (this.activePage === "identity") {
-			const countOf = (name: string) => d.modules.find((m) => m.name === name)?.count ?? 0;
 			const notches = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.mirror .notch"));
-			const shown = Math.min(countOf("Identity") + countOf("灵魂"), notches.length);
+			const shown = Math.min(this.moduleCount(d, "identity") + this.moduleCount(d, "soul"), notches.length);
 			notches.forEach((el, i) => el.classList.toggle("is-on", i < shown));
 		}
 		// 批次 4 · capability 接线员：可用命令数 = 已插线缆数（cap 6）
@@ -1338,8 +1350,8 @@ export class TalosView extends ItemView {
 			const talosAssets = d.talosProduct.metrics.find((item) => item.label === "TALOS 资产") || d.talosProduct.metrics[0];
 			const brokenMetric = d.healthDigest.metrics.find((item) => item.label === "断链");
 			const capCount = d.capGroups.reduce((sum, group) => sum + group.items.length, 0);
-			const identityCount = (d.modules.find((item) => item.name === "Identity")?.count || 0)
-				+ (d.modules.find((item) => item.name === "灵魂")?.count || 0);
+			const identityCount = (this.moduleCount(d, "identity") || 0)
+				+ (this.moduleCount(d, "soul") || 0);
 			const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
 			const actionColumn = overviewGrid.createDiv({ cls: "overview-action-column" });
 			const statColumn = overviewGrid.createDiv({ cls: "overview-stat-column" });
@@ -1396,21 +1408,21 @@ export class TalosView extends ItemView {
 			const barGrid = statPanel.createDiv({ cls: "overview-stat-bars" });
 			this.fillOverviewStatBar(barGrid, "今日执行", d.overview.taskFlow.value, taskRate, "play-circle", this.plugin.talosSettings.tasksPath, "default");
 			this.fillOverviewStatBar(barGrid, "发布闭环", `${d.warRoom.published}/${d.warRoom.totalPub}`, publishRate, "refresh-cw", this.plugin.talosSettings.talosTasksPath, d.warRoom.stopTriggered ? "hot" : "default");
-			this.fillOverviewStatBar(barGrid, "知识总量", d.overview.totalNotes.value, Math.min(100, Math.round((d.total / 2000) * 100)), "book-open", "02-洞察/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "输出资产", String(outputTotal), Math.min(100, Math.round((outputTotal / 24) * 100)), "send", "输出/_README.md", outputTotal > outputPublished ? "warn" : "good");
-			this.fillOverviewStatBar(barGrid, "项目场景", String(d.projects.length), Math.min(100, Math.round((d.projects.length / 24) * 100)), "briefcase", "04-项目/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "原创洞察", insightMetric?.value || "0", Math.min(100, Math.round((metricNumber(insightMetric?.value) / 160) * 100)), "lightbulb", insightMetric?.path || "02-洞察/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "外部素材", materialMetric?.value || "0", Math.min(100, Math.round((metricNumber(materialMetric?.value) / 400) * 100)), "archive", materialMetric?.path || "03-素材/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "能力中心", String(capCount), Math.min(100, Math.round((capCount / 36) * 100)), "workflow", "System/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "TALOS 资产", talosAssets?.value || "0", Math.min(100, Math.round((metricNumber(talosAssets?.value) / 120) * 100)), "filter", talosAssets?.path || "04-项目/TALOS系统/_README.md", "default");
-			this.fillOverviewStatBar(barGrid, "身份上下文", String(identityCount), Math.min(100, Math.round((identityCount / 24) * 100)), "fingerprint", "Identity/_README.md", "default");
+			this.fillOverviewStatBar(barGrid, "知识总量", d.overview.totalNotes.value, Math.min(100, Math.round((d.total / 2000) * 100)), "book-open", this.paths.readme("insights"), "default");
+			this.fillOverviewStatBar(barGrid, "输出资产", String(outputTotal), Math.min(100, Math.round((outputTotal / 24) * 100)), "send", this.paths.readme("output"), outputTotal > outputPublished ? "warn" : "good");
+			this.fillOverviewStatBar(barGrid, "项目场景", String(d.projects.length), Math.min(100, Math.round((d.projects.length / 24) * 100)), "briefcase", this.paths.readme("projects"), "default");
+			this.fillOverviewStatBar(barGrid, "原创洞察", insightMetric?.value || "0", Math.min(100, Math.round((metricNumber(insightMetric?.value) / 160) * 100)), "lightbulb", insightMetric?.path || this.paths.readme("insights"), "default");
+			this.fillOverviewStatBar(barGrid, "外部素材", materialMetric?.value || "0", Math.min(100, Math.round((metricNumber(materialMetric?.value) / 400) * 100)), "archive", materialMetric?.path || this.paths.readme("assets"), "default");
+			this.fillOverviewStatBar(barGrid, "能力中心", String(capCount), Math.min(100, Math.round((capCount / 36) * 100)), "workflow", this.paths.readme("system"), "default");
+			this.fillOverviewStatBar(barGrid, "TALOS 资产", talosAssets?.value || "0", Math.min(100, Math.round((metricNumber(talosAssets?.value) / 120) * 100)), "filter", talosAssets?.path || `${this.paths.talosProjectDir}/_README.md`, "default");
+			this.fillOverviewStatBar(barGrid, "身份上下文", String(identityCount), Math.min(100, Math.round((identityCount / 24) * 100)), "fingerprint", this.paths.readme("identity"), "default");
 
 			const actionPanel = this.panel(actionColumn, this.overviewToneColor(primary.tone), "行动队列", "审批 · 待办 · 收件箱");
 			actionPanel.addClass("overview-action-panel");
 			const actionList = actionPanel.createDiv({ cls: "overview-action-list" });
 			this.fillOverviewActionRow(actionList, "审批", d.approvals.length > 0 ? `${d.approvals.length} 条待确认` : "无待审批", "clipboard-check", this.plugin.talosSettings.pendingApprovalsPath, d.approvals.length > 0 ? "warn" : "good");
 			this.fillOverviewActionRow(actionList, "待办", d.focus.length > 0 ? `${d.focus.length} 个焦点` : "建议运行 /morning", "target", this.plugin.talosSettings.tasksPath, d.focus.length > 0 ? "default" : "warn");
-			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", "00-收件箱/_README.md", d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
+			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
 			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
 			if (d.approvals.length > 0 || this.lastApprovalFeedback) {
 				const quick = actionPanel.createDiv({ cls: "overview-approval-quick approval" });
@@ -1463,7 +1475,7 @@ export class TalosView extends ItemView {
 				meta: `最老 ${d.inbox.oldestDays} 天 · 建议运行 /intake`,
 				detail: "优先处理长期滞留条目，避免收件箱变成第二个无人维护的知识库。",
 				action: "打开收件箱",
-				path: "00-收件箱/_README.md",
+				path: this.paths.readme("inbox"),
 				icon: "inbox",
 				tone: d.inbox.oldestDays >= 7 ? "hot" : "warn",
 			});
@@ -1617,7 +1629,8 @@ export class TalosView extends ItemView {
 
 	private pageDaily(page: HTMLElement, d: Collected): void {
 		const now = new Date();
-		const today = DAILY_ROTA.find((item) => item.day === now.getDay()) || DAILY_ROTA[0];
+		const rota = this.dailyRota();
+		const today = rota.find((item) => item.day === now.getDay()) || rota[0];
 		const primary = d.focus[0];
 		const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 · 周${WEEKDAYS[now.getDay()]}`;
 		const victory = primary?.doneWhen || "先跑 /morning，把今天的 done_when 写进 tasks.md";
@@ -1640,7 +1653,7 @@ export class TalosView extends ItemView {
 					label: "周轮值",
 					value: today?.project || "周轮值项目",
 					sub: today?.label || "今日深度块 02",
-					path: today?.path || "04-项目/_README.md",
+					path: today?.path || this.paths.readme("projects"),
 					tone: "default",
 				},
 				{
@@ -1661,7 +1674,7 @@ export class TalosView extends ItemView {
 		const work = page.createDiv({ cls: "daily-work-grid" });
 		const timelinePanel = this.panel(work, "#38E1FF", "每日固定骨架", "ZERO DECISION TIMELINE");
 		const timeline = timelinePanel.createDiv({ cls: "daily-timeline" });
-		for (const slot of DAILY_TIMELINE) {
+		for (const slot of this.dailyTimeline()) {
 			// 08:30 开工入口指向任务池设置项；14:00 深度块② 跟随周轮值动态变化
 			const slotPath = slot.time === "08:30"
 				? this.plugin.talosSettings.tasksPath
@@ -1707,8 +1720,8 @@ export class TalosView extends ItemView {
 			item.createEl("b", { text: value });
 			item.addEventListener("click", () => void openFile(this.app, path));
 		};
-		routeItem("深度块 01", "输出闭环", "输出/统一出口.md");
-		routeItem("深度块 02", today?.project || "周轮值项目", today?.path || "System/working-memory/tasks.md");
+		routeItem("深度块 01", "输出闭环", this.paths.outletFile);
+		routeItem("深度块 02", today?.project || "周轮值项目", today?.path || this.plugin.talosSettings.tasksPath);
 		routeItem("当前焦点", `${d.focus.length} 项`, this.plugin.talosSettings.tasksPath);
 
 		const actions = cockpit.createDiv({ cls: "daily-actions" });
@@ -1769,9 +1782,9 @@ export class TalosView extends ItemView {
 		for (const node of [
 			{ label: "每日操作系统", desc: "原始说明与规则", path: "每日操作系统.md", icon: "calendar-check" },
 			{ label: "tasks.md", desc: "焦点与 done_when", path: this.plugin.talosSettings.tasksPath, icon: "list-checks" },
-			{ label: "输出统一出口", desc: "发布前唯一队列", path: "输出/统一出口.md", icon: "send" },
-			{ label: "运营候选池", desc: "发布后反馈池", path: "输出/运营/运营候选池.md", icon: "activity" },
-			{ label: "CONTEXT", desc: "近期状态与项目台账", path: "Identity/CONTEXT.md", icon: "scan-text" },
+			{ label: "输出统一出口", desc: "发布前唯一队列", path: this.paths.outletFile, icon: "send" },
+			{ label: "运营候选池", desc: "发布后反馈池", path: this.paths.opsCandidatesFile, icon: "activity" },
+			{ label: "CONTEXT", desc: "近期状态与项目台账", path: this.paths.contextFile, icon: "scan-text" },
 		]) {
 			const card = map.createDiv({ cls: "daily-node daily-item" });
 			const icon = card.createSpan({ cls: "daily-node-icon" });
@@ -1784,7 +1797,7 @@ export class TalosView extends ItemView {
 
 		const weekPanel = this.panel(page, "#A78BFA", "周轮值表 · 深度块②", "WEEK ROUTER");
 		const week = weekPanel.createDiv({ cls: "daily-week" });
-		for (const item of DAILY_ROTA) {
+		for (const item of rota) {
 			const day = week.createDiv({ cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}` });
 			day.createEl("small", { text: `${item.code} · ${item.label}` });
 			day.createEl("b", { text: item.project });
@@ -1809,15 +1822,15 @@ export class TalosView extends ItemView {
 				{ label: opsMetric?.label || "运营候选", value: opsMetric?.value || "0", sub: opsMetric?.sub, path: opsMetric?.path, tone: opsMetric?.tone || "default" },
 			],
 			actions: [
-				{ label: "统一出口", icon: "external-link", path: "输出/统一出口.md" },
+				{ label: "统一出口", icon: "external-link", path: this.paths.outletFile },
 				{ label: "输出流", icon: "copy", command: "/output" },
-				{ label: "运营池", icon: "activity", path: "输出/运营/运营候选池.md" },
+				{ label: "运营池", icon: "activity", path: this.paths.opsCandidatesFile },
 			],
 		});
 		const p = this.panel(page, "#34D399", "输出作战室", "统一出口 · 五平台发布闭环");
 		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.output.metrics);
 		const row = page.createDiv({ cls: "dashboard-grid" });
-		const queue = this.panel(row, "#FB7185", "今日待发", "输出/统一出口.md");
+		const queue = this.panel(row, "#FB7185", "今日待发", this.paths.outletFile);
 		this.fillSignalList(queue.createDiv({ cls: "detail-list" }), d.output.queue, "统一出口暂无待发条目");
 		const ops = this.panel(row, "#A78BFA", "运营候选", "发布后观察 · 待确认");
 		this.fillSignalList(ops.createDiv({ cls: "detail-list" }), d.output.opsCandidates, "暂无待确认运营候选");
@@ -1840,7 +1853,7 @@ export class TalosView extends ItemView {
 					label: "发布状态",
 					value: d.warRoom.stopTriggered ? "暂停" : "可推进",
 					sub: `${d.warRoom.published}/${d.warRoom.totalPub} 发布动作完成`,
-					path: "04-项目/TALOS系统/tasks.md",
+					path: `${this.paths.talosProjectDir}/tasks.md`,
 					tone: d.warRoom.stopTriggered ? "hot" : "good",
 				},
 				{ label: assets?.label || "TALOS 资产", value: assets?.value || "0", sub: assets?.sub, path: assets?.path, tone: assets?.tone || "default" },
@@ -1848,8 +1861,8 @@ export class TalosView extends ItemView {
 				{ label: consoleMod?.label || "控制台", value: consoleMod?.value || "0", sub: consoleMod?.sub, path: consoleMod?.path, tone: consoleMod?.tone || "default" },
 			],
 			actions: [
-				{ label: "任务闸门", icon: "list-checks", path: "04-项目/TALOS系统/tasks.md" },
-				{ label: "产品地图", icon: "map", path: "04-项目/TALOS系统/_README.md" },
+				{ label: "任务闸门", icon: "list-checks", path: `${this.paths.talosProjectDir}/tasks.md` },
+				{ label: "产品地图", icon: "map", path: `${this.paths.talosProjectDir}/_README.md` },
 				{ label: "发布流", icon: "copy", command: "/output" },
 			],
 		});
@@ -1879,28 +1892,28 @@ export class TalosView extends ItemView {
 					label: "待处理",
 					value: String(d.inbox.count),
 					sub: `${d.inbox.oldestDays}d oldest`,
-					path: "00-收件箱/_README.md",
+					path: this.paths.readme("inbox"),
 					tone: d.inbox.count > 0 ? "warn" : "good",
 				},
 				{
 					label: "主题包",
 					value: String(d.inbox.clusters.length),
 					sub: "按标题自动聚类",
-					path: "00-收件箱/_README.md",
+					path: this.paths.readme("inbox"),
 					tone: "default",
 				},
 				{
 					label: "最近进入",
 					value: `${d.inbox.recent.length} 条`,
 					sub: "最近改动的收件箱文件",
-					path: "00-收件箱/_README.md",
+					path: this.paths.readme("inbox"),
 					tone: d.inbox.recent.length > 0 ? "default" : "good",
 				},
 			],
 			actions: [
 				{ label: "开始归档", icon: "copy", command: "/intake" },
 				{ label: "消化偏好", icon: "copy", command: "/digest" },
-				{ label: "收件地图", icon: "external-link", path: "00-收件箱/_README.md" },
+				{ label: "收件地图", icon: "external-link", path: this.paths.readme("inbox") },
 			],
 		});
 		// 排列密排：消化台与最近进入并排，不再两个整行长条
@@ -1968,19 +1981,19 @@ export class TalosView extends ItemView {
 			title: "项目场景",
 			desc: "按活跃度和优先级扫项目，先让高频项目露头，再进入具体场景推进。",
 			stats: [
-				{ label: "项目数", value: String(d.projects.length), sub: "04-项目 子场景", path: "04-项目/_README.md", tone: "default" },
-				{ label: "高频项目", value: String(p0Count), sub: "P0 场景优先推进", path: "04-项目/场景索引.md", tone: p0Count > 0 ? "hot" : "default" },
-				{ label: "项目笔记", value: String(projectNotes), sub: "不含 README", path: "04-项目/_README.md", tone: "good" },
+				{ label: "项目数", value: String(d.projects.length), sub: `${this.paths.dir("projects")} 子场景`, path: this.paths.readme("projects"), tone: "default" },
+				{ label: "高频项目", value: String(p0Count), sub: "P0 场景优先推进", path: this.paths.sceneIndexFile, tone: p0Count > 0 ? "hot" : "default" },
+				{ label: "项目笔记", value: String(projectNotes), sub: "不含 README", path: this.paths.readme("projects"), tone: "good" },
 			],
 			actions: [
-				{ label: "项目总图", icon: "map", path: "04-项目/_README.md" },
-				{ label: "场景索引", icon: "external-link", path: "04-项目/场景索引.md" },
+				{ label: "项目总图", icon: "map", path: this.paths.readme("projects") },
+				{ label: "场景索引", icon: "external-link", path: this.paths.sceneIndexFile },
 				{ label: "检索项目", icon: "copy", command: "/retrieval" },
 			],
 		});
 		// 排列密排：项目地图与场景索引并排（场景索引只有 2 条，整行拉满留白严重）
 		const grid = page.createDiv({ cls: "panel-grid" });
-		const p = this.panel(grid, "#4D8DFF", "项目场景地图", "04-项目 · 高频项目优先");
+		const p = this.panel(grid, "#4D8DFF", "项目场景地图", `${this.paths.dir("projects")} · 高频项目优先`);
 		const cards = p.createDiv({ cls: "project-grid" });
 		for (const project of d.projects) {
 			const card = cards.createDiv({ cls: `project-card priority-${project.priority}` });
@@ -2013,8 +2026,8 @@ export class TalosView extends ItemView {
 		}
 		const scene = this.panel(grid, "#A78BFA", "场景索引", "项目入口总地图");
 		this.fillSignalList(scene.createDiv({ cls: "detail-list" }), [
-			{ title: "打开场景索引", meta: "04-项目/场景索引.md", path: "04-项目/场景索引.md" },
-			{ title: "打开项目总 README", meta: "04-项目/_README.md", path: "04-项目/_README.md" },
+			{ title: "打开场景索引", meta: this.paths.sceneIndexFile, path: this.paths.sceneIndexFile },
+			{ title: "打开项目总 README", meta: this.paths.readme("projects"), path: this.paths.readme("projects") },
 		], "场景索引未找到");
 	}
 
@@ -2034,25 +2047,24 @@ export class TalosView extends ItemView {
 				{ label: materialMetric?.label || "外部素材", value: materialMetric?.value || "0", sub: materialMetric?.sub, path: materialMetric?.path, tone: materialMetric?.tone || "default" },
 			],
 			actions: [
-				{ label: "MOC", icon: "external-link", path: "02-洞察/MOC/_README.md" },
-				{ label: "洞察库", icon: "lightbulb", path: "02-洞察/_README.md" },
-				{ label: "素材库", icon: "archive", path: "03-素材/_README.md" },
+				{ label: "MOC", icon: "external-link", path: this.paths.mocReadme },
+				{ label: "洞察库", icon: "lightbulb", path: this.paths.readme("insights") },
+				{ label: "素材库", icon: "archive", path: this.paths.readme("assets") },
 			],
 		});
 		const p = this.panel(page, "#A78BFA", "知识枢纽", "MOC · 原创洞察 · 外部素材");
 		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.knowledge.metrics);
 		// 排列密排：三个同级列表 panel 三列并排，素材不再独占整行
 		const row = page.createDiv({ cls: "panel-grid cols-3" });
-		const moc = this.panel(row, "#38E1FF", "MOC 概念入口", "02-洞察/MOC");
+		const moc = this.panel(row, "#38E1FF", "MOC 概念入口", this.paths.mocDir);
 		this.fillSignalList(moc.createDiv({ cls: "detail-list" }), d.knowledge.mocs, "暂无 MOC");
-		const insights = this.panel(row, "#F472B6", "最近原创洞察", "02-洞察");
+		const insights = this.panel(row, "#F472B6", "最近原创洞察", this.paths.dir("insights"));
 		this.fillSignalList(insights.createDiv({ cls: "detail-list" }), d.knowledge.recentInsights, "暂无洞察");
-		const materials = this.panel(row, "#FBBF24", "最近外部素材", "03-素材");
+		const materials = this.panel(row, "#FBBF24", "最近外部素材", this.paths.dir("assets"));
 		this.fillSignalList(materials.createDiv({ cls: "detail-list" }), d.knowledge.recentMaterials, "暂无素材");
 	}
 
 	private pageIdentity(page: HTMLElement, d: Collected): void {
-		const countOf = (name: string) => d.modules.find((item) => item.name === name)?.count ?? 0;
 		this.moduleHero(page, {
 			ac: "#6366F1",
 			icon: "fingerprint",
@@ -2060,8 +2072,8 @@ export class TalosView extends ItemView {
 			title: "身份上下文",
 			desc: "用户身份、AI 灵魂和工作记忆并排巡检，确保行动没有脱离长期自我和当前状态。",
 			stats: [
-				{ label: "用户身份", value: String(countOf("Identity")), sub: "使命、状态、偏好、决策", path: "Identity/_README.md", tone: "default" },
-				{ label: "AI 灵魂", value: String(countOf("灵魂")), sub: "人格契约与立场账本", path: "灵魂/_README.md", tone: "default" },
+				{ label: "用户身份", value: String(this.moduleCount(d, "identity")), sub: "使命、状态、偏好、决策", path: this.paths.readme("identity"), tone: "default" },
+				{ label: "AI 灵魂", value: String(this.moduleCount(d, "soul")), sub: "人格契约与立场账本", path: this.paths.readme("soul"), tone: "default" },
 				{
 					label: "待确认",
 					value: String(d.approvals.length + d.candidates.length),
@@ -2071,8 +2083,8 @@ export class TalosView extends ItemView {
 				},
 			],
 			actions: [
-				{ label: "CONTEXT", icon: "scan-text", path: "Identity/CONTEXT.md" },
-				{ label: "PERSONA", icon: "sparkles", path: "灵魂/PERSONA.md" },
+				{ label: "CONTEXT", icon: "scan-text", path: this.paths.contextFile },
+				{ label: "PERSONA", icon: "sparkles", path: this.paths.personaFile },
 				{ label: "记忆流", icon: "copy", command: "/memory" },
 			],
 		});
@@ -2080,16 +2092,16 @@ export class TalosView extends ItemView {
 		const metrics: MetricTile[] = [
 			{
 				label: "用户身份",
-				value: String(countOf("Identity")),
+				value: String(this.moduleCount(d, "identity")),
 				sub: "使命、状态、偏好、决策",
-				path: "Identity/_README.md",
+				path: this.paths.readme("identity"),
 				tone: "default",
 			},
 			{
 				label: "AI 灵魂",
-				value: String(countOf("灵魂")),
+				value: String(this.moduleCount(d, "soul")),
 				sub: "人格契约与立场账本",
-				path: "灵魂/_README.md",
+				path: this.paths.readme("soul"),
 				tone: "default",
 			},
 			{
@@ -2112,16 +2124,16 @@ export class TalosView extends ItemView {
 		const identities = page.createDiv({ cls: "dashboard-grid identity-grid" });
 		const user = this.panel(identities, "#38E1FF", "Haaper · Identity", "身份事实与当前状态");
 		this.fillSignalList(user.createDiv({ cls: "detail-list" }), [
-			{ title: "TELOS", meta: "使命、目标、信念与长期方向", path: "Identity/TELOS.md" },
-			{ title: "CONTEXT", meta: "近期焦点、项目与系统状态", path: "Identity/CONTEXT.md" },
-			{ title: "PROFILE", meta: "经确认的场景化偏好", path: "Identity/PROFILE.md" },
-			{ title: "战略决策", meta: "方向、方法与品牌级判断", path: "Identity/decisions.md" },
+			{ title: "TELOS", meta: "使命、目标、信念与长期方向", path: this.paths.telosFile },
+			{ title: "CONTEXT", meta: "近期焦点、项目与系统状态", path: this.paths.contextFile },
+			{ title: "PROFILE", meta: "经确认的场景化偏好", path: this.paths.profileFile },
+			{ title: "战略决策", meta: "方向、方法与品牌级判断", path: this.paths.decisionsFile },
 		], "Identity 文件未找到");
 
 		const soul = this.panel(identities, "#F472B6", "屈原 · 灵魂", "人格契约与独立判断");
 		this.fillSignalList(soul.createDiv({ cls: "detail-list" }), [
-			{ title: "PERSONA", meta: "名字、价值内核、反驳权与边界", path: "灵魂/PERSONA.md" },
-			{ title: "persona-memory", meta: "演化立场、判断与自我修正", path: "灵魂/persona-memory.md" },
+			{ title: "PERSONA", meta: "名字、价值内核、反驳权与边界", path: this.paths.personaFile },
+			{ title: "persona-memory", meta: "演化立场、判断与自我修正", path: this.paths.personaMemoryFile },
 		], "灵魂文件未找到");
 
 		const live = page.createDiv({ cls: "dashboard-grid identity-grid" });
@@ -2158,13 +2170,13 @@ export class TalosView extends ItemView {
 			title: "全库视图",
 			desc: "从内容分布、顶层模块到创建热力图，给整个外脑系统做一次横向巡航。",
 			stats: [
-				{ label: "知识笔记", value: String(d.total), sub: "六大内容目录", path: "04-项目/_README.md", tone: "default" },
-				{ label: "顶层模块", value: String(d.modules.length), sub: `${missingReadmes} 个 README 异常`, path: "System/_README.md", tone: missingReadmes > 0 ? "warn" : "good" },
-				{ label: "活跃天数", value: activeDays, sub: d.heatmap.meta.split(" · ")[1] || "近 12 个月", path: "01-日志/_README.md", tone: "good" },
+				{ label: "知识笔记", value: String(d.total), sub: "六大内容目录", path: this.paths.readme("projects"), tone: "default" },
+				{ label: "顶层模块", value: String(d.modules.length), sub: `${missingReadmes} 个 README 异常`, path: this.paths.readme("system"), tone: missingReadmes > 0 ? "warn" : "good" },
+				{ label: "活跃天数", value: activeDays, sub: d.heatmap.meta.split(" · ")[1] || "近 12 个月", path: this.paths.readme("logs"), tone: "good" },
 			],
 			actions: [
-				{ label: "系统地图", icon: "map", path: "System/_README.md" },
-				{ label: "项目地图", icon: "folder-kanban", path: "04-项目/_README.md" },
+				{ label: "系统地图", icon: "map", path: this.paths.readme("system") },
+				{ label: "项目地图", icon: "folder-kanban", path: this.paths.readme("projects") },
 				{ label: "周重置", icon: "copy", command: "/weekly-reset" },
 			],
 		});
