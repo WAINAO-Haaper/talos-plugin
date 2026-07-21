@@ -20,6 +20,8 @@ function fakeApp(folders: string[], files: string[] = []) {
 
 describe("listTopFolders", () => {
 	it("列出顶层目录并跳过隐藏目录", () => {
+		// 此处的 ".obsidian" 是测试数据（验证会跳过隐藏目录），并非真实 config 路径访问
+		// eslint-disable-next-line obsidianmd/hardcoded-config-path
 		expect(listTopFolders(fakeApp(["00-Inbox", ".obsidian", "Identity"])))
 			.toEqual(["00-Inbox", "Identity"]);
 	});
@@ -27,14 +29,14 @@ describe("listTopFolders", () => {
 
 describe("detectSchemaDetailed · 标准结构", () => {
 	it("中文预设库全部精确命中", () => {
-		const r = detectSchemaDetailed(fakeApp(Object.values(SCHEMA_PRESET_CN)));
+		const r = detectSchemaDetailed(fakeApp(Object.values(SCHEMA_PRESET_CN) as string[]));
 		expect(r.matchedCount).toBe(13);
 		expect(r.schema).toEqual(SCHEMA_PRESET_CN);
 		expect(r.entries.every((e) => e.how === "exact")).toBe(true);
 	});
 
 	it("英文预设库全部精确命中", () => {
-		const r = detectSchemaDetailed(fakeApp(Object.values(SCHEMA_PRESET_EN)));
+		const r = detectSchemaDetailed(fakeApp(Object.values(SCHEMA_PRESET_EN) as string[]));
 		expect(r.schema.inbox).toBe("00-Inbox");
 		expect(r.schema.insights).toBe("02-Insights");
 		expect(r.schema.output).toBe("Output");
