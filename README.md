@@ -1,6 +1,5 @@
 # TALOS 控制台插件
 
-![version](https://img.shields.io/badge/version-0.2.1-blue)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.8.0%2B-purple)
 ![platform](https://img.shields.io/badge/platform-Desktop%20only-lightgrey)
 ![license](https://img.shields.io/badge/license-Proprietary-red)
@@ -152,7 +151,7 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 
 - **`LICENSE`**：TALOS 自有代码的**专有商业许可**；不覆盖 Claudian 与其他第三方材料。客户使用、席位、期限和再分发权须由单独商业协议/EULA 授予。
 - **`THIRD-PARTY-NOTICES.md`**：Claudian MIT、Claude Agent SDK 商业条款、BYOK 边界和直接运行时依赖摘要。
-- **`THIRD-PARTY-LICENSES.txt`**：由 `third-party-licenses.mjs` 根据 lockfile 自动生成的生产依赖完整许可证包（当前覆盖 111 个已安装生产包）。
+- **`THIRD-PARTY-LICENSES.txt`**：由 `third-party-licenses.mjs` 根据 lockfile 自动生成的生产依赖完整许可证包（当前覆盖 109 个已安装生产包）。
 - **`MaShanZheng-Regular.ttf` + `MaShanZheng-OFL.txt`**：屈原语音主标题使用的本地毛笔字体与 SIL OFL 1.1 许可证；随插件部署，离线可用。
 - **`TALOS-Favicon-64-v1.png`**：TALOS Modular T-Shield 定稿图标。**`TALOS-Mascot-Character-Transparent-v1.png`**：动画人物概念资产与回滚参考。
 
