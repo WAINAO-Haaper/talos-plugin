@@ -7,9 +7,14 @@
 
 > **TALOS** 是「超级大脑系统」的原生 Obsidian 控制台：一个视图里扫全库、实时统计、把每个系统模块的运行态势与 TALOS 发布作战室呈现出来，并内嵌「屈原」AI Agent 工作台（全双工语音 + 审批治理 + 多 Provider Agent 工作台）。
 
-<!-- 截图占位：建议替换为真实插件界面截图或 GIF
-![TALOS 控制台总览](docs/screenshot-overview.png)
--->
+![TALOS 控制台·总览](docs/screenshots/overview.png)
+*总览：行动层级总览——主判断 → 指标矩阵 → 状态卡 → 焦点下钻*
+
+![TALOS 控制台·全库视图](docs/screenshots/vault-map.png)
+*全库视图：知识库分布、健康趋势、笔记热力图与 13 模块地图*
+
+![TALOS 控制台·屈原](docs/screenshots/quyuan.png)
+*屈原：AI Agent 语音工作台，球形粒子 Logo + 流式对话与朗读*
 
 ## ✨ 功能速览
 
