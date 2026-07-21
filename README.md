@@ -6,8 +6,6 @@
 ![CI](https://github.com/WAINAO-Haaper/talos-plugin/actions/workflows/ci.yml/badge.svg)
 
 > **TALOS** 是「超级大脑系统」的原生 Obsidian 控制台：一个视图里扫全库、实时统计、把每个系统模块的运行态势与 TALOS 发布作战室呈现出来，并内嵌「屈原」AI Agent 工作台（全双工语音 + 审批治理 + 多 Provider Agent 工作台）。
->
-> 方案来源：[杰森《用 Codex 为 Obsidian 搭建 Agent Dashboard》](https://jasonai.me/blog/codex-obsidian-agent-dashboard-plugin/)。
 
 <!-- 截图占位：建议替换为真实插件界面截图或 GIF
 ![TALOS 控制台总览](docs/screenshot-overview.png)
