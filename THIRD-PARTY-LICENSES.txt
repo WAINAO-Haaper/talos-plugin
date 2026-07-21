@@ -12,13 +12,6 @@ Repository: https://github.com/anthropics/claude-agent-sdk-typescript.git
 © Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
 
 ==============================================================================
-@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.207
-Declared license: SEE LICENSE IN LICENSE.md
-
---- LICENSE.md ---
-© Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.
-
-==============================================================================
 @anthropic-ai/sdk@0.105.0
 Declared license: MIT
 Repository: github:anthropics/anthropic-sdk-typescript

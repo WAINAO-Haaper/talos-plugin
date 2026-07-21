@@ -47,6 +47,11 @@ assertCommercialMetadata();
 
 for (const [relativePath, lockEntry] of Object.entries(lock.packages ?? {})) {
 	if (!relativePath.startsWith("node_modules/") || lockEntry.dev === true) continue;
+	// 跳过平台相关的 optional 子包（如 @anthropic-ai/claude-agent-sdk 的
+	// darwin/linux/win32 × arm64/x64 变体）：它们随运行平台选择性安装，纳入清单会使
+	// 生成结果跨平台不一致，导致 CI（Linux）与本地（macOS）的 licenses:check 互判 stale。
+	// 其许可归属已由主包条目与 THIRD-PARTY-NOTICES.md 覆盖。
+	if (lockEntry.optional === true && (lockEntry.os || lockEntry.cpu)) continue;
 	const packageDir = join(root, relativePath);
 	const packageJsonPath = join(packageDir, "package.json");
 	if (!existsSync(packageJsonPath)) continue;
