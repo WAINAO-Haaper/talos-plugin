@@ -24,3 +24,12 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# 本地工作备份（每次 bugfix 产生，不入版本库）
+backups/
+
+# 本地临时调试文件
+error-screenshot.png
+quyuan-voice-current.png
+quyuan-voice-preview.html
+whisper-local-test.html
