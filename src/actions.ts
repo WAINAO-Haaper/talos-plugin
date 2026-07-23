@@ -21,7 +21,24 @@ import {
 	buildMockModelAppend,
 	parseApprovalExecutableSpec,
 } from "./approval-executor";
+import {
+	createApprovalTaskRuntime,
+	type ApprovalTaskRuntime,
+} from "./approval-task-runtime";
 import type { TalosSettings } from "./settings";
+import { createWindowTimerHost } from "./task-core/task-runner";
+
+const approvalTaskRuntimes = new WeakMap<App, ApprovalTaskRuntime>();
+
+function getApprovalTaskRuntime(app: App): ApprovalTaskRuntime {
+	const existing = approvalTaskRuntimes.get(app);
+	if (existing) return existing;
+	const runtime = createApprovalTaskRuntime(
+		createWindowTimerHost(activeWindow)
+	);
+	approvalTaskRuntimes.set(app, runtime);
+	return runtime;
+}
 
 function todayStr(): string {
 	const d = new Date();
@@ -163,32 +180,45 @@ export async function approveAndExecuteApprovalWithMockModel(
 		return false;
 	}
 
-	const original = await app.vault.read(target);
-	const now = new Date();
-	const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-	const append = buildMockModelAppend({
+	let successMessage = "";
+	const task = await getApprovalTaskRuntime(app).run({
+		idempotencyKey: `approval:${settings.pendingApprovalsPath}:${title}`,
 		title,
+		pendingApprovalsPath: settings.pendingApprovalsPath,
 		targetPath: spec.targetPath,
-		instruction: spec.instruction,
-		date: todayStr(),
-		time,
-		originalContent: original,
-	});
-	await app.vault.modify(target, `${original.trimEnd()}\n${append}`);
+		execute: async () => {
+			const original = await app.vault.read(target);
+			const now = new Date();
+			const date = todayStr();
+			const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+			const append = buildMockModelAppend({
+				title,
+				targetPath: spec.targetPath,
+				instruction: spec.instruction,
+				date,
+				time,
+				originalContent: original,
+			});
+			await app.vault.modify(target, `${original.trimEnd()}\n${append}`);
 
-	const recorded = applyApprovalExecutionRecord(approved.content, {
-		title,
-		targetPath: spec.targetPath,
-		date: todayStr(),
-		time,
-		executor: spec.executor,
+			const recorded = applyApprovalExecutionRecord(approved.content, {
+				title,
+				targetPath: spec.targetPath,
+				date,
+				time,
+				executor: spec.executor,
+			});
+			if (!recorded.ok) throw new Error(recorded.message);
+			await app.vault.modify(approvalFile, recorded.content);
+			successMessage = recorded.message;
+			return { message: recorded.message };
+		},
 	});
-	if (!recorded.ok) {
-		new Notice(recorded.message);
+	if (task.state !== "completed") {
+		new Notice(task.error || "模型执行任务未完成");
 		return false;
 	}
-	await app.vault.modify(approvalFile, recorded.content);
-	new Notice(recorded.message);
+	new Notice(successMessage || "该审批任务已完成");
 	return true;
 }
 
