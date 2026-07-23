@@ -94,6 +94,63 @@
 
 final result: passed
 
+## Overview Compact Overlay Navigation QA · 2026-07-22
+
+- Source visual: user-supplied Obsidian screenshot `截屏2026-07-22 07.24.44.png`.
+- Implementation surface: `prototype/overview-operations-qa.html?theme=geometric-modern&page=overview`.
+- Viewports: 1600×1000, 1024×768 and 390×844.
+- Interaction states: resting rail, keyboard-focus expansion and focus-leave collapse.
+
+**Findings**
+
+- Desktop geometry: 72px resting rail expands to a 296px overlay; main remains x=72px / 1528px wide.
+- Intermediate geometry: 72px resting rail expands to 260px; main remains x=72px / 952px wide.
+- Narrow geometry: 54px resting rail expands to 260px; main remains x=54px / 336px wide.
+- All three viewports keep `document.scrollWidth === document.clientWidth` (1600, 1024 and 390 respectively).
+- All 12 commands are present. Resting state hides all labels; focus expansion exposes all 12 labels. At 390px every command remains horizontally contained and the expanded rail scrolls vertically when needed.
+- Keyboard focus triggers the same overlay as pointer hover, and moving focus into main content restores the compact rail.
+- Browser console reported no warning or error.
+
+**Patches made**
+
+- Generalized the existing compact shell/navigation selectors from detail-only to every TALOS page.
+- Kept detail-page main padding and Jarvis height/scroll selectors page-scoped.
+- Removed the retired overview-only horizontal mobile navigation rules that would override the shared 54px rail below 680px.
+- Generalized the existing reduced-motion sidebar rule so overview width transitions are also disabled when requested.
+- Added red/green self-test coverage for the shared shell contract and the removal of the overview horizontal-nav exception.
+
+final result: passed
+
+## Overview Approval Compatibility QA
+
+- Date: 2026-07-22.
+- Source: `src/view.ts`, `src/actions.ts`, `src/data/stats.ts`, `src/candidate-actions.ts`, and `styles.talos.css`.
+- Harness: `prototype/overview-approval-compat-qa.html` using the generated production `styles.css`.
+- Scope: independent pending-approval and preference-approval modules, compact health summary, complete long titles, action wrapping, and container-aware Obsidian pane reflow.
+- Widths: approximately 900px, 700px, and 390px of requested pane space while the browser viewport remained 1500px wide, plus a real 390×844 mobile viewport.
+- Themes: Aurora, Nebula, Animal Island, Macintosh, Data Stream, Soft Relief, Geometric Modern, Executive Brief, Paper Ink, and Swiss Modern.
+
+**Findings**
+
+- All 30 theme × pane-width combinations kept every approval item and action group inside its card (`clientWidth === scrollWidth` and action bounds inside item bounds).
+- At approximately 900px, the operations area reflowed to one column while pending and preference approval remained side by side.
+- At approximately 700px and below, pending approval stacked above preference approval.
+- At approximately 390px, the health summary used one column, its ring remained 104px, and the stat wall reflowed without covering either approval module.
+- The health summary desktop height is 132px, reduced from 170px without removing score, source count, refresh time, or broken-link data.
+- Macintosh reports a theme-wide 2px scroll extent from its existing panel drop shadow. The approval titles, cards, and buttons still fit; the decorative shadow is not a content overflow and was left unchanged.
+- The mobile visual inspection confirmed that pending approval shows all three actions and preference approval shows both actions without clipping or overlap.
+
+**Automated checks**
+
+- `tests/candidate-actions.test.ts`: preference approval/rejection write-back, target-section creation, failure immutability, and long-title exact matching.
+- `tests/overview-layout.test.ts`: independent approval modules, full candidate titles, container queries, removal of the incompatible fixed minimum column pair, and wrapped action groups.
+
+**Rollback**
+
+- Original files are preserved under `backups/overview-approval-layout-20260722-before/` with a file-by-file restore checklist.
+
+final result: passed
+
 ## TALOS Overview Operations Layout QA · 2026-07-04
 
 - Source visual truth:
@@ -629,5 +686,29 @@ final result: passed
 - Layout result: desktop 72+1528, intermediate 72+952 and narrow 54+336; expansion never changes the main track.
 - Scope: detail-page content modules, theme materials and page behavior remain unchanged.
 - Deployment: completed. Source and installed `main.js`, `manifest.json` and `styles.css` checksums match; the deployment path does not copy `data.json`.
+
+final result: passed
+
+## Project Scenes Compact Layout QA · 2026-07-22
+
+- Source visual: user-supplied Obsidian screenshot `截屏2026-07-22 07.38.37.png`.
+- Implementation surface: `prototype/project-scenes-compact-qa.html` using the generated `styles.css`.
+- Viewports: 1600×1000, 1024×768 and 390×844; Geometric Modern theme.
+
+**Findings**
+
+- Desktop: the 1492px work area resolves to a 1085px project map and 395px entry panel (approximately 73/27). The entry panel is 209px high versus the 639px map and no longer stretches to the map height.
+- Both entry rows remain exactly 64px high and vertically ordered.
+- Project cards resolve to 3 columns at 1600px, 2 columns at 1024px and 1 column at 390px.
+- All 12 project cards keep their full content inside 132–135px card heights; no card reports horizontal or vertical content clipping.
+- `document.scrollWidth === clientWidth` and TALOS root width equals the viewport at all three widths (1600, 1024 and 390).
+- Browser console reported no warning or error.
+
+**Patches made**
+
+- Added `project-scene-layout`, `project-map-panel` and `project-entry-panel` hooks in the existing projects renderer.
+- Scoped the 70/30 desktop grid, content-height entry rows, compact project-card spacing and 3/2/1 responsive card columns to the projects page.
+- Left generic `.panel-grid`, other pages, project data and click handlers unchanged.
+- Added a focused red/green Vitest regression and a project-page QA fixture.
 
 final result: passed

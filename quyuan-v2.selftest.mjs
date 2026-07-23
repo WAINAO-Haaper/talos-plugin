@@ -210,6 +210,7 @@ assert.equal(
 	true
 );
 
+const talosCss = readFileSync("styles.talos.css", "utf8");
 const quyuanShellCss = readFileSync("styles.quyuan-shell.css", "utf8");
 assert.match(quyuanShellCss, /container-type:\s*inline-size/);
 assert.match(quyuanShellCss, /@container talos-quyuan \(max-width:\s*620px\)/);
@@ -493,7 +494,19 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/:not\(\[data-talos-page="overview"\]\) \.app[\s\S]*grid-template-columns:\s*72px minmax\(0,\s*1fr\)/
+	/\.talos-console \.app\s*\{[\s\S]*grid-template-columns:\s*72px minmax\(0,\s*1fr\) !important/
+);
+assert.match(
+	quyuanShellCss,
+	/\.talos-console \.sidebar\s*\{[\s\S]*width:\s*72px/
+);
+assert.doesNotMatch(
+	quyuanShellCss,
+	/:not\(\[data-talos-page="overview"\]\) \.app\s*\{/
+);
+assert.doesNotMatch(
+	talosCss,
+	/\[data-talos-page="overview"\] \.pagenav-card \.nav\s*\{[\s\S]*?flex-direction:\s*row/
 );
 assert.match(
 	quyuanShellCss,

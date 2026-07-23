@@ -416,6 +416,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
+	container: overview-content / inline-size;
 }
 .talos-console .overview-verdict {
 	display: grid;
@@ -1103,7 +1104,7 @@
 	/* 总览行动/统计分区（2026-07-09）：左侧审批待办，右侧高密度动态统计墙。 */
 	.talos-console .overview-ops-grid {
 		display: grid;
-		grid-template-columns: minmax(360px,.78fr) minmax(620px,1.22fr);
+		grid-template-columns: minmax(0,.78fr) minmax(0,1.22fr);
 		align-items: stretch;
 		gap: 0;
 		min-width: 0;
@@ -1168,11 +1169,11 @@
 	.talos-console .overview-health-score {
 		--health-ac: var(--green);
 		display: grid;
-		grid-template-columns: minmax(132px,.35fr) minmax(0,1fr);
+		grid-template-columns: minmax(104px,.28fr) minmax(0,1fr);
 		align-items: center;
-		gap: 16px;
-		min-height: 170px;
-		padding: 14px;
+		gap: 12px;
+		min-height: 132px;
+		padding: 10px 12px;
 		border: 1px solid color-mix(in srgb,var(--health-ac) 38%,var(--line));
 		border-radius: 8px;
 		background:
@@ -1186,7 +1187,7 @@
 	.talos-console .overview-health-ring {
 		display: grid;
 		place-items: center;
-		width: 132px;
+		width: 104px;
 		aspect-ratio: 1;
 		border: 2px solid var(--line);
 		border-radius: 50%;
@@ -1199,23 +1200,23 @@
 	.talos-console .overview-health-ring strong {
 		color: var(--ink);
 		font-family: var(--mono);
-		font-size: 38px;
+		font-size: 30px;
 		line-height: 1;
 	}
 	.talos-console .overview-health-ring span {
-		margin-top: -26px;
+		margin-top: -20px;
 		color: var(--muted);
 		font-size: 11px;
 		font-weight: 800;
 	}
 	.talos-console .overview-health-copy {
 		display: grid;
-		gap: 8px;
+		gap: 6px;
 		min-width: 0;
 	}
 	.talos-console .overview-health-copy b {
 		color: var(--ink);
-		font-size: 22px;
+		font-size: 18px;
 		line-height: 1.2;
 	}
 	.talos-console .overview-health-copy p {
@@ -1232,7 +1233,7 @@
 	.talos-console .overview-health-chip {
 		--chip-ac: var(--blue);
 		min-width: 0;
-		padding: 8px;
+		padding: 6px 7px;
 		border: 1px solid color-mix(in srgb,var(--chip-ac) 32%,var(--line));
 		border-radius: 8px;
 		background: color-mix(in srgb,var(--chip-ac) 9%,var(--surface-2));
@@ -1541,6 +1542,49 @@
 		margin-top: 10px;
 		align-self: end;
 	}
+	.talos-console .overview-approval-grid {
+		display: grid;
+		grid-template-columns: repeat(2,minmax(0,1fr));
+		gap: 14px;
+		min-width: 0;
+	}
+	.talos-console .overview-approval-grid > * {
+		min-width: 0;
+	}
+	.talos-console .overview-approval-panel {
+		align-content: start;
+		min-height: 180px;
+	}
+	.talos-console .overview-approval-list {
+		min-width: 0;
+	}
+	.talos-console .overview-approval-grid .approval-item {
+		display: grid;
+		grid-template-columns: auto minmax(0,1fr);
+		align-items: center;
+	}
+	.talos-console .overview-approval-grid .approval-title {
+		width: 100%;
+	}
+	.talos-console .overview-approval-grid .approval-actions {
+		grid-column: 1 / -1;
+		justify-content: flex-end;
+		width: 100%;
+		margin-left: 0;
+		padding-left: 37px;
+		flex-wrap: wrap;
+	}
+	.talos-console .overview-approval-grid .approval-feedback {
+		grid-template-columns: 28px minmax(0,1fr);
+	}
+	.talos-console .overview-approval-grid .approval-feedback-open {
+		grid-column: 2;
+		justify-self: start;
+	}
+	.talos-console .candidate-badge {
+		background: linear-gradient(135deg,#7C3AED,#A78BFA);
+		box-shadow: 0 0 12px rgba(167,139,250,.45);
+	}
 	.talos-console .overview-workgrid {
 		display: grid;
 		grid-template-columns: minmax(0,1.12fr) minmax(360px,.88fr);
@@ -1656,6 +1700,42 @@
 		}
 		.talos-console .overview-secondary-grid {
 			grid-template-columns: repeat(2,minmax(0,1fr));
+		}
+	}
+	@container overview-content (max-width: 980px) {
+		.talos-console .overview-ops-grid {
+			grid-template-columns: 1fr;
+			gap: 12px;
+		}
+		.talos-console .overview-action-column,
+		.talos-console .overview-stat-column,
+		.talos-console .overview-action-panel {
+			align-content: start;
+			height: auto;
+			min-height: auto;
+		}
+	}
+	@container overview-content (max-width: 760px) {
+		.talos-console .overview-approval-grid {
+			grid-template-columns: 1fr;
+		}
+		.talos-console .overview-stat-bars {
+			grid-template-columns: repeat(3,minmax(0,1fr));
+		}
+	}
+	@container overview-content (max-width: 520px) {
+		.talos-console .overview-health-score {
+			grid-template-columns: 1fr;
+		}
+		.talos-console .overview-health-ring {
+			justify-self: center;
+		}
+		.talos-console .overview-stat-bars {
+			grid-template-columns: repeat(2,minmax(0,1fr));
+		}
+		.talos-console .overview-approval-grid .approval-actions {
+			justify-content: flex-start;
+			padding-left: 0;
 		}
 	}
 	@media (max-width: 680px) {
@@ -7909,51 +7989,6 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 	.talos-console[data-talos-page="overview"] .hero .logo-module {
 		justify-self: start;
 	}
-	.talos-console[data-talos-page="overview"] .pagenav-card {
-		overflow: hidden;
-		padding: 10px;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .section-title {
-		margin-bottom: 8px;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .nav {
-		flex-direction: row;
-		gap: 6px;
-		overflow-x: auto;
-		padding: 1px 1px 5px;
-		scrollbar-width: thin;
-		scroll-snap-type: x proximity;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .nav-group {
-		display: contents;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .nav-group-label {
-		display: none;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .command {
-		flex: 0 0 auto;
-		min-height: 44px;
-		padding: 8px 10px;
-		scroll-snap-align: start;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .mark {
-		width: 26px;
-		height: 26px;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .mark svg {
-		width: 15px;
-		height: 15px;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .command .nav-label {
-		font-size: 14px !important;
-	}
-	.talos-console[data-talos-page="overview"] .nav-meta {
-		padding: 2px 7px;
-		font-size: 10px !important;
-	}
-	.talos-console[data-talos-page="overview"] .pagenav-card .command:hover {
-		transform: translateY(-1px);
-	}
 }
 
 /* 总览贴边铺满：直接消除模块之间的黑色缝隙。 */
@@ -10641,6 +10676,70 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 @media (max-width: 1100px) {
 	.talos-console .panel-grid,
 	.talos-console .panel-grid.cols-3 {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* 项目场景页：项目地图为主、入口索引为辅；入口按内容收缩，不跟随长列表等高。 */
+.talos-console[data-talos-page="projects"] .project-scene-layout {
+	grid-template-columns: minmax(0, 2.2fr) minmax(280px, .8fr);
+	align-items: start;
+	gap: 12px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .project-card {
+	min-height: 0;
+	padding: 9px 10px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .project-card .big {
+	font-size: 23px;
+	margin: 4px 0 2px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .proj-progress {
+	margin-top: 6px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .proj-progress-head {
+	margin-bottom: 4px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .proj-progress-track {
+	height: 7px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .proj-progress-none {
+	margin-top: 6px;
+	padding-top: 5px;
+}
+.talos-console[data-talos-page="projects"] .project-map-panel .module-latest {
+	margin-top: 5px;
+}
+.talos-console[data-talos-page="projects"] .project-entry-panel {
+	align-self: start;
+}
+.talos-console[data-talos-page="projects"] .project-entry-panel .detail-list {
+	flex: 0 0 auto;
+	gap: 8px;
+}
+.talos-console[data-talos-page="projects"] .project-entry-panel .detail-row {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	min-height: 64px;
+	padding: 10px 12px;
+}
+
+@media (max-width: 1100px) {
+	.talos-console[data-talos-page="projects"] .project-scene-layout {
+		grid-template-columns: 1fr;
+	}
+	.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 680px) {
+	.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
 		grid-template-columns: 1fr;
 	}
 }

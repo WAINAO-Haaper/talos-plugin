@@ -847,14 +847,14 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   display: none !important;
 }
 
-.talos-console:not([data-talos-page="overview"]) .app {
+.talos-console .app {
   grid-template-columns: 72px minmax(0, 1fr) !important;
   align-items: start;
   gap: 0 !important;
   padding: 0 !important;
 }
 
-.talos-console:not([data-talos-page="overview"]) .sidebar {
+.talos-console .sidebar {
   position: sticky;
   top: 0;
   align-self: start;
@@ -883,24 +883,24 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   align-items: stretch;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within) {
   width: 296px;
   box-shadow: 14px 0 28px rgba(0, 0, 0, 0.24);
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar > .card:not(.pagenav-card) {
   display: none !important;
 }
 
-.talos-console:not([data-talos-page="overview"]) .pagenav-card {
+.talos-console .pagenav-card {
   display: block;
   width: 100%;
   margin: 0;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:not(:hover):not(:focus-within)
   .pagenav-card {
   padding: 0 !important;
@@ -911,36 +911,36 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   overflow: visible;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:not(:hover):not(:focus-within)
   .pagenav-card::before,
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:not(:hover):not(:focus-within)
   .pagenav-card::after {
   display: none !important;
 }
 
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .section-title,
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-group-label,
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-label,
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-meta {
+.talos-console .pagenav-card .section-title,
+.talos-console .pagenav-card .nav-group-label,
+.talos-console .pagenav-card .nav-label,
+.talos-console .pagenav-card .nav-meta {
   display: none;
 }
 
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav {
+.talos-console .pagenav-card .nav {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
 }
 
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .nav-group {
+.talos-console .pagenav-card .nav-group {
   width: 50px;
   justify-items: center;
   gap: 8px;
 }
 
-.talos-console:not([data-talos-page="overview"]) .pagenav-card .command {
+.talos-console .pagenav-card .command {
   box-sizing: border-box;
   justify-content: center;
   width: 50px;
@@ -951,32 +951,32 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   overflow: hidden;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .section-title,
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .nav-group-label {
   display: flex;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .nav-label,
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .nav-meta {
   display: block;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .nav {
   align-items: stretch;
   gap: 14px;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .nav-group {
   width: auto;
@@ -984,7 +984,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   gap: 6px;
 }
 
-.talos-console:not([data-talos-page="overview"])
+.talos-console
   .sidebar:is(:hover, :focus-within)
   .pagenav-card .command {
   justify-content: flex-start;
@@ -3486,15 +3486,15 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (max-width: 1080px) {
-  .talos-console:not([data-talos-page="overview"]) .app {
+  .talos-console .app {
     grid-template-columns: 72px minmax(0, 1fr) !important;
   }
 
-  .talos-console:not([data-talos-page="overview"]) .sidebar {
+  .talos-console .sidebar {
     padding: 10px;
   }
 
-  .talos-console:not([data-talos-page="overview"])
+  .talos-console
     .sidebar:is(:hover, :focus-within) {
     width: 260px;
   }
@@ -3524,28 +3524,28 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (max-width: 760px) {
-  .talos-console:not([data-talos-page="overview"]) .app {
+  .talos-console .app {
     grid-template-columns: 54px minmax(0, 1fr) !important;
   }
 
-  .talos-console:not([data-talos-page="overview"]) .sidebar {
+  .talos-console .sidebar {
     width: 54px;
     padding-inline: 5px;
   }
 
-  .talos-console:not([data-talos-page="overview"])
+  .talos-console
     .sidebar:is(:hover, :focus-within) {
     width: min(260px, calc(100vw - 12px));
   }
 
-  .talos-console:not([data-talos-page="overview"]) .pagenav-card .command {
+  .talos-console .pagenav-card .command {
     width: 44px;
     min-width: 44px;
     height: 44px;
     min-height: 44px;
   }
 
-  .talos-console:not([data-talos-page="overview"])
+  .talos-console
     .sidebar:is(:hover, :focus-within)
     .pagenav-card .command {
     width: 100%;
@@ -3670,7 +3670,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .talos-console:not([data-talos-page="overview"]) .sidebar {
+  .talos-console .sidebar {
     transition: none;
   }
 }

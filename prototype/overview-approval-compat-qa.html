@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS 总览审批区兼容性 QA</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		html,body{margin:0;min-height:100%;background:#e8e4da}
+		#preview{min-height:100vh}
+		.qa-placeholder{display:grid;place-items:center;min-height:120px;border:1px solid var(--line);color:var(--muted)}
+		.qa-icon{display:inline-grid;place-items:center;width:17px;height:17px;font-size:11px}
+	</style>
+</head>
+<body>
+	<div id="preview" class="talos-console theme-geometric-modern" data-talos-page="overview">
+		<div class="app">
+			<aside class="sidebar">
+				<section class="card pagenav-card">
+					<div class="section-title"><h2>导航</h2><small>PAGES</small></div>
+					<nav class="nav">
+						<div class="nav-group"><div class="nav-group-label">现在</div><div class="command active"><span class="mark">总</span><span class="nav-label">总览</span></div></div>
+						<div class="nav-group"><div class="nav-group-label">系统</div><div class="command"><span class="mark">健</span><span class="nav-label">系统健康</span></div></div>
+					</nav>
+				</section>
+			</aside>
+			<main class="main">
+				<div class="page-content">
+					<div class="overview-ops-grid">
+						<div class="overview-action-column">
+							<section class="panel overview-command tone-warn" style="--ac:var(--amber)">
+								<div class="overview-command-head"><div class="overview-command-icon">!</div><div class="overview-command-copy"><small>TALOS 运行态势</small><h2>可运行，但有 4 项需要处理</h2><p>先处理发布停止条件，其余状态降为二级巡检。</p></div></div>
+								<div class="overview-primary-card tone-warn"><div class="overview-primary-label">第一优先级</div><h3>发布停止条件已触发</h3><p>先决定恢复发布、调整目标或正式暂停。</p><small>高优先级</small></div>
+							</section>
+							<section class="panel overview-action-panel" style="--ac:var(--amber)">
+								<div class="section-title"><h2>行动队列</h2><small>审批 · 待办 · 收件箱</small></div>
+								<div class="overview-action-list">
+									<div class="overview-action-row tone-warn"><span class="overview-action-row-icon qa-icon">审</span><div class="overview-action-row-copy"><span>审批</span><b>3 条待确认</b></div><span class="overview-action-row-arrow">›</span></div>
+									<div class="overview-action-row"><span class="overview-action-row-icon qa-icon">待</span><div class="overview-action-row-copy"><span>待办</span><b>3 个焦点</b></div><span class="overview-action-row-arrow">›</span></div>
+									<div class="overview-action-row tone-warn"><span class="overview-action-row-icon qa-icon">收</span><div class="overview-action-row-copy"><span>收件箱</span><b>26 篇待处理</b></div><span class="overview-action-row-arrow">›</span></div>
+									<div class="overview-action-row tone-warn"><span class="overview-action-row-icon qa-icon">偏</span><div class="overview-action-row-copy"><span>偏好候选</span><b>2 条待确认</b></div><span class="overview-action-row-arrow">›</span></div>
+								</div>
+							</section>
+						</div>
+						<div class="overview-stat-column">
+							<section class="panel overview-stat-wall" style="--ac:var(--blue)">
+								<div class="section-title"><h2>健康分统计</h2><small>图形指标 · 纵向柱状图</small></div>
+								<div class="overview-health-score tone-good" style="--health-score:87%;--health-ac:var(--green)">
+									<div class="overview-health-ring"><strong>87</strong><span>健康分</span></div>
+									<div class="overview-health-copy"><b>系统健康统计</b><p>-3 vs 上次</p><div class="overview-health-chips"><div class="overview-health-chip tone-good"><span>数据源</span><b>3/3</b></div><div class="overview-health-chip"><span>刷新</span><b>07:05</b></div><div class="overview-health-chip tone-good"><span>断链</span><b>0</b></div></div></div>
+								</div>
+								<div class="overview-stat-bars">
+									<div class="overview-stat-bar"><div class="overview-stat-bar-head"><span>今日执行</span></div><div class="overview-stat-bar-chart"><div class="overview-stat-bar-track"><div class="overview-stat-bar-fill" style="--bar-h:78%"></div></div></div><div class="overview-stat-bar-foot"><b>78%</b><small>78%</small></div></div>
+									<div class="overview-stat-bar"><div class="overview-stat-bar-head"><span>发布闭环</span></div><div class="overview-stat-bar-chart"><div class="overview-stat-bar-track"><div class="overview-stat-bar-fill" style="--bar-h:25%"></div></div></div><div class="overview-stat-bar-foot"><b>1/4</b><small>25%</small></div></div>
+									<div class="overview-stat-bar"><div class="overview-stat-bar-head"><span>知识总量</span></div><div class="overview-stat-bar-chart"><div class="overview-stat-bar-track"><div class="overview-stat-bar-fill" style="--bar-h:81%"></div></div></div><div class="overview-stat-bar-foot"><b>837</b><small>81%</small></div></div>
+									<div class="overview-stat-bar"><div class="overview-stat-bar-head"><span>输出资产</span></div><div class="overview-stat-bar-chart"><div class="overview-stat-bar-track"><div class="overview-stat-bar-fill" style="--bar-h:50%"></div></div></div><div class="overview-stat-bar-foot"><b>12</b><small>50%</small></div></div>
+									<div class="overview-stat-bar"><div class="overview-stat-bar-head"><span>项目场景</span></div><div class="overview-stat-bar-chart"><div class="overview-stat-bar-track"><div class="overview-stat-bar-fill" style="--bar-h:50%"></div></div></div><div class="overview-stat-bar-foot"><b>12</b><small>50%</small></div></div>
+								</div>
+							</section>
+						</div>
+					</div>
+
+					<div class="overview-approval-grid">
+						<section class="panel overview-approval-panel overview-pending-panel" style="--ac:var(--amber)">
+							<div class="section-title"><h2>待审批</h2><small>批准 · 拒绝 · 模型执行</small></div>
+							<div class="approval overview-approval-list">
+								<div class="item approval-item"><span class="badge">!</span><span class="approval-title">#87-B talos-mcp 分发层 + 上下文包标准出口（长标题兼容性验证）</span><div class="approval-actions"><button class="approval-action approval-action-approve"><span>批准</span></button><button class="approval-action approval-action-reject"><span>拒绝</span></button><button class="approval-action approval-action-execute"><span>批准+模型</span></button></div></div>
+								<div class="item approval-item"><span class="badge">!</span><span class="approval-title">#88-B 收件箱轻量自动采集最小版</span><div class="approval-actions"><button class="approval-action approval-action-approve"><span>批准</span></button><button class="approval-action approval-action-reject"><span>拒绝</span></button><button class="approval-action approval-action-execute"><span>批准+模型</span></button></div></div>
+							</div>
+						</section>
+						<section class="panel overview-approval-panel overview-preference-panel" style="--ac:#A78BFA">
+							<div class="section-title"><h2>偏好审批</h2><small>批准 · 拒绝 · 写回候选池</small></div>
+							<div class="approval overview-approval-list">
+								<div class="item approval-item candidate-approval-item"><span class="badge candidate-badge">偏</span><span class="approval-title">回答先给结论，再补充最关键的判断依据</span><div class="approval-actions"><button class="approval-action approval-action-approve"><span>批准</span></button><button class="approval-action approval-action-reject"><span>拒绝</span></button></div></div>
+								<div class="item approval-item candidate-approval-item"><span class="badge candidate-badge">偏</span><span class="approval-title">跨平台发布时保留完整来源、日期与处理上下文，长标题不应影响审批写回</span><div class="approval-actions"><button class="approval-action approval-action-approve"><span>批准</span></button><button class="approval-action approval-action-reject"><span>拒绝</span></button></div></div>
+							</div>
+						</section>
+					</div>
+				</div>
+			</main>
+		</div>
+	</div>
+	<script>
+		const params=new URLSearchParams(location.search);
+		const root=document.getElementById("preview");
+		const theme=params.get("theme")||"geometric-modern";
+		root.className=`talos-console theme-${theme}`;
+		root.dataset.talosPage="overview";
+		const pane=Number(params.get("pane")||0);
+		if(pane>0) root.style.width=`${pane+236}px`;
+	</script>
+</body>
+</html>

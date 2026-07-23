@@ -13,6 +13,10 @@ import {
 	type PendingApprovalDecision,
 } from "./approval-actions";
 import {
+	applyCandidateDecision,
+	type CandidateDecision,
+} from "./candidate-actions";
+import {
 	applyApprovalExecutionRecord,
 	buildMockModelAppend,
 	parseApprovalExecutableSpec,
@@ -72,6 +76,37 @@ export async function decidePendingApproval(
 
 	const raw = await app.vault.read(file);
 	const result = applyPendingApprovalDecision(raw, {
+		title,
+		decision,
+		date: todayStr(),
+		operator: "TALOS",
+	});
+	if (!result.ok) {
+		new Notice(result.message);
+		return false;
+	}
+
+	await app.vault.modify(file, result.content);
+	new Notice(result.message);
+	return true;
+}
+
+export async function decidePreferenceCandidate(
+	app: App,
+	settings: TalosSettings,
+	title: string,
+	decision: CandidateDecision
+): Promise<boolean> {
+	const file = app.vault.getAbstractFileByPath(
+		normalizePath(settings.candidatesPath)
+	);
+	if (!(file instanceof TFile)) {
+		new Notice("未找到 candidates.md");
+		return false;
+	}
+
+	const raw = await app.vault.read(file);
+	const result = applyCandidateDecision(raw, {
 		title,
 		decision,
 		date: todayStr(),

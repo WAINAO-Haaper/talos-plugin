@@ -44,6 +44,7 @@ import {
 	PublishBackfillModal,
 	approveAndExecuteApprovalWithMockModel,
 	decidePendingApproval,
+	decidePreferenceCandidate,
 	deepResearch,
 	openFile,
 	vaultLint,
@@ -143,6 +144,13 @@ interface ApprovalDecisionFeedback {
 	at: string;
 }
 
+interface CandidateDecisionFeedback {
+	title: string;
+	decision: "approve" | "reject";
+	path?: string;
+	at: string;
+}
+
 interface ModuleHeroStat {
 	label: string;
 	value: string;
@@ -230,6 +238,7 @@ export class TalosView extends ItemView {
 	private activeCap = "commands";
 	private selectedModuleByScope = new Map<string, string>();
 	private lastApprovalFeedback: ApprovalDecisionFeedback | null = null;
+	private lastCandidateFeedback: CandidateDecisionFeedback | null = null;
 	private jarvis: QuyuanVoicePanelLike | null = null;
 	private jarvisMounted = false;
 	private clockTimer: number | null = null;
@@ -882,6 +891,65 @@ export class TalosView extends ItemView {
 		this.createApprovalExecuteButton(actions, it);
 	}
 
+	private renderCandidateItem(parent: HTMLElement, it: SignalItem): void {
+		const item = parent.createDiv({ cls: "item approval-item candidate-approval-item" });
+		item.createSpan({ cls: "badge candidate-badge", text: "偏" });
+		item.createEl("span", { cls: "approval-title", text: it.title });
+		if (it.path) {
+			item.addEventListener("click", () => void openFile(this.app, it.path || ""));
+		}
+
+		const actions = item.createDiv({ cls: "approval-actions" });
+		this.createCandidateActionButton(actions, "approve", "check", "批准", it);
+		this.createCandidateActionButton(actions, "reject", "x", "拒绝", it);
+	}
+
+	private createCandidateActionButton(
+		parent: HTMLElement,
+		decision: "approve" | "reject",
+		iconName: string,
+		label: string,
+		it: SignalItem
+	): void {
+		const button = parent.createEl("button", {
+			cls: `approval-action approval-action-${decision}`,
+		});
+		button.type = "button";
+		button.setAttribute("aria-label", `${label}偏好候选：${it.title}`);
+		const icon = button.createSpan({ cls: "approval-action-icon" });
+		setIcon(icon, iconName);
+		button.createSpan({ cls: "approval-action-label", text: label });
+		button.addEventListener("click", (event) => {
+			void (async () => {
+				event.preventDefault();
+				event.stopPropagation();
+				const siblingButtons = Array.from(
+					parent.querySelectorAll<HTMLButtonElement>(".approval-action")
+				);
+				for (const btn of siblingButtons) btn.disabled = true;
+				button.addClass("is-loading");
+				const ok = await decidePreferenceCandidate(
+					this.app,
+					this.plugin.talosSettings,
+					it.title,
+					decision
+				);
+				if (ok) {
+					this.lastCandidateFeedback = {
+						title: it.title,
+						decision,
+						path: it.path,
+						at: this.shortTime(),
+					};
+					await this.refresh();
+				} else {
+					button.removeClass("is-loading");
+					for (const btn of siblingButtons) btn.disabled = false;
+				}
+			})();
+		});
+	}
+
 	private createApprovalActionButton(
 		parent: HTMLElement,
 		decision: "approve" | "reject",
@@ -1003,6 +1071,31 @@ export class TalosView extends ItemView {
 		open.addEventListener("click", (event) => {
 			event.stopPropagation();
 			void openFile(this.app, feedback.path || this.plugin.talosSettings.pendingApprovalsPath);
+		});
+	}
+
+	private renderCandidateFeedback(parent: HTMLElement): void {
+		if (!this.lastCandidateFeedback) return;
+		const feedback = this.lastCandidateFeedback;
+		const approved = feedback.decision === "approve";
+		const box = parent.createDiv({
+			cls: `approval-feedback ${approved ? "is-approved" : "is-rejected"}`,
+		});
+		const icon = box.createSpan({ cls: "approval-feedback-icon" });
+		setIcon(icon, approved ? "check-circle-2" : "x-circle");
+		const copy = box.createDiv({ cls: "approval-feedback-copy" });
+		copy.createEl("b", {
+			text: approved ? "已批准并移入已确认" : "已拒绝并移入已拒绝",
+		});
+		copy.createEl("span", { text: feedback.title });
+		copy.createEl("small", {
+			text: `${feedback.at} · 决策已写回偏好候选池。`,
+		});
+		const open = box.createEl("button", { cls: "approval-feedback-open", text: "打开记录" });
+		open.type = "button";
+		open.addEventListener("click", (event) => {
+			event.stopPropagation();
+			void openFile(this.app, feedback.path || this.plugin.talosSettings.candidatesPath);
 		});
 	}
 
@@ -1424,18 +1517,38 @@ export class TalosView extends ItemView {
 			this.fillOverviewActionRow(actionList, "待办", d.focus.length > 0 ? `${d.focus.length} 个焦点` : "建议运行 /morning", "target", this.plugin.talosSettings.tasksPath, d.focus.length > 0 ? "default" : "warn");
 			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
 			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
-			if (d.approvals.length > 0 || this.lastApprovalFeedback) {
-				const quick = actionPanel.createDiv({ cls: "overview-approval-quick approval" });
-				const quickHead = quick.createDiv({ cls: "overview-approval-quick-head" });
-				quickHead.createEl("b", { text: d.approvals.length > 0 ? "待审批按钮入口" : "最近审批结果" });
-				quickHead.createEl("span", { text: d.approvals.length > 0 ? "点击后写回审批记录" : "保留本次操作回执" });
-				this.renderApprovalFeedback(quick);
-				for (const it of d.approvals.slice(0, 3)) {
-					this.renderApprovalItem(quick, it);
-				}
-				if (d.approvals.length === 0) {
-					quick.createDiv({ cls: "ok", text: "当前没有待审批项" });
-				}
+
+			const approvalGrid = page.createDiv({ cls: "overview-approval-grid" });
+			const pendingPanel = this.panel(
+				approvalGrid,
+				"var(--amber)",
+				"待审批",
+				"批准 · 拒绝 · 模型执行"
+			);
+			pendingPanel.addClass("overview-approval-panel", "overview-pending-panel");
+			const pendingList = pendingPanel.createDiv({ cls: "approval overview-approval-list" });
+			this.renderApprovalFeedback(pendingList);
+			for (const it of d.approvals.slice(0, 3)) {
+				this.renderApprovalItem(pendingList, it);
+			}
+			if (d.approvals.length === 0) {
+				pendingList.createDiv({ cls: "ok", text: "当前没有待审批项" });
+			}
+
+			const preferencePanel = this.panel(
+				approvalGrid,
+				"#A78BFA",
+				"偏好审批",
+				"批准 · 拒绝 · 写回候选池"
+			);
+			preferencePanel.addClass("overview-approval-panel", "overview-preference-panel");
+			const preferenceList = preferencePanel.createDiv({ cls: "approval overview-approval-list" });
+			this.renderCandidateFeedback(preferenceList);
+			for (const it of d.candidates.slice(0, 3)) {
+				this.renderCandidateItem(preferenceList, it);
+			}
+			if (d.candidates.length === 0) {
+				preferenceList.createDiv({ cls: "ok", text: "当前没有待确认偏好" });
 			}
 		}
 
@@ -1992,8 +2105,9 @@ export class TalosView extends ItemView {
 			],
 		});
 		// 排列密排：项目地图与场景索引并排（场景索引只有 2 条，整行拉满留白严重）
-		const grid = page.createDiv({ cls: "panel-grid" });
+		const grid = page.createDiv({ cls: "panel-grid project-scene-layout" });
 		const p = this.panel(grid, "#4D8DFF", "项目场景地图", `${this.paths.dir("projects")} · 高频项目优先`);
+		p.addClass("project-map-panel");
 		const cards = p.createDiv({ cls: "project-grid" });
 		for (const project of d.projects) {
 			const card = cards.createDiv({ cls: `project-card priority-${project.priority}` });
@@ -2025,6 +2139,7 @@ export class TalosView extends ItemView {
 			card.addEventListener("click", () => void openFile(this.app, project.readme));
 		}
 		const scene = this.panel(grid, "#A78BFA", "场景索引", "项目入口总地图");
+		scene.addClass("project-entry-panel");
 		this.fillSignalList(scene.createDiv({ cls: "detail-list" }), [
 			{ title: "打开场景索引", meta: this.paths.sceneIndexFile, path: this.paths.sceneIndexFile },
 			{ title: "打开项目总 README", meta: this.paths.readme("projects"), path: this.paths.readme("projects") },
