@@ -46,9 +46,11 @@ import {
 	decidePendingApproval,
 	decidePreferenceCandidate,
 	deepResearch,
+	getApprovalTaskRuntime,
 	openFile,
 	vaultLint,
 } from "./actions";
+import { TaskDrawer } from "./ui/task-drawer";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -242,6 +244,7 @@ export class TalosView extends ItemView {
 	private jarvis: QuyuanVoicePanelLike | null = null;
 	private jarvisMounted = false;
 	private clockTimer: number | null = null;
+	private taskDrawer: TaskDrawer | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
@@ -281,6 +284,8 @@ export class TalosView extends ItemView {
 	}
 	async onClose(): Promise<void> {
 		this.unmountJarvisSafely();
+		this.taskDrawer?.unmount();
+		this.taskDrawer = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
 			this.clockTimer = null;
@@ -299,6 +304,8 @@ export class TalosView extends ItemView {
 	// ---------- 外壳 ----------
 	private buildShell(): void {
 		const root = this.contentEl;
+		this.taskDrawer?.unmount();
+		this.taskDrawer = null;
 		root.empty();
 		root.addClass("talos-console");
 		this.applySettings();
@@ -618,6 +625,11 @@ export class TalosView extends ItemView {
 
 		// 页容器
 		this.pageEl = main.createDiv({ cls: "page-content" });
+		this.taskDrawer = new TaskDrawer({
+			parent: main,
+			store: getApprovalTaskRuntime(this.app).store,
+		});
+		this.taskDrawer.mount();
 
 		const commandBar = main.createDiv({ cls: "cosmos-commandbar" });
 		const voice = commandBar.createDiv({ cls: "cosmos-command-voice" });
