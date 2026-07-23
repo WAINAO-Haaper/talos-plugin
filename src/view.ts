@@ -58,6 +58,8 @@ import {
 	primaryPage,
 } from "./ui/navigation-model";
 import { TalosPageRouter } from "./ui/page-router";
+import { TalosChatSurface } from "./quyuan/chat-surface";
+import type { ClaudianView } from "./quyuan/claudian/features/chat/ClaudianView";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -205,6 +207,9 @@ export class TalosView extends ItemView {
 	private lastCandidateFeedback: CandidateDecisionFeedback | null = null;
 	private jarvis: QuyuanVoicePanelLike | null = null;
 	private jarvisMounted = false;
+	private chatSurface: TalosChatSurface | null = null;
+	private chatWorkbenchView: ClaudianView | null = null;
+	private chatMounted = false;
 	private clockTimer: number | null = null;
 	private taskDrawer: TaskDrawer | null = null;
 
@@ -254,6 +259,10 @@ export class TalosView extends ItemView {
 	}
 	async onClose(): Promise<void> {
 		this.unmountJarvisSafely();
+		await this.chatSurface?.dispose();
+		this.chatSurface = null;
+		this.chatWorkbenchView = null;
+		this.chatMounted = false;
 		this.taskDrawer?.unmount();
 		this.taskDrawer = null;
 		if (this.clockTimer !== null) {
@@ -274,6 +283,10 @@ export class TalosView extends ItemView {
 	// ---------- 外壳 ----------
 	private buildShell(): void {
 		const root = this.contentEl;
+		if (this.chatMounted) {
+			this.chatMounted = false;
+			void this.chatSurface?.unmount();
+		}
 		this.taskDrawer?.unmount();
 		this.taskDrawer = null;
 		root.empty();
@@ -1220,14 +1233,19 @@ export class TalosView extends ItemView {
 		this.renderSecondaryTabs();
 		// 已在屈原页且已挂载：保持不动（不打断朗读/不闪跳）
 		if (this.activePage === "jarvis" && this.jarvisMounted) return;
+		if (this.activePage === "chat" && this.chatMounted) return;
 		// 离开屈原或换页：先卸载屈原
 		if (this.jarvisMounted) this.unmountJarvisSafely();
+		if (this.chatMounted) {
+			this.chatMounted = false;
+			void this.chatSurface?.unmount();
+		}
 		page.empty();
 		const d = this.data;
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
 		switch (this.activePage) {
 			case "overview": this.pageOverview(page, d); break;
-			case "chat": this.pageChat(page); break;
+			case "chat": void this.pageChat(page); break;
 			case "jarvis": void this.pageJarvis(page); break;
 			case "daily": this.pageDaily(page, d); break;
 			case "output": this.pageOutput(page, d); break;
@@ -1772,19 +1790,59 @@ export class TalosView extends ItemView {
 
 
 
-	private pageChat(page: HTMLElement): void {
-		const panel = page.createDiv({ cls: "panel talos-chat-migration-panel" });
-		panel.setCssProps({ "--ac": "#7C3AED" });
-		const icon = panel.createDiv({ cls: "talos-chat-migration-icon" });
-		setIcon(icon, "messages-square");
-		const copy = panel.createDiv({ cls: "talos-chat-migration-copy" });
-		copy.createEl("h2", { text: "AI 对话" });
-		copy.createEl("p", {
-			text: "统一对话页面已就位。下一阶段将把现有 Claudian 多标签、工具、差异预览与 Provider 能力挂载到这里。",
-		});
-		copy.createEl("small", {
-			text: "当前不创建新的 Obsidian leaf，也不会合并语音会话历史。",
-		});
+	private async pageChat(page: HTMLElement): Promise<void> {
+		try {
+			if (!this.plugin.storage || !this.plugin.settings) {
+				page.createDiv({
+					cls: "empty",
+					text: "AI 对话运行时仍在初始化，请稍后重试。",
+				});
+				return;
+			}
+			if (!this.chatWorkbenchView) {
+				const { ClaudianView: EmbeddedClaudianView } = await import(
+					"./quyuan/claudian/features/chat/ClaudianView"
+				);
+				const workbench = new EmbeddedClaudianView(this.leaf, this.plugin);
+				this.plugin.registerEmbeddedView(workbench);
+				this.chatWorkbenchView = workbench;
+				this.chatSurface = new TalosChatSurface({
+					mount: (container, namespace) =>
+						workbench.mountEmbedded(container, namespace),
+					suspend: () => workbench.suspendEmbedded(),
+					focusComposer: () => workbench.focusComposer(),
+					destroy: async () => {
+						await workbench.destroyEmbedded();
+						this.plugin.unregisterEmbeddedView(workbench);
+					},
+				});
+			}
+			if (!this.chatSurface) throw new Error("AI 对话 surface 未创建");
+			await this.chatSurface.mount(page, "chat");
+			if (this.activePage !== "chat") {
+				await this.chatSurface.unmount();
+				return;
+			}
+			this.chatMounted = true;
+		} catch (error) {
+			console.error("TALOS AI chat surface failed to mount", error);
+			this.chatMounted = false;
+			page.empty();
+			const panel = page.createDiv({
+				cls: "panel talos-chat-migration-panel",
+			});
+			panel.setCssProps({ "--ac": "#7C3AED" });
+			const icon = panel.createDiv({ cls: "talos-chat-migration-icon" });
+			setIcon(icon, "triangle-alert");
+			const copy = panel.createDiv({ cls: "talos-chat-migration-copy" });
+			copy.createEl("h2", { text: "AI 对话加载失败" });
+			copy.createEl("p", {
+				text: error instanceof Error ? error.message : String(error),
+			});
+			copy.createEl("small", {
+				text: "独立 Claudian 恢复视图仍保留，当前失败不会修改 Vault 内容。",
+			});
+		}
 	}
 
 	private pageSettings(page: HTMLElement): void {
@@ -2701,8 +2759,14 @@ export class TalosView extends ItemView {
 		}
 	}
 
+	navigateToPage(pageKey: string): void {
+		this.activePage = pageKey;
+		if (this.pageNavEl) this.renderNav();
+		if (this.pageEl) this.renderPage();
+	}
+
 	// 主页「屈原」入口 → 控制台内的屈原语音页（QuyuanVoicePanel）。
-	// v2 工作台仍可经 ribbon「打开屈原对话」/ 命令「打开屈原 v2 工作台」单独打开（语音壳已用其引擎）。
+	// 文字对话使用独立 AI 对话页面；旧 Claudian ItemView 只保留为恢复入口。
 	private async openQuyuan(): Promise<void> {
 		this.activePage = "jarvis";
 		this.renderNav();

@@ -177,21 +177,24 @@ assert.match(
 );
 assert.equal((talosMain.match(/this\.addRibbonIcon\(/g) ?? []).length, 1);
 const talosViewSource = readFileSync("src/view.ts", "utf8");
-// 2026-06-29 设计变更：主页「屈原」入口改为控制台内的语音页（QuyuanVoicePanel，
-// 经 openQuyuan → activePage="jarvis"），不再打开 v2 工作台 tab；v2 引擎由语音壳的
-// QuyuanVoiceDriver 经 createChatRuntime 复用，完整工作台仍可经命令面板单独打开。
+const navigationModelSource = readFileSync("src/ui/navigation-model.ts", "utf8");
+// WP7：文字对话与语音分别进入 TALOS 的一级页面，旧 page key 继续由纯路由模型兼容。
 assert.match(talosViewSource, /new QuyuanVoicePanel\(/);
 assert.match(talosViewSource, /this\.activePage = "jarvis"/);
 assert.match(
-	talosViewSource,
-	/icon:\s*"layout-dashboard"[\s\S]*icon:\s*"ear"[\s\S]*icon:\s*"database"/
+	navigationModelSource,
+	/key:\s*"workbench"[\s\S]*key:\s*"chat"[\s\S]*key:\s*"voice"[\s\S]*key:\s*"workflow"[\s\S]*key:\s*"knowledge"[\s\S]*key:\s*"system"/
 );
-assert.match(talosViewSource, /const NAV_GROUPS[\s\S]*label:\s*"现在"[\s\S]*label:\s*"系统"/);
-assert.match(talosViewSource, /key:\s*"identity"[\s\S]*label:\s*"身份上下文"/);
-assert.match(talosViewSource, /const mark = a\.createDiv[\s\S]*setIcon\(mark,\s*p\.icon\)/);
+assert.match(
+	navigationModelSource,
+	/key:\s*"voice"[\s\S]*icon:\s*"audio-lines"[\s\S]*key:\s*"vault"[\s\S]*icon:\s*"database"/
+);
+assert.match(navigationModelSource, /key:\s*"identity"[\s\S]*label:\s*"身份上下文"/);
+assert.match(talosViewSource, /for \(const page of PRIMARY_NAVIGATION\)/);
+assert.match(talosViewSource, /const mark = item\.createDiv[\s\S]*setIcon\(mark,\s*page\.icon\)/);
 assert.match(
 	talosViewSource,
-	/a\.setAttribute\("role",\s*"button"\)[\s\S]*a\.setAttribute\("tabindex",\s*"0"\)[\s\S]*event\.key !== "Enter"[\s\S]*event\.key !== " "/
+	/item\.setAttribute\("role",\s*"button"\)[\s\S]*item\.setAttribute\("tabindex",\s*"0"\)[\s\S]*event\.key !== "Enter"[\s\S]*event\.key !== " "/
 );
 
 assert.equal(

@@ -124,8 +124,13 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		});
 		this.addCommand({
 			id: "open-quyuan-v2",
-			name: "打开屈原完整工作台",
+			name: "打开 AI 对话",
 			callback: () => void this.activateQuyuanV2View(),
+		});
+		this.addCommand({
+			id: "open-quyuan-v2-recovery",
+			name: "打开屈原独立恢复视图",
+			callback: () => void this.activateQuyuanV2MainView(),
 		});
 		this.addCommand({
 			id: "quyuan-diagnostics",
@@ -296,12 +301,17 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 
 	async activateQuyuanV2View(): Promise<void> {
 		try {
-			await this.activateQuyuanV2MainView();
+			const leaf = await this.openOrReviveTalosLeaf(false);
+			if (!leaf) throw new Error("无法创建 TALOS 主视图");
+			if (leaf.view instanceof TalosView) {
+				leaf.view.navigateToPage("chat");
+			}
+			void this.app.workspace.revealLeaf(leaf);
 		} catch (error) {
 			this.recordQuyuanRuntimeError("activateQuyuanV2View", error);
-			console.error("TALOS Quyuan workbench failed to open", error);
+			console.error("TALOS AI chat failed to open", error);
 			const path = await this.writeQuyuanDiagnostics(false);
-			new Notice(`屈原完整工作台打开失败，诊断已写入：${path}`);
+			new Notice(`TALOS AI 对话打开失败，诊断已写入：${path}`);
 		}
 	}
 

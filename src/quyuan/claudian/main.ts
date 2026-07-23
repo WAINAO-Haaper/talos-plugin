@@ -52,6 +52,7 @@ export default class ClaudianPlugin extends Plugin {
   storage!: SharedAppStorage;
   private conversations: Conversation[] = [];
   private lastKnownTabManagerState: AppTabManagerState | null = null;
+  private readonly embeddedViews = new Set<ClaudianView>();
 
   protected shouldRegisterWorkbenchRibbon(): boolean {
     return true;
@@ -758,14 +759,31 @@ export default class ClaudianPlugin extends Plugin {
     await this.storage.setTabManagerState(state);
   }
 
+  registerEmbeddedView(view: ClaudianView): void {
+    this.embeddedViews.add(view);
+  }
+
+  unregisterEmbeddedView(view: ClaudianView): void {
+    this.embeddedViews.delete(view);
+  }
+
   getView(): ClaudianView | null {
+    const activeEmbedded = Array.from(this.embeddedViews).find((view) =>
+      view.isEmbeddedSurfaceActive()
+    );
+    if (activeEmbedded) return activeEmbedded;
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
-    return leaves.map(leaf => leaf.view).find(isClaudianView) ?? null;
+    return leaves.map(leaf => leaf.view).find(isClaudianView)
+      ?? this.embeddedViews.values().next().value
+      ?? null;
   }
 
   getAllViews(): ClaudianView[] {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
-    return leaves.map(leaf => leaf.view).filter(isClaudianView);
+    return Array.from(new Set([
+      ...leaves.map(leaf => leaf.view).filter(isClaudianView),
+      ...this.embeddedViews,
+    ]));
   }
 
   findConversationAcrossViews(conversationId: string): { view: ClaudianView; tabId: string } | null {
