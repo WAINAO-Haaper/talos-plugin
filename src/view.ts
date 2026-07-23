@@ -51,6 +51,13 @@ import {
 	vaultLint,
 } from "./actions";
 import { TaskDrawer } from "./ui/task-drawer";
+import {
+	LEGACY_PAGE_KEYS,
+	PRIMARY_NAVIGATION,
+	WORKBENCH_MODULES,
+	primaryPage,
+} from "./ui/navigation-model";
+import { TalosPageRouter } from "./ui/page-router";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -120,15 +127,6 @@ interface Collected {
 	talosProduct: TalosProduct;
 }
 
-type NavGroupKey = "today" | "flow" | "assets" | "system";
-
-interface PageDef {
-	key: string;
-	label: string;
-	icon: string;
-	group: NavGroupKey;
-}
-
 interface OverviewAttention {
 	title: string;
 	meta: string;
@@ -178,43 +176,6 @@ interface ModuleHeroOptions {
 	actions?: ModuleHeroAction[];
 }
 
-const PAGES: PageDef[] = [
-	{ key: "overview", label: "总览", icon: "layout-dashboard", group: "today" },
-	{ key: "daily", label: "每日执行", icon: "calendar-check", group: "today" },
-	{ key: "jarvis", label: "屈原", icon: "ear", group: "today" },
-	{ key: "inbox", label: "收件箱", icon: "inbox", group: "flow" },
-	{ key: "output", label: "输出作战室", icon: "send", group: "flow" },
-	{ key: "projects", label: "项目场景", icon: "folder-kanban", group: "flow" },
-	{ key: "knowledge", label: "知识枢纽", icon: "brain", group: "assets" },
-	{ key: "identity", label: "身份上下文", icon: "fingerprint", group: "assets" },
-	{ key: "talos", label: "TALOS 产品", icon: "filter", group: "assets" },
-	{ key: "health", label: "系统健康", icon: "activity", group: "system" },
-	{ key: "capability", label: "能力中心", icon: "blocks", group: "system" },
-	{ key: "vault", label: "全库视图", icon: "database", group: "system" },
-];
-
-const NAV_GROUPS: { key: NavGroupKey; label: string }[] = [
-	{ key: "today", label: "现在" },
-	{ key: "flow", label: "流转" },
-	{ key: "assets", label: "资产" },
-	{ key: "system", label: "系统" },
-];
-
-const PAGE_SUBTITLES: Record<string, string> = {
-	overview: "个人上下文宇宙",
-	jarvis: "语音代理与命令执行",
-	daily: "启动、输出、回填、收工",
-	output: "发布、回填、分发节奏",
-	talos: "产品漏斗与交付闸门",
-	inbox: "收件、消化、待处理",
-	health: "上下文健康与系统风险",
-	projects: "项目场景与活跃线索",
-	knowledge: "洞察、素材、知识节点",
-	identity: "用户身份、AI 灵魂与工作记忆",
-	capability: "命令、Agent 与工作流",
-	vault: "全库分布与热力图",
-};
-
 export class TalosView extends ItemView {
 	plugin: TalosPlugin;
 
@@ -229,6 +190,7 @@ export class TalosView extends ItemView {
 	private cosmosClockEl!: HTMLElement;
 	private approvalCardEl!: HTMLElement;
 	private approvalSideEl!: HTMLElement;
+	private pageTabsEl!: HTMLElement;
 	private pageEl!: HTMLElement;
 	private stampEl!: HTMLElement;
 	private patrolEl!: HTMLElement;
@@ -236,7 +198,7 @@ export class TalosView extends ItemView {
 	private lastPublished: number | undefined;
 
 	private data: Collected | null = null;
-	private activePage = "overview";
+	private readonly pageRouter = new TalosPageRouter("overview");
 	private activeCap = "commands";
 	private selectedModuleByScope = new Map<string, string>();
 	private lastApprovalFeedback: ApprovalDecisionFeedback | null = null;
@@ -249,6 +211,14 @@ export class TalosView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+	}
+
+	private get activePage(): string {
+		return this.pageRouter.renderKey();
+	}
+
+	private set activePage(pageKey: string) {
+		this.pageRouter.navigate(pageKey);
 	}
 
 	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
@@ -433,19 +403,36 @@ export class TalosView extends ItemView {
 
 	private applyPageState(): void {
 		this.contentEl.setAttribute("data-talos-page", this.activePage);
-		for (const page of PAGES) this.contentEl.classList.remove(`page-${page.key}`);
+		for (const pageKey of [...LEGACY_PAGE_KEYS, "chat", "settings"]) {
+			this.contentEl.classList.remove(`page-${pageKey}`);
+		}
+		for (const page of PRIMARY_NAVIGATION) {
+			this.contentEl.classList.remove(`section-${page.key}`);
+		}
 		this.contentEl.classList.add(`page-${this.activePage}`);
+		this.contentEl.classList.add(
+			`section-${this.pageRouter.current().primary}`
+		);
 		this.updateCosmosHeader();
 	}
 
 	private updateCosmosHeader(): void {
 		if (!this.cosmosTitleEl || !this.cosmosSubEl || !this.cosmosStatusTextEl) return;
-		const page = PAGES.find((p) => p.key === this.activePage);
-		if (!page) return;
-		const isOverview = page.key === "overview";
-		this.cosmosTitleEl.setText(isOverview ? this.plugin.talosSettings.mainTitle : page.label);
-		this.cosmosSubEl.setText(PAGE_SUBTITLES[page.key] || "当前控制台页面");
-		this.cosmosStatusTextEl.setText(isOverview ? "系统运行中" : "当前页面");
+		const route = this.pageRouter.current();
+		const primary = primaryPage(route.primary);
+		const secondary = primary.children.find(
+			(child) => child.key === route.secondary
+		);
+		const isWorkbench = route.primary === "workbench";
+		this.cosmosTitleEl.setText(
+			isWorkbench
+				? this.plugin.talosSettings.mainTitle
+				: secondary?.label || primary.label
+		);
+		this.cosmosSubEl.setText(primary.subtitle);
+		this.cosmosStatusTextEl.setText(
+			isWorkbench ? "系统运行中" : primary.label
+		);
 	}
 
 	private buildSidebar(side: HTMLElement): void {
@@ -462,7 +449,7 @@ export class TalosView extends ItemView {
 		// 导航
 		const navCard = side.createEl("section", { cls: "card pagenav-card" });
 		navCard.setCssProps({ "--ac": "#4D8DFF" });
-		this.secTitle(navCard, "导航", "PAGES");
+		this.secTitle(navCard, "导航", "6 SECTIONS");
 		this.pageNavEl = navCard.createEl("nav", { cls: "nav" });
 		this.renderNav();
 
@@ -495,45 +482,42 @@ export class TalosView extends ItemView {
 
 	private renderNav(): void {
 		this.pageNavEl.empty();
-		for (const group of NAV_GROUPS) {
-			const groupEl = this.pageNavEl.createDiv({ cls: "nav-group" });
-			groupEl.setAttribute("data-nav-group", group.key);
-			groupEl.createDiv({ cls: "nav-group-label", text: group.label });
-			for (const p of PAGES.filter((page) => page.group === group.key)) {
-				const active = p.key === this.activePage;
-				const a = groupEl.createDiv({
-					cls: `command${active ? " active" : ""}`,
-				});
-				const mark = a.createDiv({ cls: "mark" });
-				setIcon(mark, p.icon);
-				a.createSpan({ cls: "nav-label", text: p.label });
-				a.dataset.talosActionButton = "true";
-				a.dataset.talosActionVariant = "";
-				this.syncActionButtonTheme(a, this.plugin.talosSettings.visualTheme || "aurora");
-				const meta = this.navMeta(p.key);
-				if (meta) a.createSpan({ cls: `nav-meta${meta.alert ? " is-alert" : ""}`, text: meta.value });
-				a.setAttribute("title", `${p.label}${meta ? ` · ${meta.value}` : ""}`);
-				a.setAttribute("aria-label", p.label);
-				a.setAttribute("role", "button");
-				a.setAttribute("tabindex", "0");
-				if (active) a.setAttribute("aria-current", "page");
-				const activate = () => {
-					if (p.key === "jarvis") {
-						void this.openQuyuan();
-						return;
-					}
-					this.activePage = p.key;
-					this.renderNav();
-					this.renderPage();
-				};
-				a.addEventListener("click", activate);
-				a.addEventListener("keydown", (event) => {
-					if (event.key !== "Enter" && event.key !== " ") return;
-					event.preventDefault();
-					activate();
-				});
-			}
+		const route = this.pageRouter.current();
+		const groupEl = this.pageNavEl.createDiv({ cls: "nav-group" });
+		groupEl.setAttribute("data-nav-group", "primary");
+		groupEl.createDiv({ cls: "nav-group-label", text: "主界面" });
+		for (const page of PRIMARY_NAVIGATION) {
+			const active = page.key === route.primary;
+			const item = groupEl.createDiv({
+				cls: `command${active ? " active" : ""}`,
+			});
+			const mark = item.createDiv({ cls: "mark" });
+			setIcon(mark, page.icon);
+			item.createSpan({ cls: "nav-label", text: page.label });
+			item.dataset.talosActionButton = "true";
+			item.dataset.talosActionVariant = "";
+			this.syncActionButtonTheme(
+				item,
+				this.plugin.talosSettings.visualTheme || "aurora"
+			);
+			item.setAttribute("title", page.subtitle);
+			item.setAttribute("aria-label", page.label);
+			item.setAttribute("role", "button");
+			item.setAttribute("tabindex", "0");
+			if (active) item.setAttribute("aria-current", "page");
+			const activate = () => {
+				this.pageRouter.selectPrimary(page.key);
+				this.renderNav();
+				this.renderPage();
+			};
+			item.addEventListener("click", activate);
+			item.addEventListener("keydown", (event) => {
+				if (event.key !== "Enter" && event.key !== " ") return;
+				event.preventDefault();
+				activate();
+			});
 		}
+		this.renderSecondaryTabs();
 	}
 
 	private navMeta(key: string): { value: string; alert?: boolean } | null {
@@ -563,6 +547,41 @@ export class TalosView extends ItemView {
 			case "capability": return { value: String(d.capGroups.reduce((sum, group) => sum + group.items.length, 0)) };
 			case "vault": return { value: String(d.total) };
 			default: return null;
+		}
+	}
+
+	private renderSecondaryTabs(): void {
+		if (!this.pageTabsEl) return;
+		this.pageTabsEl.empty();
+		const route = this.pageRouter.current();
+		const page = primaryPage(route.primary);
+		this.pageTabsEl.toggleClass("is-hidden", page.children.length === 0);
+		if (page.children.length === 0) return;
+		this.pageTabsEl.setAttribute("aria-label", `${page.label}二级页面`);
+		for (const child of page.children) {
+			const active = child.key === route.secondary;
+			const button = this.pageTabsEl.createEl("button", {
+				cls: `talos-page-tab${active ? " is-active" : ""}`,
+				attr: {
+					type: "button",
+					"aria-pressed": String(active),
+				},
+			});
+			const icon = button.createSpan({ cls: "talos-page-tab__icon" });
+			setIcon(icon, child.icon);
+			button.createSpan({ text: child.label });
+			const meta = this.navMeta(child.key);
+			if (meta) {
+				button.createSpan({
+					cls: `talos-page-tab__meta${meta.alert ? " is-alert" : ""}`,
+					text: meta.value,
+				});
+			}
+			button.addEventListener("click", () => {
+				this.pageRouter.selectSecondary(child.key);
+				this.renderSecondaryTabs();
+				this.renderPage();
+			});
 		}
 	}
 
@@ -623,7 +642,11 @@ export class TalosView extends ItemView {
 
 		this.patrolEl = this.buildPixelPatrol(hero);
 
-		// 页容器
+		// 二级页签和业务页共用当前 TALOS leaf，不为子页面创建新 leaf。
+		this.pageTabsEl = main.createEl("nav", {
+			cls: "talos-page-tabs is-hidden",
+		});
+		this.renderSecondaryTabs();
 		this.pageEl = main.createDiv({ cls: "page-content" });
 		this.taskDrawer = new TaskDrawer({
 			parent: main,
@@ -642,7 +665,9 @@ export class TalosView extends ItemView {
 		const send = keys.createSpan({ cls: "cosmos-command-send" });
 		setIcon(send, "send");
 		commandBar.addEventListener("click", () => {
-			void this.openQuyuan();
+			this.activePage = "chat";
+			this.renderNav();
+			this.renderPage();
 		});
 
 		const footer = main.createDiv({ cls: "footer" });
@@ -1192,6 +1217,7 @@ export class TalosView extends ItemView {
 	private renderPage(): void {
 		const page = this.pageEl;
 		this.applyPageState();
+		this.renderSecondaryTabs();
 		// 已在屈原页且已挂载：保持不动（不打断朗读/不闪跳）
 		if (this.activePage === "jarvis" && this.jarvisMounted) return;
 		// 离开屈原或换页：先卸载屈原
@@ -1201,6 +1227,7 @@ export class TalosView extends ItemView {
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
 		switch (this.activePage) {
 			case "overview": this.pageOverview(page, d); break;
+			case "chat": this.pageChat(page); break;
 			case "jarvis": void this.pageJarvis(page); break;
 			case "daily": this.pageDaily(page, d); break;
 			case "output": this.pageOutput(page, d); break;
@@ -1212,6 +1239,7 @@ export class TalosView extends ItemView {
 			case "identity": this.pageIdentity(page, d); break;
 			case "capability": this.pageCapability(page, d); break;
 			case "vault": this.pageVault(page, d); break;
+			case "settings": this.pageSettings(page); break;
 		}
 		this.wireModuleSelection(page, this.activePage);
 		this.syncPixelScene(d);
@@ -1460,6 +1488,8 @@ export class TalosView extends ItemView {
 			const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
 			const actionColumn = overviewGrid.createDiv({ cls: "overview-action-column" });
 			const statColumn = overviewGrid.createDiv({ cls: "overview-stat-column" });
+			actionColumn.setAttribute("data-workbench-section", "today-actions");
+			statColumn.setAttribute("data-workbench-section", "system-overview");
 
 			const command = actionColumn.createDiv({ cls: `panel overview-command tone-${primary.tone}` });
 			command.setCssProps({ "--ac": this.overviewToneColor(primary.tone) });
@@ -1529,6 +1559,38 @@ export class TalosView extends ItemView {
 			this.fillOverviewActionRow(actionList, "待办", d.focus.length > 0 ? `${d.focus.length} 个焦点` : "建议运行 /morning", "target", this.plugin.talosSettings.tasksPath, d.focus.length > 0 ? "default" : "warn");
 			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
 			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
+
+			const modulesPanel = this.panel(
+				page,
+				"#7C3AED",
+				"九个模块入口",
+				"客户模块 · 只改变导航，不移动目录"
+			);
+			modulesPanel.addClass("workbench-module-panel");
+			modulesPanel.setAttribute("data-workbench-section", "customer-modules");
+			const moduleGrid = modulesPanel.createDiv({
+				cls: "workbench-module-grid",
+			});
+			for (const module of WORKBENCH_MODULES) {
+				const card = moduleGrid.createEl("button", {
+					cls: "workbench-module-card",
+					attr: {
+						type: "button",
+						"data-module-key": module.key,
+						"aria-label": `打开${module.label}`,
+					},
+				});
+				const icon = card.createSpan({
+					cls: "workbench-module-card__icon",
+				});
+				setIcon(icon, module.icon);
+				card.createSpan({ text: module.label });
+				card.addEventListener("click", () => {
+					this.activePage = module.pageKey;
+					this.renderNav();
+					this.renderPage();
+				});
+			}
 
 			const approvalGrid = page.createDiv({ cls: "overview-approval-grid" });
 			const pendingPanel = this.panel(
@@ -1709,6 +1771,33 @@ export class TalosView extends ItemView {
 
 
 
+
+	private pageChat(page: HTMLElement): void {
+		const panel = page.createDiv({ cls: "panel talos-chat-migration-panel" });
+		panel.setCssProps({ "--ac": "#7C3AED" });
+		const icon = panel.createDiv({ cls: "talos-chat-migration-icon" });
+		setIcon(icon, "messages-square");
+		const copy = panel.createDiv({ cls: "talos-chat-migration-copy" });
+		copy.createEl("h2", { text: "AI 对话" });
+		copy.createEl("p", {
+			text: "统一对话页面已就位。下一阶段将把现有 Claudian 多标签、工具、差异预览与 Provider 能力挂载到这里。",
+		});
+		copy.createEl("small", {
+			text: "当前不创建新的 Obsidian leaf，也不会合并语音会话历史。",
+		});
+	}
+
+	private pageSettings(page: HTMLElement): void {
+		const panel = page.createDiv({ cls: "panel talos-settings-entry" });
+		panel.setCssProps({ "--ac": "#38E1FF" });
+		const icon = panel.createDiv({ cls: "talos-settings-entry__icon" });
+		setIcon(icon, "settings");
+		const copy = panel.createDiv({ cls: "talos-settings-entry__copy" });
+		copy.createEl("h2", { text: "TALOS 设置" });
+		copy.createEl("p", {
+			text: "Provider、隐私授权和密钥引用将在这里统一管理；现有目录映射与主题设置继续保留。当前配置请使用 Obsidian 设置中的 TALOS 页。",
+		});
+	}
 
 	private async pageJarvis(page: HTMLElement): Promise<void> {
 		try {

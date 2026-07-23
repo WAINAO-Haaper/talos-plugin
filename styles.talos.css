@@ -12179,3 +12179,147 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 		transition: none;
 	}
 }
+
+/* WP7：六个一级页面 + 区域内二级页签 */
+.talos-page-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: color-mix(in srgb, var(--background-primary) 90%, transparent);
+}
+.talos-page-tabs.is-hidden {
+	display: none;
+}
+.talos-page-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	min-height: 34px;
+	padding: 6px 10px;
+	border: 1px solid transparent;
+	border-radius: 9px;
+	background: transparent;
+	color: var(--text-muted);
+	font: inherit;
+}
+.talos-page-tab:hover,
+.talos-page-tab.is-active {
+	border-color: color-mix(in srgb, var(--interactive-accent) 38%, transparent);
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+	color: var(--text-normal);
+}
+.talos-page-tab:focus-visible,
+.workbench-module-card:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+.talos-page-tab__icon {
+	display: inline-flex;
+	width: 16px;
+	height: 16px;
+}
+.talos-page-tab__meta {
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var(--background-secondary);
+	color: var(--text-faint);
+	font-size: 10px;
+}
+.talos-page-tab__meta.is-alert {
+	background: color-mix(in srgb, var(--color-orange) 16%, transparent);
+	color: var(--color-orange);
+}
+.workbench-module-panel {
+	margin-top: 14px;
+}
+.workbench-module-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+}
+.workbench-module-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 58px;
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font: inherit;
+	text-align: left;
+}
+.workbench-module-card:hover {
+	border-color: color-mix(in srgb, var(--interactive-accent) 44%, transparent);
+	transform: translateY(-1px);
+}
+.workbench-module-card__icon {
+	display: inline-flex;
+	width: 20px;
+	height: 20px;
+	color: var(--interactive-accent);
+}
+.talos-chat-migration-panel,
+.talos-settings-entry {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 14px;
+	min-height: 150px;
+}
+.talos-chat-migration-icon,
+.talos-settings-entry__icon {
+	display: grid;
+	width: 48px;
+	height: 48px;
+	place-items: center;
+	border-radius: 14px;
+	background: color-mix(in srgb, var(--ac) 16%, transparent);
+	color: var(--ac);
+}
+.talos-chat-migration-copy h2,
+.talos-chat-migration-copy p,
+.talos-chat-migration-copy small,
+.talos-settings-entry__copy h2,
+.talos-settings-entry__copy p {
+	margin: 0;
+}
+.talos-chat-migration-copy,
+.talos-settings-entry__copy {
+	display: grid;
+	gap: 6px;
+}
+.talos-chat-migration-copy small {
+	color: var(--text-muted);
+}
+@media (max-width: 900px) {
+	.workbench-module-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 560px) {
+	.talos-page-tabs {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+	}
+	.workbench-module-grid {
+		grid-template-columns: 1fr;
+	}
+	.talos-chat-migration-panel,
+	.talos-settings-entry {
+		grid-template-columns: 1fr;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.workbench-module-card {
+		transition: none;
+	}
+	.workbench-module-card:hover {
+		transform: none;
+	}
+}

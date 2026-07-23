@@ -3669,6 +3669,18 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   }
 }
 
+/* WP7：Claudian 后续以内嵌 surface 进入 AI 对话区，保留独立文字命名空间。 */
+.talos-console.section-chat .claudian-container,
+.talos-console.section-chat .claudian-view {
+  min-height: 0;
+  height: 100%;
+}
+.talos-console.section-chat .claudian-container {
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .talos-console .sidebar {
     transition: none;
