@@ -326,8 +326,17 @@ assert.match(
 );
 assert.match(
 	voiceDriverSource,
+	/private history:\s*ChatMessage\[][\s\S]*restoreVoiceHistory/
+);
+assert.doesNotMatch(
+	voiceDriverSource,
 	/histories:\s*Record<InteractionChannel,\s*ChatMessage\[]>/
 );
+assert.match(
+	voicePanelSource,
+	/data-session-namespace",\s*"voice"/
+);
+assert.match(voicePanelSource, /new VoiceSessionStore\(/);
 assert.match(voicePanelSource, /commitUser\(command,\s*"voice"\)/);
 assert.match(voicePanelSource, /commitUser\(text,\s*"text"\)/);
 assert.match(voicePanelSource, /channel === "voice"[\s\S]*this\.tts\?\.feed\(delta\)/);
@@ -363,7 +372,12 @@ assert.match(
 assert.match(voicePanelSource, /wakeWord = "屈原"/);
 assert.match(voicePanelSource, /sleepWord = "退下"/);
 assert.match(voicePanelSource, /wakeWindowMs = 30_000/);
-assert.match(voicePanelSource, /onText: \(text\) => this\.handleVoiceTranscript\(text\)/);
+assert.match(
+	voicePanelSource,
+	/onText: \(text\) => \{[\s\S]*this\.handleVoiceTranscript\(text\)[\s\S]*renderPushToTalkReady/
+);
+assert.match(talosSettingsSource, /quyuanVoiceInputMode:\s*"continuous" \| "push-to-talk"/);
+assert.match(voicePanelSource, /fallbackToPushToTalk[\s\S]*onAsrFailure/);
 assert.match(voicePanelSource, /tq-transcript-editor[\s\S]*createEl\("textarea"[\s\S]*语音识别文字，可编辑/);
 assert.match(voicePanelSource, /channel === "voice"[\s\S]*showTranscriptEditor\(trimmed\)/);
 assert.match(voicePanelSource, /showTranscriptEditor[\s\S]*requestAnimationFrame[\s\S]*is-visible/);
@@ -377,6 +391,7 @@ assert.match(
 );
 assert.match(quyuanShellCss, /--tq-side-size:\s*360px/);
 assert.match(quyuanShellCss, /\.tq-body\.is-side-collapsed/);
+assert.match(quyuanShellCss, /data-input-mode="push-to-talk"[\s\S]*tq-voice-mode-btn/);
 assert.match(quyuanShellCss, /\.tq-btn:focus-visible/);
 assert.match(quyuanShellCss, /\.tq-btn:disabled/);
 assert.match(quyuanShellCss, /\.talos-quyuan-open-error/);

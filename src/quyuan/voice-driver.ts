@@ -2,6 +2,11 @@ import type ClaudianPlugin from "./claudian/main";
 import { ProviderRegistry } from "./claudian/core/providers/ProviderRegistry";
 import type { ChatRuntime } from "./claudian/core/runtime/ChatRuntime";
 import type { ChatMessage } from "./claudian/core/types";
+import {
+	evaluateVoiceToolRisk,
+	resolveVoiceToolApproval,
+	type VoiceToolPolicy,
+} from "./voice-tool-gateway";
 
 // ============================================================
 // 屈原 · 语音壳的引擎驱动（option-1：语音壳驱动 v2 引擎）
@@ -43,9 +48,16 @@ const TEXT_RESPONSE_POLICY = `<interaction_mode>text</interaction_mode>
 
 export interface VoiceTurnCallbacks {
 	onText: (delta: string) => void;
-	onTool?: (name: string) => void;
+	onTool?: (event: VoiceToolEvent) => void;
 	onDone: (fullText: string) => void;
 	onError: (message: string) => void;
+}
+
+export interface VoiceToolEvent {
+	taskId: string;
+	name: string;
+	status: "running" | "succeeded" | "failed";
+	auditEvidence: string;
 }
 
 export interface QuyuanVoiceRuntimeConfig {
@@ -55,10 +67,11 @@ export interface QuyuanVoiceRuntimeConfig {
 
 export class QuyuanVoiceDriver {
 	private runtimes: Partial<Record<InteractionChannel, ChatRuntime>> = {};
-	private histories: Record<InteractionChannel, ChatMessage[]> = {
-		voice: [],
-		text: [],
-	};
+	/**
+	 * The voice page owns exactly one history. Typed accessibility input on this
+	 * page stays here and never enters the embedded chat workbench namespace.
+	 */
+	private history: ChatMessage[] = [];
 	private voicePlugin: ClaudianPlugin | null = null;
 	private busy = false;
 	private confirm?: (toolName: string, description: string) => Promise<boolean>;
@@ -80,18 +93,6 @@ export class QuyuanVoiceDriver {
 		this.confirm = fn;
 	}
 
-	// 危险动作：删除/移动类工具 + 任何 Bash（可 rm）→ 需确认；记笔记/搜索等安全工具直接放行
-	private isDestructive(toolName: string, input: Record<string, unknown>): boolean {
-		const name = toolName.toLowerCase();
-		if (/delete|remove|trash|destroy|\brm\b/.test(name)) return true;
-		if (name === "bash") {
-			// 设计取向：任何非空 Bash 命令一律视为高风险要求确认（不做危险模式白名单细分）
-			const cmd = typeof input.command === "string" ? input.command.trim() : "";
-			return cmd.length > 0;
-		}
-		return false;
-	}
-
 	private ensureRuntime(channel: InteractionChannel): ChatRuntime {
 		if (!this.runtimes[channel]) {
 			const runtimePlugin = this.runtimePlugin(channel);
@@ -101,8 +102,8 @@ export class QuyuanVoiceDriver {
 				plugin: runtimePlugin,
 				providerId,
 			});
-			// 审批回调：用 TALOS 治理裁决（屈原启动即 Read 人格文件，需有应答方，
-			// 否则首轮工具调用悬停无输出）。语音无弹窗，'ask' 放行，'deny' 仍拦截。
+			// 审批回调：共享 action-core 先做 A/B/C 风险判断，Vault 治理再施加
+			// README/身份硬闸。语音页只负责朗读和收集用户确认，不维护第二套规则。
 			const gov = this.plugin as unknown as {
 				evaluateQuyuanToolPolicy?: (
 					toolName: string,
@@ -110,13 +111,28 @@ export class QuyuanVoiceDriver {
 				) => { decision: "allow" | "ask" | "deny"; reason: string };
 			};
 			runtime.setApprovalCallback(async (toolName, input, description) => {
-				const policy = gov.evaluateQuyuanToolPolicy?.(toolName, input);
-				if (policy?.decision === "deny") return "deny";
-				if (this.isDestructive(toolName, input) && this.confirm) {
-					const ok = await this.confirm(toolName, description || toolName);
-					return ok ? "allow" : "deny";
+				const governance = gov.evaluateQuyuanToolPolicy?.(toolName, input);
+				const sharedRisk = evaluateVoiceToolRisk(toolName, input);
+				let policy: VoiceToolPolicy;
+				if (governance?.decision === "deny") {
+					policy = governance;
+				} else if (
+					governance?.decision === "allow" &&
+					sharedRisk.decision === "allow"
+				) {
+					policy = governance;
+				} else {
+					policy = {
+						decision: "ask",
+						reason: [governance?.reason, sharedRisk.reason]
+							.filter(Boolean)
+							.join("；"),
+					};
 				}
-				return "allow";
+				return resolveVoiceToolApproval(policy, async () => {
+					if (!this.confirm) return false;
+					return this.confirm(toolName, description || toolName);
+				});
 			});
 			// 被动同步会话（新会话传 null）；运行时在首次 query() 时按需启动。
 			try {
@@ -164,6 +180,21 @@ export class QuyuanVoiceDriver {
 		}
 	}
 
+	restoreVoiceHistory(
+		messages: Array<{ role: "user" | "assistant"; text: string }>
+	): void {
+		this.history = messages.slice(-40).map((message, index) => ({
+			id: `voice-restored-${index}`,
+			role: message.role,
+			content: message.text,
+			timestamp: index,
+		}));
+	}
+
+	clearVoiceHistory(): void {
+		this.history = [];
+	}
+
 	// 发一轮：按输入通道选择独立契约、运行时和历史，再映射流式事件。
 	async send(turnInput: QuyuanTurn, cb: VoiceTurnCallbacks): Promise<void> {
 		const trimmed = turnInput.text.trim();
@@ -173,6 +204,7 @@ export class QuyuanVoiceDriver {
 		let sawText = false;
 		let sawError = false;
 		let sawTool = false;
+		const toolNames = new Map<string, string>();
 		try {
 			const channel = turnInput.channel;
 			const runtime = this.ensureRuntime(channel);
@@ -181,7 +213,7 @@ export class QuyuanVoiceDriver {
 			const turn = runtime.prepareTurn({
 				text: `${policy}\n\n<user_message>\n${trimmed}\n</user_message>`,
 			});
-			for await (const chunk of runtime.query(turn, this.histories[channel])) {
+			for await (const chunk of runtime.query(turn, this.history)) {
 				switch (chunk.type) {
 					case "text":
 						full += chunk.content;
@@ -190,8 +222,25 @@ export class QuyuanVoiceDriver {
 						break;
 					case "tool_use":
 						sawTool = true;
-						cb.onTool?.(chunk.name);
+						toolNames.set(chunk.id, chunk.name);
+						cb.onTool?.({
+							taskId: chunk.id,
+							name: chunk.name,
+							status: "running",
+							auditEvidence: `voice-tool:${chunk.id}:running`,
+						});
 						break;
+					case "tool_result": {
+						const name = toolNames.get(chunk.id) ?? "tool";
+						const status = chunk.isError ? "failed" : "succeeded";
+						cb.onTool?.({
+							taskId: chunk.id,
+							name,
+							status,
+							auditEvidence: `voice-tool:${chunk.id}:${status}`,
+						});
+						break;
+					}
 					case "error":
 						sawError = true;
 						cb.onError(chunk.content);
@@ -215,14 +264,13 @@ export class QuyuanVoiceDriver {
 			}
 			if (sawText) {
 				const now = Date.now();
-				const history = this.histories[channel];
-				history.push({
+				this.history.push({
 					id: `${channel}-u-${now}`,
 					role: "user",
 					content: trimmed,
 					timestamp: now,
 				});
-				history.push({
+				this.history.push({
 					id: `${channel}-a-${now}`,
 					role: "assistant",
 					content: full,
@@ -230,8 +278,11 @@ export class QuyuanVoiceDriver {
 				});
 				// 长会话防膨胀：历史只保留最近 40 条（20 轮），避免内存与每轮 token 无上限增长
 				const MAX_HISTORY_MESSAGES = 40;
-				if (history.length > MAX_HISTORY_MESSAGES) {
-					history.splice(0, history.length - MAX_HISTORY_MESSAGES);
+				if (this.history.length > MAX_HISTORY_MESSAGES) {
+					this.history.splice(
+						0,
+						this.history.length - MAX_HISTORY_MESSAGES
+					);
 				}
 				cb.onDone(full);
 			}
@@ -261,7 +312,7 @@ export class QuyuanVoiceDriver {
 			}
 		}
 		this.runtimes = {};
-		this.histories = { voice: [], text: [] };
+		this.history = [];
 		this.voicePlugin = null;
 	}
 }

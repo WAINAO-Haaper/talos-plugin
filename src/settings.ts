@@ -94,6 +94,8 @@ export interface TalosSettings {
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
 	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
+	quyuanVoiceInputMode: "continuous" | "push-to-talk"; // 默认持续监听；失败时降级为点击说话
+	quyuanVoiceSessionJson: string; // 独立 voice namespace 会话，不与 Claudian chat tab 混用
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
@@ -155,6 +157,8 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanVoiceEffort: "low",
 	quyuanBackground: "letter-glitch",
 	quyuanVoiceRecognitionEnabled: true,
+	quyuanVoiceInputMode: "continuous",
+	quyuanVoiceSessionJson: "",
 	jarvisVoiceEnabled: false,
 	jarvisThinkingLevel: "off",
 	jarvisTabsJson: "",
@@ -165,7 +169,13 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 type TextSettingKey = {
 	[K in keyof TalosSettings]: TalosSettings[K] extends string ? K : never;
 }[keyof TalosSettings];
-type FreeTextSettingKey = Exclude<TextSettingKey, "visualTheme" | "quyuanBackground">;
+type FreeTextSettingKey = Exclude<
+	TextSettingKey,
+	| "visualTheme"
+	| "quyuanBackground"
+	| "quyuanVoiceInputMode"
+	| "quyuanVoiceSessionJson"
+>;
 
 type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
 

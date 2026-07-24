@@ -2634,6 +2634,29 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   gap: 6px;
 }
 
+.tq-voice-mode-btn {
+  gap: 5px;
+  min-width: 82px;
+  height: 30px;
+  padding: 0 9px;
+  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
+  color: var(--tq-text);
+  background: color-mix(in srgb, var(--tq-state) 10%, transparent);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.tq-voice-mode-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tq-voice[data-input-mode="push-to-talk"] .tq-voice-mode-btn {
+  border-color: rgba(167, 139, 250, 0.46);
+  background: rgba(167, 139, 250, 0.12);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.12);
+}
+
 .tq-mini-btn,
 .tq-send-btn {
   flex: 0 0 30px;
@@ -3335,6 +3358,10 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 .talos-console .tq-voice .tq-session-head {
   border-bottom-color: rgba(125, 211, 252, 0.1);
   background: rgba(10, 16, 28, 0.3);
+}
+
+.talos-console .tq-voice[data-input-mode="push-to-talk"] .tq-session-head {
+  border-bottom-color: rgba(167, 139, 250, 0.2);
 }
 
 /* —— 会话气泡：深色玻璃 + 进入时轻微上浮淡入 —— */
