@@ -52,6 +52,7 @@
 2. 在「总览」查看运行判断与指标矩阵，左侧导航切到各业务页。
 3. 打开「屈原」进入语音工作台：开口说话或输入指令，Agent 流式执行全库任务并朗读回复；首次工具调用会弹出权限审批卡。
 4. 命令面板（`Ctrl/Cmd+P`）搜索「TALOS」可发现刷新统计、生成诊断报告、打开完整工作台等命令。
+5. 命令面板选择「TALOS：全库问答」可通过 canonical `talos-ask` 入口调用同一套检索、Provider、隐私门和审批治理。
 
 ## 🎨 外观与主题
 
@@ -96,7 +97,11 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 - **治理先于写入**：写操作走 TALOS 审批策略；Markdown 行内编辑会先读取目标目录 `_README.md`，`PROFILE.md`、`Identity/`、`灵魂/` 保留硬闸。
 - **TALOS 差异层**：沿用现有语音总开关与三种 TTS，屈原 v2 的流式回复可边生成边朗读；旧侧栏和 STT 暂留作回滚/迁移层。
 
-默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。完整 v2 工作台与旧版回滚入口保留在命令面板。独立 Claudian 插件继续启用并使用自己的 `.claudian/` 会话与设置，TALOS 内嵌工作台使用 `.talos/quyuan/`，两者不混写。
+默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。完整 v2 工作台与旧版回滚入口保留在命令面板。TALOS 已内嵌 Claudian 工作台能力，不依赖外部 Claudian 插件；如用户仍保留独立插件，它继续使用自己的 `.claudian/` 会话，TALOS 内嵌工作台使用 `.talos/quyuan/`，两者不混写。
+
+### WP7 升级迁移
+
+从 0.4.x 升级时，插件使用独立 migration schema 分步保留 TALOS 设置、Claudian tabs、文字/语音会话、语音与 ASR/TTS 开关、自定义目录映射和旧命令入口。明文 Provider key 只有在写入并读回验证 Obsidian SecretStorage 后才从插件设置删除；SecretStorage 不可用或启动中断时保持 migration v0，下次启动从已完成步骤继续。本地旧命令 `open-quyuan-v2`、`open-jarvis` 和旧 Claudian view type 至少保留一个版本周期。
 
 ### 屈原 Agentic（B 方案 · v1 回滚层）
 

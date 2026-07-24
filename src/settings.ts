@@ -42,6 +42,8 @@ export type TalosVisualTheme =
 	| "paper-ink"
 	| "swiss-modern";
 
+export const TALOS_SETTINGS_SCHEMA_VERSION = 1;
+
 /** 屈原语音舞台背景效果（独立于全局 visualTheme） */
 export type QuyuanBackgroundType = "letter-glitch" | "grid-scan";
 
@@ -59,6 +61,7 @@ export function normalizeVisualTheme(value: unknown): TalosVisualTheme {
 }
 
 export interface TalosSettings {
+	settingsSchemaVersion: number;
 	eyebrow: string;
 	mainTitle: string;
 	visualTheme: TalosVisualTheme;
@@ -140,6 +143,7 @@ export interface TalosSettings {
 }
 
 export const DEFAULT_SETTINGS: TalosSettings = {
+	settingsSchemaVersion: TALOS_SETTINGS_SCHEMA_VERSION,
 	eyebrow: "超级大脑 · CONTEXT OS",
 	mainTitle: "TALOS 系统控制台",
 	visualTheme: "aurora",

@@ -21,7 +21,6 @@ import {
 	type DataSourceKey,
 } from "./data/schema";
 import {
-	migrateProviderSecretsOnStartup,
 	providerSecretStoreFromApp,
 	readProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
@@ -42,6 +41,7 @@ import {
 	createVaultCanonicalRequestWriter,
 } from "./canonical/request-writer";
 import { TalosAskCommand } from "./canonical/talos-ask-command";
+import { migrateWp7Data } from "./migrations/wp7-migration";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -475,26 +475,41 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		const loaded: unknown = await this.loadData();
 		const stored = isRecord(loaded) ? loaded : {};
 		const namespaced = isRecord(stored.talos) ? stored.talos : stored;
-		this.talosSettings = Object.assign({}, DEFAULT_SETTINGS, namespaced);
-		this.talosSettings.visualTheme = normalizeVisualTheme(this.talosSettings.visualTheme);
+		const knownSettings = Object.fromEntries(
+			Object.entries(namespaced).filter(([key]) =>
+				Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)
+			)
+		) as Partial<TalosSettings>;
+		let settings = Object.assign({}, DEFAULT_SETTINGS, knownSettings);
+		settings.visualTheme = normalizeVisualTheme(settings.visualTheme);
 		// 屈原背景效果容错：只接受合法值，否则回退默认
-		if (this.talosSettings.quyuanBackground !== "letter-glitch" && this.talosSettings.quyuanBackground !== "grid-scan") {
-			this.talosSettings.quyuanBackground = "letter-glitch";
+		if (settings.quyuanBackground !== "letter-glitch" && settings.quyuanBackground !== "grid-scan") {
+			settings.quyuanBackground = "letter-glitch";
 		}
+		const secretStore = providerSecretStoreFromApp(this.app);
 		try {
-			await migrateProviderSecretsOnStartup(
-				this.talosSettings,
-				providerSecretStoreFromApp(this.app),
-				() => this.saveTalosSettings()
-			);
+			const migration = await migrateWp7Data({
+				stored,
+				settings,
+				secretStore,
+				persist: (data) => this.saveData(data),
+			});
+			settings = migration.settings;
+			if (migration.status === "blocked") {
+				settings.engineProvider = "claude-cli";
+				new Notice(
+					"当前 Obsidian 不支持 SecretStorage，WP7 密钥迁移已暂停且原明文未删除；云端 API Provider 已禁用，本机 CLI 仍可使用。"
+				);
+			}
 		} catch {
-			this.talosSettings.engineProvider = "claude-cli";
+			settings.engineProvider = "claude-cli";
 			new Notice(
-				"旧密钥迁移到 SecretStorage 失败，云端 API Provider 已禁用；原设置未删除，请检查 Obsidian 密钥存储后重试。"
+				"WP7 设置或密钥迁移中断，云端 API Provider 已禁用；已完成步骤将在下次启动继续，原设置不会提前删除。"
 			);
 		}
+		this.talosSettings = settings;
 		if (
-			!providerSecretStoreFromApp(this.app) &&
+			!secretStore &&
 			this.talosSettings.engineProvider !== "claude-cli"
 		) {
 			this.talosSettings.engineProvider = "claude-cli";
