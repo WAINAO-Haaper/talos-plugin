@@ -2,12 +2,20 @@ import {
 	inspectVaultContent,
 	type SecretBlockReason,
 } from "../context/secret-policy";
+import {
+	MODULE_KEYS,
+	resolveSchema,
+	type TalosSchemaKey,
+	type TalosVaultSchema,
+} from "../../data/schema";
 
 export interface ProviderEgressInput {
 	providerId: string;
 	vaultAccess: "full" | "denied";
 	paths: string[];
 	text: string;
+	moduleAccess?: Partial<Record<TalosSchemaKey, boolean>>;
+	vaultSchema?: Partial<TalosVaultSchema>;
 	configDir?: string;
 }
 
@@ -21,8 +29,11 @@ export interface ProviderEgressAudit {
 		absolutePath: number;
 	};
 	blockedReasons: Array<
-		SecretBlockReason | "vault-access-denied"
+		| SecretBlockReason
+		| "vault-access-denied"
+		| "module-access-denied"
 	>;
+	deniedModules: TalosSchemaKey[];
 	contentDigest: string;
 }
 
@@ -48,6 +59,32 @@ function modules(paths: string[]): string[] {
 				.filter((value): value is string => !!value)
 		),
 	].sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeVaultPath(path: string): string {
+	return path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+}
+
+function deniedModules(
+	paths: string[],
+	moduleAccess: Partial<Record<TalosSchemaKey, boolean>> | undefined,
+	vaultSchema: Partial<TalosVaultSchema> | undefined
+): TalosSchemaKey[] {
+	if (!moduleAccess) return [];
+	const schema = resolveSchema(vaultSchema);
+	const denied = new Set<TalosSchemaKey>();
+	for (const path of paths.map(normalizeVaultPath)) {
+		for (const key of MODULE_KEYS) {
+			const root = normalizeVaultPath(schema[key]);
+			if (
+				moduleAccess[key] === false &&
+				(path === root || path.startsWith(`${root}/`))
+			) {
+				denied.add(key);
+			}
+		}
+	}
+	return MODULE_KEYS.filter((key) => denied.has(key));
 }
 
 function redact(
@@ -79,6 +116,7 @@ export async function auditProviderEgress(
 			absolutePath: 0,
 		},
 		blockedReasons: [],
+		deniedModules: [],
 		contentDigest: digest,
 	};
 	if (input.vaultAccess !== "full") {
@@ -88,6 +126,22 @@ export async function auditProviderEgress(
 			audit: {
 				...baseAudit,
 				blockedReasons: ["vault-access-denied"],
+			},
+		};
+	}
+	const denied = deniedModules(
+		input.paths,
+		input.moduleAccess,
+		input.vaultSchema
+	);
+	if (denied.length > 0) {
+		return {
+			allowed: false,
+			redactedText: "",
+			audit: {
+				...baseAudit,
+				blockedReasons: ["module-access-denied"],
+				deniedModules: denied,
 			},
 		};
 	}

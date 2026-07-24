@@ -2,6 +2,10 @@ import type {
 	ProviderCapability,
 	TalosProviderKind,
 } from "./types";
+import {
+	MODULE_KEYS,
+	type TalosSchemaKey,
+} from "../../data/schema";
 
 export interface StoredProviderConfig {
 	id: string;
@@ -13,6 +17,7 @@ export interface StoredProviderConfig {
 	isDefault: boolean;
 	secretRef: string;
 	vaultAccess: "full" | "denied";
+	moduleAccess: Partial<Record<TalosSchemaKey, boolean>>;
 }
 
 export interface ProviderConfigFile {
@@ -35,6 +40,7 @@ const ALLOWED_PROVIDER_KEYS = new Set([
 	"isDefault",
 	"secretRef",
 	"vaultAccess",
+	"moduleAccess",
 ]);
 const SENSITIVE_KEY = /(^|[-_])(api[-_]?key|token|authorization|password|secret)($|[-_])/i;
 const SENSITIVE_VALUE = /(?:authorization\s*:|bearer\s+|[?&](?:api_?key|token)=)/i;
@@ -56,6 +62,21 @@ function assertSafeProvider(
 	}
 	if (!/^[a-z0-9][a-z0-9-]*$/.test(provider.secretRef)) {
 		throw new Error("Provider config secretRef must be a SecretStorage id");
+	}
+	if (
+		typeof provider.moduleAccess !== "object" ||
+		provider.moduleAccess === null ||
+		Array.isArray(provider.moduleAccess)
+	) {
+		throw new Error("Provider config moduleAccess must be an object");
+	}
+	const allowedModules = new Set<string>(MODULE_KEYS);
+	for (const [key, value] of Object.entries(provider.moduleAccess)) {
+		if (!allowedModules.has(key) || typeof value !== "boolean") {
+			throw new Error(
+				`Provider config contains invalid moduleAccess: ${key}`
+			);
+		}
 	}
 }
 
@@ -86,6 +107,10 @@ export class ProviderConfigStore {
 			throw new Error("Invalid provider config");
 		}
 		const config = parsed as ProviderConfigFile;
+		config.providers = config.providers.map((provider) => ({
+			...provider,
+			moduleAccess: provider.moduleAccess ?? {},
+		}));
 		for (const provider of config.providers) {
 			assertSafeProvider(
 				provider as StoredProviderConfig & Record<string, unknown>

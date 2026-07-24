@@ -62,4 +62,36 @@ describe("provider egress gate", () => {
 			audit: { blockedReasons: ["vault-access-denied"] },
 		});
 	});
+
+	it("applies a provider-specific module matrix with custom Vault paths", async () => {
+		const blocked = await auditProviderEgress({
+			providerId: "openai-compatible",
+			vaultAccess: "full",
+			moduleAccess: { identity: false, projects: true },
+			vaultSchema: {
+				identity: "10 身份",
+				projects: "40 项目",
+			},
+			paths: ["10 身份/身份.md", "40 项目/WP7.md"],
+			text: "身份与项目上下文",
+		});
+		const allowed = await auditProviderEgress({
+			providerId: "claude-api",
+			vaultAccess: "full",
+			moduleAccess: { identity: true },
+			vaultSchema: { identity: "10 身份" },
+			paths: ["10 身份/身份.md"],
+			text: "身份上下文",
+		});
+
+		expect(blocked).toMatchObject({
+			allowed: false,
+			redactedText: "",
+			audit: {
+				blockedReasons: ["module-access-denied"],
+				deniedModules: ["identity"],
+			},
+		});
+		expect(allowed.allowed).toBe(true);
+	});
 });

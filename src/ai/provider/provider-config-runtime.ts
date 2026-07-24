@@ -13,6 +13,7 @@ type ProviderConfigSettings = Pick<
 	| "openaiBaseUrl"
 	| "openaiModel"
 	| "providerVaultAccess"
+	| "providerModuleAccess"
 	| "providerSecretRefs"
 >;
 
@@ -46,6 +47,9 @@ export function buildProviderConfig(
 					settings.providerSecretRefs.anthropicApiKey ||
 					"talos-anthropic-api-key",
 				vaultAccess,
+				moduleAccess: {
+					...(settings.providerModuleAccess["claude-api"] ?? {}),
+				},
 			},
 			{
 				id: "openai-compatible",
@@ -69,6 +73,11 @@ export function buildProviderConfig(
 					settings.providerSecretRefs.openaiApiKey ||
 					"talos-openai-api-key",
 				vaultAccess,
+				moduleAccess: {
+					...(settings.providerModuleAccess[
+						"openai-compatible"
+					] ?? {}),
+				},
 			},
 		],
 	};

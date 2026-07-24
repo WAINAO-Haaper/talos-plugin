@@ -17,12 +17,17 @@ import {
 	resolveSchema,
 	type DataSourceKey,
 	type SchemaDetectionResult,
+	type TalosSchemaKey,
 	type TalosVaultSchema,
 } from "./data/schema";
 import {
 	providerSecretStoreFromApp,
 	saveProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
+import {
+	isProviderModuleAllowed,
+	setProviderModuleAllowed,
+} from "./ai/provider/provider-module-access";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
 
 export type TalosVisualTheme =
@@ -124,6 +129,10 @@ export interface TalosSettings {
 	>;
 	providerVaultAccess: boolean;
 	providerManualReview: boolean;
+	providerModuleAccess: Record<
+		string,
+		Partial<Record<TalosSchemaKey, boolean>>
+	>;
 	/** 首次运行是否已自动识别过库结构（避免重复打扰；重新检测请用设置页按钮） */
 	schemaAutoDetected: boolean;
 	/** 库目录映射：客户库命名与默认不同时在此覆盖（设置 → 目录映射，支持自动检测） */
@@ -190,6 +199,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	providerSecretRefs: {},
 	providerVaultAccess: true,
 	providerManualReview: true,
+	providerModuleAccess: {},
 	schemaAutoDetected: false,
 	vaultSchema: {},
 };
@@ -389,6 +399,44 @@ export class TalosSettingTab extends PluginSettingTab {
 			}
 		} catch {
 			new Notice("Provider 连接失败，请检查 endpoint 与网络");
+		}
+	}
+
+	private renderProviderModuleAccess(
+		c: HTMLElement,
+		providerId: "claude-api" | "openai-compatible",
+		label: string
+	): void {
+		new Setting(c).setName(`${label} · 模块授权`).setHeading();
+		new Setting(c).setDesc(
+			"默认全部允许。关闭某一模块后，只要本次上下文包含该模块，出库门就会在调用 Provider 前阻断，并写入 metadata-only 审计记录。"
+		);
+		const schema = resolveSchema(this.plugin.talosSettings.vaultSchema);
+		for (const key of MODULE_KEYS) {
+			new Setting(c)
+				.setName(SCHEMA_LABELS[key])
+				.setDesc(`当前目录：${schema[key]}`)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							isProviderModuleAllowed(
+								this.plugin.talosSettings.providerModuleAccess,
+								providerId,
+								key
+							)
+						)
+						.setTooltip(`${label} 读取 ${SCHEMA_LABELS[key]}`)
+						.onChange(async (allowed) => {
+							this.plugin.talosSettings.providerModuleAccess =
+								setProviderModuleAllowed(
+									this.plugin.talosSettings.providerModuleAccess,
+									providerId,
+									key,
+									allowed
+								);
+							await this.plugin.saveTalosSettings();
+						})
+				);
 		}
 	}
 
@@ -666,6 +714,12 @@ export class TalosSettingTab extends PluginSettingTab {
 						await this.plugin.saveTalosSettings();
 					})
 			);
+		this.renderProviderModuleAccess(c, "claude-api", "Claude API");
+		this.renderProviderModuleAccess(
+			c,
+			"openai-compatible",
+			"OpenAI-compatible"
+		);
 		new Setting(c)
 			.setName("复杂操作先提案再批准")
 			.setDesc(

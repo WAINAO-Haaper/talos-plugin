@@ -10,6 +10,13 @@ describe("Provider config runtime", () => {
 			openaiBaseUrl: "https://gateway.test",
 			openaiModel: "model-x",
 			providerVaultAccess: true,
+			providerModuleAccess: {
+				"claude-api": { identity: true, projects: true },
+				"openai-compatible": {
+					identity: false,
+					projects: true,
+				},
+			},
 			providerSecretRefs: {
 				anthropicApiKey: "talos-anthropic-api-key",
 				openaiApiKey: "talos-openai-api-key",
@@ -24,12 +31,20 @@ describe("Provider config runtime", () => {
 					isDefault: false,
 					secretRef: "talos-anthropic-api-key",
 					vaultAccess: "full",
+					moduleAccess: {
+						identity: true,
+						projects: true,
+					},
 				},
 				{
 					id: "openai-compatible",
 					isDefault: true,
 					endpoint: "https://gateway.test",
 					model: "model-x",
+					moduleAccess: {
+						identity: false,
+						projects: true,
+					},
 				},
 			],
 		});

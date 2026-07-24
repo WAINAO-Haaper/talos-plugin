@@ -7,8 +7,12 @@ import type { ProviderFacade } from "./provider/provider-facade";
 import type { AskEvent } from "./provider/types";
 import {
 	auditProviderEgress,
-	type ProviderEgressAudit,
 } from "./privacy/provider-egress-gate";
+import type { ProviderEgressAuditAppendInput } from "./privacy/provider-egress-audit-store";
+import type {
+	TalosSchemaKey,
+	TalosVaultSchema,
+} from "../data/schema";
 
 export type AskNamespace = "chat" | "voice" | "command";
 
@@ -46,8 +50,12 @@ export interface TalosAskServiceOptions {
 	toolGateway: ToolProposalGateway;
 	manualReview: () => boolean;
 	vaultAccess?: () => "full" | "denied";
+	moduleAccess?: (
+		providerId: string
+	) => Partial<Record<TalosSchemaKey, boolean>>;
+	vaultSchema?: () => Partial<TalosVaultSchema>;
 	auditSink?: (
-		audit: ProviderEgressAudit
+		record: ProviderEgressAuditAppendInput
 	) => void | Promise<void>;
 	configDir?: string;
 }
@@ -100,9 +108,17 @@ export class TalosAskService {
 			vaultAccess: this.options.vaultAccess?.() ?? "full",
 			paths: assembled.usedPaths,
 			text: assembled.text,
+			moduleAccess: this.options.moduleAccess?.(input.providerId),
+			vaultSchema: this.options.vaultSchema?.(),
 			configDir: this.options.configDir,
 		});
-		await this.options.auditSink?.(egress.audit);
+		await this.options.auditSink?.({
+			runId: input.runId,
+			turnId: input.turnId,
+			sessionId: sessionKey,
+			namespace: input.namespace,
+			audit: egress.audit,
+		});
 		if (!egress.allowed) {
 			yield {
 				type: "error",

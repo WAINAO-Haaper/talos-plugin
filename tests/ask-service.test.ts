@@ -208,4 +208,77 @@ describe("TalosAskService", () => {
 
 		expect(provider.requests[0]?.text).not.toContain("fake-bearer");
 	});
+
+	it("binds the active provider module matrix and persists run metadata", async () => {
+		const provider = new RecordingProvider("openai-compatible");
+		const facade = new ProviderFacade();
+		facade.register(provider);
+		const auditRecords: Array<{
+			runId: string;
+			turnId: string;
+			sessionId: string;
+			namespace: string;
+			audit: { deniedModules: string[] };
+		}> = [];
+		const service = new TalosAskService({
+			facade,
+			retriever: retriever({
+				hits: [
+					{
+						path: "10 身份/身份.md",
+						excerpt: "身份上下文",
+						truncated: false,
+						source: "keyword",
+						score: 1,
+						reasons: [],
+					},
+				],
+				blocked: [],
+			}),
+			manualReview: () => true,
+			moduleAccess: (providerId) =>
+				providerId === "openai-compatible"
+					? { identity: false }
+					: {},
+			vaultSchema: () => ({ identity: "10 身份" }),
+			auditSink: async (record) => {
+				auditRecords.push(record);
+			},
+			toolGateway: {
+				async propose() {
+					return { taskId: "task" };
+				},
+			},
+		});
+
+		const events = await collect(
+			service.ask({
+				sessionId: "session",
+				namespace: "chat",
+				runId: "run-module-denied",
+				turnId: "turn-module-denied",
+				providerId: "openai-compatible",
+				query: "读取身份",
+			})
+		);
+
+		expect(provider.requests).toHaveLength(0);
+		expect(events).toEqual([
+			{
+				type: "error",
+				message: "Provider 出库隐私审计未通过",
+				retryable: false,
+			},
+			{ type: "done", sessionId: "chat:session" },
+		]);
+		expect(auditRecords).toMatchObject([
+			{
+				runId: "run-module-denied",
+				turnId: "turn-module-denied",
+				sessionId: "chat:session",
+				namespace: "chat",
+				audit: { deniedModules: ["identity"] },
+			},
+		]);
+	});
 });

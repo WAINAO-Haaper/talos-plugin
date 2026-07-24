@@ -34,6 +34,10 @@ describe("ProviderConfigStore", () => {
 					isDefault: true,
 					secretRef: "talos-anthropic-api-key",
 					vaultAccess: "full",
+					moduleAccess: {
+						identity: true,
+						projects: false,
+					},
 				},
 			],
 		});
@@ -45,6 +49,10 @@ describe("ProviderConfigStore", () => {
 					id: "anthropic-main",
 					secretRef: "talos-anthropic-api-key",
 					vaultAccess: "full",
+					moduleAccess: {
+						identity: true,
+						projects: false,
+					},
 				},
 			],
 		});
@@ -67,11 +75,38 @@ describe("ProviderConfigStore", () => {
 			isDefault: false,
 			secretRef: "talos-unsafe-key",
 			vaultAccess: "full" as const,
+			moduleAccess: {},
 			...extra,
 		};
 
 		await expect(
 			store.save({ version: 1, providers: [provider] })
 		).rejects.toThrow(expected);
+	});
+
+	it("loads legacy v1 providers without a module matrix as full access", async () => {
+		const persistence = memoryPersistence();
+		persistence.value = JSON.stringify({
+			version: 1,
+			providers: [
+				{
+					id: "legacy",
+					name: "Legacy API",
+					kind: "api",
+					endpoint: "https://example.test",
+					model: "model",
+					capabilities: ["chat"],
+					isDefault: true,
+					secretRef: "talos-legacy-key",
+					vaultAccess: "full",
+				},
+			],
+		});
+
+		await expect(
+			new ProviderConfigStore(persistence).load()
+		).resolves.toMatchObject({
+			providers: [{ id: "legacy", moduleAccess: {} }],
+		});
 	});
 });
