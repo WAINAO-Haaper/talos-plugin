@@ -1,5 +1,9 @@
 import type { JarvisEvents, UserTurn, UsageInfo } from "../engine-types";
-import { VaultToolHost, ToolCall, ToolResult } from "./vault-tools";
+import type {
+	ToolCall,
+	ToolOutcome,
+	ToolResult,
+} from "./vault-tools";
 
 // ============================================================
 // AgentLoop · 与厂商无关的 agent 多轮循环
@@ -25,12 +29,16 @@ export interface ModelClient {
 	abort(): void;
 }
 
+export interface AgentToolRunner {
+	run(call: ToolCall): Promise<ToolOutcome>;
+}
+
 const MAX_STEPS = 50; // 单轮工具循环上限，防失控（呼应 loop-safety）
 
 export class AgentLoop {
 	private aborted = false;
 
-	constructor(private model: ModelClient, private tools: VaultToolHost, private ev: JarvisEvents) {}
+	constructor(private model: ModelClient, private tools: AgentToolRunner, private ev: JarvisEvents) {}
 
 	async turn(turn: UserTurn): Promise<void> {
 		this.aborted = false;
