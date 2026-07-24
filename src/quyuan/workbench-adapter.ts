@@ -3,6 +3,8 @@ import type {
 	QuyuanCapabilitySnapshot,
 	QuyuanProviderId,
 } from "./contract";
+import { toTalosProviderCapabilities } from "./contract";
+import type { ProviderCapability } from "../ai/provider/types";
 
 export type QuyuanStreamChunk =
 	| { type: "text"; text: string }
@@ -38,3 +40,8 @@ export function snapshotAdapterCapabilities(
 	};
 }
 
+export function snapshotTalosProviderCapabilities(
+	adapter: QuyuanWorkbenchAdapter
+): ReadonlySet<ProviderCapability> {
+	return toTalosProviderCapabilities(snapshotAdapterCapabilities(adapter));
+}
