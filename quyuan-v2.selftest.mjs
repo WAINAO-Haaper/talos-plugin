@@ -543,6 +543,44 @@ assert.match(
 	/:not\(\[data-talos-page="overview"\]\):not\(\[data-talos-page="jarvis"\]\)[\s\S]*\.main[\s\S]*padding:\s*18px !important/
 );
 
+// WP7 Task 14：确定性合成验收必须直接组合现有核心，fixture 只提供协议与恢复证据。
+const wp7E2eSource = readFileSync("tests/wp7-e2e.test.ts", "utf8");
+for (const sharedCore of [
+	"createBuiltinActionRegistry",
+	"TalosTaskRunner",
+	"TalosAskService",
+	"ProviderFacade",
+	"VaultRetriever",
+	"proposeAnswerWriteback",
+	"VoiceSessionStore",
+]) {
+	assert.match(wp7E2eSource, new RegExp(`\\b${sharedCore}\\b`));
+}
+assert.doesNotMatch(wp7E2eSource, /\bfetch\s*\(|\brequestUrl\s*\(|https?:\/\//);
+const wp7FixtureRegistry = JSON.parse(
+	readFileSync(
+		"fixtures/wp7-vault/TALOS中枢/适配器/runtime-command-registry.json",
+		"utf8"
+	)
+);
+assert.equal(wp7FixtureRegistry.commands.length, 13);
+assert.equal(
+	wp7FixtureRegistry.commands.some(
+		(command) =>
+			command.id === "talos-ask" &&
+			command.request_path === ".talos/command-requests/talos-ask.json"
+	),
+	true
+);
+assert.equal(
+	[
+		"fixtures/wp7-vault/.env.fixture",
+		"fixtures/wp7-vault/.talos/private/mock-provider.json",
+		"fixtures/wp7-vault/.talos/command-requests/talos-ask.json",
+	].every((path) => existsSync(path)),
+	true
+);
+
 function mockApp(files) {
 	return {
 		vault: {

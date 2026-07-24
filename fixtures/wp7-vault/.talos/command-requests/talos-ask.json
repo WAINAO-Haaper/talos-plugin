@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "request_id": "wp7-synthetic-recovery",
+  "command_id": "talos-ask",
+  "timestamp": "2026-07-25T00:00:00.000Z",
+  "channel": "obsidian",
+  "provider_id": "mock-alpha",
+  "query": "synthetic protocol replay",
+  "writeback_intent": "display-only",
+  "approval_state": "not-required"
+}
