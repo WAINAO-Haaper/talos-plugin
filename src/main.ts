@@ -20,6 +20,13 @@ import {
 	resolveSchema,
 	type DataSourceKey,
 } from "./data/schema";
+import {
+	migrateProviderSecretsOnStartup,
+	providerSecretStoreFromApp,
+	readProviderSecret,
+} from "./ai/provider/secret-storage-runtime";
+import type { LegacySecretField } from "./ai/provider/settings-migration";
+import { saveProviderConfigToVault } from "./ai/provider/provider-config-runtime";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -94,7 +101,12 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 
 	async onload(): Promise<void> {
 		await this.loadTalosSettings();
-		this.quyuanTts = new StreamTts(this.talosSettings, () => {});
+		this.quyuanTts = new StreamTts(
+			this.talosSettings,
+			() => {},
+			undefined,
+			(field) => this.readProviderSecret(field)
+		);
 		this.applyVaultTheme();
 
 		addIcon(TALOS_ICON, TALOS_ICON_SVG);
@@ -388,12 +400,43 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		if (this.talosSettings.quyuanBackground !== "letter-glitch" && this.talosSettings.quyuanBackground !== "grid-scan") {
 			this.talosSettings.quyuanBackground = "letter-glitch";
 		}
+		try {
+			await migrateProviderSecretsOnStartup(
+				this.talosSettings,
+				providerSecretStoreFromApp(this.app),
+				() => this.saveTalosSettings()
+			);
+		} catch {
+			this.talosSettings.engineProvider = "claude-cli";
+			new Notice(
+				"旧密钥迁移到 SecretStorage 失败，云端 API Provider 已禁用；原设置未删除，请检查 Obsidian 密钥存储后重试。"
+			);
+		}
+		if (
+			!providerSecretStoreFromApp(this.app) &&
+			this.talosSettings.engineProvider !== "claude-cli"
+		) {
+			this.talosSettings.engineProvider = "claude-cli";
+			new Notice(
+				"当前 Obsidian 不支持 SecretStorage，云端 API Provider 已禁用；请升级到 1.11.4 或更高版本。本机 CLI 仍可使用。"
+			);
+		}
+		await saveProviderConfigToVault(this.app, this.talosSettings);
+	}
+
+	readProviderSecret(field: LegacySecretField): string | null {
+		return readProviderSecret(
+			this.talosSettings,
+			field,
+			providerSecretStoreFromApp(this.app)
+		);
 	}
 
 	async saveTalosSettings(): Promise<void> {
 		const loaded: unknown = await this.loadData();
 		const stored = isRecord(loaded) ? loaded : {};
 		await this.saveData({ ...stored, talos: this.talosSettings });
+		await saveProviderConfigToVault(this.app, this.talosSettings);
 	}
 
 	recordQuyuanRuntimeError(scope: string, error: unknown): void {

@@ -1,5 +1,6 @@
 import { Notice, requestUrl } from "obsidian";
 import type { TalosSettings } from "../settings";
+import type { LegacySecretField } from "../ai/provider/settings-migration";
 
 // ============================================================
 // 屈原 · 语音 I/O
@@ -72,18 +73,30 @@ export class StreamTts {
 	private audioSource: MediaElementAudioSourceNode | null = null;
 	private levelTimer: number | null = null;
 
-	constructor(settings: TalosSettings, onState: (s: SpeakState, text?: string) => void, onLevel?: ((level: number) => void)) {
+	constructor(
+		settings: TalosSettings,
+		onState: (s: SpeakState, text?: string) => void,
+		onLevel?: (level: number) => void,
+		private readonly readSecret: (
+			field: LegacySecretField
+		) => string | null = () => null
+	) {
 		this.settings = settings;
 		this.onState = onState;
 		this.onLevel = onLevel ?? null;
+	}
+
+	private secret(field: LegacySecretField): string {
+		return this.readSecret(field)?.trim() ?? "";
 	}
 
 	private usingApi(): boolean {
 		const s = this.settings;
 		return (
 			s.ttsEngine === "edgetts" ||
-			(s.ttsEngine === "elevenlabs" && !!s.elevenLabsApiKey.trim()) ||
-			(s.ttsEngine === "aliyun" && !!s.aliyunApiKey.trim())
+			(s.ttsEngine === "elevenlabs" &&
+				!!this.secret("elevenLabsApiKey")) ||
+			(s.ttsEngine === "aliyun" && !!this.secret("aliyunApiKey"))
 		);
 	}
 
@@ -221,7 +234,7 @@ export class StreamTts {
 			return await this.synthEdge(text);
 		}
 		if (this.settings.ttsEngine === "elevenlabs") {
-			const key = this.settings.elevenLabsApiKey.trim();
+			const key = this.secret("elevenLabsApiKey");
 			const voice = this.settings.elevenLabsVoiceId.trim() || "onwK4e9ZLuTAKqWW03F9";
 			const model = this.settings.elevenLabsModel.trim() || "eleven_turbo_v2_5";
 			const res = await requestUrl({
@@ -240,7 +253,7 @@ export class StreamTts {
 			return URL.createObjectURL(blob);
 		}
 		// 阿里云
-		const key = this.settings.aliyunApiKey.trim();
+		const key = this.secret("aliyunApiKey");
 		const voice = this.settings.aliyunVoice.trim() || "Andre";
 		const model = this.settings.aliyunModel.trim() || "qwen3-tts-flash";
 		const res = await requestUrl({

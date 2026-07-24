@@ -19,6 +19,10 @@ import {
 	VoiceModeController,
 	type VoiceInputMode,
 } from "./voice-mode-controller";
+import {
+	providerSecretStoreFromApp,
+	readProviderSecret,
+} from "../ai/provider/secret-storage-runtime";
 
 interface TalosQuyuanPlugin extends ClaudianPlugin {
 	activateQuyuanV2View(): Promise<void>;
@@ -158,6 +162,7 @@ export class QuyuanVoicePanel {
 				await this.save?.();
 			},
 		});
+		const secretStore = providerSecretStoreFromApp(this.app);
 		this.tts = new StreamTts(this.settings, (s) => {
 			if (s === "speaking") {
 				this.voiceMode.setTtsSpeaking();
@@ -182,7 +187,9 @@ export class QuyuanVoicePanel {
 		}, (level) => {
 			// TTS 输出音量直接驱动人物回答态的呼吸、位移与光晕。
 			this.characterStage?.setOutputLevel(level);
-		});
+		}, (field) =>
+			readProviderSecret(this.settings, field, secretStore)
+		);
 		this.asr = this.buildAsr();
 
 		const root = container.createDiv({ cls: "tq-voice" });
@@ -915,9 +922,19 @@ export class QuyuanVoicePanel {
 
 	private buildAsr(): VadMic {
 		const h = this.asrHandlers();
+		const secretStore = providerSecretStoreFromApp(this.app);
 		return this.settings.quyuanAsrEngine === "local"
 			? new LocalAsr(this.settings, h)
-			: new CloudAsr(this.settings, h);
+			: new CloudAsr(
+				this.settings,
+				h,
+				() =>
+					readProviderSecret(
+						this.settings,
+						"aliyunApiKey",
+						secretStore
+					)
+			);
 	}
 
 	// 切换识别引擎（千问云端 ⇄ 本地 Whisper）：持久化 + 重建 + 续听

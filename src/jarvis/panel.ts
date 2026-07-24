@@ -9,6 +9,10 @@ import { SessionStore, TabRecord, LogEntry } from "./session/store";
 import { MentionPicker, fileToBase64 } from "./context/mentions";
 import { CommandRegistry } from "./context/commands";
 import { readCapabilities } from "./context/capabilities";
+import {
+	providerSecretStoreFromApp,
+	readProviderSecret,
+} from "../ai/provider/secret-storage-runtime";
 
 // ============================================================
 // 屈原 · agentic 面板（B 方案 UI · P3 多标签）
@@ -426,10 +430,20 @@ export class JarvisAgentPanel {
 	}
 
 	private ensureVoice(): void {
-		this.tts = new StreamTts(this.settings, (s: Speaking, text) => {
-			if (s === "speaking") this.setStatus("说话中…", "speaking");
-			else if (s === "error") this.setStatus(`朗读失败：${text ?? ""}`, "error");
-		});
+		const secretStore = providerSecretStoreFromApp(this.app);
+		this.tts = new StreamTts(
+			this.settings,
+			(s: Speaking, text) => {
+				if (s === "speaking") {
+					this.setStatus("说话中…", "speaking");
+				} else if (s === "error") {
+					this.setStatus(`朗读失败：${text ?? ""}`, "error");
+				}
+			},
+			undefined,
+			(field) =>
+				readProviderSecret(this.settings, field, secretStore)
+		);
 		this.stt = new MicStt(this.settings, {
 			onInterim: (t) => {
 				if (this.inputEl) this.inputEl.value = t;
