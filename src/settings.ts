@@ -99,6 +99,16 @@ export interface TalosSettings {
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
+	providerSecretRefs: Partial<
+		Record<
+			| "elevenLabsApiKey"
+			| "aliyunApiKey"
+			| "anthropicApiKey"
+			| "openaiApiKey"
+			| "jarvisSttApiKey",
+			string
+		>
+	>;
 	/** 首次运行是否已自动识别过库结构（避免重复打扰；重新检测请用设置页按钮） */
 	schemaAutoDetected: boolean;
 	/** 库目录映射：客户库命名与默认不同时在此覆盖（设置 → 目录映射，支持自动检测） */
@@ -162,6 +172,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	jarvisVoiceEnabled: false,
 	jarvisThinkingLevel: "off",
 	jarvisTabsJson: "",
+	providerSecretRefs: {},
 	schemaAutoDetected: false,
 	vaultSchema: {},
 };
