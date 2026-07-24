@@ -712,3 +712,14 @@ final result: passed
 - Added a focused red/green Vitest regression and a project-page QA fixture.
 
 final result: passed
+
+## WP7 Obsidian 人工视觉与交互 QA · 2026-07-25
+
+- 完整记录：`docs/qa/wp7-obsidian-acceptance.md`。
+- 部署备份、三产物同步和逐文件校验通过；部署 canonical registry 保持 12 条。
+- 六个一级页面、三组二级页和跨页任务抽屉可由 Obsidian 可访问性树确认；Voice 独立 namespace 与持续监听失败后降级为点击说话通过。
+- 生产组合层没有把现有 `ActionButton`、`TalosTaskRunner`、内建 A/B/C 动作、取消和恢复/撤销控制接入统一工作台；系统中心的 Provider 设置仍是占位引导。
+- Obsidian 截图缓冲与当前可访问性树不一致，无法提供可信的宽/窄窗口视觉证据；真实 Vault 截图未写入仓库。
+- 新鲜定向验证：5 files、20 tests 通过，但该结果只证明核心/组件与 Task 14 合成链路，不能替代生产点击验收。
+
+final result: failed
