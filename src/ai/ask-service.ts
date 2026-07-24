@@ -5,6 +5,10 @@ import type {
 } from "./context/vault-retrieval";
 import type { ProviderFacade } from "./provider/provider-facade";
 import type { AskEvent } from "./provider/types";
+import {
+	auditProviderEgress,
+	type ProviderEgressAudit,
+} from "./privacy/provider-egress-gate";
 
 export type AskNamespace = "chat" | "voice" | "command";
 
@@ -41,6 +45,10 @@ export interface TalosAskServiceOptions {
 	retriever: AskRetriever;
 	toolGateway: ToolProposalGateway;
 	manualReview: () => boolean;
+	vaultAccess?: () => "full" | "denied";
+	auditSink?: (
+		audit: ProviderEgressAudit
+	) => void | Promise<void>;
 	configDir?: string;
 }
 
@@ -87,12 +95,29 @@ export class TalosAskService {
 		const assembled = assembleVaultContext(input.query, retrieval, {
 			configDir: this.options.configDir,
 		});
+		const egress = await auditProviderEgress({
+			providerId: input.providerId,
+			vaultAccess: this.options.vaultAccess?.() ?? "full",
+			paths: assembled.usedPaths,
+			text: assembled.text,
+			configDir: this.options.configDir,
+		});
+		await this.options.auditSink?.(egress.audit);
+		if (!egress.allowed) {
+			yield {
+				type: "error",
+				message: "Provider 出库隐私审计未通过",
+				retryable: false,
+			};
+			yield { type: "done", sessionId: sessionKey };
+			return;
+		}
 		this.runs.set(input.runId, {
 			sessionKey,
 			runId: input.runId,
 			turnId: input.turnId,
 			providerId: input.providerId,
-			text: assembled.text,
+			text: egress.redactedText,
 		});
 
 		const proposed =
@@ -102,7 +127,7 @@ export class TalosAskService {
 		for await (const event of this.options.facade.chat(sessionKey, {
 			runId: input.runId,
 			turnId: input.turnId,
-			text: assembled.text,
+			text: egress.redactedText,
 			toolsAllowed: !manualReview,
 		})) {
 			if (
