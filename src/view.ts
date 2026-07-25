@@ -46,11 +46,12 @@ import {
 	decidePendingApproval,
 	decidePreferenceCandidate,
 	deepResearch,
-	getApprovalTaskRuntime,
 	openFile,
 	vaultLint,
 } from "./actions";
 import { TaskDrawer } from "./ui/task-drawer";
+import { ConsoleActionPanel } from "./ui/console-action-panel";
+import { ProviderCenter } from "./ui/provider-center";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
@@ -212,6 +213,8 @@ export class TalosView extends ItemView {
 	private chatMounted = false;
 	private clockTimer: number | null = null;
 	private taskDrawer: TaskDrawer | null = null;
+	private actionPanel: ConsoleActionPanel | null = null;
+	private providerCenter: ProviderCenter | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
@@ -265,6 +268,10 @@ export class TalosView extends ItemView {
 		this.chatMounted = false;
 		this.taskDrawer?.unmount();
 		this.taskDrawer = null;
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
+		this.providerCenter?.unmount();
+		this.providerCenter = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
 			this.clockTimer = null;
@@ -289,6 +296,10 @@ export class TalosView extends ItemView {
 		}
 		this.taskDrawer?.unmount();
 		this.taskDrawer = null;
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
+		this.providerCenter?.unmount();
+		this.providerCenter = null;
 		root.empty();
 		root.addClass("talos-console");
 		this.applySettings();
@@ -663,7 +674,8 @@ export class TalosView extends ItemView {
 		this.pageEl = main.createDiv({ cls: "page-content" });
 		this.taskDrawer = new TaskDrawer({
 			parent: main,
-			store: getApprovalTaskRuntime(this.app).store,
+			store: this.plugin.getConsoleActionRuntime().store,
+			controller: this.plugin.getConsoleActionRuntime().runner,
 		});
 		this.taskDrawer.mount();
 
@@ -1240,6 +1252,10 @@ export class TalosView extends ItemView {
 			this.chatMounted = false;
 			void this.chatSurface?.unmount();
 		}
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
+		this.providerCenter?.unmount();
+		this.providerCenter = null;
 		page.empty();
 		const d = this.data;
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
@@ -1578,6 +1594,107 @@ export class TalosView extends ItemView {
 			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
 			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
 
+			const actionRuntimePanel = this.panel(
+				actionColumn,
+				"#38E1FF",
+				"可执行动作",
+				"A 直接执行 · B 快照执行 · C 提案审批"
+			);
+			const actionStamp = Date.now();
+			const noteTarget = `${this.paths.dir(
+				"inbox"
+			)}/talos-action-${actionStamp}.md`;
+			this.actionPanel = new ConsoleActionPanel({
+				parent: actionRuntimePanel,
+				runtime: this.plugin.getConsoleActionRuntime(),
+				actions: [
+					{
+						actionId: "refresh-stats",
+						idempotencyKey: `overview-refresh-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: [],
+							effects: ["read"],
+						},
+						proposal: {
+							title: "刷新统计",
+							provider: "TALOS 本地运行时",
+							steps: ["重新读取 Vault 统计", "刷新当前控制台"],
+							fileCount: 0,
+							keyDiffs: ["只读动作，不修改文件"],
+							reversible: false,
+						},
+					},
+					{
+						actionId: "vault-lint",
+						idempotencyKey: `overview-lint-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: [],
+							effects: ["read"],
+						},
+						proposal: {
+							title: "只读 Vault Lint",
+							provider: "TALOS 本地运行时",
+							steps: ["扫描 Markdown 元数据", "报告结构化检查结果"],
+							fileCount: 0,
+							keyDiffs: ["只读动作，不生成报告文件"],
+							reversible: false,
+						},
+					},
+					{
+						actionId: "create-note",
+						idempotencyKey: `overview-create-${actionStamp}`,
+						input: {
+							targetPath: noteTarget,
+							content:
+								"---\ntags: [TALOS]\nstatus: inbox\ntype: note\n---\n\n# TALOS 行动记录\n",
+						},
+						request: {
+							readPaths: [],
+							writePaths: [noteTarget],
+							effects: ["write"],
+						},
+						proposal: {
+							title: "新建行动记录",
+							provider: "TALOS 本地运行时",
+							steps: ["创建恢复点", "在收件箱创建行动记录"],
+							fileCount: 1,
+							keyDiffs: [`新增 ${noteTarget}`],
+							reversible: true,
+						},
+					},
+					{
+						actionId: "deep-research",
+						idempotencyKey: `overview-research-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: ["<external>"],
+							effects: ["external-publish"],
+						},
+						proposal: {
+							title: "启动 Deep Research",
+							provider: "当前 Agent 命令",
+							steps: [
+								"展示本次外部执行范围",
+								"等待独立批准",
+								"进入 10 秒可取消安全窗口",
+								"批准后调用同一 TALOS runner",
+							],
+							fileCount: 1,
+							keyDiffs: [
+								`研究结果将写入 ${this.plugin.talosSettings.reportsFolder}`,
+							],
+							reversible: false,
+						},
+					},
+				],
+			});
+			this.actionPanel.mount();
+
 			const modulesPanel = this.panel(
 				page,
 				"#7C3AED",
@@ -1851,10 +1968,40 @@ export class TalosView extends ItemView {
 		const icon = panel.createDiv({ cls: "talos-settings-entry__icon" });
 		setIcon(icon, "settings");
 		const copy = panel.createDiv({ cls: "talos-settings-entry__copy" });
-		copy.createEl("h2", { text: "TALOS 设置" });
+		copy.createEl("h2", { text: "统一 Provider 中心" });
 		copy.createEl("p", {
-			text: "Provider、隐私授权和密钥引用将在这里统一管理；现有目录映射与主题设置继续保留。当前配置请使用 Obsidian 设置中的 TALOS 页。",
+			text: "查看并切换当前 Provider、模型、能力与连接配置状态。密钥只保存在 Obsidian SecretStorage；本页不读取、显示、记录或复制密钥值。",
 		});
+		this.providerCenter = new ProviderCenter({
+			parent: panel,
+			snapshot: this.plugin.getProviderCenterSnapshot(),
+			onSelectProvider: async (providerId) => {
+				try {
+					await this.plugin.selectConsoleProvider(providerId);
+					new Notice(`已切换 Provider：${providerId}`);
+					if (this.activePage === "settings") this.renderPage();
+				} catch (error) {
+					new Notice(
+						error instanceof Error ? error.message : String(error)
+					);
+				}
+			},
+			onChangeModel: async (providerId, model) => {
+				try {
+					await this.plugin.changeConsoleProviderModel(
+						providerId,
+						model
+					);
+					new Notice(`已更新 ${providerId} 模型`);
+					if (this.activePage === "settings") this.renderPage();
+				} catch (error) {
+					new Notice(
+						error instanceof Error ? error.message : String(error)
+					);
+				}
+			},
+		});
+		this.providerCenter.mount();
 	}
 
 	private async pageJarvis(page: HTMLElement): Promise<void> {

@@ -25,7 +25,11 @@ import {
 	readProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
-import { saveProviderConfigToVault } from "./ai/provider/provider-config-runtime";
+import {
+	buildProviderConfig,
+	saveProviderConfigToVault,
+} from "./ai/provider/provider-config-runtime";
+import type { ProviderConfigFile } from "./ai/provider/provider-config-store";
 import { ProviderFacade } from "./ai/provider/provider-facade";
 import { createClaudianProviderAdapters } from "./ai/provider/claudian-provider-adapter";
 import { AnthropicApiProvider } from "./ai/provider/anthropic-api-provider";
@@ -33,7 +37,20 @@ import { OpenAiCompatibleProvider } from "./ai/provider/openai-compatible-provid
 import { VaultRetriever } from "./ai/context/vault-retrieval";
 import { TalosAskService } from "./ai/ask-service";
 import { createVaultProviderEgressAuditStore } from "./ai/privacy/provider-egress-audit-store";
-import { MemoryTaskStore } from "./task-core/task-store";
+import {
+	createConsoleActionRuntime,
+	type ConsoleActionRuntime,
+} from "./console-action-runtime";
+import { VaultRecoveryStore } from "./task-core/recovery-store";
+import {
+	createWindowTimerHost,
+	partialTaskResult,
+	waitForAbortableDelay,
+} from "./task-core/task-runner";
+import {
+	registerApprovalTaskRuntime,
+	unregisterApprovalTaskRuntime,
+} from "./actions";
 import {
 	createVaultCanonicalRegistryReader,
 } from "./canonical/registry-reader";
@@ -42,6 +59,12 @@ import {
 } from "./canonical/request-writer";
 import { TalosAskCommand } from "./canonical/talos-ask-command";
 import { migrateWp7Data } from "./migrations/wp7-migration";
+import {
+	buildProviderCenterSnapshot,
+	engineProviderSettingForProvider,
+	providerIdForEngineSetting,
+	type ProviderCenterSnapshot,
+} from "./ui/provider-center";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -157,7 +180,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	private quyuanWorkbenchReady = false;
 	private talosAskService: TalosAskService | null = null;
 	private talosAskCommand: TalosAskCommand | null = null;
-	private readonly talosTaskStore = new MemoryTaskStore();
+	private talosProviderFacade: ProviderFacade | null = null;
+	private talosActionRuntime: ConsoleActionRuntime | null = null;
 	private readonly handleWindowError = (event: ErrorEvent): void => {
 		this.recordQuyuanRuntimeError("window.error", event.error ?? event.message);
 	};
@@ -175,6 +199,11 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 
 	async onload(): Promise<void> {
 		await this.loadTalosSettings();
+		this.talosActionRuntime = this.createTalosActionRuntime();
+		registerApprovalTaskRuntime(
+			this.app,
+			this.talosActionRuntime.approvals
+		);
 		this.quyuanTts = new StreamTts(
 			this.talosSettings,
 			() => {},
@@ -277,6 +306,126 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		this.refreshViews();
 	}
 
+	getConsoleActionRuntime(): ConsoleActionRuntime {
+		if (!this.talosActionRuntime) {
+			throw new Error("TALOS 动作运行时尚未初始化");
+		}
+		return this.talosActionRuntime;
+	}
+
+	private createTalosActionRuntime(): ConsoleActionRuntime {
+		const actionTimers = createWindowTimerHost(activeWindow);
+		const noteRoots = Array.from(
+			new Set(
+				[
+					this.talosSettings.inboxFolder,
+					this.talosSettings.dailyFolder,
+					this.paths.dir("insights"),
+					this.paths.dir("output"),
+					"00 收件箱",
+					"01 日志",
+					"30 洞察",
+					"70 输出",
+				].map((path) => normalizePath(path))
+			)
+		);
+		const executeCallback = async (input: unknown): Promise<unknown> => {
+			if (
+				!input ||
+				typeof input !== "object" ||
+				typeof (input as { execute?: unknown }).execute !== "function"
+			) {
+				throw new Error("该受控动作缺少已批准的执行回调");
+			}
+			return (input as { execute(): Promise<unknown> }).execute();
+		};
+		return createConsoleActionRuntime({
+			dependencies: {
+				refreshStats: async () => {
+					this.refreshViews();
+					return { refreshed: true };
+				},
+				vaultLint: async () => {
+					const notes = this.app.vault.getMarkdownFiles();
+					const missingFrontmatter = notes.filter(
+						(file) =>
+							!this.app.metadataCache.getFileCache(file)?.frontmatter
+					).length;
+					new Notice(
+						`只读 Lint：扫描 ${notes.length} 篇，缺 frontmatter ${missingFrontmatter} 篇`
+					);
+					if (missingFrontmatter > 0) {
+						return partialTaskResult({
+							result: {
+								notes: notes.length,
+								missingFrontmatter,
+							},
+							error: `${missingFrontmatter} 篇笔记缺少 frontmatter`,
+						});
+					}
+					return { notes: notes.length, missingFrontmatter };
+				},
+				deepResearch: async (_input, context) => {
+					await waitForAbortableDelay(
+						context.signal,
+						10_000,
+						actionTimers
+					);
+					const { deepResearch } = await import("./actions");
+					await deepResearch(this.app, this.talosSettings);
+					return { requested: true };
+				},
+				createNote: async (input) => {
+					if (
+						!input ||
+						typeof input !== "object" ||
+						typeof (input as { targetPath?: unknown }).targetPath !==
+							"string"
+					) {
+						throw new Error("新建内容缺少目标路径");
+					}
+					const targetPath = normalizePath(
+						(input as { targetPath: string }).targetPath
+					);
+					if (
+						targetPath.startsWith(".talos/private/") ||
+						!noteRoots.some(
+							(root) =>
+								targetPath === root ||
+								targetPath.startsWith(`${root}/`)
+						)
+					) {
+						throw new Error(`新建内容目标超出允许范围：${targetPath}`);
+					}
+					const slash = targetPath.lastIndexOf("/");
+					if (slash > 0) {
+						await this.ensureVaultFolder(targetPath.slice(0, slash));
+					}
+					const content =
+						typeof (input as { content?: unknown }).content === "string"
+							? (input as { content: string }).content
+							: "# TALOS 行动记录\n";
+					await this.app.vault.create(targetPath, content);
+					return { path: targetPath };
+				},
+				publishBackfill: executeCallback,
+				decideApproval: executeCallback,
+				decidePreference: executeCallback,
+			},
+			scopes: {
+				noteWriteScopes: noteRoots.map((path) => `${path}/**`),
+			},
+			recoveryStore: new VaultRecoveryStore({
+				exists: (path) => this.app.vault.adapter.exists(path),
+				read: (path) => this.app.vault.adapter.read(path),
+				write: (path, value) =>
+					this.app.vault.adapter.write(path, value),
+				remove: (path) => this.app.vault.adapter.remove(path),
+			}),
+			timers: actionTimers,
+		});
+	}
+
 	/**
 	 * 首次运行自动识别库结构（部署即用，客户零操作）。
 	 *
@@ -368,6 +517,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}
 
 	onunload(): void {
+		unregisterApprovalTaskRuntime(this.app);
+		this.talosActionRuntime = null;
 		super.onunload();
 		this.quyuanStt?.dispose();
 		this.quyuanStt = null;
@@ -535,26 +686,15 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		await saveProviderConfigToVault(this.app, this.talosSettings);
 		this.talosAskService = null;
 		this.talosAskCommand = null;
+		this.talosProviderFacade = null;
 	}
 
 	private selectedTalosAskProviderId(): string {
-		if (this.talosSettings.engineProvider === "claude-api") {
-			return "claude-api";
-		}
-		if (this.talosSettings.engineProvider === "codex") {
-			return "openai-compatible";
-		}
-		return "claude";
+		return providerIdForEngineSetting(this.talosSettings.engineProvider);
 	}
 
-	private getTalosAskService(): TalosAskService {
-		if (this.talosAskService) return this.talosAskService;
-		if (!this.quyuanSoul) {
-			throw new Error(
-				`屈原人格未启动：${this.quyuanSoulError || "强制上下文仍在加载"}`
-			);
-		}
-
+	getTalosProviderFacade(): ProviderFacade {
+		if (this.talosProviderFacade) return this.talosProviderFacade;
 		const facade = new ProviderFacade();
 		if (this.quyuanWorkbenchReady) {
 			for (const provider of createClaudianProviderAdapters(this)) {
@@ -580,7 +720,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 					model:
 						this.talosSettings.jarvisModel.trim() ||
 						"claude-sonnet-4-6",
-					systemPrompt: this.quyuanSoul.systemContext,
+					systemPrompt: this.quyuanSoul?.systemContext ?? "",
 					secretRef:
 						this.talosSettings.providerSecretRefs.anthropicApiKey ||
 						"talos-anthropic-api-key",
@@ -595,9 +735,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 					endpoint:
 						this.talosSettings.openaiBaseUrl.trim() ||
 						"https://api.openai.com",
-					model:
-						this.talosSettings.openaiModel.trim() || "gpt-4o",
-					systemPrompt: this.quyuanSoul.systemContext,
+					model: this.talosSettings.openaiModel.trim() || "gpt-4o",
+					systemPrompt: this.quyuanSoul?.systemContext ?? "",
 					secretRef:
 						this.talosSettings.providerSecretRefs.openaiApiKey ||
 						"talos-openai-api-key",
@@ -607,6 +746,94 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				})
 			);
 		}
+		this.talosProviderFacade = facade;
+		return facade;
+	}
+
+	getProviderCenterSnapshot(): ProviderCenterSnapshot {
+		const facade = this.getTalosProviderFacade();
+		const config: ProviderConfigFile = buildProviderConfig(
+			this.talosSettings
+		);
+		const known = new Set(config.providers.map((provider) => provider.id));
+		const capabilities = [
+			"chat",
+			"stream",
+			"tools",
+			"usage",
+			"cancel",
+			"resume",
+			"fork",
+		] as const;
+		for (const provider of facade.listProviders()) {
+			if (known.has(provider.id)) continue;
+			const missing = new Set(
+				facade.getAvailability(provider.id, [...capabilities]).missing
+			);
+			config.providers.push({
+				id: provider.id,
+				name:
+					provider.id === "claude"
+						? "Claude · 本机 CLI"
+						: `${provider.id} · 本机 Provider`,
+				kind: provider.kind,
+				endpoint: "local://cli",
+				model: this.talosSettings.jarvisModel.trim() || "CLI 默认模型",
+				capabilities: capabilities.filter(
+					(capability) => !missing.has(capability)
+				),
+				isDefault:
+					provider.id === this.selectedTalosAskProviderId(),
+				secretRef: "talos-local-cli",
+				vaultAccess: this.talosSettings.providerVaultAccess
+					? "full"
+					: "denied",
+				moduleAccess: {
+					...(this.talosSettings.providerModuleAccess[provider.id] ??
+						{}),
+				},
+			});
+		}
+		return buildProviderCenterSnapshot({
+			facade,
+			config,
+			secrets: providerSecretStoreFromApp(this.app),
+		});
+	}
+
+	async selectConsoleProvider(providerId: string): Promise<void> {
+		const available = this.getTalosProviderFacade()
+			.listProviders()
+			.some((provider) => provider.id === providerId);
+		if (!available) throw new Error(`未注册 Provider：${providerId}`);
+		this.talosSettings.engineProvider =
+			engineProviderSettingForProvider(providerId);
+		await this.saveTalosSettings();
+	}
+
+	async changeConsoleProviderModel(
+		providerId: string,
+		model: string
+	): Promise<void> {
+		const normalized = model.trim();
+		if (!normalized) throw new Error("模型名称不能为空");
+		if (providerId === "openai-compatible") {
+			this.talosSettings.openaiModel = normalized;
+		} else {
+			this.talosSettings.jarvisModel = normalized;
+		}
+		await this.saveTalosSettings();
+	}
+
+	private getTalosAskService(): TalosAskService {
+		if (this.talosAskService) return this.talosAskService;
+		if (!this.quyuanSoul) {
+			throw new Error(
+				`屈原人格未启动：${this.quyuanSoulError || "强制上下文仍在加载"}`
+			);
+		}
+
+		const facade = this.getTalosProviderFacade();
 
 		const retriever = new VaultRetriever(
 			{
@@ -629,28 +856,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			auditSink: (record) => auditStore.append(record),
 			configDir: this.app.vault.configDir,
 			toolGateway: {
-				propose: async (input) => {
-					const idempotencyKey =
-						`canonical:${input.providerId}:${input.toolCallId}`;
-					const existing = this.talosTaskStore.findByIdempotencyKey(
-						idempotencyKey
-					);
-					if (existing) return { taskId: existing.id };
-					const taskId = `talos-task-${input.runId}-${input.toolCallId}`;
-					this.talosTaskStore.create({
-						id: taskId,
-						idempotencyKey,
-						actionId: "provider-tool-proposal",
-						state: "ready",
-						approvalRequired: true,
-						riskDecision: "propose",
-						providerId: input.providerId,
-						createdAt: new Date().toISOString(),
-						readPaths: [],
-						changes: [],
-					});
-					return { taskId };
-				},
+				propose: async (input) =>
+					this.getConsoleActionRuntime().proposeProviderTool(input),
 			},
 		});
 		return this.talosAskService;
@@ -1143,10 +1350,14 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		try {
 			await super.onload();
 			this.quyuanWorkbenchReady = true;
+			this.talosProviderFacade = null;
+			this.talosAskService = null;
 			this.quyuanWorkbenchError = "";
 			this.syncQuyuanSoulPrompt();
 		} catch (error) {
 			this.quyuanWorkbenchReady = false;
+			this.talosProviderFacade = null;
+			this.talosAskService = null;
 			this.quyuanWorkbenchError =
 				error instanceof Error ? error.message : String(error);
 			this.recordQuyuanRuntimeError("ClaudianWorkbenchPlugin.onload", error);
@@ -1162,6 +1373,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				P.personaMemoryFile,
 				P.contextFile,
 			]);
+			this.talosProviderFacade = null;
+			this.talosAskService = null;
 			this.quyuanSoulError = "";
 			this.syncQuyuanSoulPrompt();
 		} catch (error) {

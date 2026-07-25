@@ -12091,6 +12091,68 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
+.talos-console-actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+.talos-action-button {
+	display: grid;
+	gap: 6px;
+}
+.talos-action-button__control,
+.talos-provider-center button,
+.talos-task-drawer__task button {
+	min-height: 34px;
+	padding: 7px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 9px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+.talos-action-button__status {
+	color: var(--text-muted);
+	font-size: 11px;
+}
+.talos-provider-center {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin-top: 16px;
+}
+.talos-provider-center__provider {
+	display: grid;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: var(--background-secondary);
+}
+.talos-provider-center__provider[data-selected="true"] {
+	border-color: var(--interactive-accent);
+}
+.talos-provider-center__provider h3,
+.talos-provider-center__provider p,
+.talos-provider-center__provider ul {
+	margin: 0;
+}
+.talos-provider-center__provider ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 0;
+	list-style: none;
+}
+.talos-provider-center__provider li {
+	padding: 3px 7px;
+	border-radius: 999px;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: 11px;
+}
+.talos-provider-center__provider input {
+	width: 100%;
+}
 .talos-task-drawer {
 	position: fixed;
 	z-index: 20;
@@ -12159,11 +12221,19 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-task-drawer__task small {
 	grid-column: 1 / -1;
 }
+.talos-task-drawer__task button {
+	min-height: 28px;
+	padding: 4px 8px;
+	font-size: 11px;
+}
 .talos-task-drawer.is-collapsed {
 	transform: translateX(calc(100% - 58px));
 	opacity: 0.74;
 }
 @media (max-width: 760px) {
+	.talos-console-actions {
+		grid-template-columns: 1fr;
+	}
 	.talos-task-drawer {
 		inset: auto 10px 10px;
 		width: auto;
