@@ -591,7 +591,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}
 
 	async activateTalosView(): Promise<void> {
-		const leaf = await this.openOrReviveTalosLeaf(true);
+		const leaf = await this.openOrReviveTalosLeaf(false);
 		if (leaf) void this.app.workspace.revealLeaf(leaf);
 	}
 

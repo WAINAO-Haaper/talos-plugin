@@ -1,4 +1,9 @@
-import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
+import {
+	ItemView,
+	Notice,
+	WorkspaceLeaf,
+	setIcon,
+} from "obsidian";
 import type TalosPlugin from "./main";
 import type {
 	DistBar,
@@ -59,6 +64,7 @@ import {
 	primaryPage,
 } from "./ui/navigation-model";
 import { TalosPageRouter } from "./ui/page-router";
+import { createConstructorIsolatedProxy } from "./ui/constructor-isolated-proxy";
 import { TalosChatSurface } from "./quyuan/chat-surface";
 import type { ClaudianView } from "./quyuan/claudian/features/chat/ClaudianView";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
@@ -246,6 +252,7 @@ export class TalosView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		try {
+			this.removeOrphanedEmbeddedWorkbenchContent();
 			if (this.clockTimer !== null) {
 				window.clearInterval(this.clockTimer);
 				this.clockTimer = null;
@@ -260,6 +267,19 @@ export class TalosView extends ItemView {
 			this.renderViewError(error);
 		}
 	}
+
+	private removeOrphanedEmbeddedWorkbenchContent(): void {
+		const leafContainer = this.containerEl.parentElement;
+		if (!leafContainer) return;
+		for (const orphan of Array.from(
+			leafContainer.querySelectorAll<HTMLElement>(
+				':scope > .workspace-leaf-content[data-type="talos-quyuan-view"]'
+			)
+		)) {
+			if (orphan !== this.containerEl) orphan.remove();
+		}
+	}
+
 	async onClose(): Promise<void> {
 		this.unmountJarvisSafely();
 		await this.chatSurface?.dispose();
@@ -1920,7 +1940,14 @@ export class TalosView extends ItemView {
 				const { ClaudianView: EmbeddedClaudianView } = await import(
 					"./quyuan/claudian/features/chat/ClaudianView"
 				);
-				const workbench = new EmbeddedClaudianView(this.leaf, this.plugin);
+				const constructorLeaf = createConstructorIsolatedProxy(this.leaf, {
+					containerEl: page.ownerDocument.createElement("div"),
+				});
+				const workbench = new EmbeddedClaudianView(
+					constructorLeaf,
+					this.plugin
+				);
+				workbench.leaf = this.leaf;
 				this.plugin.registerEmbeddedView(workbench);
 				this.chatWorkbenchView = workbench;
 				this.chatSurface = new TalosChatSurface({
