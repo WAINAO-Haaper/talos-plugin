@@ -3,7 +3,12 @@ import type { TalosActionRegistry } from "../action-core/registry";
 import type { TalosActionDefinition } from "../action-core/types";
 import type { RecoveryStore } from "./recovery-store";
 import type { MemoryTaskStore } from "./task-store";
-import type { TalosTaskRun, TalosTaskRunInput } from "./types";
+import type {
+	TalosFileChange,
+	TalosPartialTaskResult,
+	TalosTaskRun,
+	TalosTaskRunInput,
+} from "./types";
 
 let taskSequence = 0;
 
@@ -28,6 +33,63 @@ export function createWindowTimerHost(host: Window): TaskTimerHost {
 	};
 }
 
+export function waitForAbortableDelay(
+	signal: AbortSignal,
+	delayMs: number,
+	timers: TaskTimerHost
+): Promise<void> {
+	if (signal.aborted) {
+		return Promise.reject(new DOMException("cancelled", "AbortError"));
+	}
+	return new Promise((resolve, reject) => {
+		let handle: unknown;
+		let settled = false;
+		const cleanup = (): void => {
+			signal.removeEventListener("abort", onAbort);
+		};
+		const onAbort = (): void => {
+			if (settled) return;
+			settled = true;
+			if (handle !== undefined) timers.cancel(handle);
+			cleanup();
+			reject(new DOMException("cancelled", "AbortError"));
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		handle = timers.schedule(() => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			resolve();
+		}, delayMs);
+		if (signal.aborted) onAbort();
+	});
+}
+
+export function partialTaskResult(input: {
+	result?: unknown;
+	error: string;
+	changes?: TalosFileChange[];
+}): TalosPartialTaskResult {
+	return {
+		taskOutcome: "partial",
+		version: 1,
+		result: input.result,
+		error: input.error,
+		changes: [...(input.changes ?? [])],
+	};
+}
+
+function isPartialTaskResult(value: unknown): value is TalosPartialTaskResult {
+	if (!value || typeof value !== "object") return false;
+	const candidate = value as Partial<TalosPartialTaskResult>;
+	return (
+		candidate.taskOutcome === "partial" &&
+		candidate.version === 1 &&
+		typeof candidate.error === "string" &&
+		Array.isArray(candidate.changes)
+	);
+}
+
 export class TalosTaskRunner {
 	private readonly controllers = new Map<string, AbortController>();
 
@@ -38,18 +100,46 @@ export class TalosTaskRunner {
 		private readonly timers: TaskTimerHost
 	) {}
 
-	cancel(taskId: string): boolean {
+	canCancel(taskId: string): boolean {
 		const task = this.store.get(taskId);
 		if (!task || (task.state !== "queued" && task.state !== "running")) {
 			return false;
 		}
-		const definition = this.registry.get(task.actionId);
-		if (!definition?.cancelable) return false;
+		return this.registry.get(task.actionId)?.cancelable === true;
+	}
+
+	cancel(taskId: string): boolean {
+		if (!this.canCancel(taskId)) return false;
 
 		const cancelled = this.store.transition(taskId, "cancelled", {
 			finishedAt: new Date().toISOString(),
 		});
 		this.controllers.get(cancelled.id)?.abort();
+		return true;
+	}
+
+	canRevert(taskId: string): boolean {
+		const task = this.store.get(taskId);
+		if (
+			!task ||
+			(task.state !== "completed" && task.state !== "partial") ||
+			!task.recoveryId
+		) {
+			return false;
+		}
+		const definition = this.registry.get(task.actionId);
+		if (!definition?.reversible || !this.recoveryStore.restore) return false;
+		return this.recoveryStore.has?.(task.recoveryId) ?? true;
+	}
+
+	async revert(taskId: string): Promise<boolean> {
+		if (!this.canRevert(taskId)) return false;
+		const task = this.store.get(taskId);
+		if (!task?.recoveryId || !this.recoveryStore.restore) return false;
+		await this.recoveryStore.restore(task.recoveryId);
+		this.store.transition(task.id, "reverted", {
+			finishedAt: new Date().toISOString(),
+		});
 		return true;
 	}
 
@@ -117,6 +207,14 @@ export class TalosTaskRunner {
 			);
 			const latest = this.store.get(task.id);
 			if (latest?.state === "cancelled") return latest;
+			if (isPartialTaskResult(result)) {
+				return this.store.transition(task.id, "partial", {
+					result: result.result,
+					error: result.error,
+					changes: [...result.changes],
+					finishedAt: new Date().toISOString(),
+				});
+			}
 			return this.store.transition(task.id, "completed", {
 				result,
 				finishedAt: new Date().toISOString(),

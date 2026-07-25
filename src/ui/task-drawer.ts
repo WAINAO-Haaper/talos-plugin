@@ -5,6 +5,12 @@ import { taskStateLabel } from "./task-state-label";
 export interface TaskDrawerOptions {
 	parent: HTMLElement;
 	store: MemoryTaskStore;
+	controller?: {
+		canCancel(taskId: string): boolean;
+		cancel(taskId: string): boolean;
+		canRevert(taskId: string): boolean;
+		revert(taskId: string): Promise<boolean>;
+	};
 }
 
 export class TaskDrawer {
@@ -105,6 +111,25 @@ export class TaskDrawer {
 			const error = document.createElement("small");
 			error.textContent = task.error;
 			row.appendChild(error);
+		}
+		const controller = this.options.controller;
+		if (controller?.canCancel(task.id)) {
+			const cancel = document.createElement("button");
+			cancel.type = "button";
+			cancel.setAttribute("data-task-control", "cancel");
+			cancel.setAttribute("aria-label", `取消 ${task.actionId}`);
+			cancel.textContent = "取消";
+			cancel.addEventListener("click", () => controller.cancel(task.id));
+			row.appendChild(cancel);
+		}
+		if (controller?.canRevert(task.id)) {
+			const revert = document.createElement("button");
+			revert.type = "button";
+			revert.setAttribute("data-task-control", "revert");
+			revert.setAttribute("aria-label", `撤销 ${task.actionId}`);
+			revert.textContent = "撤销";
+			revert.addEventListener("click", () => void controller.revert(task.id));
+			row.appendChild(revert);
 		}
 		return row;
 	}

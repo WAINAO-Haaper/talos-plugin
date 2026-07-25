@@ -44,6 +44,7 @@ export class MiniElement {
 	disabled = false;
 	hidden = false;
 	type = "";
+	value = "";
 	parentElement: MiniElement | null = null;
 	private ownText = "";
 

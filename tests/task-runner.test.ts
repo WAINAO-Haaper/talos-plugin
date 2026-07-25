@@ -9,6 +9,8 @@ import { MemoryRecoveryStore } from "../src/task-core/recovery-store";
 import { MemoryTaskStore } from "../src/task-core/task-store";
 import {
 	TalosTaskRunner,
+	partialTaskResult,
+	waitForAbortableDelay,
 	type TaskTimerHost,
 } from "../src/task-core/task-runner";
 
@@ -37,6 +39,30 @@ function action(
 }
 
 describe("TalosTaskRunner", () => {
+	it("aborts a cancellable safety window before the external action starts", async () => {
+		let scheduled: (() => void) | null = null;
+		const cancel = vi.fn();
+		const timers: TaskTimerHost = {
+			schedule: (callback) => {
+				scheduled = callback;
+				return 1;
+			},
+			cancel,
+		};
+		const controller = new AbortController();
+		const pending = waitForAbortableDelay(
+			controller.signal,
+			10_000,
+			timers
+		);
+
+		controller.abort();
+
+		await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+		expect(cancel).toHaveBeenCalledWith(1);
+		expect(scheduled).not.toBeNull();
+	});
+
 	it("captures recovery before executing a B-class action", async () => {
 		const events: string[] = [];
 		const registry = new TalosActionRegistry([
@@ -214,6 +240,108 @@ describe("TalosTaskRunner", () => {
 		const result = await pending;
 
 		expect(result.state).toBe("cancelled");
+	});
+
+	it("marks only an explicit structured execution result as partial", async () => {
+		const runner = new TalosTaskRunner(
+			new TalosActionRegistry([
+				action(async () =>
+					partialTaskResult({
+						result: { moved: 1, skipped: 1 },
+						error: "1 个文件被占用",
+						changes: [
+							{ path: "30 洞察/想法.md", kind: "create" },
+						],
+					})
+				),
+			]),
+			new MemoryTaskStore(),
+			new MemoryRecoveryStore(),
+			nodeTimers
+		);
+
+		const result = await runner.run({
+			actionId: "organize-inbox",
+			idempotencyKey: "partial-request",
+			input: undefined,
+			request: {
+				readPaths: [],
+				writePaths: ["30 洞察/想法.md"],
+				effects: ["write"],
+			},
+		});
+
+		expect(result).toMatchObject({
+			state: "partial",
+			result: { moved: 1, skipped: 1 },
+			error: "1 个文件被占用",
+			changes: [{ path: "30 洞察/想法.md", kind: "create" }],
+		});
+	});
+
+	it("restores a completed reversible task and transitions it to reverted", async () => {
+		const restored: string[] = [];
+		const recovery = new MemoryRecoveryStore(
+			undefined,
+			(record) => restored.push(record.id)
+		);
+		const store = new MemoryTaskStore();
+		const runner = new TalosTaskRunner(
+			new TalosActionRegistry([
+				action(async () => ({ moved: 1 })),
+			]),
+			store,
+			recovery,
+			nodeTimers
+		);
+		const completed = await runner.run({
+			actionId: "organize-inbox",
+			idempotencyKey: "revert-request",
+			input: undefined,
+			request: {
+				readPaths: [],
+				writePaths: ["30 洞察/想法.md"],
+				effects: ["write"],
+			},
+		});
+
+		expect(runner.canRevert(completed.id)).toBe(true);
+		expect(await runner.revert(completed.id)).toBe(true);
+		expect(store.get(completed.id)?.state).toBe("reverted");
+		expect(restored).toEqual([completed.recoveryId]);
+		expect(runner.canRevert(completed.id)).toBe(false);
+	});
+
+	it("does not offer cancellation or recovery for unsupported actions", async () => {
+		const store = new MemoryTaskStore();
+		const runner = new TalosTaskRunner(
+			new TalosActionRegistry([
+				action(async () => ({ ok: true }), {
+					risk: "A",
+					readScope: ["**"],
+					writeScope: [],
+					cancelable: false,
+					reversible: false,
+				}),
+			]),
+			store,
+			new MemoryRecoveryStore(),
+			nodeTimers
+		);
+		const task = await runner.run({
+			actionId: "organize-inbox",
+			idempotencyKey: "no-controls",
+			input: undefined,
+			request: {
+				readPaths: ["30 洞察/想法.md"],
+				writePaths: [],
+				effects: ["read"],
+			},
+		});
+
+		expect(runner.canCancel(task.id)).toBe(false);
+		expect(runner.canRevert(task.id)).toBe(false);
+		expect(await runner.revert(task.id)).toBe(false);
 	});
 
 	it("fails a task when its declared timeout expires", async () => {

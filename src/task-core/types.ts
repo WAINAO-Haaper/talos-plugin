@@ -16,6 +16,14 @@ export interface TalosFileChange {
 	fromPath?: string;
 }
 
+export interface TalosPartialTaskResult {
+	taskOutcome: "partial";
+	version: 1;
+	result?: unknown;
+	error: string;
+	changes: TalosFileChange[];
+}
+
 export interface TalosTaskRun {
 	id: string;
 	idempotencyKey: string;
