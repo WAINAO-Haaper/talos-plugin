@@ -30,6 +30,17 @@ import { createWindowTimerHost } from "./task-core/task-runner";
 
 const approvalTaskRuntimes = new WeakMap<App, ApprovalTaskRuntime>();
 
+export function registerApprovalTaskRuntime(
+	app: App,
+	runtime: ApprovalTaskRuntime
+): void {
+	approvalTaskRuntimes.set(app, runtime);
+}
+
+export function unregisterApprovalTaskRuntime(app: App): void {
+	approvalTaskRuntimes.delete(app);
+}
+
 export function getApprovalTaskRuntime(app: App): ApprovalTaskRuntime {
 	const existing = approvalTaskRuntimes.get(app);
 	if (existing) return existing;
