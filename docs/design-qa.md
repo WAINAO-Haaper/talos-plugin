@@ -1,5 +1,38 @@
 # TALOS Theme Design QA
 
+## WP7 Task 15R Unified Console QA · 2026-07-25
+
+- Result: passed. Task 16 was not started.
+- Production composition: the unified console, approval actions and Provider tool
+  proposals share one builtin action registry, `TalosTaskRunner`,
+  `MemoryTaskStore` and `VaultRecoveryStore`.
+- Task controls: fresh Obsidian evidence covers completed, structured partial,
+  cancelled and reverted states. A running C-class task stayed running while all
+  six primary pages were activated.
+- Proposal safety: C-class actions expose steps, targets, key diffs and
+  recoverability before a separate approval. The synthetic report hash stayed
+  unchanged before approval and after cancellation.
+- Provider center: the settings route now renders Provider, model, capability,
+  connection and selected-state data without reading or displaying secret
+  values. A local `mock-acceptance` provider was selected through the production
+  control with no network request.
+- Voice: the voice page exposes its independent history namespace and safely
+  falls back to push-to-talk when continuous listening cannot start. No real
+  microphone, TTS or network Provider was used.
+- Visual evidence: six screenshots under `docs/qa/screenshots/` were captured
+  from the temporary synthetic Vault or the read-only deployment check. Each
+  screenshot was accepted only when its Vault title and visible state matched
+  the accessibility tree returned by the same capture.
+- Responsive/layout observation: the task drawer remained available without
+  preventing navigation or obscuring the inspected action, Provider and system
+  surfaces. The deployment system-center screenshot verifies the installed
+  build in the real test Vault without exercising B/C writes.
+- Automated regression: 46 test files / 245 tests, typecheck, lint, build,
+  approval self-tests, Quyuan self-test and the 108-package license audit all
+  passed.
+
+final result: passed
+
 ## Comparison Target
 
 - Source visual truth:
