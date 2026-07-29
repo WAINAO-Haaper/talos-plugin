@@ -234,7 +234,14 @@ export class TalosSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const { containerEl } = this;
+		this.renderInto(this.containerEl);
+	}
+
+	/**
+	 * 使用同一套设置渲染器挂载到 TALOS 控制台。
+	 * PluginSettingTab.display() 与内嵌页共享此入口，避免两套设置状态与保存逻辑。
+	 */
+	renderInto(containerEl: HTMLElement): void {
 		containerEl.empty();
 		containerEl.addClass("talos-settings");
 

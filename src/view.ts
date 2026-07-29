@@ -5,6 +5,7 @@ import {
 	setIcon,
 } from "obsidian";
 import type TalosPlugin from "./main";
+import { TalosSettingTab } from "./settings";
 import type {
 	DistBar,
 	FocusItem,
@@ -56,7 +57,6 @@ import {
 } from "./actions";
 import { TaskDrawer } from "./ui/task-drawer";
 import { ConsoleActionPanel } from "./ui/console-action-panel";
-import { ProviderCenter } from "./ui/provider-center";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
@@ -220,7 +220,7 @@ export class TalosView extends ItemView {
 	private clockTimer: number | null = null;
 	private taskDrawer: TaskDrawer | null = null;
 	private actionPanel: ConsoleActionPanel | null = null;
-	private providerCenter: ProviderCenter | null = null;
+	private embeddedSettingsTab: TalosSettingTab | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
@@ -290,8 +290,7 @@ export class TalosView extends ItemView {
 		this.taskDrawer = null;
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
-		this.providerCenter?.unmount();
-		this.providerCenter = null;
+		this.embeddedSettingsTab = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
 			this.clockTimer = null;
@@ -318,8 +317,7 @@ export class TalosView extends ItemView {
 		this.taskDrawer = null;
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
-		this.providerCenter?.unmount();
-		this.providerCenter = null;
+		this.embeddedSettingsTab = null;
 		root.empty();
 		root.addClass("talos-console");
 		this.applySettings();
@@ -493,7 +491,7 @@ export class TalosView extends ItemView {
 		// 导航
 		const navCard = side.createEl("section", { cls: "card pagenav-card" });
 		navCard.setCssProps({ "--ac": "#4D8DFF" });
-		this.secTitle(navCard, "导航", "6 SECTIONS");
+		this.secTitle(navCard, "导航", `${PRIMARY_NAVIGATION.length} SECTIONS`);
 		this.pageNavEl = navCard.createEl("nav", { cls: "nav" });
 		this.renderNav();
 
@@ -533,7 +531,7 @@ export class TalosView extends ItemView {
 		for (const page of PRIMARY_NAVIGATION) {
 			const active = page.key === route.primary;
 			const item = groupEl.createDiv({
-				cls: `command${active ? " active" : ""}`,
+				cls: `command${page.key === "settings" ? " talos-settings-nav-command" : ""}${active ? " active" : ""}`,
 			});
 			const mark = item.createDiv({ cls: "mark" });
 			setIcon(mark, page.icon);
@@ -1274,8 +1272,6 @@ export class TalosView extends ItemView {
 		}
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
-		this.providerCenter?.unmount();
-		this.providerCenter = null;
 		page.empty();
 		const d = this.data;
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
@@ -1990,45 +1986,23 @@ export class TalosView extends ItemView {
 	}
 
 	private pageSettings(page: HTMLElement): void {
-		const panel = page.createDiv({ cls: "panel talos-settings-entry" });
-		panel.setCssProps({ "--ac": "#38E1FF" });
-		const icon = panel.createDiv({ cls: "talos-settings-entry__icon" });
+		const shell = page.createDiv({ cls: "talos-inline-settings" });
+		const header = shell.createEl("header", {
+			cls: "talos-inline-settings__header",
+		});
+		const icon = header.createSpan({ cls: "talos-inline-settings__icon" });
 		setIcon(icon, "settings");
-		const copy = panel.createDiv({ cls: "talos-settings-entry__copy" });
-		copy.createEl("h2", { text: "统一 Provider 中心" });
-		copy.createEl("p", {
-			text: "查看并切换当前 Provider、模型、能力与连接配置状态。密钥只保存在 Obsidian SecretStorage；本页不读取、显示、记录或复制密钥值。",
+		const title = header.createDiv({ cls: "talos-inline-settings__title" });
+		title.createEl("h1", { text: "TALOS 设置" });
+		title.createEl("p", {
+			text: "界面、目录映射、数据源、AI Provider 与屈原工作台配置",
 		});
-		this.providerCenter = new ProviderCenter({
-			parent: panel,
-			snapshot: this.plugin.getProviderCenterSnapshot(),
-			onSelectProvider: async (providerId) => {
-				try {
-					await this.plugin.selectConsoleProvider(providerId);
-					new Notice(`已切换 Provider：${providerId}`);
-					if (this.activePage === "settings") this.renderPage();
-				} catch (error) {
-					new Notice(
-						error instanceof Error ? error.message : String(error)
-					);
-				}
-			},
-			onChangeModel: async (providerId, model) => {
-				try {
-					await this.plugin.changeConsoleProviderModel(
-						providerId,
-						model
-					);
-					new Notice(`已更新 ${providerId} 模型`);
-					if (this.activePage === "settings") this.renderPage();
-				} catch (error) {
-					new Notice(
-						error instanceof Error ? error.message : String(error)
-					);
-				}
-			},
+		const body = shell.createDiv({
+			cls: "talos-inline-settings__body",
 		});
-		this.providerCenter.mount();
+		this.embeddedSettingsTab ??= new TalosSettingTab(this.app, this.plugin);
+		this.embeddedSettingsTab.renderInto(body);
+		body.addClass("talos-settings--console");
 	}
 
 	private async pageJarvis(page: HTMLElement): Promise<void> {

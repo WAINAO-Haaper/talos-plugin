@@ -4,7 +4,8 @@ export type TalosPrimaryPageKey =
 	| "voice"
 	| "workflow"
 	| "knowledge"
-	| "system";
+	| "system"
+	| "settings";
 
 export type TalosSecondaryPageKey =
 	| "daily"
@@ -16,8 +17,7 @@ export type TalosSecondaryPageKey =
 	| "talos"
 	| "health"
 	| "capability"
-	| "vault"
-	| "settings";
+	| "vault";
 
 export interface TalosSecondaryPage {
 	key: TalosSecondaryPageKey;
@@ -87,13 +87,19 @@ export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
 		key: "system",
 		label: "系统中心",
 		icon: "settings-2",
-		subtitle: "健康、能力、全库与设置",
+		subtitle: "健康、能力与全库视图",
 		children: [
 			{ key: "health", label: "系统健康", icon: "activity" },
 			{ key: "capability", label: "能力中心", icon: "blocks" },
 			{ key: "vault", label: "全库视图", icon: "database" },
-			{ key: "settings", label: "设置", icon: "settings" },
 		],
+	},
+	{
+		key: "settings",
+		label: "设置",
+		icon: "settings",
+		subtitle: "插件界面、目录、数据源与 AI 配置",
+		children: [],
 	},
 ] as const;
 
@@ -131,7 +137,7 @@ const PAGE_ROUTES: Readonly<Record<string, TalosPageRoute>> = {
 	health: { primary: "system", secondary: "health" },
 	capability: { primary: "system", secondary: "capability" },
 	vault: { primary: "system", secondary: "vault" },
-	settings: { primary: "system", secondary: "settings" },
+	settings: { primary: "settings" },
 };
 
 export interface WorkbenchModuleEntry {

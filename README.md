@@ -80,6 +80,9 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 | 流转 | 收件箱、输出作战室、项目场景 | `00-收件箱/`、`输出/`、`04-项目/` |
 | 资产 | 知识枢纽、身份上下文、TALOS 产品 | `02-洞察/`、`03-素材/`、`Identity/`、`灵魂/`、TALOS 七分区 |
 | 系统 | 系统健康、能力中心、全库视图 | `System/`、命令/Agents/Skills、六大内容目录 |
+| 设置 | 插件界面、目录映射、数据源、AI Provider、屈原 | 复用 TALOS 原生设置渲染与保存逻辑 |
+
+“设置”是第七个一级导航入口，固定在“系统中心”之后；打开控制台即可使用，不依赖命令面板。控制台内嵌页与 Obsidian 插件设置页共用 `TalosSettingTab.renderInto()`，不存在两份配置状态或保存分支。
 
 `01-日志/`、`05-归档/`、`模板/`、`自动化/`、`配置/`、`template/`、`attachments/` 和 `Excalidraw/` 不单独占常驻入口：它们在「全库视图」「系统健康」或「能力中心」中按职责聚合。
 
@@ -146,7 +149,7 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 - `src/approval-actions.ts` / `approval-executor.ts` 待审批的纯文本变换内核与授权执行器（配 `approval-*.selftest.mjs` 沙盘自测）
 - `src/jarvis/` **屈原 v1 回滚层**：保留原自研多通道 Agent、会话、语音与权限实现；迁移期不删除
 - `src/voice.ts` 旧屈原一期（已停用，保留不删）
-- `styles.css` 七套完整主题（scope 在 `.talos-console`）；`styles.talos.css` / `styles.quyuan-shell.css` 分域样式
+- `styles.css` 七套完整主题（scope 在 `.talos-console`）；`styles.talos.css` / `styles.quyuan-shell.css` 分域样式，`styles.layout-overrides.css` 保存已验收的控制台与对话布局覆盖并由构建器最后合并
 - `prototype/` 设计稿原型与视觉回验页面（详见 `docs/design-qa.md`）；`theme-preview.html` 主题本地回验
 
 ## 🧪 测试

@@ -869,9 +869,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   overflow-y: auto;
   overscroll-behavior: contain;
   box-shadow: none;
-  transition:
-    width 180ms ease,
-    box-shadow 180ms ease;
+  transition: width 180ms ease;
 }
 
 .talos-console[data-talos-page="jarvis"] .sidebar {
@@ -896,7 +894,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 .talos-console
   .sidebar:is(:hover, :focus-within) {
   width: 296px;
-  box-shadow: 14px 0 28px rgba(0, 0, 0, 0.24);
+  box-shadow: none !important;
 }
 
 .talos-console
@@ -3712,6 +3710,139 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     gap: 4px;
     padding: 0 4px;
     font-size: 10px;
+  }
+}
+
+/* 控制台内嵌设置：复用 TalosSettingTab 的单一设置渲染与保存逻辑。 */
+.talos-console .talos-settings-nav-command {
+  margin-top: 0 !important;
+  position: relative;
+  z-index: 4;
+}
+
+.talos-console.section-settings .main {
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.talos-console.section-settings .main > .hero,
+.talos-console.section-settings .main > .talos-page-tabs,
+.talos-console.section-settings .main > .cosmos-commandbar,
+.talos-console.section-settings .main > .footer {
+  display: none !important;
+}
+
+.talos-console.section-settings .page-content {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.talos-inline-settings {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+
+.talos-inline-settings__header {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.talos-inline-settings__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--interactive-accent);
+}
+
+.talos-inline-settings__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.talos-inline-settings__title {
+  display: grid;
+  gap: 2px;
+}
+
+.talos-inline-settings__title h1,
+.talos-inline-settings__title p {
+  margin: 0;
+}
+
+.talos-inline-settings__title h1 {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.talos-inline-settings__title p {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.talos-inline-settings__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 18px 24px 32px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.talos-inline-settings__body.talos-settings {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.talos-settings--console .talos-settabs {
+  position: sticky;
+  top: -18px;
+  z-index: 5;
+  padding-top: 8px;
+  background: var(--background-primary);
+}
+
+.talos-settings--console .setting-item {
+  padding-block: 12px;
+}
+
+@media (max-width: 760px) {
+  .talos-inline-settings__header {
+    padding-inline: 16px;
+  }
+
+  .talos-inline-settings__body {
+    padding: 14px 16px 24px;
+  }
+
+  .talos-settings--console .setting-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .talos-settings--console .setting-item-control {
+    justify-content: flex-start;
   }
 }
 

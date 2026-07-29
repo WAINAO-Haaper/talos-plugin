@@ -13,7 +13,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
 
 describe("TALOS navigation model", () => {
-	it("has exactly six primary destinations in the approved order", () => {
+	it("has seven primary destinations with settings permanently last", () => {
 		expect(PRIMARY_NAVIGATION.map((item) => item.key)).toEqual([
 			"workbench",
 			"chat",
@@ -21,7 +21,9 @@ describe("TALOS navigation model", () => {
 			"workflow",
 			"knowledge",
 			"system",
+			"settings",
 		]);
+		expect(resolvePageRoute("settings")).toEqual({ primary: "settings" });
 	});
 
 	it("keeps every legacy page key and Claudian view addressable", () => {
@@ -84,5 +86,9 @@ describe("TalosPageRouter", () => {
 		});
 		router.selectSecondary("vault");
 		expect(router.renderKey()).toBe("vault");
+
+		router.selectPrimary("settings");
+		expect(router.current()).toEqual({ primary: "settings" });
+		expect(router.renderKey()).toBe("settings");
 	});
 });
