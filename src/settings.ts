@@ -224,6 +224,7 @@ type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
 export class TalosSettingTab extends PluginSettingTab {
 	plugin: TalosPlugin;
 	private activeTab: TabId = "ui";
+	private renderTarget: HTMLElement | null = null;
 	private workbenchSettingsTab: { display(): void; containerEl: HTMLElement } | null = null;
 	/** 最近一次识别结果（用于在设置页展示检测报告，供客户核对） */
 	private lastDetection: SchemaDetectionResult | null = null;
@@ -242,6 +243,7 @@ export class TalosSettingTab extends PluginSettingTab {
 	 * PluginSettingTab.display() 与内嵌页共享此入口，避免两套设置状态与保存逻辑。
 	 */
 	renderInto(containerEl: HTMLElement): void {
+		this.renderTarget = containerEl;
 		containerEl.empty();
 		containerEl.addClass("talos-settings");
 
@@ -282,6 +284,15 @@ export class TalosSettingTab extends PluginSettingTab {
 		});
 
 		renderActive();
+	}
+
+	private rerender(): void {
+		const target = this.renderTarget;
+		if (target?.isConnected) {
+			this.renderInto(target);
+			return;
+		}
+		this.display();
 	}
 
 	private async renderWorkbench(c: HTMLElement): Promise<void> {
@@ -366,7 +377,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					pending = "";
 					secret.setValue("");
 					new Notice(`${name} 已写入 Obsidian SecretStorage`);
-					this.display();
+					this.rerender();
 				})
 		);
 	}
@@ -536,7 +547,7 @@ export class TalosSettingTab extends PluginSettingTab {
 						`识别完成：匹配 ${result.matchedCount}/${result.entries.length} 个模块`
 						+ `，定位 ${Object.keys(result.dataSources).length} 个数据源文件`
 					);
-					this.display();
+					this.rerender();
 				})
 			);
 
@@ -580,7 +591,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					await this.plugin.saveTalosSettings();
 					this.plugin.applyViewSettings();
 					new Notice(`已套用${v === "en" ? "英文" : "中文"}目录预设`);
-					this.display();
+					this.rerender();
 				});
 			});
 
@@ -618,7 +629,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice("控制台已按新的目录映射刷新");
-					this.display();
+					this.rerender();
 				})
 			);
 
@@ -632,7 +643,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice("已恢复默认目录映射");
-					this.display();
+					this.rerender();
 				})
 			);
 	}
