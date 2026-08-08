@@ -274,6 +274,51 @@ describe("OpenAiCompatibleProvider", () => {
 		expect(JSON.stringify(events)).not.toContain("openai-private");
 	});
 
+	it("uses a versioned Zhipu-compatible base without adding another v1", async () => {
+		const storage = new MemorySecrets();
+		const secrets = new ProviderSecretStore(storage);
+		secrets.set("talos-zhipu-api-key", "zhipu-private");
+		const requests: string[] = [];
+		const provider = new OpenAiCompatibleProvider({
+			id: "zhipu-compatible",
+			endpoint: "https://open.bigmodel.cn/api/coding/paas/v4",
+			model: "glm-5.2",
+			systemPrompt: "system",
+			secretRef: "talos-zhipu-api-key",
+			secrets,
+			toolRunner: {
+				async run() {
+					return { content: "", isError: false };
+				},
+			},
+			fetcher: async (url) => {
+				requests.push(requestInputUrl(url));
+				return sseResponse([
+					{
+						choices: [
+							{
+								delta: { content: "完成" },
+								finish_reason: "stop",
+							},
+						],
+					},
+				]);
+			},
+		});
+
+		await collect(
+			provider.chat({
+				runId: "run-zhipu",
+				turnId: "turn-zhipu",
+				text: "开始",
+			})
+		);
+
+		expect(requests).toEqual([
+			"https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+		]);
+	});
+
 	it("returns a sanitized non-retryable error for a missing secret", async () => {
 		const storage = new MemorySecrets();
 		const provider = new OpenAiCompatibleProvider({

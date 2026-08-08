@@ -48,6 +48,22 @@ describe("provider egress gate", () => {
 		expect(JSON.stringify(result)).not.toContain("fake-bearer");
 	});
 
+	it("checks every referenced path before provider egress", async () => {
+		const result = await auditProviderEgress({
+			providerId: "claude",
+			vaultAccess: "full",
+			configDir: "custom-config",
+			paths: [
+				"30 洞察/safe.md",
+				"custom-config/plugins/talos/data.json",
+			],
+			text: "普通上下文",
+		});
+
+		expect(result.allowed).toBe(false);
+		expect(result.audit.blockedReasons).toContain("plugin-data");
+	});
+
 	it("blocks all Vault content when the provider lacks authorization", async () => {
 		const result = await auditProviderEgress({
 			providerId: "untrusted",

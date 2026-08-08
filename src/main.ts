@@ -37,6 +37,7 @@ import { OpenAiCompatibleProvider } from "./ai/provider/openai-compatible-provid
 import { VaultRetriever } from "./ai/context/vault-retrieval";
 import { TalosAskService } from "./ai/ask-service";
 import { createVaultProviderEgressAuditStore } from "./ai/privacy/provider-egress-audit-store";
+import { preflightChatProviderEgress } from "./ai/privacy/chat-provider-egress-preflight";
 import {
 	createConsoleActionRuntime,
 	type ConsoleActionRuntime,
@@ -182,6 +183,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	private talosAskCommand: TalosAskCommand | null = null;
 	private talosProviderFacade: ProviderFacade | null = null;
 	private talosActionRuntime: ConsoleActionRuntime | null = null;
+	private quyuanChatAuditSequence = 0;
 	private readonly handleWindowError = (event: ErrorEvent): void => {
 		this.recordQuyuanRuntimeError("window.error", event.error ?? event.message);
 	};
@@ -1244,6 +1246,59 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 					? input.path
 					: "";
 		if (path) this.quyuanReadPaths.add(path);
+	}
+
+	async auditQuyuanChatEgress(input: {
+		providerId: string;
+		prompt: string;
+		historyText?: string;
+		currentNotePath?: string;
+		externalContextPaths?: string[];
+		hasImages?: boolean;
+		hasMcpMentions?: boolean;
+		sessionId?: string;
+	}): Promise<{ allowed: boolean; message?: string }> {
+		const result = await preflightChatProviderEgress({
+			providerId: input.providerId,
+			vaultAccess: this.talosSettings.providerVaultAccess
+				? "full"
+				: "denied",
+			moduleAccess:
+				this.talosSettings.providerModuleAccess[input.providerId] ?? {},
+			vaultSchema: this.talosSettings.vaultSchema,
+			configDir: this.app.vault.configDir,
+			prompt: input.prompt,
+			historyText: input.historyText,
+			contextPaths: input.currentNotePath
+				? [input.currentNotePath]
+				: [],
+			externalContextPaths: input.externalContextPaths,
+			hasImages: input.hasImages,
+			hasMcpMentions: input.hasMcpMentions,
+			readContext: (path) => this.app.vault.adapter.read(path),
+		});
+
+		this.quyuanChatAuditSequence += 1;
+		const stamp = Date.now();
+		const suffix = `${stamp}-${this.quyuanChatAuditSequence}`;
+		const session = (input.sessionId || "new")
+			.replace(/[^a-zA-Z0-9._:-]/g, "-")
+			.slice(0, 140);
+		await createVaultProviderEgressAuditStore(this.app).append({
+			runId: `chat-run-${suffix}`,
+			turnId: `chat-turn-${suffix}`,
+			sessionId: `chat:${session || "new"}`,
+			namespace: "chat",
+			audit: result.audit,
+		});
+
+		if (result.allowed) return { allowed: true };
+		return {
+			allowed: false,
+			message: `Provider 出库隐私审计未通过：${
+				result.audit.blockedReasons.join("、") || "安全策略拒绝"
+			}`,
+		};
 	}
 
 	evaluateQuyuanToolPolicy(

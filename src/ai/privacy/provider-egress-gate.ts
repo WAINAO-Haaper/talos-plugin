@@ -1,5 +1,6 @@
 import {
 	inspectVaultContent,
+	inspectVaultPath,
 	type SecretBlockReason,
 } from "../context/secret-policy";
 import {
@@ -32,6 +33,11 @@ export interface ProviderEgressAudit {
 		| SecretBlockReason
 		| "vault-access-denied"
 		| "module-access-denied"
+		| "redaction-required"
+		| "context-read-failed"
+		| "image-egress-not-audited"
+		| "mcp-egress-not-audited"
+		| "external-context-not-audited"
 	>;
 	deniedModules: TalosSchemaKey[];
 	contentDigest: string;
@@ -146,8 +152,29 @@ export async function auditProviderEgress(
 		};
 	}
 
+	const blockedPathReasons = [
+		...new Set(
+			input.paths.flatMap(
+				(path) =>
+					inspectVaultPath(path, {
+						configDir: input.configDir,
+					}).reasons
+			)
+		),
+	];
+	if (blockedPathReasons.length > 0) {
+		return {
+			allowed: false,
+			redactedText: "",
+			audit: {
+				...baseAudit,
+				blockedReasons: blockedPathReasons,
+			},
+		};
+	}
+
 	const inspection = inspectVaultContent(
-		input.paths[0] ?? "provider-context.md",
+		"provider-context.md",
 		input.text,
 		{ configDir: input.configDir }
 	);

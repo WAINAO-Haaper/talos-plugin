@@ -110,6 +110,19 @@ export interface InputControllerDeps {
   restorePrePlanPermissionModeIfNeeded?: () => void;
 }
 
+type TalosChatEgressBridge = ClaudianPlugin & {
+  auditQuyuanChatEgress?: (input: {
+    providerId: string;
+    prompt: string;
+    historyText?: string;
+    currentNotePath?: string;
+    externalContextPaths?: string[];
+    hasImages?: boolean;
+    hasMcpMentions?: boolean;
+    sessionId?: string;
+  }) => Promise<{ allowed: boolean; message?: string }>;
+};
+
 export class InputController {
   private deps: InputControllerDeps;
   private pendingApprovalInline: InlineAskUserQuestion | null = null;
@@ -149,6 +162,35 @@ export class InputController {
     instructionRefineService: InstructionRefineService,
   ): void {
     instructionRefineService.setModelOverride?.(this.getAuxiliaryModel() ?? undefined);
+  }
+
+  private async auditTalosChatEgress(input: {
+    agentService: ChatRuntime;
+    preparedTurn: ReturnType<ChatRuntime["prepareTurn"]>;
+    history: ChatMessage[];
+  }): Promise<void> {
+    const bridge = this.deps.plugin as TalosChatEgressBridge;
+    if (!bridge.auditQuyuanChatEgress) return;
+    const result = await bridge.auditQuyuanChatEgress({
+      providerId: input.agentService.providerId,
+      prompt: input.preparedTurn.prompt,
+      historyText: input.history.length > 0
+        ? JSON.stringify(input.history)
+        : undefined,
+      currentNotePath: input.preparedTurn.request.currentNotePath,
+      externalContextPaths: input.preparedTurn.request.externalContextPaths,
+      hasImages:
+        (input.preparedTurn.request.images?.length ?? 0) > 0
+        || input.history.some(message => (message.images?.length ?? 0) > 0),
+      hasMcpMentions: input.preparedTurn.mcpMentions.size > 0,
+      sessionId:
+        this.deps.state.currentConversationId
+        ?? input.agentService.getSessionId()
+        ?? "new",
+    });
+    if (!result.allowed) {
+      throw new Error(result.message ?? "Provider 出库隐私审计未通过");
+    }
   }
 
   private getActiveProviderId(): ProviderId {
@@ -310,8 +352,6 @@ export class InputController {
       });
     const { displayContent, turnRequest } = turnSubmission;
 
-    fileContextManager?.markCurrentNoteSent();
-
     const userMsg: ChatMessage = {
       id: this.deps.generateId(),
       role: 'user',
@@ -323,8 +363,6 @@ export class InputController {
     state.addMessage(userMsg);
     state.hasPendingConversationSave = true;
     renderer.addMessage(userMsg);
-
-    await this.triggerTitleGeneration();
 
     const assistantMsg: ChatMessage = {
       id: this.deps.generateId(),
@@ -403,6 +441,13 @@ export class InputController {
       // Pass history WITHOUT current turn (userMsg + assistantMsg we just added)
       // This prevents duplication when rebuilding context for new sessions
       const previousMessages = state.messages.slice(0, -2);
+      await this.auditTalosChatEgress({
+        agentService,
+        preparedTurn,
+        history: previousMessages,
+      });
+      fileContextManager?.markCurrentNoteSent();
+      await this.triggerTitleGeneration();
       for await (const chunk of agentService.query(preparedTurn, previousMessages)) {
         if (state.streamGeneration !== streamGeneration) {
           wasInvalidated = true;
@@ -918,6 +963,11 @@ export class InputController {
       const { displayContent, request } = this.toQueuedChatTurn(queuedMessage);
 
       const preparedTurn = agentService.prepareTurn(request);
+      await this.auditTalosChatEgress({
+        agentService,
+        preparedTurn,
+        history: [],
+      });
       const accepted = await agentService.steer(preparedTurn);
       if (state.cancelRequested || !this.pendingSteerMessage) {
         return;

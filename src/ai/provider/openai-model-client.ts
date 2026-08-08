@@ -5,6 +5,7 @@ import type {
 } from "../../jarvis/agent/loop";
 import type { ToolResult } from "../../jarvis/agent/vault-tools";
 import { OPENAI_TOOLS } from "../../jarvis/agent/tool-schema";
+import { openAiChatCompletionsEndpoint } from "./openai-endpoints";
 
 function reasoningEffort(level: string, model: string): string | null {
 	if (level === "off") return null;
@@ -114,10 +115,7 @@ export class OpenAiModelClient implements ModelClient {
 			handlers.onError(new Error("未配置 Provider 密钥"));
 			return;
 		}
-		const base = this.config.endpoint.trim() || "https://api.openai.com";
-		const endpoint = base.endsWith("/v1/chat/completions")
-			? base
-			: `${base.replace(/\/+$/, "")}/v1/chat/completions`;
+		const endpoint = openAiChatCompletionsEndpoint(this.config.endpoint);
 		this.controller = new AbortController();
 
 		let assistantText = "";

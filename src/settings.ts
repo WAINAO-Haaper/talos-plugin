@@ -28,6 +28,7 @@ import {
 	isProviderModuleAllowed,
 	setProviderModuleAllowed,
 } from "./ai/provider/provider-module-access";
+import { openAiModelsEndpoint } from "./ai/provider/openai-endpoints";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
 
 export type TalosVisualTheme =
@@ -403,7 +404,10 @@ export class TalosSettingTab extends PluginSettingTab {
 				: "https://api.openai.com");
 		try {
 			const response = await requestUrl({
-				url: `${base.replace(/\/+$/, "")}/v1/models`,
+				url:
+					kind === "anthropic"
+						? `${base.replace(/\/+$/, "")}/v1/models`
+						: openAiModelsEndpoint(base),
 				method: "GET",
 				headers:
 					kind === "anthropic"
