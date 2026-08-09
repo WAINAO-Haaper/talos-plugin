@@ -177,21 +177,24 @@ assert.match(
 );
 assert.equal((talosMain.match(/this\.addRibbonIcon\(/g) ?? []).length, 1);
 const talosViewSource = readFileSync("src/view.ts", "utf8");
-// 2026-06-29 设计变更：主页「屈原」入口改为控制台内的语音页（QuyuanVoicePanel，
-// 经 openQuyuan → activePage="jarvis"），不再打开 v2 工作台 tab；v2 引擎由语音壳的
-// QuyuanVoiceDriver 经 createChatRuntime 复用，完整工作台仍可经命令面板单独打开。
+const navigationModelSource = readFileSync("src/ui/navigation-model.ts", "utf8");
+// WP7：文字对话与语音分别进入 TALOS 的一级页面，旧 page key 继续由纯路由模型兼容。
 assert.match(talosViewSource, /new QuyuanVoicePanel\(/);
 assert.match(talosViewSource, /this\.activePage = "jarvis"/);
 assert.match(
-	talosViewSource,
-	/icon:\s*"layout-dashboard"[\s\S]*icon:\s*"ear"[\s\S]*icon:\s*"database"/
+	navigationModelSource,
+	/key:\s*"workbench"[\s\S]*key:\s*"chat"[\s\S]*key:\s*"voice"[\s\S]*key:\s*"workflow"[\s\S]*key:\s*"knowledge"[\s\S]*key:\s*"system"/
 );
-assert.match(talosViewSource, /const NAV_GROUPS[\s\S]*label:\s*"现在"[\s\S]*label:\s*"系统"/);
-assert.match(talosViewSource, /key:\s*"identity"[\s\S]*label:\s*"身份上下文"/);
-assert.match(talosViewSource, /const mark = a\.createDiv[\s\S]*setIcon\(mark,\s*p\.icon\)/);
+assert.match(
+	navigationModelSource,
+	/key:\s*"voice"[\s\S]*icon:\s*"audio-lines"[\s\S]*key:\s*"vault"[\s\S]*icon:\s*"database"/
+);
+assert.match(navigationModelSource, /key:\s*"identity"[\s\S]*label:\s*"身份上下文"/);
+assert.match(talosViewSource, /for \(const page of PRIMARY_NAVIGATION\)/);
+assert.match(talosViewSource, /const mark = item\.createDiv[\s\S]*setIcon\(mark,\s*page\.icon\)/);
 assert.match(
 	talosViewSource,
-	/a\.setAttribute\("role",\s*"button"\)[\s\S]*a\.setAttribute\("tabindex",\s*"0"\)[\s\S]*event\.key !== "Enter"[\s\S]*event\.key !== " "/
+	/item\.setAttribute\("role",\s*"button"\)[\s\S]*item\.setAttribute\("tabindex",\s*"0"\)[\s\S]*event\.key !== "Enter"[\s\S]*event\.key !== " "/
 );
 
 assert.equal(
@@ -210,6 +213,7 @@ assert.equal(
 	true
 );
 
+const talosCss = readFileSync("styles.talos.css", "utf8");
 const quyuanShellCss = readFileSync("styles.quyuan-shell.css", "utf8");
 assert.match(quyuanShellCss, /container-type:\s*inline-size/);
 assert.match(quyuanShellCss, /@container talos-quyuan \(max-width:\s*620px\)/);
@@ -322,8 +326,17 @@ assert.match(
 );
 assert.match(
 	voiceDriverSource,
+	/private history:\s*ChatMessage\[][\s\S]*restoreVoiceHistory/
+);
+assert.doesNotMatch(
+	voiceDriverSource,
 	/histories:\s*Record<InteractionChannel,\s*ChatMessage\[]>/
 );
+assert.match(
+	voicePanelSource,
+	/data-session-namespace",\s*"voice"/
+);
+assert.match(voicePanelSource, /new VoiceSessionStore\(/);
 assert.match(voicePanelSource, /commitUser\(command,\s*"voice"\)/);
 assert.match(voicePanelSource, /commitUser\(text,\s*"text"\)/);
 assert.match(voicePanelSource, /channel === "voice"[\s\S]*this\.tts\?\.feed\(delta\)/);
@@ -359,7 +372,12 @@ assert.match(
 assert.match(voicePanelSource, /wakeWord = "屈原"/);
 assert.match(voicePanelSource, /sleepWord = "退下"/);
 assert.match(voicePanelSource, /wakeWindowMs = 30_000/);
-assert.match(voicePanelSource, /onText: \(text\) => this\.handleVoiceTranscript\(text\)/);
+assert.match(
+	voicePanelSource,
+	/onText: \(text\) => \{[\s\S]*this\.handleVoiceTranscript\(text\)[\s\S]*renderPushToTalkReady/
+);
+assert.match(talosSettingsSource, /quyuanVoiceInputMode:\s*"continuous" \| "push-to-talk"/);
+assert.match(voicePanelSource, /fallbackToPushToTalk[\s\S]*onAsrFailure/);
 assert.match(voicePanelSource, /tq-transcript-editor[\s\S]*createEl\("textarea"[\s\S]*语音识别文字，可编辑/);
 assert.match(voicePanelSource, /channel === "voice"[\s\S]*showTranscriptEditor\(trimmed\)/);
 assert.match(voicePanelSource, /showTranscriptEditor[\s\S]*requestAnimationFrame[\s\S]*is-visible/);
@@ -373,6 +391,7 @@ assert.match(
 );
 assert.match(quyuanShellCss, /--tq-side-size:\s*360px/);
 assert.match(quyuanShellCss, /\.tq-body\.is-side-collapsed/);
+assert.match(quyuanShellCss, /data-input-mode="push-to-talk"[\s\S]*tq-voice-mode-btn/);
 assert.match(quyuanShellCss, /\.tq-btn:focus-visible/);
 assert.match(quyuanShellCss, /\.tq-btn:disabled/);
 assert.match(quyuanShellCss, /\.talos-quyuan-open-error/);
@@ -493,7 +512,19 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/:not\(\[data-talos-page="overview"\]\) \.app[\s\S]*grid-template-columns:\s*72px minmax\(0,\s*1fr\)/
+	/\.talos-console \.app\s*\{[\s\S]*grid-template-columns:\s*72px minmax\(0,\s*1fr\) !important/
+);
+assert.match(
+	quyuanShellCss,
+	/\.talos-console \.sidebar\s*\{[\s\S]*width:\s*72px/
+);
+assert.doesNotMatch(
+	quyuanShellCss,
+	/:not\(\[data-talos-page="overview"\]\) \.app\s*\{/
+);
+assert.doesNotMatch(
+	talosCss,
+	/\[data-talos-page="overview"\] \.pagenav-card \.nav\s*\{[\s\S]*?flex-direction:\s*row/
 );
 assert.match(
 	quyuanShellCss,
@@ -510,6 +541,44 @@ assert.match(
 assert.match(
 	quyuanShellCss,
 	/:not\(\[data-talos-page="overview"\]\):not\(\[data-talos-page="jarvis"\]\)[\s\S]*\.main[\s\S]*padding:\s*18px !important/
+);
+
+// WP7 Task 14：确定性合成验收必须直接组合现有核心，fixture 只提供协议与恢复证据。
+const wp7E2eSource = readFileSync("tests/wp7-e2e.test.ts", "utf8");
+for (const sharedCore of [
+	"createBuiltinActionRegistry",
+	"TalosTaskRunner",
+	"TalosAskService",
+	"ProviderFacade",
+	"VaultRetriever",
+	"proposeAnswerWriteback",
+	"VoiceSessionStore",
+]) {
+	assert.match(wp7E2eSource, new RegExp(`\\b${sharedCore}\\b`));
+}
+assert.doesNotMatch(wp7E2eSource, /\bfetch\s*\(|\brequestUrl\s*\(|https?:\/\//);
+const wp7FixtureRegistry = JSON.parse(
+	readFileSync(
+		"fixtures/wp7-vault/TALOS中枢/适配器/runtime-command-registry.json",
+		"utf8"
+	)
+);
+assert.equal(wp7FixtureRegistry.commands.length, 13);
+assert.equal(
+	wp7FixtureRegistry.commands.some(
+		(command) =>
+			command.id === "talos-ask" &&
+			command.request_path === ".talos/command-requests/talos-ask.json"
+	),
+	true
+);
+assert.equal(
+	[
+		"fixtures/wp7-vault/.env.fixture",
+		"fixtures/wp7-vault/.talos/private/mock-provider.json",
+		"fixtures/wp7-vault/.talos/command-requests/talos-ask.json",
+	].every((path) => existsSync(path)),
+	true
 );
 
 function mockApp(files) {

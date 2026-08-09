@@ -13,11 +13,43 @@ import {
 	type PendingApprovalDecision,
 } from "./approval-actions";
 import {
+	applyCandidateDecision,
+	type CandidateDecision,
+} from "./candidate-actions";
+import {
 	applyApprovalExecutionRecord,
 	buildMockModelAppend,
 	parseApprovalExecutableSpec,
 } from "./approval-executor";
+import {
+	createApprovalTaskRuntime,
+	type ApprovalTaskRuntime,
+} from "./approval-task-runtime";
 import type { TalosSettings } from "./settings";
+import { createWindowTimerHost } from "./task-core/task-runner";
+
+const approvalTaskRuntimes = new WeakMap<App, ApprovalTaskRuntime>();
+
+export function registerApprovalTaskRuntime(
+	app: App,
+	runtime: ApprovalTaskRuntime
+): void {
+	approvalTaskRuntimes.set(app, runtime);
+}
+
+export function unregisterApprovalTaskRuntime(app: App): void {
+	approvalTaskRuntimes.delete(app);
+}
+
+export function getApprovalTaskRuntime(app: App): ApprovalTaskRuntime {
+	const existing = approvalTaskRuntimes.get(app);
+	if (existing) return existing;
+	const runtime = createApprovalTaskRuntime(
+		createWindowTimerHost(activeWindow)
+	);
+	approvalTaskRuntimes.set(app, runtime);
+	return runtime;
+}
 
 function todayStr(): string {
 	const d = new Date();
@@ -87,6 +119,37 @@ export async function decidePendingApproval(
 	return true;
 }
 
+export async function decidePreferenceCandidate(
+	app: App,
+	settings: TalosSettings,
+	title: string,
+	decision: CandidateDecision
+): Promise<boolean> {
+	const file = app.vault.getAbstractFileByPath(
+		normalizePath(settings.candidatesPath)
+	);
+	if (!(file instanceof TFile)) {
+		new Notice("未找到 candidates.md");
+		return false;
+	}
+
+	const raw = await app.vault.read(file);
+	const result = applyCandidateDecision(raw, {
+		title,
+		decision,
+		date: todayStr(),
+		operator: "TALOS",
+	});
+	if (!result.ok) {
+		new Notice(result.message);
+		return false;
+	}
+
+	await app.vault.modify(file, result.content);
+	new Notice(result.message);
+	return true;
+}
+
 export async function approveAndExecuteApprovalWithMockModel(
 	app: App,
 	settings: TalosSettings,
@@ -128,32 +191,45 @@ export async function approveAndExecuteApprovalWithMockModel(
 		return false;
 	}
 
-	const original = await app.vault.read(target);
-	const now = new Date();
-	const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-	const append = buildMockModelAppend({
+	let successMessage = "";
+	const task = await getApprovalTaskRuntime(app).run({
+		idempotencyKey: `approval:${settings.pendingApprovalsPath}:${title}`,
 		title,
+		pendingApprovalsPath: settings.pendingApprovalsPath,
 		targetPath: spec.targetPath,
-		instruction: spec.instruction,
-		date: todayStr(),
-		time,
-		originalContent: original,
-	});
-	await app.vault.modify(target, `${original.trimEnd()}\n${append}`);
+		execute: async () => {
+			const original = await app.vault.read(target);
+			const now = new Date();
+			const date = todayStr();
+			const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+			const append = buildMockModelAppend({
+				title,
+				targetPath: spec.targetPath,
+				instruction: spec.instruction,
+				date,
+				time,
+				originalContent: original,
+			});
+			await app.vault.modify(target, `${original.trimEnd()}\n${append}`);
 
-	const recorded = applyApprovalExecutionRecord(approved.content, {
-		title,
-		targetPath: spec.targetPath,
-		date: todayStr(),
-		time,
-		executor: spec.executor,
+			const recorded = applyApprovalExecutionRecord(approved.content, {
+				title,
+				targetPath: spec.targetPath,
+				date,
+				time,
+				executor: spec.executor,
+			});
+			if (!recorded.ok) throw new Error(recorded.message);
+			await app.vault.modify(approvalFile, recorded.content);
+			successMessage = recorded.message;
+			return { message: recorded.message };
+		},
 	});
-	if (!recorded.ok) {
-		new Notice(recorded.message);
+	if (task.state !== "completed") {
+		new Notice(task.error || "模型执行任务未完成");
 		return false;
 	}
-	await app.vault.modify(approvalFile, recorded.content);
-	new Notice(recorded.message);
+	new Notice(successMessage || "该审批任务已完成");
 	return true;
 }
 
@@ -365,15 +441,31 @@ export async function vaultLint(
 }
 
 // ---------- Deep Research（桌面端 + 安全门）----------
+type DeepResearchSpawn = typeof import("child_process").spawn;
+
+function deepResearchAbortError(): Error {
+	const error = new Error("Deep Research 已取消");
+	error.name = "AbortError";
+	return error;
+}
+
+function throwIfDeepResearchAborted(signal?: AbortSignal): void {
+	if (signal?.aborted) throw deepResearchAbortError();
+}
+
 export async function deepResearch(
 	app: App,
-	settings: TalosSettings
+	settings: TalosSettings,
+	signal?: AbortSignal,
+	spawnOverride?: DeepResearchSpawn
 ): Promise<void> {
+	throwIfDeepResearchAborted(signal);
 	const topic = "TALOS 个人上下文操作系统 最新动态";
 	const cmd = settings.agentCommand.trim();
 
 	if (!cmd) {
 		await ensureFolder(app, settings.reportsFolder);
+		throwIfDeepResearchAborted(signal);
 		const path = normalizePath(
 			`${settings.reportsFolder}/deep-research-${todayStr()}.md`
 		);
@@ -381,6 +473,7 @@ export async function deepResearch(
 			`---\ntitle: Deep Research ${todayStr()}\ndate: ${todayStr()}\ntags: [研究, 占位]\nstatus: draft\ntype: 研究报告\n---\n\n` +
 			`# Deep Research · ${topic}\n\n> ⚠️ 占位报告。要真正调用智能体，请在插件设置填写「Agent 命令」（如 claude -p / codex exec）。\n`;
 		const existing = app.vault.getAbstractFileByPath(path);
+		throwIfDeepResearchAborted(signal);
 		if (existing instanceof TFile) await app.vault.modify(existing, body);
 		else await app.vault.create(path, body);
 		new Notice("未配置 Agent 命令：已写占位报告");
@@ -392,12 +485,14 @@ export async function deepResearch(
 		new Notice("Deep Research 仅桌面端可用");
 		return;
 	}
-	let spawnFn: typeof import("child_process").spawn | null = null;
-	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		spawnFn = (require("child_process") as typeof import("child_process")).spawn;
-	} catch {
-		spawnFn = null;
+	let spawnFn: DeepResearchSpawn | null = spawnOverride ?? null;
+	if (!spawnFn) {
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			spawnFn = (require("child_process") as typeof import("child_process")).spawn;
+		} catch {
+			spawnFn = null;
+		}
 	}
 	if (!spawnFn) {
 		new Notice("Deep Research 仅桌面端可用");
@@ -408,27 +503,84 @@ export async function deepResearch(
 	const parts = cmd.split(/\s+/).filter(Boolean);
 	const bin = parts[0] ?? "";
 	const args = [...parts.slice(1), `就「${topic}」做一次 deep research，输出 Markdown`];
-	const child = spawnFn(bin, args, { cwd: adapter.getBasePath(), shell: false });
+	let child: ReturnType<DeepResearchSpawn>;
+	try {
+		child = spawnFn(bin, args, {
+			cwd: adapter.getBasePath(),
+			shell: false,
+		});
+	} catch (error) {
+		const failure = error instanceof Error ? error : new Error(String(error));
+		new Notice(`Deep Research 无法启动「${bin}」：${failure.message}`);
+		throw failure;
+	}
 	let out = "";
 	child.stdout?.on("data", (d: Buffer) => (out += d.toString()));
 	child.stderr?.on("data", (d: Buffer) => (out += d.toString()));
-	// 命令不存在等 spawn 失败：不处理 error 事件会变成渲染进程未捕获异常
-	child.on("error", (err: Error) => {
-		new Notice(`Deep Research 无法启动「${bin}」：${err.message}`);
-	});
-	child.on("close", (code: number | null) => {
-		void (async () => {
-			await ensureFolder(app, settings.reportsFolder);
-			const path = normalizePath(
-				`${settings.reportsFolder}/deep-research-${todayStr()}.md`
-			);
-			const body =
-				`---\ntitle: Deep Research ${todayStr()}\ndate: ${todayStr()}\ntags: [研究]\nstatus: draft\ntype: 研究报告\n---\n\n` +
-				`# Deep Research · ${topic}\n\n> 命令：\`${cmd}\` · 退出码 ${code ?? "?"}\n\n${out}\n`;
-			const existing = app.vault.getAbstractFileByPath(path);
-			if (existing instanceof TFile) await app.vault.modify(existing, body);
-			else await app.vault.create(path, body);
-			new Notice(`Deep Research 完成（退出码 ${code ?? "?"}）`);
-		})();
+
+	return new Promise<void>((resolve, reject) => {
+		let settled = false;
+		const cleanup = (): void => {
+			signal?.removeEventListener("abort", onAbort);
+		};
+		const resolveOnce = (): void => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			resolve();
+		};
+		const rejectOnce = (error: unknown): void => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			reject(error instanceof Error ? error : new Error(String(error)));
+		};
+		const onAbort = (): void => {
+			try {
+				child.kill();
+			} catch {
+				// The child may already have exited; cancellation still rejects the task.
+			}
+			rejectOnce(deepResearchAbortError());
+		};
+
+		signal?.addEventListener("abort", onAbort, { once: true });
+		if (signal?.aborted) {
+			onAbort();
+			return;
+		}
+
+		// 命令不存在等 spawn 失败必须结束任务，不能成为渲染进程未捕获异常。
+		child.on("error", (error: Error) => {
+			new Notice(`Deep Research 无法启动「${bin}」：${error.message}`);
+			rejectOnce(error);
+		});
+		child.on("close", (code: number | null) => {
+			void (async () => {
+				if (settled) return;
+				try {
+					throwIfDeepResearchAborted(signal);
+					await ensureFolder(app, settings.reportsFolder);
+					throwIfDeepResearchAborted(signal);
+					const path = normalizePath(
+						`${settings.reportsFolder}/deep-research-${todayStr()}.md`
+					);
+					const body =
+						`---\ntitle: Deep Research ${todayStr()}\ndate: ${todayStr()}\ntags: [研究]\nstatus: draft\ntype: 研究报告\n---\n\n` +
+						`# Deep Research · ${topic}\n\n> 命令：\`${cmd}\` · 退出码 ${code ?? "?"}\n\n${out}\n`;
+					const existing = app.vault.getAbstractFileByPath(path);
+					throwIfDeepResearchAborted(signal);
+					if (existing instanceof TFile) {
+						await app.vault.modify(existing, body);
+					} else {
+						await app.vault.create(path, body);
+					}
+					new Notice(`Deep Research 完成（退出码 ${code ?? "?"}）`);
+					resolveOnce();
+				} catch (error) {
+					rejectOnce(error);
+				}
+			})();
+		});
 	});
 }

@@ -11,12 +11,14 @@ const talosSource = resolve(root, "styles.talos.css");
 const upstreamRoot = resolve(root, "src/quyuan/claudian/style");
 const upstreamIndex = resolve(upstreamRoot, "index.css");
 const quyuanShellSource = resolve(root, "styles.quyuan-shell.css");
+const layoutOverridesSource = resolve(root, "styles.layout-overrides.css");
 const output = resolve(root, "styles.css");
 const importPattern = /^\s*@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/gm;
 
 if (!existsSync(talosSource)) throw new Error("Missing styles.talos.css");
 if (!existsSync(upstreamIndex)) throw new Error("Missing Claudian style/index.css");
 if (!existsSync(quyuanShellSource)) throw new Error("Missing styles.quyuan-shell.css");
+if (!existsSync(layoutOverridesSource)) throw new Error("Missing styles.layout-overrides.css");
 
 const index = readFileSync(upstreamIndex, "utf8");
 const imports = [...index.matchAll(importPattern)].map((match) => match[1]);
@@ -41,7 +43,9 @@ for (const modulePath of imports) {
 
 parts.push(
 	"\n/* TALOS Quyuan v1 visual shell over the v2 runtime */\n",
-	readFileSync(quyuanShellSource, "utf8")
+	readFileSync(quyuanShellSource, "utf8"),
+	"\n/* TALOS 2.0 validated console and chat layout overrides */\n",
+	readFileSync(layoutOverridesSource, "utf8")
 );
 
 /**

@@ -11,6 +11,18 @@ import { QuyuanBackgroundField } from "./background-field";
 import type { QuyuanBackgroundType } from "./background-field";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
 import type { VaultPaths } from "../data/schema";
+import {
+	VoiceSessionStore,
+	type VoiceSessionMessage,
+} from "./voice-session-store";
+import {
+	VoiceModeController,
+	type VoiceInputMode,
+} from "./voice-mode-controller";
+import {
+	providerSecretStoreFromApp,
+	readProviderSecret,
+} from "../ai/provider/secret-storage-runtime";
 
 interface TalosQuyuanPlugin extends ClaudianPlugin {
 	activateQuyuanV2View(): Promise<void>;
@@ -57,8 +69,11 @@ export class QuyuanVoicePanel {
 	private tts: StreamTts | null = null;
 	private asr: VadMic | null = null;
 	private driver: QuyuanVoiceDriver | null = null;
+	private voiceSessionStore: VoiceSessionStore | null = null;
+	private voiceMode = new VoiceModeController();
 	private replyEl: HTMLElement | null = null;
 	private engBtn: HTMLButtonElement | null = null;
+	private voiceModeBtn: HTMLButtonElement | null = null;
 
 	private rootEl: HTMLElement | null = null;
 	private bodyEl: HTMLElement | null = null;
@@ -132,8 +147,25 @@ export class QuyuanVoicePanel {
 			effortLevel: this.settings.quyuanVoiceEffort || "low",
 		});
 		this.driver.setConfirmHandler((tool, desc) => this.askConfirm(tool, desc));
+		this.voiceMode = new VoiceModeController();
+		this.voiceMode.setInputMode(
+			this.settings.quyuanVoiceInputMode === "push-to-talk"
+				? "push-to-talk"
+				: "continuous"
+		);
+		this.voiceSessionStore = new VoiceSessionStore({
+			read: () => this.settings.quyuanVoiceSessionJson,
+			// jarvisTabsJson 仅作一次保守迁移源；store 会拒绝 chat/无 namespace 数据。
+			readLegacy: () => this.settings.jarvisTabsJson,
+			write: async (value) => {
+				this.settings.quyuanVoiceSessionJson = value;
+				await this.save?.();
+			},
+		});
+		const secretStore = providerSecretStoreFromApp(this.app);
 		this.tts = new StreamTts(this.settings, (s) => {
 			if (s === "speaking") {
+				this.voiceMode.setTtsSpeaking();
 				this.ttsPending = true;
 				this.ttsSpeaking = true;
 				this.syncAsrBusy();
@@ -145,6 +177,7 @@ export class QuyuanVoicePanel {
 				this.syncAsrBusy();
 				this.setState(this.restingState());
 			} else if (s === "error") {
+				this.voiceMode.onTtsFailure("朗读服务不可用，文字回复已保留");
 				this.ttsPending = false;
 				this.ttsSpeaking = false;
 				this.characterStage?.setOutputLevel(0);
@@ -154,13 +187,16 @@ export class QuyuanVoicePanel {
 		}, (level) => {
 			// TTS 输出音量直接驱动人物回答态的呼吸、位移与光晕。
 			this.characterStage?.setOutputLevel(level);
-		});
+		}, (field) =>
+			readProviderSecret(this.settings, field, secretStore)
+		);
 		this.asr = this.buildAsr();
-		void this.driver.warmup("voice");
 
 		const root = container.createDiv({ cls: "tq-voice" });
 		this.rootEl = root;
 		root.setAttribute("data-wake-state", "sleep");
+		root.setAttribute("data-session-namespace", "voice");
+		root.setAttribute("data-input-mode", this.voiceMode.snapshot().inputMode);
 		root.setAttribute(
 			"data-voice-recognition",
 			this.settings.quyuanVoiceRecognitionEnabled === false ? "off" : "on"
@@ -315,11 +351,18 @@ export class QuyuanVoicePanel {
 		this.installSideResizer(resizer);
 		const side = body.createEl("aside", { cls: "tq-side" });
 		this.buildFunctionalSidebar(side);
+		void this.restoreVoiceSession().finally(() => {
+			void this.driver?.warmup("voice");
+		});
 
 		const recognitionEnabled = this.settings.quyuanVoiceRecognitionEnabled !== false;
-		this.setState(recognitionEnabled ? "sleep" : "idle");
-		if (recognitionEnabled) {
+		const continuous =
+			this.voiceMode.snapshot().inputMode === "continuous";
+		this.setState(recognitionEnabled && continuous ? "sleep" : "idle");
+		if (recognitionEnabled && continuous) {
 			void this.setVoiceRecognitionEnabled(true, false);
+		} else if (recognitionEnabled) {
+			this.renderPushToTalkReady();
 		} else {
 			this.renderVoiceRecognitionOff();
 		}
@@ -413,6 +456,18 @@ export class QuyuanVoicePanel {
 				: "待唤醒 · 说「屈原」",
 		});
 		const sessionActions = sessionHead.createDiv({ cls: "tq-session-actions" });
+		this.voiceModeBtn = sessionActions.createEl("button", {
+			cls: "tq-btn tq-btn--ghost tq-btn--sm tq-voice-mode-btn",
+			attr: { type: "button" },
+		});
+		this.voiceModeBtn.addEventListener("click", () => {
+			const next =
+				this.voiceMode.snapshot().inputMode === "continuous"
+					? "push-to-talk"
+					: "continuous";
+			void this.setVoiceInputMode(next);
+		});
+		this.renderVoiceModeBtn();
 		const clear = sessionActions.createEl("button", {
 			cls: "tq-btn tq-btn--ghost tq-btn--icon tq-btn--sm tq-mini-btn",
 			attr: { type: "button", "aria-label": "清空当前会话" },
@@ -423,7 +478,9 @@ export class QuyuanVoicePanel {
 		const emptyIcon = this.sessionEmptyEl.createSpan({ cls: "tq-session-empty-icon" });
 		setIcon(emptyIcon, "message-circle-more");
 		this.sessionEmptyEl.createEl("b", { text: "从这里开始对话" });
-		this.sessionEmptyEl.createEl("small", { text: "语音和文字会进入同一条会话流" });
+		this.sessionEmptyEl.createEl("small", {
+			text: "本页使用独立语音历史，不读取文字工作台会话",
+		});
 		const prompts = this.sessionEmptyEl.createDiv({ cls: "tq-quick-prompts" });
 		for (const prompt of ["梳理今日焦点", "检查系统状态", "打开完整工作台"]) {
 			const button = prompts.createEl("button", {
@@ -473,6 +530,8 @@ export class QuyuanVoicePanel {
 			if (this.convoEl && this.sessionEmptyEl) this.convoEl.appendChild(this.sessionEmptyEl);
 			this.sessionEmptyEl?.removeClass("is-hidden");
 			this.clearTranscriptEditor();
+			this.driver?.clearVoiceHistory();
+			void this.voiceSessionStore?.clear();
 			if (this.overlayReply) this.setOverlayMessage("开口，说出你现在最想推进的事。");
 		});
 
@@ -524,6 +583,119 @@ export class QuyuanVoicePanel {
 			entry.button.addEventListener("click", () => activate(entry.key));
 		}
 		activate("session");
+	}
+
+	private async restoreVoiceSession(): Promise<void> {
+		const store = this.voiceSessionStore;
+		if (!store) return;
+		const snapshot = await store.load();
+		if (!this.mounted) return;
+		this.driver?.restoreVoiceHistory(store.contextMessages());
+		for (const message of snapshot.messages) {
+			this.renderVoiceSessionMessage(message);
+		}
+		if (snapshot.messages.length > 0) {
+			this.sessionEmptyEl?.addClass("is-hidden");
+			this.scrollConvo();
+		}
+		if (
+			snapshot.transcriptDraft &&
+			this.overlayUser &&
+			this.overlayTranscriptEl
+		) {
+			this.overlayUser.value = snapshot.transcriptDraft;
+			this.pushTranscriptLine(snapshot.transcriptDraft);
+			this.overlayTranscriptEl.setAttribute("aria-hidden", "false");
+			this.overlayTranscriptEl.addClass("is-visible");
+		}
+	}
+
+	private renderVoiceSessionMessage(message: VoiceSessionMessage): void {
+		if (!this.convoEl) return;
+		const isUser = message.role === "user";
+		const bubble = this.convoEl.createDiv({
+			cls: `tq-bub ${isUser ? "tq-me" : "tq-qy"} tq-restored tq-channel-${message.modality === "speech" ? "voice" : "text"}`,
+			attr: {
+				"data-channel":
+					message.modality === "speech" ? "voice" : "text",
+			},
+		});
+		bubble.createSpan({
+			cls: "tq-bub-role",
+			text: isUser
+				? message.modality === "speech"
+					? "你 · 语音"
+					: "你 · 文字"
+				: "屈原 · 语音页",
+		});
+		bubble.createDiv({ text: message.text });
+	}
+
+	private renderVoiceModeBtn(): void {
+		if (!this.voiceModeBtn) return;
+		const continuous =
+			this.voiceMode.snapshot().inputMode === "continuous";
+		this.voiceModeBtn.empty();
+		setIcon(
+			this.voiceModeBtn.createSpan(),
+			continuous ? "radio" : "mouse-pointer-click"
+		);
+		this.voiceModeBtn.createSpan({
+			text: continuous ? "持续监听" : "点击说话",
+		});
+		this.voiceModeBtn.setAttribute("aria-pressed", String(!continuous));
+		this.voiceModeBtn.setAttribute(
+			"aria-label",
+			continuous
+				? "当前持续监听，点击切换为点击说话"
+				: "当前点击说话，点击切换为持续监听"
+		);
+	}
+
+	private async setVoiceInputMode(
+		inputMode: VoiceInputMode,
+		persist = true
+	): Promise<void> {
+		this.voiceMode.setInputMode(inputMode);
+		this.settings.quyuanVoiceInputMode = inputMode;
+		this.rootEl?.setAttribute("data-input-mode", inputMode);
+		this.renderVoiceModeBtn();
+		if (persist) await this.save?.();
+		if (inputMode === "push-to-talk") {
+			this.asr?.stop();
+			this.renderPushToTalkReady();
+			return;
+		}
+		this.settings.quyuanVoiceRecognitionEnabled = true;
+		await this.setVoiceRecognitionEnabled(true, false);
+	}
+
+	private renderPushToTalkReady(): void {
+		this.wakeActive = false;
+		if (this.wakeTimer != null) window.clearTimeout(this.wakeTimer);
+		this.wakeTimer = null;
+		this.rootEl?.setAttribute("data-wake-state", "awake");
+		this.rootEl?.setAttribute("data-input-mode", "push-to-talk");
+		this.renderMicBtn(this.asr?.isOn() ?? false);
+		this.wakeStatusEl?.setText("点击说话 · 一次发送一段");
+		if (this.fabStatusEl) this.fabStatusEl.setText("点击麦克风开始说话");
+		if (this.overlayReply) {
+			this.setOverlayMessage("已切换点击说话，点击麦克风后直接说内容。");
+		}
+		if (this.mounted) this.setState(this.asr?.isOn() ? "listen" : "idle");
+	}
+
+	private fallbackToPushToTalk(reason: string): void {
+		this.voiceMode.onAsrFailure(reason);
+		this.settings.quyuanVoiceInputMode = "push-to-talk";
+		this.asr?.stop();
+		this.rootEl?.setAttribute("data-input-mode", "push-to-talk");
+		this.renderVoiceModeBtn();
+		this.renderPushToTalkReady();
+		if (this.fabStatusEl) {
+			this.fabStatusEl.setText(`已切换点击说话 · ${reason}`);
+		}
+		void this.save?.();
 	}
 
 	private savedSideWidth(): number {
@@ -697,6 +869,14 @@ export class QuyuanVoicePanel {
 	private asrHandlers(): VadMicHandlers {
 		return {
 			onListeningChange: (on) => {
+				if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
+					this.renderMicBtn(on);
+					this.setState(on ? "listen" : "idle");
+					this.wakeStatusEl?.setText(
+						on ? "正在听 · 说完自动发送" : "点击说话 · 一次发送一段"
+					);
+					return;
+				}
 				if (!on) this.deactivateWake();
 				this.renderMicBtn(on);
 				this.setState(on ? this.restingState() : "idle");
@@ -721,10 +901,17 @@ export class QuyuanVoicePanel {
 			onSpeechStart: () => {
 				if (this.wakeActive) this.onBargeIn();
 			},
-			onText: (text) => this.handleVoiceTranscript(text),
+			onText: (text) => {
+				this.handleVoiceTranscript(text);
+				if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
+					this.asr?.stop();
+					this.renderPushToTalkReady();
+				}
+			},
 			onError: (msg) => {
 				const line = `语音输入：${msg}`;
 				if (this.fabStatusEl) this.fabStatusEl.setText(line);
+				this.fallbackToPushToTalk(msg);
 				// 本地引擎的加载/转写错误此前只写进不显眼的状态文本，sleep 态根本看不到；
 				// 改用 Notice 弹出并打日志，故障一眼可见。
 				new Notice(line, 10000);
@@ -735,9 +922,19 @@ export class QuyuanVoicePanel {
 
 	private buildAsr(): VadMic {
 		const h = this.asrHandlers();
+		const secretStore = providerSecretStoreFromApp(this.app);
 		return this.settings.quyuanAsrEngine === "local"
 			? new LocalAsr(this.settings, h)
-			: new CloudAsr(this.settings, h);
+			: new CloudAsr(
+				this.settings,
+				h,
+				() =>
+					readProviderSecret(
+						this.settings,
+						"aliyunApiKey",
+						secretStore
+					)
+			);
 	}
 
 	// 切换识别引擎（千问云端 ⇄ 本地 Whisper）：持久化 + 重建 + 续听
@@ -866,9 +1063,14 @@ export class QuyuanVoicePanel {
 		if (this.fabStatusEl) this.fabStatusEl.setText("正在申请麦克风…");
 		try {
 			await this.asr?.start();
+			if (!(this.asr?.isOn() ?? false)) {
+				this.fallbackToPushToTalk("持续监听未能启动");
+			}
 		} catch (error) {
 			console.error("TALOS Quyuan ASR failed to start", error);
-			if (this.fabStatusEl) this.fabStatusEl.setText("语音输入未启动");
+			this.fallbackToPushToTalk(
+				error instanceof Error ? error.message : String(error)
+			);
 		}
 	}
 
@@ -913,9 +1115,16 @@ export class QuyuanVoicePanel {
 	private handleVoiceTranscript(rawText: string): void {
 		const text = rawText.trim();
 		if (!text) return;
+		this.voiceMode.setTranscript(text);
+		void this.voiceSessionStore?.setTranscriptDraft(text);
 		// 记录识别原文：便于核对本地引擎把唤醒词听成了什么，据此补充 wakeAliases。
 		// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：核对本地引擎听写原文以补充唤醒词别名，保留
 		console.info("[TALOS 屈原] 语音识别原文：", JSON.stringify(rawText));
+
+		if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
+			this.commitUser(text, "voice");
+			return;
+		}
 
 		if (this.wakeActive && text.includes(this.sleepWord)) {
 			this.deactivateWake();
@@ -952,6 +1161,7 @@ export class QuyuanVoicePanel {
 	// 打断（barge-in）：用户在屈原思考/朗读时开口 → 取消在途回复并停朗读
 	private onBargeIn(): void {
 		if (this.state === "think" || this.state === "speak" || this.driver?.isBusy()) {
+			this.voiceMode.bargeIn();
 			this.responseActive = false;
 			this.driver?.cancel();
 			this.tts?.stop();
@@ -987,6 +1197,24 @@ export class QuyuanVoicePanel {
 
 	// ---------- 语音识别模式：关闭时停止 ASR、唤醒词监听并释放麦克风 ----------
 	private async toggleVoiceRecognitionMode(): Promise<void> {
+		if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
+			if (this.asr?.isOn()) {
+				this.asr.stop();
+				this.renderPushToTalkReady();
+				return;
+			}
+			try {
+				await this.asr?.start();
+				if (!(this.asr?.isOn() ?? false)) {
+					this.fallbackToPushToTalk("点击说话未能启动");
+				}
+			} catch (error) {
+				this.fallbackToPushToTalk(
+					error instanceof Error ? error.message : String(error)
+				);
+			}
+			return;
+		}
 		await this.setVoiceRecognitionEnabled(!(this.asr?.isOn() ?? false));
 	}
 
@@ -1003,6 +1231,13 @@ export class QuyuanVoicePanel {
 			text: channel === "voice" ? "你 · 语音" : "你 · 文字",
 		});
 		bub.createDiv({ text: trimmed });
+		void this.voiceSessionStore?.appendMessage({
+			id: `voice-user-${Date.now()}`,
+			role: "user",
+			text: trimmed,
+			modality: channel === "voice" ? "speech" : "text",
+			createdAt: Date.now(),
+		});
 		// 只有语音识别结果进入右侧可编辑卡；文字通道继续留在会话区。
 		if (channel === "voice") this.showTranscriptEditor(trimmed);
 		// 清空 overlay 回复区，准备接收新回复
@@ -1144,17 +1379,39 @@ export class QuyuanVoicePanel {
 				}
 				this.scrollConvo();
 			},
-			onTool: (name) => {
-				if (!this.mounted || !this.replyEl) return;
-				const exec = this.replyEl.parentElement?.createSpan({ cls: "tq-exec" });
-				if (!exec) return;
-				setIcon(exec.createSpan(), "tool");
-				exec.createSpan({ text: ` 执行 · ${name}` });
-				this.scrollConvo();
+			onTool: (event) => {
+				if (event.status === "running" && this.mounted && this.replyEl) {
+					const exec = this.replyEl.parentElement?.createSpan({ cls: "tq-exec" });
+					if (exec) {
+						setIcon(exec.createSpan(), "tool");
+						exec.createSpan({ text: ` 执行 · ${event.name}` });
+						this.scrollConvo();
+					}
+				}
+				if (event.status !== "running") {
+					this.voiceMode.recordCompletedTool({
+						taskId: event.taskId,
+						toolName: event.name,
+						auditEvidence: event.auditEvidence,
+					});
+					void this.voiceSessionStore?.recordTaskEvidence({
+						taskId: event.taskId,
+						state: event.status,
+						auditEvidence: event.auditEvidence,
+					});
+				}
 			},
-			onDone: () => {
+			onDone: (fullText) => {
 				const replyEl = this.replyEl;
 				const reply = this.replyBuffer;
+				this.voiceMode.setReplyText(fullText);
+				void this.voiceSessionStore?.appendMessage({
+					id: `voice-assistant-${Date.now()}`,
+					role: "assistant",
+					text: fullText,
+					modality: channel === "voice" ? "speech" : "text",
+					createdAt: Date.now(),
+				});
 				if (
 					channel === "text"
 					&& replyEl
@@ -1269,6 +1526,7 @@ export class QuyuanVoicePanel {
 			console.error("TALOS Quyuan driver dispose failed", error);
 		}
 		this.driver = null;
+		this.voiceSessionStore = null;
 		this.characterStage?.destroy();
 		this.characterStage = null;
 		try {
@@ -1295,6 +1553,7 @@ export class QuyuanVoicePanel {
 		this.micBtn = null;
 		this.sendBtn = null;
 		this.engBtn = null;
+		this.voiceModeBtn = null;
 		this.bgBtn = null;
 		this.fabEl = null;
 		this.sideToggleBtn = null;

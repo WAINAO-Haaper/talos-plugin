@@ -1,4 +1,12 @@
-import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from "obsidian";
+import {
+	App,
+	DropdownComponent,
+	Notice,
+	PluginSettingTab,
+	SecretComponent,
+	Setting,
+	requestUrl,
+} from "obsidian";
 import type TalosPlugin from "./main";
 import {
 	MODULE_KEYS,
@@ -9,8 +17,19 @@ import {
 	resolveSchema,
 	type DataSourceKey,
 	type SchemaDetectionResult,
+	type TalosSchemaKey,
 	type TalosVaultSchema,
 } from "./data/schema";
+import {
+	providerSecretStoreFromApp,
+	saveProviderSecret,
+} from "./ai/provider/secret-storage-runtime";
+import {
+	isProviderModuleAllowed,
+	setProviderModuleAllowed,
+} from "./ai/provider/provider-module-access";
+import { openAiModelsEndpoint } from "./ai/provider/openai-endpoints";
+import type { LegacySecretField } from "./ai/provider/settings-migration";
 
 export type TalosVisualTheme =
 	| "aurora"
@@ -23,6 +42,8 @@ export type TalosVisualTheme =
 	| "executive-brief"
 	| "paper-ink"
 	| "swiss-modern";
+
+export const TALOS_SETTINGS_SCHEMA_VERSION = 1;
 
 /** 屈原语音舞台背景效果（独立于全局 visualTheme） */
 export type QuyuanBackgroundType = "letter-glitch" | "grid-scan";
@@ -41,6 +62,7 @@ export function normalizeVisualTheme(value: unknown): TalosVisualTheme {
 }
 
 export interface TalosSettings {
+	settingsSchemaVersion: number;
 	eyebrow: string;
 	mainTitle: string;
 	visualTheme: TalosVisualTheme;
@@ -78,9 +100,9 @@ export interface TalosSettings {
 	jarvisClaudeBin: string; // claude CLI 路径，留空自动 which claude
 	jarvisModel: string; // 模型，留空用 CLI 默认
 	engineProvider: string; // 执行通道：claude-cli（现行）| claude-api（P1）| codex（P2）
-	anthropicApiKey: string; // 直连 Anthropic API 通道用，明文存本地
+	anthropicApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	anthropicBaseUrl: string; // 留空用官方 api.anthropic.com；自建网关填此
-	openaiApiKey: string; // Codex/GPT 通道用，明文存本地
+	openaiApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	openaiBaseUrl: string; // 留空用官方 api.openai.com；自建 OpenAI 兼容网关填此
 	openaiModel: string; // Codex/GPT 模型，留空用 gpt-4o
 	jarvisPermissionMode: string; // default | acceptEdits | plan | bypassPermissions
@@ -94,9 +116,27 @@ export interface TalosSettings {
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
 	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
+	quyuanVoiceInputMode: "continuous" | "push-to-talk"; // 默认持续监听；失败时降级为点击说话
+	quyuanVoiceSessionJson: string; // 独立 voice namespace 会话，不与 Claudian chat tab 混用
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
+	providerSecretRefs: Partial<
+		Record<
+			| "elevenLabsApiKey"
+			| "aliyunApiKey"
+			| "anthropicApiKey"
+			| "openaiApiKey"
+			| "jarvisSttApiKey",
+			string
+		>
+	>;
+	providerVaultAccess: boolean;
+	providerManualReview: boolean;
+	providerModuleAccess: Record<
+		string,
+		Partial<Record<TalosSchemaKey, boolean>>
+	>;
 	/** 首次运行是否已自动识别过库结构（避免重复打扰；重新检测请用设置页按钮） */
 	schemaAutoDetected: boolean;
 	/** 库目录映射：客户库命名与默认不同时在此覆盖（设置 → 目录映射，支持自动检测） */
@@ -104,6 +144,7 @@ export interface TalosSettings {
 }
 
 export const DEFAULT_SETTINGS: TalosSettings = {
+	settingsSchemaVersion: TALOS_SETTINGS_SCHEMA_VERSION,
 	eyebrow: "超级大脑 · CONTEXT OS",
 	mainTitle: "TALOS 系统控制台",
 	visualTheme: "aurora",
@@ -155,9 +196,15 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanVoiceEffort: "low",
 	quyuanBackground: "letter-glitch",
 	quyuanVoiceRecognitionEnabled: true,
+	quyuanVoiceInputMode: "continuous",
+	quyuanVoiceSessionJson: "",
 	jarvisVoiceEnabled: false,
 	jarvisThinkingLevel: "off",
 	jarvisTabsJson: "",
+	providerSecretRefs: {},
+	providerVaultAccess: true,
+	providerManualReview: true,
+	providerModuleAccess: {},
 	schemaAutoDetected: false,
 	vaultSchema: {},
 };
@@ -165,13 +212,20 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 type TextSettingKey = {
 	[K in keyof TalosSettings]: TalosSettings[K] extends string ? K : never;
 }[keyof TalosSettings];
-type FreeTextSettingKey = Exclude<TextSettingKey, "visualTheme" | "quyuanBackground">;
+type FreeTextSettingKey = Exclude<
+	TextSettingKey,
+	| "visualTheme"
+	| "quyuanBackground"
+	| "quyuanVoiceInputMode"
+	| "quyuanVoiceSessionJson"
+>;
 
 type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
 
 export class TalosSettingTab extends PluginSettingTab {
 	plugin: TalosPlugin;
 	private activeTab: TabId = "ui";
+	private renderTarget: HTMLElement | null = null;
 	private workbenchSettingsTab: { display(): void; containerEl: HTMLElement } | null = null;
 	/** 最近一次识别结果（用于在设置页展示检测报告，供客户核对） */
 	private lastDetection: SchemaDetectionResult | null = null;
@@ -182,7 +236,15 @@ export class TalosSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const { containerEl } = this;
+		this.renderInto(this.containerEl);
+	}
+
+	/**
+	 * 使用同一套设置渲染器挂载到 TALOS 控制台。
+	 * PluginSettingTab.display() 与内嵌页共享此入口，避免两套设置状态与保存逻辑。
+	 */
+	renderInto(containerEl: HTMLElement): void {
+		this.renderTarget = containerEl;
 		containerEl.empty();
 		containerEl.addClass("talos-settings");
 
@@ -190,7 +252,7 @@ export class TalosSettingTab extends PluginSettingTab {
 			{ id: "ui", label: "界面" },
 			{ id: "schema", label: "目录映射" },
 			{ id: "data", label: "数据源" },
-			{ id: "channel", label: "屈原 · 通道" },
+			{ id: "channel", label: "AI Provider" },
 			{ id: "voice", label: "屈原 · 语音" },
 			{ id: "workbench", label: "屈原 · 高级" },
 		];
@@ -225,6 +287,15 @@ export class TalosSettingTab extends PluginSettingTab {
 		renderActive();
 	}
 
+	private rerender(): void {
+		const target = this.renderTarget;
+		if (target?.isConnected) {
+			this.renderInto(target);
+			return;
+		}
+		this.display();
+	}
+
 	private async renderWorkbench(c: HTMLElement): Promise<void> {
 		new Setting(c)
 			.setName("屈原完整工作台")
@@ -256,6 +327,143 @@ export class TalosSettingTab extends PluginSettingTab {
 						await this.plugin.saveTalosSettings();
 					})
 			);
+	}
+
+	private secretIn(
+		c: HTMLElement,
+		name: string,
+		desc: string,
+		field: LegacySecretField
+	): void {
+		const store = providerSecretStoreFromApp(this.app);
+		const reference = this.plugin.talosSettings.providerSecretRefs[field];
+		const setting = new Setting(c)
+			.setName(name)
+			.setDesc(
+				`${desc} ${
+					reference && store?.has(reference)
+						? "当前状态：已安全保存。"
+						: "当前状态：未配置。"
+				}`
+			);
+		if (!store) {
+			setting.setDesc(
+				"当前 Obsidian 不支持 SecretStorage。请升级到 1.11.4 或更高版本；不会回退为明文保存。"
+			);
+			return;
+		}
+
+		let pending = "";
+		const secret = new SecretComponent(this.app, setting.controlEl)
+			.setValue("")
+			.onChange((value) => {
+				pending = value;
+			});
+		setting.addButton((button) =>
+			button
+				.setButtonText("安全保存")
+				.setCta()
+				.onClick(async () => {
+					if (!pending.trim()) {
+						new Notice("请输入密钥后再保存");
+						return;
+					}
+					saveProviderSecret(
+						this.plugin.talosSettings,
+						field,
+						pending,
+						store
+					);
+					await this.plugin.saveTalosSettings();
+					pending = "";
+					secret.setValue("");
+					new Notice(`${name} 已写入 Obsidian SecretStorage`);
+					this.rerender();
+				})
+		);
+	}
+
+	private async testApiConnection(
+		kind: "anthropic" | "openai"
+	): Promise<void> {
+		const field =
+			kind === "anthropic" ? "anthropicApiKey" : "openaiApiKey";
+		const key = this.plugin.readProviderSecret(field);
+		if (!key) {
+			new Notice("请先安全保存 API Key");
+			return;
+		}
+		const configured =
+			kind === "anthropic"
+				? this.plugin.talosSettings.anthropicBaseUrl
+				: this.plugin.talosSettings.openaiBaseUrl;
+		const base =
+			configured.trim() ||
+			(kind === "anthropic"
+				? "https://api.anthropic.com"
+				: "https://api.openai.com");
+		try {
+			const response = await requestUrl({
+				url:
+					kind === "anthropic"
+						? `${base.replace(/\/+$/, "")}/v1/models`
+						: openAiModelsEndpoint(base),
+				method: "GET",
+				headers:
+					kind === "anthropic"
+						? {
+							"x-api-key": key,
+							"anthropic-version": "2023-06-01",
+						}
+						: { Authorization: `Bearer ${key}` },
+				throw: false,
+			});
+			if (response.status >= 200 && response.status < 300) {
+				new Notice("Provider 连接成功");
+			} else {
+				new Notice(`Provider 连接失败（HTTP ${response.status}）`);
+			}
+		} catch {
+			new Notice("Provider 连接失败，请检查 endpoint 与网络");
+		}
+	}
+
+	private renderProviderModuleAccess(
+		c: HTMLElement,
+		providerId: "claude-api" | "openai-compatible",
+		label: string
+	): void {
+		new Setting(c).setName(`${label} · 模块授权`).setHeading();
+		new Setting(c).setDesc(
+			"默认全部允许。关闭某一模块后，只要本次上下文包含该模块，出库门就会在调用 Provider 前阻断，并写入 metadata-only 审计记录。"
+		);
+		const schema = resolveSchema(this.plugin.talosSettings.vaultSchema);
+		for (const key of MODULE_KEYS) {
+			new Setting(c)
+				.setName(SCHEMA_LABELS[key])
+				.setDesc(`当前目录：${schema[key]}`)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							isProviderModuleAllowed(
+								this.plugin.talosSettings.providerModuleAccess,
+								providerId,
+								key
+							)
+						)
+						.setTooltip(`${label} 读取 ${SCHEMA_LABELS[key]}`)
+						.onChange(async (allowed) => {
+							this.plugin.talosSettings.providerModuleAccess =
+								setProviderModuleAllowed(
+									this.plugin.talosSettings.providerModuleAccess,
+									providerId,
+									key,
+									allowed
+								);
+							await this.plugin.saveTalosSettings();
+						})
+				);
+		}
 	}
 
 	// ---------- Tab：界面 ----------
@@ -343,7 +551,7 @@ export class TalosSettingTab extends PluginSettingTab {
 						`识别完成：匹配 ${result.matchedCount}/${result.entries.length} 个模块`
 						+ `，定位 ${Object.keys(result.dataSources).length} 个数据源文件`
 					);
-					this.display();
+					this.rerender();
 				})
 			);
 
@@ -387,7 +595,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					await this.plugin.saveTalosSettings();
 					this.plugin.applyViewSettings();
 					new Notice(`已套用${v === "en" ? "英文" : "中文"}目录预设`);
-					this.display();
+					this.rerender();
 				});
 			});
 
@@ -425,7 +633,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice("控制台已按新的目录映射刷新");
-					this.display();
+					this.rerender();
 				})
 			);
 
@@ -439,7 +647,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice("已恢复默认目录映射");
-					this.display();
+					this.rerender();
 				})
 			);
 	}
@@ -460,18 +668,18 @@ export class TalosSettingTab extends PluginSettingTab {
 	// ---------- Tab：屈原 · 通道 ----------
 	private renderChannel(c: HTMLElement): void {
 		new Setting(c).setDesc(
-			"屈原 Agentic：全库可读写、跑命令、多步任务、流式朗读、语音输入。三通道一处切换，语音与库内人格自动保留。"
+			"云端 AI 为主力，本机 CLI 继续可用。模型可以读取整个 Vault 并提出复杂操作；真正写入、移动、删除或执行命令前，统一进入 TALOS 审批任务。"
 		);
 		new Setting(c)
 			.setName("执行通道")
 			.setDesc(
-				"claude-cli=本机 CLI 满血（需装 claude、仅桌面）；claude-api=直连 Anthropic API（免 CLI、可移动端）；codex=直连 Codex/GPT。后两者人格自动注入库内 灵魂/PERSONA。切换后重开屈原页生效。"
+				"Claude API 直连 Anthropic；OpenAI-compatible 可接 OpenAI 及兼容网关/其他模型 API；本机 CLI 用于本地或高级工具链。切换后重开对话页生效。"
 			)
 			.addDropdown((d) =>
 				d
 					.addOption("claude-cli", "Claude · 本机 CLI（满血）")
 					.addOption("claude-api", "Claude · 直连 API（免 CLI）")
-					.addOption("codex", "Codex / GPT · 直连 OpenAI")
+					.addOption("codex", "OpenAI-compatible · 任意兼容 API")
 					.setValue(this.plugin.talosSettings.engineProvider)
 					.onChange(async (v) => {
 						this.plugin.talosSettings.engineProvider = v;
@@ -480,19 +688,77 @@ export class TalosSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(c).setName("Claude 直连（claude-api）").setHeading();
-		this.textIn(c, "Anthropic API Key", "console.anthropic.com 取。明文存本地 data.json。", "anthropicApiKey");
+		this.secretIn(
+			c,
+			"Anthropic API Key",
+			"仅保存到 Obsidian SecretStorage，不进入 data.json、日志或发行物。",
+			"anthropicApiKey"
+		);
 		this.textIn(c, "Anthropic Base URL", "留空用官方 api.anthropic.com；自建网关/代理填这里。", "anthropicBaseUrl", "(官方)");
+		new Setting(c)
+			.setName("测试 Claude 连接")
+			.setDesc("只验证 endpoint 与鉴权，不发送 Vault 内容。")
+			.addButton((button) =>
+				button.setButtonText("测试连接").onClick(() =>
+					this.testApiConnection("anthropic")
+				)
+			);
 
-		new Setting(c).setName("Codex / GPT（codex）").setHeading();
-		this.textIn(c, "OpenAI API Key", "platform.openai.com 取。明文存本地 data.json。", "openaiApiKey");
+		new Setting(c).setName("OpenAI-compatible API（codex）").setHeading();
+		this.secretIn(
+			c,
+			"OpenAI-compatible API Key",
+			"支持 OpenAI 与兼容 Bearer + Chat Completions 的模型服务。",
+			"openaiApiKey"
+		);
 		this.textIn(c, "OpenAI Base URL", "留空用官方 api.openai.com；自建 OpenAI 兼容网关填这里（填到 host 根，插件自动补 /v1/chat/completions）。", "openaiBaseUrl", "(官方)");
 		this.textIn(c, "OpenAI 模型", "留空用 gpt-4o。可填 gpt-5-codex / gpt-4.1 等。", "openaiModel", "(gpt-4o)");
+		new Setting(c)
+			.setName("测试 OpenAI-compatible 连接")
+			.setDesc("只验证 endpoint 与鉴权，不发送 Vault 内容。")
+			.addButton((button) =>
+				button.setButtonText("测试连接").onClick(() =>
+					this.testApiConnection("openai")
+				)
+			);
 
 		new Setting(c).setName("本机 CLI（claude-cli）").setHeading();
 		this.textIn(c, "claude CLI 路径", "留空自动探测（macOS 用 command -v，Windows 用 where）。也可填绝对路径，如 /opt/homebrew/bin/claude 或 C:\\Users\\你\\AppData\\Roaming\\npm\\claude.cmd。", "jarvisClaudeBin", "(自动探测)");
 		this.textIn(c, "模型", "留空用 CLI 默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(CLI 默认)");
 
 		new Setting(c).setName("通用").setHeading();
+		new Setting(c)
+			.setName("允许模型读取当前 Vault")
+			.setDesc(
+				"开启后 Provider 可读取库内数据来分析与提案；密钥、凭证和隐私门拦截内容仍不会发送。"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.talosSettings.providerVaultAccess)
+					.onChange(async (value) => {
+						this.plugin.talosSettings.providerVaultAccess = value;
+						await this.plugin.saveTalosSettings();
+					})
+			);
+		this.renderProviderModuleAccess(c, "claude-api", "Claude API");
+		this.renderProviderModuleAccess(
+			c,
+			"openai-compatible",
+			"OpenAI-compatible"
+		);
+		new Setting(c)
+			.setName("复杂操作先提案再批准")
+			.setDesc(
+				"保持开启：模型可以全权分析，但写入、移动、删除和命令执行必须生成任务卡，由用户批准后执行。"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.talosSettings.providerManualReview)
+					.onChange(async (value) => {
+						this.plugin.talosSettings.providerManualReview = value;
+						await this.plugin.saveTalosSettings();
+					})
+			);
 		new Setting(c)
 			.setName("默认权限模式")
 			.setDesc("default=每次工具调用都弹卡片审批（最稳）；acceptEdits=自动接受文件编辑；plan=只读规划不落地；bypass=全放开（危险）。面板内可随时切换。")
@@ -638,7 +904,12 @@ export class TalosSettingTab extends PluginSettingTab {
 					})
 			);
 		this.textIn(c, "Edge 朗读音色", "免费中文音色，默认 zh-CN-XiaoxiaoNeural（晓晓·女声）。可填 zh-CN-YunxiNeural（云希·男声）、zh-CN-YunyangNeural（云扬·播报）、zh-HK-HiuMaanNeural（粤语）等。", "edgeTtsVoice");
-		this.textIn(c, "ElevenLabs API Key", "elevenlabs.io 注册后在 Profile 取，免费额度约每月 1 万字符。", "elevenLabsApiKey");
+		this.secretIn(
+			c,
+			"ElevenLabs API Key",
+			"elevenlabs.io 注册后在 Profile 获取。",
+			"elevenLabsApiKey"
+		);
 		this.textIn(c, "ElevenLabs 嗓音 ID", "默认 Daniel（英音男声）。换音色去 ElevenLabs Voices 复制 Voice ID。", "elevenLabsVoiceId");
 		new Setting(c)
 			.setName("ElevenLabs 模型")
@@ -653,7 +924,12 @@ export class TalosSettingTab extends PluginSettingTab {
 						await this.plugin.saveTalosSettings();
 					})
 			);
-		this.textIn(c, "阿里云 API Key", "阿里云百炼(DashScope) API Key，bailian.console.aliyun.com 开通，有免费额度。", "aliyunApiKey");
+		this.secretIn(
+			c,
+			"阿里云 API Key",
+			"阿里云百炼（DashScope）API Key。",
+			"aliyunApiKey"
+		);
 		this.textIn(c, "阿里云音色", "默认 Andre（磁性沉稳男声·屈原感）。备选：Neil(新闻主播)、Eldric Sage(睿智老者)、Cherry(女)。", "aliyunVoice");
 		this.textIn(c, "阿里云模型", "默认 qwen3-tts-flash（快·省·支持中英）。", "aliyunModel");
 		this.textIn(c, "Live2D 模型路径", "库内 *.model3.json 路径，留空用 SVG 角色（详见插件 _README）。", "live2dModelPath");

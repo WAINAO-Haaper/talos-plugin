@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>TALOS · Project Scenes Compact QA</title>
+	<link rel="stylesheet" href="../styles.css">
+	<style>
+		html,body{margin:0;width:100%;min-height:100%;background:#e8e4d9}
+		.talos-console{min-height:100vh}
+		.qa-mark{display:grid;place-items:center;font-weight:900}
+	</style>
+</head>
+<body>
+	<div class="talos-console theme-geometric-modern" data-talos-page="projects">
+		<div class="app">
+			<aside class="sidebar">
+				<section class="card pagenav-card">
+					<div class="section-title"><h2>导航</h2><small>PAGES</small></div>
+					<div class="nav">
+						<div class="nav-group" data-nav-group="flow">
+							<div class="nav-group-label">流转</div>
+							<button class="command"><span class="mark qa-mark">总</span><span class="nav-label">总览</span></button>
+							<button class="command"><span class="mark qa-mark">日</span><span class="nav-label">每日执行</span></button>
+							<button class="command active"><span class="mark qa-mark">项</span><span class="nav-label">项目场景</span></button>
+						</div>
+						<div class="nav-group" data-nav-group="assets">
+							<div class="nav-group-label">资产</div>
+							<button class="command"><span class="mark qa-mark">知</span><span class="nav-label">知识枢纽</span></button>
+							<button class="command"><span class="mark qa-mark">身</span><span class="nav-label">身份上下文</span></button>
+							<button class="command"><span class="mark qa-mark">T</span><span class="nav-label">TALOS 产品</span></button>
+						</div>
+						<div class="nav-group" data-nav-group="system">
+							<div class="nav-group-label">系统</div>
+							<button class="command"><span class="mark qa-mark">健</span><span class="nav-label">系统健康</span></button>
+							<button class="command"><span class="mark qa-mark">能</span><span class="nav-label">能力中心</span></button>
+							<button class="command"><span class="mark qa-mark">库</span><span class="nav-label">全库视图</span></button>
+						</div>
+					</div>
+				</section>
+			</aside>
+			<main class="main">
+				<div class="page-content">
+					<div class="panel-grid project-scene-layout">
+						<section class="panel project-map-panel">
+							<div class="section-title"><h2>项目场景地图</h2><small>04-项目 · 高频项目优先</small></div>
+							<div id="project-grid" class="project-grid"></div>
+						</section>
+						<section class="panel project-entry-panel">
+							<div class="section-title"><h2>场景索引</h2><small>项目入口总地图</small></div>
+							<div class="detail-list">
+								<button class="detail-row"><span class="detail-text"><b>打开场景索引</b><span>04-项目/场景索引.md</span></span></button>
+								<button class="detail-row"><span class="detail-text"><b>打开项目总 README</b><span>04-项目/_README.md</span></span></button>
+							</div>
+						</section>
+					</div>
+				</div>
+			</main>
+		</div>
+	</div>
+	<script>
+		const projects=[
+			["TALOS系统",118,"高频项目",10,181,"TALOS 品牌简介 v1","p0"],
+			["医美医生IP孵化",19,"高频项目",0,26,"品牌卡：轮廓","p0"],
+			["云心守护",7,"高频项目",0,76,"前端架构设计","p0"],
+			["AI社群运营",4,"高频项目",0,44,"AI社群运营","p0"],
+			["财神1号外脑系统",17,"观察项目",0,173,"技术方案与修订账表","p1"],
+			["Claude快捷键盘",9,"观察项目",13,49,"Claude 快捷键盘项目","p1"],
+			["EchoCore-智枢",4,"观察项目",6,34,"融合代码评估报告","p1"],
+			["AI算命Prompt私域变现",3,"观察项目",0,18,"开源八字算法","p1"],
+			["个人大外脑",2,"观察项目",0,0,"架构移植说明","p2"],
+			["GEO个人站点",1,"观察项目",0,16,"项目首页","p2"],
+			["医疗数据资产可信智能体",1,"观察项目",0,0,"可信数据方案","p2"],
+			["科研文献智能体",1,"观察项目",0,0,"文献处理方案","p2"]
+		];
+		const grid=document.querySelector("#project-grid");
+		for(const [name,count,status,done,total,latest,priority] of projects){
+			const pct=total?Math.round(done/total*100):0;
+			const card=document.createElement("button");
+			card.className=`project-card priority-${priority}`;
+			card.innerHTML=`<b>${name}</b><span class="big">${count}</span><small>${status}</small>${total?`<div class="proj-progress"><div class="proj-progress-head"><small>任务进度</small><small class="proj-progress-num">${pct}% · ${done}/${total}</small></div><div class="proj-progress-track"><div class="proj-progress-fill" style="width:${pct}%"></div></div></div>`:`<small class="proj-progress-none">无任务清单 · 进度未跟踪</small>`}<small class="module-latest">最新：${latest}</small>`;
+			grid.append(card);
+		}
+	</script>
+</body>
+</html>

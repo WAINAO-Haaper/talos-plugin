@@ -1,0 +1,5 @@
+/* Synthetic WP6 plugin artifact. */
+const VIEW_TYPE_CLAUDIAN = "claudian-view";
+const LEGACY_COMMAND_IDS = ["open-quyuan-v2", "open-jarvis"];
+void VIEW_TYPE_CLAUDIAN;
+void LEGACY_COMMAND_IDS;

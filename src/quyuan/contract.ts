@@ -1,3 +1,5 @@
+import type { ProviderCapability } from "../ai/provider/types";
+
 export type QuyuanProviderId = "claude" | "codex" | "opencode" | "pi";
 
 export type QuyuanCapability =
@@ -88,3 +90,22 @@ export function checkQuyuanCapabilityContract(
 	};
 }
 
+export function toTalosProviderCapabilities(
+	snapshot: QuyuanCapabilitySnapshot
+): ReadonlySet<ProviderCapability> {
+	const capabilities = new Set<ProviderCapability>([
+		"chat",
+		"stream",
+		"usage",
+	]);
+	if (snapshot.supported.has("cancel")) capabilities.add("cancel");
+	if (snapshot.supported.has("resume")) capabilities.add("resume");
+	if (snapshot.supported.has("fork")) capabilities.add("fork");
+	if (
+		snapshot.supported.has("permission-approval") ||
+		snapshot.supported.has("tool-rendering")
+	) {
+		capabilities.add("tools");
+	}
+	return capabilities;
+}

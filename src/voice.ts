@@ -1,5 +1,10 @@
 import { App, FileSystemAdapter, Notice, requestUrl } from "obsidian";
 import type { TalosSettings } from "./settings";
+import {
+	providerSecretStoreFromApp,
+	readProviderSecret,
+} from "./ai/provider/secret-storage-runtime";
+import type { LegacySecretField } from "./ai/provider/settings-migration";
 
 // ============================================================
 // 屈原语音助手（一期）
@@ -191,8 +196,11 @@ function permissionArgs(mode: string): string[] {
 }
 
 // ElevenLabs 神经语音：用 Obsidian requestUrl 调接口（避开 CORS），返回 mp3 字节
-async function elevenLabsTts(settings: TalosSettings, text: string): Promise<ArrayBuffer> {
-	const key = settings.elevenLabsApiKey.trim();
+async function elevenLabsTts(
+	settings: TalosSettings,
+	text: string,
+	key: string
+): Promise<ArrayBuffer> {
 	if (!key) throw new Error("未填 ElevenLabs API Key");
 	const voice = settings.elevenLabsVoiceId.trim() || "onwK4e9ZLuTAKqWW03F9";
 	const model = settings.elevenLabsModel.trim() || "eleven_turbo_v2_5";
@@ -212,8 +220,11 @@ async function elevenLabsTts(settings: TalosSettings, text: string): Promise<Arr
 }
 
 // 阿里云千问 TTS（DashScope/百炼）：POST 拿音频 URL，再交给 Audio 播放
-async function aliyunTtsUrl(settings: TalosSettings, text: string): Promise<string> {
-	const key = settings.aliyunApiKey.trim();
+async function aliyunTtsUrl(
+	settings: TalosSettings,
+	text: string,
+	key: string
+): Promise<string> {
 	if (!key) throw new Error("未填阿里云 API Key");
 	const voice = settings.aliyunVoice.trim() || "Andre";
 	const model = settings.aliyunModel.trim() || "qwen3-tts-flash";
@@ -327,6 +338,16 @@ export class JarvisController {
 	constructor(app: App, settings: TalosSettings) {
 		this.app = app;
 		this.settings = settings;
+	}
+
+	private secret(field: LegacySecretField): string {
+		return (
+			readProviderSecret(
+				this.settings,
+				field,
+				providerSecretStoreFromApp(this.app)
+			)?.trim() ?? ""
+		);
 	}
 
 	mount(container: HTMLElement): void {
@@ -514,18 +535,25 @@ export class JarvisController {
 	private usingApiEngine(): boolean {
 		const s = this.settings;
 		return (
-			(s.ttsEngine === "elevenlabs" && !!s.elevenLabsApiKey.trim()) ||
-			(s.ttsEngine === "aliyun" && !!s.aliyunApiKey.trim())
+			(s.ttsEngine === "elevenlabs" &&
+				!!this.secret("elevenLabsApiKey")) ||
+			(s.ttsEngine === "aliyun" && !!this.secret("aliyunApiKey"))
 		);
 	}
 
 	private speak(text: string, isTest = false, continued = false): void {
 		// 神经语音引擎
-		if (this.settings.ttsEngine === "aliyun" && this.settings.aliyunApiKey.trim()) {
+		if (
+			this.settings.ttsEngine === "aliyun" &&
+			this.secret("aliyunApiKey")
+		) {
 			void this.speakAliyun(text);
 			return;
 		}
-		if (this.settings.ttsEngine === "elevenlabs" && this.settings.elevenLabsApiKey.trim()) {
+		if (
+			this.settings.ttsEngine === "elevenlabs" &&
+			this.secret("elevenLabsApiKey")
+		) {
 			void this.speakEleven(text);
 			return;
 		}
@@ -627,7 +655,11 @@ export class JarvisController {
 	private async speakEleven(text: string): Promise<void> {
 		this.setStatus("合成中…", "thinking");
 		try {
-			const buf = await elevenLabsTts(this.settings, text);
+			const buf = await elevenLabsTts(
+				this.settings,
+				text,
+				this.secret("elevenLabsApiKey")
+			);
 			this.stopAudio();
 			const blob = new Blob([buf], { type: "audio/mpeg" });
 			const url = URL.createObjectURL(blob);
@@ -651,7 +683,11 @@ export class JarvisController {
 	private async speakAliyun(text: string): Promise<void> {
 		this.setStatus("合成中…", "thinking");
 		try {
-			const url = await aliyunTtsUrl(this.settings, text);
+			const url = await aliyunTtsUrl(
+				this.settings,
+				text,
+				this.secret("aliyunApiKey")
+			);
 			this.stopAudio();
 			const audio = new Audio(url);
 			this.audio = audio;

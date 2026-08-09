@@ -285,7 +285,7 @@ export async function collectCandidates(
 		if (!inside) continue;
 		const s = ln.trim();
 		if (s.startsWith("- ") && !s.includes("（无）") && !s.includes("（空）")) {
-			out.push({ title: stripMd(s.slice(2)).slice(0, 70), meta: "待确认", path: file.path });
+			out.push({ title: stripMd(s.slice(2)), meta: "待确认", path: file.path });
 		}
 	}
 	return out;

@@ -1,0 +1,7 @@
+{
+	"id": "talos",
+	"name": "TALOS",
+	"version": "0.4.0",
+	"minAppVersion": "1.8.0",
+	"isDesktopOnly": true
+}

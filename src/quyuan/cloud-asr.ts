@@ -1,5 +1,7 @@
 import { requestUrl } from "obsidian";
 import { VadMic, encodeWavBase64 } from "./vad-mic";
+import type { TalosSettings } from "../settings";
+import type { VadMicHandlers } from "./vad-mic";
 
 // ============================================================
 // 屈原 · 云端语音识别（千问 DashScope qwen3-asr-flash · 同步 HTTP）
@@ -17,8 +19,16 @@ interface DashScopeAsrResponse {
 }
 
 export class CloudAsr extends VadMic {
+	constructor(
+		settings: TalosSettings,
+		handlers: VadMicHandlers,
+		private readonly getApiKey: () => string | null = () => null
+	) {
+		super(settings, handlers);
+	}
+
 	protected preflight(): string | null {
-		return this.settings.aliyunApiKey?.trim()
+		return this.getApiKey()?.trim()
 			? null
 			: "未配置阿里云 DashScope API Key（设置 → 语音 → 阿里云）";
 	}
@@ -26,7 +36,7 @@ export class CloudAsr extends VadMic {
 	protected async transcribe(samples: Float32Array, sampleRate: number): Promise<string> {
 		const wavB64 = encodeWavBase64(samples, sampleRate);
 		if (!wavB64) return "";
-		const key = this.settings.aliyunApiKey.trim();
+		const key = this.getApiKey()?.trim() ?? "";
 		const asrOptions: Record<string, unknown> = { enable_itn: true };
 		if ((this.settings.jarvisSttLang || "zh-CN").toLowerCase().startsWith("zh")) {
 			asrOptions.language = "zh";

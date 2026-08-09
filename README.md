@@ -1,6 +1,6 @@
 # TALOS 控制台插件
 
-![obsidian](https://img.shields.io/badge/Obsidian-1.8.0%2B-purple)
+![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-purple)
 ![platform](https://img.shields.io/badge/platform-Desktop%20only-lightgrey)
 ![license](https://img.shields.io/badge/license-Proprietary-red)
 ![CI](https://github.com/WAINAO-Haaper/talos-plugin/actions/workflows/ci.yml/badge.svg)
@@ -27,7 +27,7 @@
 - **语音 I/O**：STT（WebSpeech / 本地 ASR）+ 三引擎 TTS（system / elevenlabs / aliyun），流式边生成边朗读。
 - **七套主题**：Aurora 原版、Nebula 深色宇宙、Animal Island 小岛、Macintosh 知识工作站、数据流·动态终端、柔光浮雕·Neumorphism、几何现代主义·Bauhaus。
 - **视觉系统**：屈原球形粒子 Logo 语音工作区（6727 粒子）、总览像素机器人巡航、全库笔记热力图、13 模块地图、健康趋势图。
-- **发布作战室**：G1–G3 + PUB-W 发布闭环看板。
+- **发布作战室**：统一展示 G1–G7 产品发布门；PUB-W 仅表示内容发布动作，不参与产品放行。
 
 ## 📦 安装
 
@@ -35,7 +35,7 @@
 
 ### 前置要求
 
-- Obsidian **≥ 1.8.0**，桌面端（macOS / Windows / Linux，`isDesktopOnly`）。
+- Obsidian **≥ 1.11.4**，桌面端（macOS / Windows / Linux，`isDesktopOnly`）。
 - 屈原 Agent 能力需要本机已安装 `claude` CLI（[Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) 会调用），并配置 `ANTHROPIC_*` 环境变量；或使用 BYOK 自带 API Key。
 - 可选：语音 TTS（ElevenLabs / 阿里云）与本地 ASR 对应的密钥与运行时。
 
@@ -52,6 +52,7 @@
 2. 在「总览」查看运行判断与指标矩阵，左侧导航切到各业务页。
 3. 打开「屈原」进入语音工作台：开口说话或输入指令，Agent 流式执行全库任务并朗读回复；首次工具调用会弹出权限审批卡。
 4. 命令面板（`Ctrl/Cmd+P`）搜索「TALOS」可发现刷新统计、生成诊断报告、打开完整工作台等命令。
+5. 命令面板选择「TALOS：全库问答」可通过 canonical `talos-ask` 入口调用同一套检索、Provider、隐私门和审批治理。
 
 ## 🎨 外观与主题
 
@@ -67,7 +68,14 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 
 总览采用「缩小主判断 → 2×2 结果指标 → 二级状态小卡 → 焦点/建议下钻区」的行动层级。数据来自任务流、发布作战室、健康记录、审批池、收件箱与偏好候选池；首屏不再把单个模块横向拉满，而是把运行判断和第一优先级收成左侧中等宽度指挥卡，今日执行、发布闭环、系统准备度、数据新鲜度以右侧指标矩阵承接；待处理、焦点、收件箱和巡检降为小状态卡。桌面保留左侧完整导航，680px 以下改为横向导航轨道。
 
-子页继续承载 **能力中心**、知识库分布、健康趋势、13 模块地图、全库笔记热力图与 TALOS 发布作战室（G1-G3 + PUB-W）。10 个业务页顶部统一提供模块首屏，并沿用总览单模块优化方案：左侧主说明缩成纸面指挥块，标题卡用模块身份色做浅底、左侧色条、图标和英文小标题强调；右侧真实统计固定为 2×2 纸面矩阵，动作按钮统一收在下方；标题卡、统计卡和动作按钮统一具备强化鼠标悬停反馈，只有真实可点的卡片显示手型。屈原页不共用该组件，避免干扰语音工作台布局。
+子页继续承载 **能力中心**、知识库分布、健康趋势、13 模块地图、全库笔记热力图与 TALOS 发布作战室（G1–G7；PUB-W 为独立内容发布动作）。10 个业务页顶部统一提供模块首屏，并沿用总览单模块优化方案：左侧主说明缩成纸面指挥块，标题卡用模块身份色做浅底、左侧色条、图标和英文小标题强调；右侧真实统计固定为 2×2 纸面矩阵，动作按钮统一收在下方；标题卡、统计卡和动作按钮统一具备强化鼠标悬停反馈，只有真实可点的卡片显示手型。屈原页不共用该组件，避免干扰语音工作台布局。
+
+### 统一产品发布门
+
+Standard 是 TALOS 2.x 的唯一产品发布权威；Plugin 只贡献组件证据。当前 G1、G2、
+G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
+`formal_release_allowed=false`。只有 G1–G7 全部通过并获得单独发布授权后，才能创建
+正式产品 tag 或 Release。PUB-W 属于内容发布工作流，不得作为产品门或替代 G1–G7。
 
 ### 导航信息架构
 
@@ -79,6 +87,9 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 | 流转 | 收件箱、输出作战室、项目场景 | `00-收件箱/`、`输出/`、`04-项目/` |
 | 资产 | 知识枢纽、身份上下文、TALOS 产品 | `02-洞察/`、`03-素材/`、`Identity/`、`灵魂/`、TALOS 七分区 |
 | 系统 | 系统健康、能力中心、全库视图 | `System/`、命令/Agents/Skills、六大内容目录 |
+| 设置 | 插件界面、目录映射、数据源、AI Provider、屈原 | 复用 TALOS 原生设置渲染与保存逻辑 |
+
+“设置”是第七个一级导航入口，固定在“系统中心”之后；打开控制台即可使用，不依赖命令面板。控制台内嵌页与 Obsidian 插件设置页共用 `TalosSettingTab.renderInto()`，不存在两份配置状态或保存分支。
 
 `01-日志/`、`05-归档/`、`模板/`、`自动化/`、`配置/`、`template/`、`attachments/` 和 `Excalidraw/` 不单独占常驻入口：它们在「全库视图」「系统健康」或「能力中心」中按职责聚合。
 
@@ -96,7 +107,11 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 - **治理先于写入**：写操作走 TALOS 审批策略；Markdown 行内编辑会先读取目标目录 `_README.md`，`PROFILE.md`、`Identity/`、`灵魂/` 保留硬闸。
 - **TALOS 差异层**：沿用现有语音总开关与三种 TTS，屈原 v2 的流式回复可边生成边朗读；旧侧栏和 STT 暂留作回滚/迁移层。
 
-默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。完整 v2 工作台与旧版回滚入口保留在命令面板。独立 Claudian 插件继续启用并使用自己的 `.claudian/` 会话与设置，TALOS 内嵌工作台使用 `.talos/quyuan/`，两者不混写。
+默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。完整 v2 工作台与旧版回滚入口保留在命令面板。TALOS 已内嵌 Claudian 工作台能力，不依赖外部 Claudian 插件；如用户仍保留独立插件，它继续使用自己的 `.claudian/` 会话，TALOS 内嵌工作台使用 `.talos/quyuan/`，两者不混写。
+
+### WP7 升级迁移
+
+从 0.4.x 升级时，插件使用独立 migration schema 分步保留 TALOS 设置、Claudian tabs、文字/语音会话、语音与 ASR/TTS 开关、自定义目录映射和旧命令入口。明文 Provider key 只有在写入并读回验证 Obsidian SecretStorage 后才从插件设置删除；SecretStorage 不可用或启动中断时保持 migration v0，下次启动从已完成步骤继续。本地旧命令 `open-quyuan-v2`、`open-jarvis` 和旧 Claudian view type 至少保留一个版本周期。
 
 ### 屈原 Agentic（B 方案 · v1 回滚层）
 
@@ -141,7 +156,7 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 - `src/approval-actions.ts` / `approval-executor.ts` 待审批的纯文本变换内核与授权执行器（配 `approval-*.selftest.mjs` 沙盘自测）
 - `src/jarvis/` **屈原 v1 回滚层**：保留原自研多通道 Agent、会话、语音与权限实现；迁移期不删除
 - `src/voice.ts` 旧屈原一期（已停用，保留不删）
-- `styles.css` 七套完整主题（scope 在 `.talos-console`）；`styles.talos.css` / `styles.quyuan-shell.css` 分域样式
+- `styles.css` 七套完整主题（scope 在 `.talos-console`）；`styles.talos.css` / `styles.quyuan-shell.css` 分域样式，`styles.layout-overrides.css` 保存已验收的控制台与对话布局覆盖并由构建器最后合并
 - `prototype/` 设计稿原型与视觉回验页面（详见 `docs/design-qa.md`）；`theme-preview.html` 主题本地回验
 
 ## 🧪 测试

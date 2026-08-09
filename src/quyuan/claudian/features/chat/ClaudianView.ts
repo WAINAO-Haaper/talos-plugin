@@ -56,12 +56,16 @@ export class ClaudianView extends ItemView {
   private talosStatusTextEl: HTMLElement | null = null;
   private talosPermissionSelectEl: HTMLSelectElement | null = null;
   private talosCapabilitiesPanelEl: HTMLElement | null = null;
+  private embeddedMode = false;
+  private surfaceActive = false;
 
   // Header elements
   private historyDropdown: HTMLElement | null = null;
 
   // Event refs for cleanup
   private eventRefs: EventRef[] = [];
+  private workspaceEventRefs: EventRef[] = [];
+  private domCleanups: Array<() => void> = [];
 
   // Debouncing for tab bar updates
   private pendingTabBarUpdate: ScheduledAnimationFrame | null = null;
@@ -161,6 +165,7 @@ export class ClaudianView extends ItemView {
 
   async onOpen() {
     try {
+      this.surfaceActive = true;
       await this.openWorkbench();
     } catch (error) {
       console.error('TALOS Quyuan workbench view failed to open', error);
@@ -170,18 +175,19 @@ export class ClaudianView extends ItemView {
     }
   }
 
-  private async openWorkbench(): Promise<void> {
+  private async openWorkbench(containerOverride?: HTMLElement): Promise<void> {
     // Guard: Hover Editor and similar plugins may call onOpen before DOM is ready.
     // containerEl must exist before we can access contentEl or create elements.
-    if (!this.containerEl) {
+    if (!containerOverride && !this.containerEl) {
       return;
     }
 
     // Use contentEl (standard Obsidian API) as primary target.
     // Hover Editor and other plugins may modify the DOM structure,
     // so we need fallbacks to handle non-standard scenarios.
-    let container: HTMLElement | null =
-      this.contentEl ?? (this.containerEl.children[1] as HTMLElement | null);
+    let container: HTMLElement | null = containerOverride
+      ?? this.contentEl
+      ?? (this.containerEl.children[1] as HTMLElement | null);
 
     if (!container) {
       // Last resort: create our own container inside containerEl
@@ -268,7 +274,9 @@ export class ClaudianView extends ItemView {
   }
 
   private renderOpenError(error: unknown): void {
-    const container = this.contentEl ?? this.viewContainerEl ?? this.containerEl;
+    const container = this.embeddedMode
+      ? this.viewContainerEl
+      : this.contentEl ?? this.viewContainerEl ?? this.containerEl;
     if (!container) return;
     container.empty();
     container.addClass('claudian-container');
@@ -299,6 +307,7 @@ export class ClaudianView extends ItemView {
   }
 
   async onClose() {
+    this.surfaceActive = false;
     if (this.pendingTabBarUpdate !== null) {
       cancelScheduledAnimationFrame(this.pendingTabBarUpdate);
       this.pendingTabBarUpdate = null;
@@ -308,6 +317,12 @@ export class ClaudianView extends ItemView {
       this.plugin.app.vault.offref(ref);
     }
     this.eventRefs = [];
+    for (const ref of this.workspaceEventRefs) {
+      this.plugin.app.workspace.offref(ref);
+    }
+    this.workspaceEventRefs = [];
+    for (const cleanup of this.domCleanups) cleanup();
+    this.domCleanups = [];
 
     await this.persistTabStateImmediate();
 
@@ -318,6 +333,56 @@ export class ClaudianView extends ItemView {
     this.tabBar?.destroy();
     this.tabBar = null;
     this.scope = null;
+  }
+
+  async mountEmbedded(
+    container: HTMLElement,
+    namespace: 'chat',
+  ): Promise<void> {
+    if (namespace !== 'chat') {
+      throw new Error('ClaudianView 只允许 chat 会话命名空间');
+    }
+    this.embeddedMode = true;
+    this.surfaceActive = true;
+    if (this.tabManager && this.viewContainerEl) {
+      container.appendChild(this.viewContainerEl);
+      return;
+    }
+
+    const root = container.ownerDocument.createElement('div');
+    root.className = 'claudian-embedded-root';
+    container.appendChild(root);
+    try {
+      await this.openWorkbench(root);
+    } catch (error) {
+      this.renderOpenError(error);
+      throw error;
+    }
+  }
+
+  async suspendEmbedded(): Promise<void> {
+    if (!this.embeddedMode || !this.surfaceActive) return;
+    this.surfaceActive = false;
+    try {
+      await this.persistTabStateImmediate();
+    } finally {
+      this.viewContainerEl?.remove();
+    }
+  }
+
+  focusComposer(): void {
+    this.tabManager?.getActiveTab()?.dom.inputEl.focus();
+  }
+
+  isEmbeddedSurfaceActive(): boolean {
+    return this.embeddedMode && this.surfaceActive;
+  }
+
+  async destroyEmbedded(): Promise<void> {
+    if (!this.embeddedMode) return;
+    await this.onClose();
+    this.viewContainerEl?.remove();
+    this.embeddedMode = false;
   }
 
   // ============================================
@@ -443,7 +508,8 @@ export class ClaudianView extends ItemView {
    * The wrapper is moved to the active tab's nav row on tab switches.
    */
   private buildNavRowContent(): HTMLElement {
-    const activeDocument = this.containerEl.ownerDocument;
+    const activeDocument =
+      this.viewContainerEl?.ownerDocument ?? this.containerEl.ownerDocument;
 
     const fragment = activeDocument.createDocumentFragment();
 
@@ -613,7 +679,9 @@ export class ClaudianView extends ItemView {
       const items = this.tabManager.getTabBarItems();
       this.tabBar.update(items);
       this.updateTabBarVisibility();
-    }, this.containerEl.ownerDocument.defaultView ?? null);
+    }, this.viewContainerEl?.ownerDocument.defaultView
+      ?? this.containerEl.ownerDocument.defaultView
+      ?? null);
   }
 
   private updateTabBarVisibility(): void {
@@ -770,15 +838,22 @@ export class ClaudianView extends ItemView {
   // ============================================
 
   private wireEventHandlers(): void {
-    const activeDocument = this.containerEl.ownerDocument;
+    const eventHost = this.viewContainerEl ?? this.containerEl;
+    const activeDocument = eventHost.ownerDocument;
 
     // Document-level click to close dropdowns
-    this.registerDomEvent(activeDocument, 'click', () => {
+    const closeHistory = () => {
+      if (!this.surfaceActive) return;
       this.historyDropdown?.removeClass('visible');
-    });
+    };
+    activeDocument.addEventListener('click', closeHistory);
+    this.domCleanups.push(() =>
+      activeDocument.removeEventListener('click', closeHistory)
+    );
 
     // View-level Shift+Tab to toggle plan mode (works from any focused element)
-    this.registerDomEvent(this.containerEl, 'keydown', (e: KeyboardEvent) => {
+    const handlePlanShortcut = (e: KeyboardEvent) => {
+      if (!this.surfaceActive) return;
       if (e.key === 'Tab' && e.shiftKey && !e.isComposing) {
         e.preventDefault();
         const activeTab = this.tabManager?.getActiveTab();
@@ -798,12 +873,17 @@ export class ClaudianView extends ItemView {
           updatePlanModeUI(activeTab, this.plugin, 'plan');
         }
       }
-    });
+    };
+    eventHost.addEventListener('keydown', handlePlanShortcut);
+    this.domCleanups.push(() =>
+      eventHost.removeEventListener('keydown', handlePlanShortcut)
+    );
 
     // View scopes are the Obsidian-owned boundary for main-area tab hotkeys.
     // Returning false consumes Escape before Obsidian uses it for pane navigation.
     this.scope = new Scope(this.app.scope);
     this.scope.register([], 'Escape', (e: KeyboardEvent) => {
+      if (!this.surfaceActive) return;
       if (e.isComposing) return;
       if (!e.defaultPrevented) {
         const activeTab = this.tabManager?.getActiveTab();
@@ -814,6 +894,7 @@ export class ClaudianView extends ItemView {
       return false;
     });
     this.scope.register(['Mod'], 'Enter', (e: KeyboardEvent) => {
+      if (!this.surfaceActive) return;
       if (e.isComposing || e.defaultPrevented) return;
       const activeTab = this.tabManager?.getActiveTab();
       if (!activeTab) return;
@@ -824,6 +905,7 @@ export class ClaudianView extends ItemView {
 
     // Vault events - forward to active tab's file context manager
     const markCacheDirty = (includesFolders: boolean): void => {
+      if (!this.surfaceActive) return;
       const mgr = this.tabManager?.getActiveTab()?.ui.fileContextManager;
       if (!mgr) return;
       mgr.markFileCacheDirty();
@@ -837,8 +919,9 @@ export class ClaudianView extends ItemView {
     );
 
     // File open event
-    this.registerEvent(
+    this.workspaceEventRefs.push(
       this.plugin.app.workspace.on('file-open', (file) => {
+        if (!this.surfaceActive) return;
         if (file) {
           this.tabManager?.getActiveTab()?.ui.fileContextManager?.handleFileOpen(file);
         }
@@ -846,7 +929,8 @@ export class ClaudianView extends ItemView {
     );
 
     // Click outside to close mention dropdown
-    this.registerDomEvent(activeDocument, 'click', (e) => {
+    const closeMention = (e: MouseEvent) => {
+      if (!this.surfaceActive) return;
       const activeTab = this.tabManager?.getActiveTab();
       if (activeTab) {
         const fcm = activeTab.ui.fileContextManager;
@@ -854,7 +938,11 @@ export class ClaudianView extends ItemView {
           fcm.hideMentionDropdown();
         }
       }
-    });
+    };
+    activeDocument.addEventListener('click', closeMention);
+    this.domCleanups.push(() =>
+      activeDocument.removeEventListener('click', closeMention)
+    );
   }
 
   // ============================================

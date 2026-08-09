@@ -1,5 +1,11 @@
-import { ItemView, Notice, WorkspaceLeaf, setIcon } from "obsidian";
+import {
+	ItemView,
+	Notice,
+	WorkspaceLeaf,
+	setIcon,
+} from "obsidian";
 import type TalosPlugin from "./main";
+import { TalosSettingTab } from "./settings";
 import type {
 	DistBar,
 	FocusItem,
@@ -44,10 +50,23 @@ import {
 	PublishBackfillModal,
 	approveAndExecuteApprovalWithMockModel,
 	decidePendingApproval,
+	decidePreferenceCandidate,
 	deepResearch,
 	openFile,
 	vaultLint,
 } from "./actions";
+import { TaskDrawer } from "./ui/task-drawer";
+import { ConsoleActionPanel } from "./ui/console-action-panel";
+import {
+	LEGACY_PAGE_KEYS,
+	PRIMARY_NAVIGATION,
+	WORKBENCH_MODULES,
+	primaryPage,
+} from "./ui/navigation-model";
+import { TalosPageRouter } from "./ui/page-router";
+import { createConstructorIsolatedProxy } from "./ui/constructor-isolated-proxy";
+import { TalosChatSurface } from "./quyuan/chat-surface";
+import type { ClaudianView } from "./quyuan/claudian/features/chat/ClaudianView";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -117,15 +136,6 @@ interface Collected {
 	talosProduct: TalosProduct;
 }
 
-type NavGroupKey = "today" | "flow" | "assets" | "system";
-
-interface PageDef {
-	key: string;
-	label: string;
-	icon: string;
-	group: NavGroupKey;
-}
-
 interface OverviewAttention {
 	title: string;
 	meta: string;
@@ -139,6 +149,13 @@ interface OverviewAttention {
 interface ApprovalDecisionFeedback {
 	title: string;
 	decision: "approve" | "reject" | "execute";
+	path?: string;
+	at: string;
+}
+
+interface CandidateDecisionFeedback {
+	title: string;
+	decision: "approve" | "reject";
 	path?: string;
 	at: string;
 }
@@ -168,43 +185,6 @@ interface ModuleHeroOptions {
 	actions?: ModuleHeroAction[];
 }
 
-const PAGES: PageDef[] = [
-	{ key: "overview", label: "总览", icon: "layout-dashboard", group: "today" },
-	{ key: "daily", label: "每日执行", icon: "calendar-check", group: "today" },
-	{ key: "jarvis", label: "屈原", icon: "ear", group: "today" },
-	{ key: "inbox", label: "收件箱", icon: "inbox", group: "flow" },
-	{ key: "output", label: "输出作战室", icon: "send", group: "flow" },
-	{ key: "projects", label: "项目场景", icon: "folder-kanban", group: "flow" },
-	{ key: "knowledge", label: "知识枢纽", icon: "brain", group: "assets" },
-	{ key: "identity", label: "身份上下文", icon: "fingerprint", group: "assets" },
-	{ key: "talos", label: "TALOS 产品", icon: "filter", group: "assets" },
-	{ key: "health", label: "系统健康", icon: "activity", group: "system" },
-	{ key: "capability", label: "能力中心", icon: "blocks", group: "system" },
-	{ key: "vault", label: "全库视图", icon: "database", group: "system" },
-];
-
-const NAV_GROUPS: { key: NavGroupKey; label: string }[] = [
-	{ key: "today", label: "现在" },
-	{ key: "flow", label: "流转" },
-	{ key: "assets", label: "资产" },
-	{ key: "system", label: "系统" },
-];
-
-const PAGE_SUBTITLES: Record<string, string> = {
-	overview: "个人上下文宇宙",
-	jarvis: "语音代理与命令执行",
-	daily: "启动、输出、回填、收工",
-	output: "发布、回填、分发节奏",
-	talos: "产品漏斗与交付闸门",
-	inbox: "收件、消化、待处理",
-	health: "上下文健康与系统风险",
-	projects: "项目场景与活跃线索",
-	knowledge: "洞察、素材、知识节点",
-	identity: "用户身份、AI 灵魂与工作记忆",
-	capability: "命令、Agent 与工作流",
-	vault: "全库分布与热力图",
-};
-
 export class TalosView extends ItemView {
 	plugin: TalosPlugin;
 
@@ -219,6 +199,7 @@ export class TalosView extends ItemView {
 	private cosmosClockEl!: HTMLElement;
 	private approvalCardEl!: HTMLElement;
 	private approvalSideEl!: HTMLElement;
+	private pageTabsEl!: HTMLElement;
 	private pageEl!: HTMLElement;
 	private stampEl!: HTMLElement;
 	private patrolEl!: HTMLElement;
@@ -226,17 +207,32 @@ export class TalosView extends ItemView {
 	private lastPublished: number | undefined;
 
 	private data: Collected | null = null;
-	private activePage = "overview";
+	private readonly pageRouter = new TalosPageRouter("overview");
 	private activeCap = "commands";
 	private selectedModuleByScope = new Map<string, string>();
 	private lastApprovalFeedback: ApprovalDecisionFeedback | null = null;
+	private lastCandidateFeedback: CandidateDecisionFeedback | null = null;
 	private jarvis: QuyuanVoicePanelLike | null = null;
 	private jarvisMounted = false;
+	private chatSurface: TalosChatSurface | null = null;
+	private chatWorkbenchView: ClaudianView | null = null;
+	private chatMounted = false;
 	private clockTimer: number | null = null;
+	private taskDrawer: TaskDrawer | null = null;
+	private actionPanel: ConsoleActionPanel | null = null;
+	private embeddedSettingsTab: TalosSettingTab | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
 		this.plugin = plugin;
+	}
+
+	private get activePage(): string {
+		return this.pageRouter.renderKey();
+	}
+
+	private set activePage(pageKey: string) {
+		this.pageRouter.navigate(pageKey);
 	}
 
 	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
@@ -256,6 +252,7 @@ export class TalosView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		try {
+			this.removeOrphanedEmbeddedWorkbenchContent();
 			if (this.clockTimer !== null) {
 				window.clearInterval(this.clockTimer);
 				this.clockTimer = null;
@@ -270,8 +267,30 @@ export class TalosView extends ItemView {
 			this.renderViewError(error);
 		}
 	}
+
+	private removeOrphanedEmbeddedWorkbenchContent(): void {
+		const leafContainer = this.containerEl.parentElement;
+		if (!leafContainer) return;
+		for (const orphan of Array.from(
+			leafContainer.querySelectorAll<HTMLElement>(
+				':scope > .workspace-leaf-content[data-type="talos-quyuan-view"]'
+			)
+		)) {
+			if (orphan !== this.containerEl) orphan.remove();
+		}
+	}
+
 	async onClose(): Promise<void> {
 		this.unmountJarvisSafely();
+		await this.chatSurface?.dispose();
+		this.chatSurface = null;
+		this.chatWorkbenchView = null;
+		this.chatMounted = false;
+		this.taskDrawer?.unmount();
+		this.taskDrawer = null;
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
+		this.embeddedSettingsTab = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
 			this.clockTimer = null;
@@ -290,6 +309,15 @@ export class TalosView extends ItemView {
 	// ---------- 外壳 ----------
 	private buildShell(): void {
 		const root = this.contentEl;
+		if (this.chatMounted) {
+			this.chatMounted = false;
+			void this.chatSurface?.unmount();
+		}
+		this.taskDrawer?.unmount();
+		this.taskDrawer = null;
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
+		this.embeddedSettingsTab = null;
 		root.empty();
 		root.addClass("talos-console");
 		this.applySettings();
@@ -417,19 +445,36 @@ export class TalosView extends ItemView {
 
 	private applyPageState(): void {
 		this.contentEl.setAttribute("data-talos-page", this.activePage);
-		for (const page of PAGES) this.contentEl.classList.remove(`page-${page.key}`);
+		for (const pageKey of [...LEGACY_PAGE_KEYS, "chat", "settings"]) {
+			this.contentEl.classList.remove(`page-${pageKey}`);
+		}
+		for (const page of PRIMARY_NAVIGATION) {
+			this.contentEl.classList.remove(`section-${page.key}`);
+		}
 		this.contentEl.classList.add(`page-${this.activePage}`);
+		this.contentEl.classList.add(
+			`section-${this.pageRouter.current().primary}`
+		);
 		this.updateCosmosHeader();
 	}
 
 	private updateCosmosHeader(): void {
 		if (!this.cosmosTitleEl || !this.cosmosSubEl || !this.cosmosStatusTextEl) return;
-		const page = PAGES.find((p) => p.key === this.activePage);
-		if (!page) return;
-		const isOverview = page.key === "overview";
-		this.cosmosTitleEl.setText(isOverview ? this.plugin.talosSettings.mainTitle : page.label);
-		this.cosmosSubEl.setText(PAGE_SUBTITLES[page.key] || "当前控制台页面");
-		this.cosmosStatusTextEl.setText(isOverview ? "系统运行中" : "当前页面");
+		const route = this.pageRouter.current();
+		const primary = primaryPage(route.primary);
+		const secondary = primary.children.find(
+			(child) => child.key === route.secondary
+		);
+		const isWorkbench = route.primary === "workbench";
+		this.cosmosTitleEl.setText(
+			isWorkbench
+				? this.plugin.talosSettings.mainTitle
+				: secondary?.label || primary.label
+		);
+		this.cosmosSubEl.setText(primary.subtitle);
+		this.cosmosStatusTextEl.setText(
+			isWorkbench ? "系统运行中" : primary.label
+		);
 	}
 
 	private buildSidebar(side: HTMLElement): void {
@@ -446,7 +491,7 @@ export class TalosView extends ItemView {
 		// 导航
 		const navCard = side.createEl("section", { cls: "card pagenav-card" });
 		navCard.setCssProps({ "--ac": "#4D8DFF" });
-		this.secTitle(navCard, "导航", "PAGES");
+		this.secTitle(navCard, "导航", `${PRIMARY_NAVIGATION.length} SECTIONS`);
 		this.pageNavEl = navCard.createEl("nav", { cls: "nav" });
 		this.renderNav();
 
@@ -479,45 +524,42 @@ export class TalosView extends ItemView {
 
 	private renderNav(): void {
 		this.pageNavEl.empty();
-		for (const group of NAV_GROUPS) {
-			const groupEl = this.pageNavEl.createDiv({ cls: "nav-group" });
-			groupEl.setAttribute("data-nav-group", group.key);
-			groupEl.createDiv({ cls: "nav-group-label", text: group.label });
-			for (const p of PAGES.filter((page) => page.group === group.key)) {
-				const active = p.key === this.activePage;
-				const a = groupEl.createDiv({
-					cls: `command${active ? " active" : ""}`,
-				});
-				const mark = a.createDiv({ cls: "mark" });
-				setIcon(mark, p.icon);
-				a.createSpan({ cls: "nav-label", text: p.label });
-				a.dataset.talosActionButton = "true";
-				a.dataset.talosActionVariant = "";
-				this.syncActionButtonTheme(a, this.plugin.talosSettings.visualTheme || "aurora");
-				const meta = this.navMeta(p.key);
-				if (meta) a.createSpan({ cls: `nav-meta${meta.alert ? " is-alert" : ""}`, text: meta.value });
-				a.setAttribute("title", `${p.label}${meta ? ` · ${meta.value}` : ""}`);
-				a.setAttribute("aria-label", p.label);
-				a.setAttribute("role", "button");
-				a.setAttribute("tabindex", "0");
-				if (active) a.setAttribute("aria-current", "page");
-				const activate = () => {
-					if (p.key === "jarvis") {
-						void this.openQuyuan();
-						return;
-					}
-					this.activePage = p.key;
-					this.renderNav();
-					this.renderPage();
-				};
-				a.addEventListener("click", activate);
-				a.addEventListener("keydown", (event) => {
-					if (event.key !== "Enter" && event.key !== " ") return;
-					event.preventDefault();
-					activate();
-				});
-			}
+		const route = this.pageRouter.current();
+		const groupEl = this.pageNavEl.createDiv({ cls: "nav-group" });
+		groupEl.setAttribute("data-nav-group", "primary");
+		groupEl.createDiv({ cls: "nav-group-label", text: "主界面" });
+		for (const page of PRIMARY_NAVIGATION) {
+			const active = page.key === route.primary;
+			const item = groupEl.createDiv({
+				cls: `command${page.key === "settings" ? " talos-settings-nav-command" : ""}${active ? " active" : ""}`,
+			});
+			const mark = item.createDiv({ cls: "mark" });
+			setIcon(mark, page.icon);
+			item.createSpan({ cls: "nav-label", text: page.label });
+			item.dataset.talosActionButton = "true";
+			item.dataset.talosActionVariant = "";
+			this.syncActionButtonTheme(
+				item,
+				this.plugin.talosSettings.visualTheme || "aurora"
+			);
+			item.setAttribute("title", page.subtitle);
+			item.setAttribute("aria-label", page.label);
+			item.setAttribute("role", "button");
+			item.setAttribute("tabindex", "0");
+			if (active) item.setAttribute("aria-current", "page");
+			const activate = () => {
+				this.pageRouter.selectPrimary(page.key);
+				this.renderNav();
+				this.renderPage();
+			};
+			item.addEventListener("click", activate);
+			item.addEventListener("keydown", (event) => {
+				if (event.key !== "Enter" && event.key !== " ") return;
+				event.preventDefault();
+				activate();
+			});
 		}
+		this.renderSecondaryTabs();
 	}
 
 	private navMeta(key: string): { value: string; alert?: boolean } | null {
@@ -547,6 +589,41 @@ export class TalosView extends ItemView {
 			case "capability": return { value: String(d.capGroups.reduce((sum, group) => sum + group.items.length, 0)) };
 			case "vault": return { value: String(d.total) };
 			default: return null;
+		}
+	}
+
+	private renderSecondaryTabs(): void {
+		if (!this.pageTabsEl) return;
+		this.pageTabsEl.empty();
+		const route = this.pageRouter.current();
+		const page = primaryPage(route.primary);
+		this.pageTabsEl.toggleClass("is-hidden", page.children.length === 0);
+		if (page.children.length === 0) return;
+		this.pageTabsEl.setAttribute("aria-label", `${page.label}二级页面`);
+		for (const child of page.children) {
+			const active = child.key === route.secondary;
+			const button = this.pageTabsEl.createEl("button", {
+				cls: `talos-page-tab${active ? " is-active" : ""}`,
+				attr: {
+					type: "button",
+					"aria-pressed": String(active),
+				},
+			});
+			const icon = button.createSpan({ cls: "talos-page-tab__icon" });
+			setIcon(icon, child.icon);
+			button.createSpan({ text: child.label });
+			const meta = this.navMeta(child.key);
+			if (meta) {
+				button.createSpan({
+					cls: `talos-page-tab__meta${meta.alert ? " is-alert" : ""}`,
+					text: meta.value,
+				});
+			}
+			button.addEventListener("click", () => {
+				this.pageRouter.selectSecondary(child.key);
+				this.renderSecondaryTabs();
+				this.renderPage();
+			});
 		}
 	}
 
@@ -607,8 +684,18 @@ export class TalosView extends ItemView {
 
 		this.patrolEl = this.buildPixelPatrol(hero);
 
-		// 页容器
+		// 二级页签和业务页共用当前 TALOS leaf，不为子页面创建新 leaf。
+		this.pageTabsEl = main.createEl("nav", {
+			cls: "talos-page-tabs is-hidden",
+		});
+		this.renderSecondaryTabs();
 		this.pageEl = main.createDiv({ cls: "page-content" });
+		this.taskDrawer = new TaskDrawer({
+			parent: main,
+			store: this.plugin.getConsoleActionRuntime().store,
+			controller: this.plugin.getConsoleActionRuntime().runner,
+		});
+		this.taskDrawer.mount();
 
 		const commandBar = main.createDiv({ cls: "cosmos-commandbar" });
 		const voice = commandBar.createDiv({ cls: "cosmos-command-voice" });
@@ -621,7 +708,9 @@ export class TalosView extends ItemView {
 		const send = keys.createSpan({ cls: "cosmos-command-send" });
 		setIcon(send, "send");
 		commandBar.addEventListener("click", () => {
-			void this.openQuyuan();
+			this.activePage = "chat";
+			this.renderNav();
+			this.renderPage();
 		});
 
 		const footer = main.createDiv({ cls: "footer" });
@@ -882,6 +971,65 @@ export class TalosView extends ItemView {
 		this.createApprovalExecuteButton(actions, it);
 	}
 
+	private renderCandidateItem(parent: HTMLElement, it: SignalItem): void {
+		const item = parent.createDiv({ cls: "item approval-item candidate-approval-item" });
+		item.createSpan({ cls: "badge candidate-badge", text: "偏" });
+		item.createEl("span", { cls: "approval-title", text: it.title });
+		if (it.path) {
+			item.addEventListener("click", () => void openFile(this.app, it.path || ""));
+		}
+
+		const actions = item.createDiv({ cls: "approval-actions" });
+		this.createCandidateActionButton(actions, "approve", "check", "批准", it);
+		this.createCandidateActionButton(actions, "reject", "x", "拒绝", it);
+	}
+
+	private createCandidateActionButton(
+		parent: HTMLElement,
+		decision: "approve" | "reject",
+		iconName: string,
+		label: string,
+		it: SignalItem
+	): void {
+		const button = parent.createEl("button", {
+			cls: `approval-action approval-action-${decision}`,
+		});
+		button.type = "button";
+		button.setAttribute("aria-label", `${label}偏好候选：${it.title}`);
+		const icon = button.createSpan({ cls: "approval-action-icon" });
+		setIcon(icon, iconName);
+		button.createSpan({ cls: "approval-action-label", text: label });
+		button.addEventListener("click", (event) => {
+			void (async () => {
+				event.preventDefault();
+				event.stopPropagation();
+				const siblingButtons = Array.from(
+					parent.querySelectorAll<HTMLButtonElement>(".approval-action")
+				);
+				for (const btn of siblingButtons) btn.disabled = true;
+				button.addClass("is-loading");
+				const ok = await decidePreferenceCandidate(
+					this.app,
+					this.plugin.talosSettings,
+					it.title,
+					decision
+				);
+				if (ok) {
+					this.lastCandidateFeedback = {
+						title: it.title,
+						decision,
+						path: it.path,
+						at: this.shortTime(),
+					};
+					await this.refresh();
+				} else {
+					button.removeClass("is-loading");
+					for (const btn of siblingButtons) btn.disabled = false;
+				}
+			})();
+		});
+	}
+
 	private createApprovalActionButton(
 		parent: HTMLElement,
 		decision: "approve" | "reject",
@@ -1006,6 +1154,31 @@ export class TalosView extends ItemView {
 		});
 	}
 
+	private renderCandidateFeedback(parent: HTMLElement): void {
+		if (!this.lastCandidateFeedback) return;
+		const feedback = this.lastCandidateFeedback;
+		const approved = feedback.decision === "approve";
+		const box = parent.createDiv({
+			cls: `approval-feedback ${approved ? "is-approved" : "is-rejected"}`,
+		});
+		const icon = box.createSpan({ cls: "approval-feedback-icon" });
+		setIcon(icon, approved ? "check-circle-2" : "x-circle");
+		const copy = box.createDiv({ cls: "approval-feedback-copy" });
+		copy.createEl("b", {
+			text: approved ? "已批准并移入已确认" : "已拒绝并移入已拒绝",
+		});
+		copy.createEl("span", { text: feedback.title });
+		copy.createEl("small", {
+			text: `${feedback.at} · 决策已写回偏好候选池。`,
+		});
+		const open = box.createEl("button", { cls: "approval-feedback-open", text: "打开记录" });
+		open.type = "button";
+		open.addEventListener("click", (event) => {
+			event.stopPropagation();
+			void openFile(this.app, feedback.path || this.plugin.talosSettings.candidatesPath);
+		});
+	}
+
 	// ---------- 页 ----------
 	private panel(parent: HTMLElement, ac: string, title: string, small: string): HTMLElement {
 		const p = parent.createDiv({ cls: "panel" });
@@ -1087,15 +1260,24 @@ export class TalosView extends ItemView {
 	private renderPage(): void {
 		const page = this.pageEl;
 		this.applyPageState();
+		this.renderSecondaryTabs();
 		// 已在屈原页且已挂载：保持不动（不打断朗读/不闪跳）
 		if (this.activePage === "jarvis" && this.jarvisMounted) return;
+		if (this.activePage === "chat" && this.chatMounted) return;
 		// 离开屈原或换页：先卸载屈原
 		if (this.jarvisMounted) this.unmountJarvisSafely();
+		if (this.chatMounted) {
+			this.chatMounted = false;
+			void this.chatSurface?.unmount();
+		}
+		this.actionPanel?.unmount();
+		this.actionPanel = null;
 		page.empty();
 		const d = this.data;
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
 		switch (this.activePage) {
 			case "overview": this.pageOverview(page, d); break;
+			case "chat": void this.pageChat(page); break;
 			case "jarvis": void this.pageJarvis(page); break;
 			case "daily": this.pageDaily(page, d); break;
 			case "output": this.pageOutput(page, d); break;
@@ -1107,6 +1289,7 @@ export class TalosView extends ItemView {
 			case "identity": this.pageIdentity(page, d); break;
 			case "capability": this.pageCapability(page, d); break;
 			case "vault": this.pageVault(page, d); break;
+			case "settings": this.pageSettings(page); break;
 		}
 		this.wireModuleSelection(page, this.activePage);
 		this.syncPixelScene(d);
@@ -1355,6 +1538,8 @@ export class TalosView extends ItemView {
 			const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
 			const actionColumn = overviewGrid.createDiv({ cls: "overview-action-column" });
 			const statColumn = overviewGrid.createDiv({ cls: "overview-stat-column" });
+			actionColumn.setAttribute("data-workbench-section", "today-actions");
+			statColumn.setAttribute("data-workbench-section", "system-overview");
 
 			const command = actionColumn.createDiv({ cls: `panel overview-command tone-${primary.tone}` });
 			command.setCssProps({ "--ac": this.overviewToneColor(primary.tone) });
@@ -1424,18 +1609,171 @@ export class TalosView extends ItemView {
 			this.fillOverviewActionRow(actionList, "待办", d.focus.length > 0 ? `${d.focus.length} 个焦点` : "建议运行 /morning", "target", this.plugin.talosSettings.tasksPath, d.focus.length > 0 ? "default" : "warn");
 			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
 			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
-			if (d.approvals.length > 0 || this.lastApprovalFeedback) {
-				const quick = actionPanel.createDiv({ cls: "overview-approval-quick approval" });
-				const quickHead = quick.createDiv({ cls: "overview-approval-quick-head" });
-				quickHead.createEl("b", { text: d.approvals.length > 0 ? "待审批按钮入口" : "最近审批结果" });
-				quickHead.createEl("span", { text: d.approvals.length > 0 ? "点击后写回审批记录" : "保留本次操作回执" });
-				this.renderApprovalFeedback(quick);
-				for (const it of d.approvals.slice(0, 3)) {
-					this.renderApprovalItem(quick, it);
-				}
-				if (d.approvals.length === 0) {
-					quick.createDiv({ cls: "ok", text: "当前没有待审批项" });
-				}
+
+			const actionRuntimePanel = this.panel(
+				actionColumn,
+				"#38E1FF",
+				"可执行动作",
+				"A 直接执行 · B 快照执行 · C 提案审批"
+			);
+			const actionStamp = Date.now();
+			const noteTarget = `${this.paths.dir(
+				"inbox"
+			)}/talos-action-${actionStamp}.md`;
+			this.actionPanel = new ConsoleActionPanel({
+				parent: actionRuntimePanel,
+				runtime: this.plugin.getConsoleActionRuntime(),
+				actions: [
+					{
+						actionId: "refresh-stats",
+						idempotencyKey: `overview-refresh-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: [],
+							effects: ["read"],
+						},
+						proposal: {
+							title: "刷新统计",
+							provider: "TALOS 本地运行时",
+							steps: ["重新读取 Vault 统计", "刷新当前控制台"],
+							fileCount: 0,
+							keyDiffs: ["只读动作，不修改文件"],
+							reversible: false,
+						},
+					},
+					{
+						actionId: "vault-lint",
+						idempotencyKey: `overview-lint-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: [],
+							effects: ["read"],
+						},
+						proposal: {
+							title: "只读 Vault Lint",
+							provider: "TALOS 本地运行时",
+							steps: ["扫描 Markdown 元数据", "报告结构化检查结果"],
+							fileCount: 0,
+							keyDiffs: ["只读动作，不生成报告文件"],
+							reversible: false,
+						},
+					},
+					{
+						actionId: "create-note",
+						idempotencyKey: `overview-create-${actionStamp}`,
+						input: {
+							targetPath: noteTarget,
+							content:
+								"---\ntags: [TALOS]\nstatus: inbox\ntype: note\n---\n\n# TALOS 行动记录\n",
+						},
+						request: {
+							readPaths: [],
+							writePaths: [noteTarget],
+							effects: ["write"],
+						},
+						proposal: {
+							title: "新建行动记录",
+							provider: "TALOS 本地运行时",
+							steps: ["创建恢复点", "在收件箱创建行动记录"],
+							fileCount: 1,
+							keyDiffs: [`新增 ${noteTarget}`],
+							reversible: true,
+						},
+					},
+					{
+						actionId: "deep-research",
+						idempotencyKey: `overview-research-${actionStamp}`,
+						input: undefined,
+						request: {
+							readPaths: ["**"],
+							writePaths: ["<external>"],
+							effects: ["external-publish"],
+						},
+						proposal: {
+							title: "启动 Deep Research",
+							provider: "当前 Agent 命令",
+							steps: [
+								"展示本次外部执行范围",
+								"等待独立批准",
+								"进入 10 秒可取消安全窗口",
+								"批准后调用同一 TALOS runner",
+							],
+							fileCount: 1,
+							keyDiffs: [
+								`研究结果将写入 ${this.plugin.talosSettings.reportsFolder}`,
+							],
+							reversible: false,
+						},
+					},
+				],
+			});
+			this.actionPanel.mount();
+
+			const modulesPanel = this.panel(
+				page,
+				"#7C3AED",
+				"九个模块入口",
+				"客户模块 · 只改变导航，不移动目录"
+			);
+			modulesPanel.addClass("workbench-module-panel");
+			modulesPanel.setAttribute("data-workbench-section", "customer-modules");
+			const moduleGrid = modulesPanel.createDiv({
+				cls: "workbench-module-grid",
+			});
+			for (const module of WORKBENCH_MODULES) {
+				const card = moduleGrid.createEl("button", {
+					cls: "workbench-module-card",
+					attr: {
+						type: "button",
+						"data-module-key": module.key,
+						"aria-label": `打开${module.label}`,
+					},
+				});
+				const icon = card.createSpan({
+					cls: "workbench-module-card__icon",
+				});
+				setIcon(icon, module.icon);
+				card.createSpan({ text: module.label });
+				card.addEventListener("click", () => {
+					this.activePage = module.pageKey;
+					this.renderNav();
+					this.renderPage();
+				});
+			}
+
+			const approvalGrid = page.createDiv({ cls: "overview-approval-grid" });
+			const pendingPanel = this.panel(
+				approvalGrid,
+				"var(--amber)",
+				"待审批",
+				"批准 · 拒绝 · 模型执行"
+			);
+			pendingPanel.addClass("overview-approval-panel", "overview-pending-panel");
+			const pendingList = pendingPanel.createDiv({ cls: "approval overview-approval-list" });
+			this.renderApprovalFeedback(pendingList);
+			for (const it of d.approvals.slice(0, 3)) {
+				this.renderApprovalItem(pendingList, it);
+			}
+			if (d.approvals.length === 0) {
+				pendingList.createDiv({ cls: "ok", text: "当前没有待审批项" });
+			}
+
+			const preferencePanel = this.panel(
+				approvalGrid,
+				"#A78BFA",
+				"偏好审批",
+				"批准 · 拒绝 · 写回候选池"
+			);
+			preferencePanel.addClass("overview-approval-panel", "overview-preference-panel");
+			const preferenceList = preferencePanel.createDiv({ cls: "approval overview-approval-list" });
+			this.renderCandidateFeedback(preferenceList);
+			for (const it of d.candidates.slice(0, 3)) {
+				this.renderCandidateItem(preferenceList, it);
+			}
+			if (d.candidates.length === 0) {
+				preferenceList.createDiv({ cls: "ok", text: "当前没有待确认偏好" });
 			}
 		}
 
@@ -1584,6 +1922,88 @@ export class TalosView extends ItemView {
 
 
 
+
+	private async pageChat(page: HTMLElement): Promise<void> {
+		try {
+			if (!this.plugin.storage || !this.plugin.settings) {
+				page.createDiv({
+					cls: "empty",
+					text: "AI 对话运行时仍在初始化，请稍后重试。",
+				});
+				return;
+			}
+			if (!this.chatWorkbenchView) {
+				const { ClaudianView: EmbeddedClaudianView } = await import(
+					"./quyuan/claudian/features/chat/ClaudianView"
+				);
+				const constructorLeaf = createConstructorIsolatedProxy(this.leaf, {
+					containerEl: page.ownerDocument.createElement("div"),
+				});
+				const workbench = new EmbeddedClaudianView(
+					constructorLeaf,
+					this.plugin
+				);
+				workbench.leaf = this.leaf;
+				this.plugin.registerEmbeddedView(workbench);
+				this.chatWorkbenchView = workbench;
+				this.chatSurface = new TalosChatSurface({
+					mount: (container, namespace) =>
+						workbench.mountEmbedded(container, namespace),
+					suspend: () => workbench.suspendEmbedded(),
+					focusComposer: () => workbench.focusComposer(),
+					destroy: async () => {
+						await workbench.destroyEmbedded();
+						this.plugin.unregisterEmbeddedView(workbench);
+					},
+				});
+			}
+			if (!this.chatSurface) throw new Error("AI 对话 surface 未创建");
+			await this.chatSurface.mount(page, "chat");
+			if (this.activePage !== "chat") {
+				await this.chatSurface.unmount();
+				return;
+			}
+			this.chatMounted = true;
+		} catch (error) {
+			console.error("TALOS AI chat surface failed to mount", error);
+			this.chatMounted = false;
+			page.empty();
+			const panel = page.createDiv({
+				cls: "panel talos-chat-migration-panel",
+			});
+			panel.setCssProps({ "--ac": "#7C3AED" });
+			const icon = panel.createDiv({ cls: "talos-chat-migration-icon" });
+			setIcon(icon, "triangle-alert");
+			const copy = panel.createDiv({ cls: "talos-chat-migration-copy" });
+			copy.createEl("h2", { text: "AI 对话加载失败" });
+			copy.createEl("p", {
+				text: error instanceof Error ? error.message : String(error),
+			});
+			copy.createEl("small", {
+				text: "独立 Claudian 恢复视图仍保留，当前失败不会修改 Vault 内容。",
+			});
+		}
+	}
+
+	private pageSettings(page: HTMLElement): void {
+		const shell = page.createDiv({ cls: "talos-inline-settings" });
+		const header = shell.createEl("header", {
+			cls: "talos-inline-settings__header",
+		});
+		const icon = header.createSpan({ cls: "talos-inline-settings__icon" });
+		setIcon(icon, "settings");
+		const title = header.createDiv({ cls: "talos-inline-settings__title" });
+		title.createEl("h1", { text: "TALOS 设置" });
+		title.createEl("p", {
+			text: "界面、目录映射、数据源、AI Provider 与屈原工作台配置",
+		});
+		const body = shell.createDiv({
+			cls: "talos-inline-settings__body",
+		});
+		this.embeddedSettingsTab ??= new TalosSettingTab(this.app, this.plugin);
+		this.embeddedSettingsTab.renderInto(body);
+		body.addClass("talos-settings--console");
+	}
 
 	private async pageJarvis(page: HTMLElement): Promise<void> {
 		try {
@@ -1872,9 +2292,9 @@ export class TalosView extends ItemView {
 		const metrics = this.panel(page, "#FBBF24", "TALOS 产品总览", "七个产品分区 · 发布闸门");
 		this.fillMetricGrid(metrics.createDiv({ cls: "metric-grid" }), d.talosProduct.metrics);
 		const row = page.createDiv({ cls: "dashboard-grid" });
-		const gates = this.panel(row, "#FBBF24", "前置闸门", "G1 / G2 / G3");
+		const gates = this.panel(row, "#FBBF24", "统一七门", "G1–G7");
 		this.fillGates(gates.createDiv({ cls: "gates" }), d.warRoom.gates);
-		const pub = this.panel(row, "#FB7185", "发布动作", "PUB-W");
+		const pub = this.panel(row, "#FB7185", "内容发布动作", "PUB-W · 非产品发布门");
 		this.fillGates(pub.createDiv({ cls: "gates" }), d.warRoom.pubActions);
 		const modules = this.panel(page, "#4D8DFF", "产品分区", "理论 / 品牌 / 内容 / 产品 / 获客 / 交付 / 控制台");
 		this.fillTalosModules(modules.createDiv({ cls: "module-grid" }), d.talosProduct.modules);
@@ -1992,8 +2412,9 @@ export class TalosView extends ItemView {
 			],
 		});
 		// 排列密排：项目地图与场景索引并排（场景索引只有 2 条，整行拉满留白严重）
-		const grid = page.createDiv({ cls: "panel-grid" });
+		const grid = page.createDiv({ cls: "panel-grid project-scene-layout" });
 		const p = this.panel(grid, "#4D8DFF", "项目场景地图", `${this.paths.dir("projects")} · 高频项目优先`);
+		p.addClass("project-map-panel");
 		const cards = p.createDiv({ cls: "project-grid" });
 		for (const project of d.projects) {
 			const card = cards.createDiv({ cls: `project-card priority-${project.priority}` });
@@ -2025,6 +2446,7 @@ export class TalosView extends ItemView {
 			card.addEventListener("click", () => void openFile(this.app, project.readme));
 		}
 		const scene = this.panel(grid, "#A78BFA", "场景索引", "项目入口总地图");
+		scene.addClass("project-entry-panel");
 		this.fillSignalList(scene.createDiv({ cls: "detail-list" }), [
 			{ title: "打开场景索引", meta: this.paths.sceneIndexFile, path: this.paths.sceneIndexFile },
 			{ title: "打开项目总 README", meta: this.paths.readme("projects"), path: this.paths.readme("projects") },
@@ -2485,8 +2907,14 @@ export class TalosView extends ItemView {
 		}
 	}
 
+	navigateToPage(pageKey: string): void {
+		this.activePage = pageKey;
+		if (this.pageNavEl) this.renderNav();
+		if (this.pageEl) this.renderPage();
+	}
+
 	// 主页「屈原」入口 → 控制台内的屈原语音页（QuyuanVoicePanel）。
-	// v2 工作台仍可经 ribbon「打开屈原对话」/ 命令「打开屈原 v2 工作台」单独打开（语音壳已用其引擎）。
+	// 文字对话使用独立 AI 对话页面；旧 Claudian ItemView 只保留为恢复入口。
 	private async openQuyuan(): Promise<void> {
 		this.activePage = "jarvis";
 		this.renderNav();

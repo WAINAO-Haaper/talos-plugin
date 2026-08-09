@@ -1,0 +1,4 @@
+/* Synthetic WP6 plugin stylesheet. */
+.talos-wp6-fixture {
+	display: block;
+}

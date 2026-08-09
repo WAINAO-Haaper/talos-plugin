@@ -1,5 +1,38 @@
 # TALOS Theme Design QA
 
+## WP7 Task 15R Unified Console QA · 2026-07-25
+
+- Result: passed. Task 16 was not started.
+- Production composition: the unified console, approval actions and Provider tool
+  proposals share one builtin action registry, `TalosTaskRunner`,
+  `MemoryTaskStore` and `VaultRecoveryStore`.
+- Task controls: fresh Obsidian evidence covers completed, structured partial,
+  cancelled and reverted states. A running C-class task stayed running while all
+  six primary pages were activated.
+- Proposal safety: C-class actions expose steps, targets, key diffs and
+  recoverability before a separate approval. The synthetic report hash stayed
+  unchanged before approval and after cancellation.
+- Provider center: the settings route now renders Provider, model, capability,
+  connection and selected-state data without reading or displaying secret
+  values. A local `mock-acceptance` provider was selected through the production
+  control with no network request.
+- Voice: the voice page exposes its independent history namespace and safely
+  falls back to push-to-talk when continuous listening cannot start. No real
+  microphone, TTS or network Provider was used.
+- Visual evidence: six screenshots under `docs/qa/screenshots/` were captured
+  from the temporary synthetic Vault or the read-only deployment check. Each
+  screenshot was accepted only when its Vault title and visible state matched
+  the accessibility tree returned by the same capture.
+- Responsive/layout observation: the task drawer remained available without
+  preventing navigation or obscuring the inspected action, Provider and system
+  surfaces. The deployment system-center screenshot verifies the installed
+  build in the real test Vault without exercising B/C writes.
+- Automated regression: 46 test files / 245 tests, typecheck, lint, build,
+  approval self-tests, Quyuan self-test and the 108-package license audit all
+  passed.
+
+final result: passed
+
 ## Comparison Target
 
 - Source visual truth:
@@ -91,6 +124,63 @@
 - Responsive: at 390px the output grid resolves to one 370px track, root width remains 390px and no detail row overflows.
 - Typography, colors, imagery and copy: existing theme typography/tokens and UI copy are preserved; this change only corrects frame sizing, grid contraction and text wrapping. No image assets were added or replaced.
 - Patches made: removed all desktop app width caps, added `min-width:0` ownership boundaries, converted shared two-column tracks to `minmax(0,1fr)`, and enabled output-only multiline wrapping.
+
+final result: passed
+
+## Overview Compact Overlay Navigation QA · 2026-07-22
+
+- Source visual: user-supplied Obsidian screenshot `截屏2026-07-22 07.24.44.png`.
+- Implementation surface: `prototype/overview-operations-qa.html?theme=geometric-modern&page=overview`.
+- Viewports: 1600×1000, 1024×768 and 390×844.
+- Interaction states: resting rail, keyboard-focus expansion and focus-leave collapse.
+
+**Findings**
+
+- Desktop geometry: 72px resting rail expands to a 296px overlay; main remains x=72px / 1528px wide.
+- Intermediate geometry: 72px resting rail expands to 260px; main remains x=72px / 952px wide.
+- Narrow geometry: 54px resting rail expands to 260px; main remains x=54px / 336px wide.
+- All three viewports keep `document.scrollWidth === document.clientWidth` (1600, 1024 and 390 respectively).
+- All 12 commands are present. Resting state hides all labels; focus expansion exposes all 12 labels. At 390px every command remains horizontally contained and the expanded rail scrolls vertically when needed.
+- Keyboard focus triggers the same overlay as pointer hover, and moving focus into main content restores the compact rail.
+- Browser console reported no warning or error.
+
+**Patches made**
+
+- Generalized the existing compact shell/navigation selectors from detail-only to every TALOS page.
+- Kept detail-page main padding and Jarvis height/scroll selectors page-scoped.
+- Removed the retired overview-only horizontal mobile navigation rules that would override the shared 54px rail below 680px.
+- Generalized the existing reduced-motion sidebar rule so overview width transitions are also disabled when requested.
+- Added red/green self-test coverage for the shared shell contract and the removal of the overview horizontal-nav exception.
+
+final result: passed
+
+## Overview Approval Compatibility QA
+
+- Date: 2026-07-22.
+- Source: `src/view.ts`, `src/actions.ts`, `src/data/stats.ts`, `src/candidate-actions.ts`, and `styles.talos.css`.
+- Harness: `prototype/overview-approval-compat-qa.html` using the generated production `styles.css`.
+- Scope: independent pending-approval and preference-approval modules, compact health summary, complete long titles, action wrapping, and container-aware Obsidian pane reflow.
+- Widths: approximately 900px, 700px, and 390px of requested pane space while the browser viewport remained 1500px wide, plus a real 390×844 mobile viewport.
+- Themes: Aurora, Nebula, Animal Island, Macintosh, Data Stream, Soft Relief, Geometric Modern, Executive Brief, Paper Ink, and Swiss Modern.
+
+**Findings**
+
+- All 30 theme × pane-width combinations kept every approval item and action group inside its card (`clientWidth === scrollWidth` and action bounds inside item bounds).
+- At approximately 900px, the operations area reflowed to one column while pending and preference approval remained side by side.
+- At approximately 700px and below, pending approval stacked above preference approval.
+- At approximately 390px, the health summary used one column, its ring remained 104px, and the stat wall reflowed without covering either approval module.
+- The health summary desktop height is 132px, reduced from 170px without removing score, source count, refresh time, or broken-link data.
+- Macintosh reports a theme-wide 2px scroll extent from its existing panel drop shadow. The approval titles, cards, and buttons still fit; the decorative shadow is not a content overflow and was left unchanged.
+- The mobile visual inspection confirmed that pending approval shows all three actions and preference approval shows both actions without clipping or overlap.
+
+**Automated checks**
+
+- `tests/candidate-actions.test.ts`: preference approval/rejection write-back, target-section creation, failure immutability, and long-title exact matching.
+- `tests/overview-layout.test.ts`: independent approval modules, full candidate titles, container queries, removal of the incompatible fixed minimum column pair, and wrapped action groups.
+
+**Rollback**
+
+- Original files are preserved under `backups/overview-approval-layout-20260722-before/` with a file-by-file restore checklist.
 
 final result: passed
 
@@ -631,3 +721,38 @@ final result: passed
 - Deployment: completed. Source and installed `main.js`, `manifest.json` and `styles.css` checksums match; the deployment path does not copy `data.json`.
 
 final result: passed
+
+## Project Scenes Compact Layout QA · 2026-07-22
+
+- Source visual: user-supplied Obsidian screenshot `截屏2026-07-22 07.38.37.png`.
+- Implementation surface: `prototype/project-scenes-compact-qa.html` using the generated `styles.css`.
+- Viewports: 1600×1000, 1024×768 and 390×844; Geometric Modern theme.
+
+**Findings**
+
+- Desktop: the 1492px work area resolves to a 1085px project map and 395px entry panel (approximately 73/27). The entry panel is 209px high versus the 639px map and no longer stretches to the map height.
+- Both entry rows remain exactly 64px high and vertically ordered.
+- Project cards resolve to 3 columns at 1600px, 2 columns at 1024px and 1 column at 390px.
+- All 12 project cards keep their full content inside 132–135px card heights; no card reports horizontal or vertical content clipping.
+- `document.scrollWidth === clientWidth` and TALOS root width equals the viewport at all three widths (1600, 1024 and 390).
+- Browser console reported no warning or error.
+
+**Patches made**
+
+- Added `project-scene-layout`, `project-map-panel` and `project-entry-panel` hooks in the existing projects renderer.
+- Scoped the 70/30 desktop grid, content-height entry rows, compact project-card spacing and 3/2/1 responsive card columns to the projects page.
+- Left generic `.panel-grid`, other pages, project data and click handlers unchanged.
+- Added a focused red/green Vitest regression and a project-page QA fixture.
+
+final result: passed
+
+## WP7 Obsidian 人工视觉与交互 QA · 2026-07-25
+
+- 完整记录：`docs/qa/wp7-obsidian-acceptance.md`。
+- 部署备份、三产物同步和逐文件校验通过；部署 canonical registry 保持 12 条。
+- 六个一级页面、三组二级页和跨页任务抽屉可由 Obsidian 可访问性树确认；Voice 独立 namespace 与持续监听失败后降级为点击说话通过。
+- 生产组合层没有把现有 `ActionButton`、`TalosTaskRunner`、内建 A/B/C 动作、取消和恢复/撤销控制接入统一工作台；系统中心的 Provider 设置仍是占位引导。
+- Obsidian 截图缓冲与当前可访问性树不一致，无法提供可信的宽/窄窗口视觉证据；真实 Vault 截图未写入仓库。
+- 新鲜定向验证：5 files、20 tests 通过，但该结果只证明核心/组件与 Task 14 合成链路，不能替代生产点击验收。
+
+final result: failed

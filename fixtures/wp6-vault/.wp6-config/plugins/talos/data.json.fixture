@@ -1,0 +1,34 @@
+{
+	"talos": {
+		"elevenLabsApiKey": "",
+		"aliyunApiKey": "",
+		"anthropicApiKey": "fixture-anthropic-key",
+		"openaiApiKey": "",
+		"jarvisSttApiKey": "",
+		"providerSecretRefs": {},
+		"engineProvider": "claude-api",
+		"jarvisTabsJson": "{\"tabs\":[\"wp6-text\"]}",
+		"quyuanVoiceSessionJson": "{\"version\":1,\"namespace\":\"voice\",\"tabs\":[\"wp6-voice\"]}",
+		"jarvisVoiceEnabled": true,
+		"jarvisSttEngine": "webspeech",
+		"ttsEngine": "system",
+		"vaultSchema": {
+			"inbox": "00 收件箱",
+			"identity": "10 身份",
+			"output": "70 输出"
+		}
+	},
+	"claudian": {
+		"model": "claude-sonnet",
+		"locale": "zh-CN"
+	},
+	"tabManagerState": {
+		"openTabs": [
+			{
+				"tabId": "wp6-tab",
+				"conversationId": "wp6-conversation"
+			}
+		],
+		"activeTabId": "wp6-tab"
+	}
+}

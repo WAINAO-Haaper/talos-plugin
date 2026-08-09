@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "id": "brand",
+      "obsidian_command_id": "brand",
+      "request_path": ".talos/command-requests/brand.json",
+      "summary": "Synthetic brand command",
+      "engine_asset": "TALOS中枢/引擎/brand.md",
+      "claude_wrapper": ".claude/commands/brand.md"
+    },
+    {
+      "id": "create",
+      "obsidian_command_id": "create",
+      "request_path": ".talos/command-requests/create.json",
+      "summary": "Synthetic create command",
+      "engine_asset": "TALOS中枢/引擎/create.md",
+      "claude_wrapper": ".claude/commands/create.md"
+    },
+    {
+      "id": "digest",
+      "obsidian_command_id": "digest",
+      "request_path": ".talos/command-requests/digest.json",
+      "summary": "Synthetic digest command",
+      "engine_asset": "TALOS中枢/引擎/digest.md",
+      "claude_wrapper": ".claude/commands/digest.md"
+    },
+    {
+      "id": "full-cycle",
+      "obsidian_command_id": "full-cycle",
+      "request_path": ".talos/command-requests/full-cycle.json",
+      "summary": "Synthetic full-cycle command",
+      "engine_asset": "TALOS中枢/引擎/full-cycle.md",
+      "claude_wrapper": ".claude/commands/full-cycle.md"
+    },
+    {
+      "id": "intake",
+      "obsidian_command_id": "intake",
+      "request_path": ".talos/command-requests/intake.json",
+      "summary": "Synthetic intake command",
+      "engine_asset": "TALOS中枢/引擎/intake.md",
+      "claude_wrapper": ".claude/commands/intake.md"
+    },
+    {
+      "id": "maintain",
+      "obsidian_command_id": "maintain",
+      "request_path": ".talos/command-requests/maintain.json",
+      "summary": "Synthetic maintain command",
+      "engine_asset": "TALOS中枢/引擎/maintain.md",
+      "claude_wrapper": ".claude/commands/maintain.md"
+    },
+    {
+      "id": "memory",
+      "obsidian_command_id": "memory",
+      "request_path": ".talos/command-requests/memory.json",
+      "summary": "Synthetic memory command",
+      "engine_asset": "TALOS中枢/引擎/memory.md",
+      "claude_wrapper": ".claude/commands/memory.md"
+    },
+    {
+      "id": "mine-rules",
+      "obsidian_command_id": "mine-rules",
+      "request_path": ".talos/command-requests/mine-rules.json",
+      "summary": "Synthetic mine-rules command",
+      "engine_asset": "TALOS中枢/引擎/mine-rules.md",
+      "claude_wrapper": ".claude/commands/mine-rules.md"
+    },
+    {
+      "id": "morning",
+      "obsidian_command_id": "morning",
+      "request_path": ".talos/command-requests/morning.json",
+      "summary": "Synthetic morning command",
+      "engine_asset": "TALOS中枢/引擎/morning.md",
+      "claude_wrapper": ".claude/commands/morning.md"
+    },
+    {
+      "id": "output",
+      "obsidian_command_id": "output",
+      "request_path": ".talos/command-requests/output.json",
+      "summary": "Synthetic output command",
+      "engine_asset": "TALOS中枢/引擎/output.md",
+      "claude_wrapper": ".claude/commands/output.md"
+    },
+    {
+      "id": "retrieval",
+      "obsidian_command_id": "retrieval",
+      "request_path": ".talos/command-requests/retrieval.json",
+      "summary": "Synthetic retrieval command",
+      "engine_asset": "TALOS中枢/引擎/retrieval.md",
+      "claude_wrapper": ".claude/commands/retrieval.md"
+    },
+    {
+      "id": "weekly-reset",
+      "obsidian_command_id": "weekly-reset",
+      "request_path": ".talos/command-requests/weekly-reset.json",
+      "summary": "Synthetic weekly-reset command",
+      "engine_asset": "TALOS中枢/引擎/weekly-reset.md",
+      "claude_wrapper": ".claude/commands/weekly-reset.md"
+    },
+    {
+      "id": "talos-ask",
+      "obsidian_command_id": "talos-ask",
+      "request_path": ".talos/command-requests/talos-ask.json",
+      "summary": "Synthetic full-vault ask command",
+      "engine_asset": "TALOS中枢/引擎/talos-ask.md",
+      "claude_wrapper": ".claude/commands/talos-ask.md"
+    }
+  ]
+}
