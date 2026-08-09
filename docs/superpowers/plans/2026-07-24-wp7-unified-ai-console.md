@@ -25,7 +25,7 @@
 
 ### Plugin repository
 
-Root: `/Users/apple/dev/talos-plugin`
+Root: `$SOURCE_REPO`
 
 负责：
 
@@ -40,7 +40,7 @@ Root: `/Users/apple/dev/talos-plugin`
 
 ### TALOS system source
 
-部署实例：`/Users/apple/Documents/obsidian/TALOS-2.0-test`
+部署实例：`$DEPLOYMENT_ENV`
 
 负责：
 
@@ -97,7 +97,7 @@ Expected: 获得明确基线 SHA。未确认前停止实施，不执行 stash、
 建议路径：
 
 ```text
-/Users/apple/dev/talos-plugin-wp7
+$SOURCE_REPO
 ```
 
 分支建议：
@@ -126,7 +126,7 @@ Expected: 全部 PASS。若基线失败，把失败记录写入 `docs/qa/wp7-bas
 
 - [ ] **Step 5: 记录 TALOS 部署实例基线**
 
-在 `/Users/apple/Documents/obsidian/TALOS-2.0-test` 运行：
+在 `$DEPLOYMENT_ENV` 运行：
 
 ```bash
 python3 TALOS中枢/适配器/verify_deployment.py

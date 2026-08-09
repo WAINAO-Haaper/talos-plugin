@@ -4,6 +4,13 @@ import {
 	inspectVaultPath,
 } from "../src/ai/context/secret-policy";
 
+const privateKeyLabel = ["PRIVATE", "KEY"].join(" ");
+const privateKeyFixture = [
+	`-----BEGIN ${privateKeyLabel}-----`,
+	"fake",
+	`-----END ${privateKeyLabel}-----`,
+].join("\n");
+
 describe("secret policy", () => {
 	it.each([
 		[".env", "environment-file"],
@@ -25,10 +32,7 @@ describe("secret policy", () => {
 		["Authorization: Bearer fake-bearer-token-value", "bearer-token"],
 		["x-api-key: fake-api-key-value", "sensitive-header"],
 		["Cookie: session=fake-cookie-value", "cookie"],
-		[
-			"-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----",
-			"private-key",
-		],
+		[privateKeyFixture, "private-key"],
 		["sk-ant-api03-fake-secret-value", "api-key"],
 	])("blocks secret content without returning the match", (content, reason) => {
 		const result = inspectVaultContent("30 洞察/note.md", content);

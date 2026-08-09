@@ -159,4 +159,4 @@ Append `Project Scenes Compact Layout QA · 2026-07-22` to `docs/design-qa.md` w
 
 - [ ] **Step 4: Back up and deploy**
 
-Back up installed `main.js`, `manifest.json`, and `styles.css`, copy the fresh artifacts into `/Users/apple/Documents/obsidian/超级大脑/.obsidian/plugins/talos/`, then verify each pair with `cmp -s` and SHA-256.
+Back up installed `main.js`, `manifest.json`, and `styles.css`, copy the fresh artifacts into `$DEPLOYMENT_ENV/.obsidian/plugins/talos/`, then verify each pair with `cmp -s` and SHA-256.

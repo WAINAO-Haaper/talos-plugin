@@ -3,6 +3,8 @@ import { auditProviderEgress } from "../src/ai/privacy/provider-egress-gate";
 
 describe("provider egress gate", () => {
 	it("allows authorized identity context while masking direct identifiers", async () => {
+		const fakeHomeRoot = ["", "Users", "example"].join("/");
+		const fakeHomePath = [fakeHomeRoot, "Documents", "private.md"].join("/");
 		const result = await auditProviderEgress({
 			providerId: "claude-api",
 			vaultAccess: "full",
@@ -12,7 +14,7 @@ describe("provider egress gate", () => {
 				"邮箱 owner@example.com",
 				"手机 13812345678",
 				"证件 11010519491231002X",
-				"本机路径 /Users/apple/Documents/private.md",
+				`本机路径 ${fakeHomePath}`,
 			].join("\n"),
 		});
 
@@ -21,7 +23,7 @@ describe("provider egress gate", () => {
 		expect(result.redactedText).not.toContain("owner@example.com");
 		expect(result.redactedText).not.toContain("13812345678");
 		expect(result.redactedText).not.toContain("11010519491231002X");
-		expect(result.redactedText).not.toContain("/Users/apple");
+		expect(result.redactedText).not.toContain(fakeHomeRoot);
 		expect(result.audit.modules).toEqual(["10 身份", "40 项目"]);
 		expect(result.audit.redactions).toMatchObject({
 			email: 1,

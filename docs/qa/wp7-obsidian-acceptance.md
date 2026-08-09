@@ -4,7 +4,7 @@
 - 分支：`codex/wp7-unified-ai-console`
 - Git 基线：`d72cc1c docs: record wp7 obsidian qa blockers`
 - 临时验收 Vault：由 `fixtures/wp7-vault/` 创建的本地一次性合成 Vault
-- 部署 Vault：`/Users/apple/Documents/obsidian/TALOS-2.0-test`
+- 部署 Vault：`$DEPLOYMENT_ENV`
 - Obsidian：1.12.7
 - 结果：**PASS（Task 15R 完成；Task 16 尚未开始）**
 

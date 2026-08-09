@@ -146,7 +146,7 @@ Append a dated `Overview Compact Overlay Navigation QA` section to `docs/design-
 
 - [ ] **Step 4: Back up and deploy**
 
-Copy the installed `main.js`, `manifest.json`, and `styles.css` into `backups/obsidian-sync-20260722-nav-before/`, verify the backup with `cmp`, then copy the fresh artifacts to `/Users/apple/Documents/obsidian/超级大脑/.obsidian/plugins/talos/`.
+Copy the installed `main.js`, `manifest.json`, and `styles.css` into `backups/obsidian-sync-20260722-nav-before/`, verify the backup with `cmp`, then copy the fresh artifacts to `$DEPLOYMENT_ENV/.obsidian/plugins/talos/`.
 
 - [ ] **Step 5: Verify installed artifacts**
 
