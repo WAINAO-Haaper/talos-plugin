@@ -3,6 +3,8 @@ import type { TalosSettings } from "../settings";
 import type { GateItem, ReleaseWarRoom } from "../types";
 
 const DAY = 86400000;
+const PRODUCT_GATE_IDS = ["G1", "G2", "G3", "G4", "G5", "G6", "G7"] as const;
+const PRODUCT_GATE_ID_SET = new Set<string>(PRODUCT_GATE_IDS);
 
 function stripMd(s: string): string {
 	return (s || "")
@@ -47,16 +49,17 @@ export async function collectWarRoom(
 	const raw = await app.vault.cachedRead(file);
 	const lines = raw.split("\n");
 
-	const gates: GateItem[] = [];
+	const gateById = new Map<string, GateItem>();
 	const pubActions: GateItem[] = [];
 
 	for (const ln of lines) {
-		const g = ln.match(/^-\s*\[([ x~])\]\s*\*\*(G\d)\*\*\s*(.*)$/);
+		const g = ln.match(/^-\s*\[([ x~])\]\s*\*\*(G\d+)\*\*\s*(.*)$/);
 		if (g) {
 			const mark = g[1] || " ";
 			const id = g[2] || "";
 			const body = g[3] || "";
-			gates.push({
+			if (!PRODUCT_GATE_ID_SET.has(id) || gateById.has(id)) continue;
+			gateById.set(id, {
 				id,
 				title: stripMd(body).slice(0, 60),
 				state: gateState(mark.trim() || " ", body),
@@ -78,6 +81,10 @@ export async function collectWarRoom(
 		}
 	}
 
+	const gates = PRODUCT_GATE_IDS.flatMap((id) => {
+		const gate = gateById.get(id);
+		return gate ? [gate] : [];
+	});
 	const published = pubActions.filter((p) => p.state === "done").length;
 
 	// 冻结天数

@@ -2292,9 +2292,9 @@ export class TalosView extends ItemView {
 		const metrics = this.panel(page, "#FBBF24", "TALOS 产品总览", "七个产品分区 · 发布闸门");
 		this.fillMetricGrid(metrics.createDiv({ cls: "metric-grid" }), d.talosProduct.metrics);
 		const row = page.createDiv({ cls: "dashboard-grid" });
-		const gates = this.panel(row, "#FBBF24", "前置闸门", "G1 / G2 / G3");
+		const gates = this.panel(row, "#FBBF24", "统一七门", "G1–G7");
 		this.fillGates(gates.createDiv({ cls: "gates" }), d.warRoom.gates);
-		const pub = this.panel(row, "#FB7185", "发布动作", "PUB-W");
+		const pub = this.panel(row, "#FB7185", "内容发布动作", "PUB-W · 非产品发布门");
 		this.fillGates(pub.createDiv({ cls: "gates" }), d.warRoom.pubActions);
 		const modules = this.panel(page, "#4D8DFF", "产品分区", "理论 / 品牌 / 内容 / 产品 / 获客 / 交付 / 控制台");
 		this.fillTalosModules(modules.createDiv({ cls: "module-grid" }), d.talosProduct.modules);

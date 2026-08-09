@@ -1,6 +1,6 @@
 # TALOS 控制台插件
 
-![obsidian](https://img.shields.io/badge/Obsidian-1.8.0%2B-purple)
+![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-purple)
 ![platform](https://img.shields.io/badge/platform-Desktop%20only-lightgrey)
 ![license](https://img.shields.io/badge/license-Proprietary-red)
 ![CI](https://github.com/WAINAO-Haaper/talos-plugin/actions/workflows/ci.yml/badge.svg)
@@ -27,7 +27,7 @@
 - **语音 I/O**：STT（WebSpeech / 本地 ASR）+ 三引擎 TTS（system / elevenlabs / aliyun），流式边生成边朗读。
 - **七套主题**：Aurora 原版、Nebula 深色宇宙、Animal Island 小岛、Macintosh 知识工作站、数据流·动态终端、柔光浮雕·Neumorphism、几何现代主义·Bauhaus。
 - **视觉系统**：屈原球形粒子 Logo 语音工作区（6727 粒子）、总览像素机器人巡航、全库笔记热力图、13 模块地图、健康趋势图。
-- **发布作战室**：G1–G3 + PUB-W 发布闭环看板。
+- **发布作战室**：统一展示 G1–G7 产品发布门；PUB-W 仅表示内容发布动作，不参与产品放行。
 
 ## 📦 安装
 
@@ -35,7 +35,7 @@
 
 ### 前置要求
 
-- Obsidian **≥ 1.8.0**，桌面端（macOS / Windows / Linux，`isDesktopOnly`）。
+- Obsidian **≥ 1.11.4**，桌面端（macOS / Windows / Linux，`isDesktopOnly`）。
 - 屈原 Agent 能力需要本机已安装 `claude` CLI（[Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) 会调用），并配置 `ANTHROPIC_*` 环境变量；或使用 BYOK 自带 API Key。
 - 可选：语音 TTS（ElevenLabs / 阿里云）与本地 ASR 对应的密钥与运行时。
 
@@ -68,7 +68,14 @@ Animal Island 主题参考 `guokaigdg/animal-island-ui` 的温暖羊皮纸底、
 
 总览采用「缩小主判断 → 2×2 结果指标 → 二级状态小卡 → 焦点/建议下钻区」的行动层级。数据来自任务流、发布作战室、健康记录、审批池、收件箱与偏好候选池；首屏不再把单个模块横向拉满，而是把运行判断和第一优先级收成左侧中等宽度指挥卡，今日执行、发布闭环、系统准备度、数据新鲜度以右侧指标矩阵承接；待处理、焦点、收件箱和巡检降为小状态卡。桌面保留左侧完整导航，680px 以下改为横向导航轨道。
 
-子页继续承载 **能力中心**、知识库分布、健康趋势、13 模块地图、全库笔记热力图与 TALOS 发布作战室（G1-G3 + PUB-W）。10 个业务页顶部统一提供模块首屏，并沿用总览单模块优化方案：左侧主说明缩成纸面指挥块，标题卡用模块身份色做浅底、左侧色条、图标和英文小标题强调；右侧真实统计固定为 2×2 纸面矩阵，动作按钮统一收在下方；标题卡、统计卡和动作按钮统一具备强化鼠标悬停反馈，只有真实可点的卡片显示手型。屈原页不共用该组件，避免干扰语音工作台布局。
+子页继续承载 **能力中心**、知识库分布、健康趋势、13 模块地图、全库笔记热力图与 TALOS 发布作战室（G1–G7；PUB-W 为独立内容发布动作）。10 个业务页顶部统一提供模块首屏，并沿用总览单模块优化方案：左侧主说明缩成纸面指挥块，标题卡用模块身份色做浅底、左侧色条、图标和英文小标题强调；右侧真实统计固定为 2×2 纸面矩阵，动作按钮统一收在下方；标题卡、统计卡和动作按钮统一具备强化鼠标悬停反馈，只有真实可点的卡片显示手型。屈原页不共用该组件，避免干扰语音工作台布局。
+
+### 统一产品发布门
+
+Standard 是 TALOS 2.x 的唯一产品发布权威；Plugin 只贡献组件证据。当前 G1、G2、
+G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
+`formal_release_allowed=false`。只有 G1–G7 全部通过并获得单独发布授权后，才能创建
+正式产品 tag 或 Release。PUB-W 属于内容发布工作流，不得作为产品门或替代 G1–G7。
 
 ### 导航信息架构
 
