@@ -42,6 +42,28 @@ describe("chat provider egress preflight", () => {
 		expect(result.audit.blockedReasons).toContain("plugin-data");
 	});
 
+	it.each([
+		"safe/../.talos/private/provider.json",
+		["", "30 洞察", "absolute.md"].join("/"),
+		["C:", "Vault", "30 洞察", "absolute.md"].join("\\"),
+	])("blocks unsafe path %s before reading it", async (path) => {
+		let read = false;
+		const result = await preflightChatProviderEgress({
+			providerId: "claude",
+			vaultAccess: "full",
+			prompt: "读取上下文",
+			contextPaths: [path],
+			readContext: async () => {
+				read = true;
+				return "must not be read";
+			},
+		});
+
+		expect(read).toBe(false);
+		expect(result.allowed).toBe(false);
+		expect(result.audit.blockedReasons).toContain("unsafe-path");
+	});
+
 	it("fails closed when direct chat would require redaction", async () => {
 		const result = await preflightChatProviderEgress({
 			providerId: "claude",

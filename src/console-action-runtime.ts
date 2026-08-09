@@ -70,7 +70,7 @@ export function createConsoleActionRuntime(options: {
 		approvals,
 		proposeProviderTool(input) {
 			const idempotencyKey =
-				`canonical:${input.providerId}:${input.toolCallId}`;
+				`canonical:${input.providerId}:${input.runId}:${input.toolCallId}`;
 			const existing = store.findByIdempotencyKey(idempotencyKey);
 			if (existing) return { taskId: existing.id };
 			const taskId = `talos-task-${input.runId}-${input.toolCallId}`;

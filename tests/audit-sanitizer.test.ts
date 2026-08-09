@@ -41,8 +41,34 @@ describe("sanitizeAuditValue", () => {
 		});
 
 		expect(sanitized).toEqual({
-			absolute: "[HOME]/Documents/private.md",
+			absolute: "[HOME_PATH]",
 			relative: "30 洞察/主题.md",
 		});
+	});
+
+	it("redacts complete Unix and Windows home paths embedded in messages", () => {
+		const unixHomePath = [
+			"",
+			"Users",
+			"example",
+			"Documents",
+			"private.md",
+		].join("/");
+		const windowsHomePath = [
+			"C:",
+			"Users",
+			"example",
+			"Documents",
+			"private.md",
+		].join("\\");
+		const sanitized = sanitizeAuditValue(
+			`Read failed at "${unixHomePath}": copied from ${windowsHomePath}. Denied!`
+		);
+
+		expect(sanitized).toBe(
+			'Read failed at "[HOME_PATH]": copied from [HOME_PATH]. Denied!'
+		);
+		expect(sanitized).not.toContain("example");
+		expect(sanitized).not.toContain("private.md");
 	});
 });

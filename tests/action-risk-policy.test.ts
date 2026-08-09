@@ -77,6 +77,25 @@ describe("evaluateActionRisk", () => {
 	});
 
 	it.each([
+		"00 收件箱/../10 身份/private.md",
+		["", "00 收件箱", "private.md"].join("/"),
+		["C:", "Vault", "00 收件箱", "private.md"].join("\\"),
+		"00 收件箱//private.md",
+	])("fails closed for unsafe scoped path %s", (path) => {
+		const result = evaluateActionRisk(
+			definition({
+				risk: "B",
+				reversible: true,
+				writeScope: ["00 收件箱/**"],
+			}),
+			request({ writePaths: [path], effects: ["write"] })
+		);
+
+		expect(result.decision).toBe("propose");
+		expect(result.reason).toContain("超出");
+	});
+
+	it.each([
 		["delete", { effects: ["delete"] }],
 		["move", { effects: ["move"] }],
 		["identity", { effects: ["write"], touchesIdentity: true }],

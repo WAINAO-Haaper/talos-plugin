@@ -60,4 +60,16 @@ describe("secret policy", () => {
 			})
 		).toMatchObject({ blocked: true, reasons: ["plugin-data"] });
 	});
+
+	it.each([
+		"safe/../.talos/private/provider.json",
+		["", "30 洞察", "absolute.md"].join("/"),
+		["C:", "Vault", "30 洞察", "absolute.md"].join("\\"),
+		"30 洞察//empty-segment.md",
+	])("fails closed for unsafe Vault path %s", (path) => {
+		expect(inspectVaultPath(path)).toEqual({
+			blocked: true,
+			reasons: ["unsafe-path"],
+		});
+	});
 });

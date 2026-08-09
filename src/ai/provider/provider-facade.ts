@@ -23,6 +23,10 @@ interface ProviderSessionState {
 export class ProviderFacade {
 	private readonly providers = new Map<string, TalosProvider>();
 	private readonly sessions = new Map<string, ProviderSessionState>();
+	private readonly activeRuns = new Map<
+		string,
+		{ provider: TalosProvider; owner: object }
+	>();
 
 	constructor(private readonly now: () => number = Date.now) {}
 
@@ -158,7 +162,8 @@ export class ProviderFacade {
 
 	async cancel(sessionId: string, runId: string): Promise<void> {
 		const state = this.requireSession(sessionId);
-		await this.requireProvider(state.providerId).cancel(runId);
+		const active = this.activeRuns.get(this.runKey(sessionId, runId));
+		await (active?.provider ?? this.requireProvider(state.providerId)).cancel(runId);
 	}
 
 	async resume(sessionId: string): Promise<void> {
@@ -172,30 +177,43 @@ export class ProviderFacade {
 		request: AskRequest,
 		reviewMode = false
 	): AsyncIterable<AskEvent> {
+		const activeKey = this.runKey(state.sessionId, request.runId);
+		const owner = {};
+		this.activeRuns.set(activeKey, { provider, owner });
 		const blockedToolIds = new Set<string>();
-		for await (const event of provider.chat(request)) {
-			if (event.type === "tool-request") {
-				const reason = reviewMode
-					? "review-mode"
-					: state.completedToolIds.has(event.toolCallId)
-						? "already-executed"
-						: null;
-				if (reason) {
-					blockedToolIds.add(event.toolCallId);
-					yield {
-						type: "tool-skipped",
-						toolCallId: event.toolCallId,
-						reason,
-					};
-					continue;
+		try {
+			for await (const event of provider.chat(request)) {
+				if (event.type === "tool-request") {
+					const reason = reviewMode
+						? "review-mode"
+						: state.completedToolIds.has(event.toolCallId)
+							? "already-executed"
+							: null;
+					if (reason) {
+						blockedToolIds.add(event.toolCallId);
+						yield {
+							type: "tool-skipped",
+							toolCallId: event.toolCallId,
+							reason,
+						};
+						continue;
+					}
 				}
+				if (event.type === "tool-result") {
+					if (reviewMode || blockedToolIds.has(event.toolCallId)) continue;
+					if (!event.isError) state.completedToolIds.add(event.toolCallId);
+				}
+				yield event;
 			}
-			if (event.type === "tool-result") {
-				if (reviewMode || blockedToolIds.has(event.toolCallId)) continue;
-				if (!event.isError) state.completedToolIds.add(event.toolCallId);
+		} finally {
+			if (this.activeRuns.get(activeKey)?.owner === owner) {
+				this.activeRuns.delete(activeKey);
 			}
-			yield event;
 		}
+	}
+
+	private runKey(sessionId: string, runId: string): string {
+		return `${sessionId}\0${runId}`;
 	}
 
 	private requireProvider(providerId: string): TalosProvider {

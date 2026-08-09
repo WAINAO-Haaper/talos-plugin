@@ -71,7 +71,25 @@ interface VaultRecoverySnapshot {
 }
 
 function recoveryPath(path: string): string {
-	return path.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+	const normalized = path.trim().replace(/\\/g, "/");
+	if (!normalized || (normalized.startsWith("<") && normalized.endsWith(">"))) {
+		return normalized;
+	}
+	const segments = normalized.split("/");
+	if (
+		normalized.startsWith("/") ||
+		/^[a-zA-Z]:\//.test(normalized) ||
+		normalized.includes("\0") ||
+		segments.some(
+			(segment, index) =>
+				segment === "." ||
+				segment === ".." ||
+				(segment === "" && index > 0)
+		)
+	) {
+		throw new Error(`RecoveryStore 禁止不安全路径：${normalized}`);
+	}
+	return normalized;
 }
 
 export class VaultRecoveryStore implements RecoveryStore {
@@ -83,9 +101,13 @@ export class VaultRecoveryStore implements RecoveryStore {
 	async capture(input: RecoveryCaptureInput): Promise<string> {
 		const paths = input.targetPaths.map(recoveryPath);
 		const privatePath = paths.find(
-			(path) =>
-				path === ".talos/private" ||
-				path.startsWith(".talos/private/")
+			(path) => {
+				const lower = path.toLowerCase();
+				return (
+					lower === ".talos/private" ||
+					lower.startsWith(".talos/private/")
+				);
+			}
 		);
 		if (privatePath) {
 			throw new Error(`RecoveryStore 禁止读取 private 路径：${privatePath}`);

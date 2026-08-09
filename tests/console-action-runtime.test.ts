@@ -72,8 +72,15 @@ describe("production console action runtime", () => {
 			toolCallId: "tool-1",
 			providerId: "mock-provider",
 		});
+		const laterRun = runtime.proposeProviderTool({
+			runId: "run-2",
+			toolCallId: "tool-1",
+			providerId: "mock-provider",
+		});
 
 		expect(second.taskId).toBe(first.taskId);
+		expect(laterRun.taskId).not.toBe(first.taskId);
+		expect(runtime.store.list()).toHaveLength(2);
 		expect(runtime.store.get(first.taskId)).toMatchObject({
 			actionId: "provider-tool-proposal",
 			state: "ready",

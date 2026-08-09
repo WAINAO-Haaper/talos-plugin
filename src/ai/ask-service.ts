@@ -70,7 +70,6 @@ interface RunRecord {
 
 export class TalosAskService {
 	private readonly sessions = new Map<string, string>();
-	private readonly proposedTools = new Map<string, Set<string>>();
 	private readonly runs = new Map<string, RunRecord>();
 
 	constructor(private readonly options: TalosAskServiceOptions) {}
@@ -136,9 +135,7 @@ export class TalosAskService {
 			text: egress.redactedText,
 		});
 
-		const proposed =
-			this.proposedTools.get(sessionKey) ?? new Set<string>();
-		this.proposedTools.set(sessionKey, proposed);
+		const proposed = new Set<string>();
 		const manualReview = this.options.manualReview();
 		for await (const event of this.options.facade.chat(sessionKey, {
 			runId: input.runId,

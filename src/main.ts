@@ -46,7 +46,6 @@ import { VaultRecoveryStore } from "./task-core/recovery-store";
 import {
 	createWindowTimerHost,
 	partialTaskResult,
-	waitForAbortableDelay,
 } from "./task-core/task-runner";
 import {
 	registerApprovalTaskRuntime,
@@ -368,13 +367,12 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 					return { notes: notes.length, missingFrontmatter };
 				},
 				deepResearch: async (_input, context) => {
-					await waitForAbortableDelay(
-						context.signal,
-						10_000,
-						actionTimers
-					);
 					const { deepResearch } = await import("./actions");
-					await deepResearch(this.app, this.talosSettings);
+					await deepResearch(
+						this.app,
+						this.talosSettings,
+						context.signal
+					);
 					return { requested: true };
 				},
 				createNote: async (input) => {

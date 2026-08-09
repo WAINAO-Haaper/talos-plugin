@@ -21,9 +21,7 @@ function uniqueVaultPaths(paths: string[] | undefined): string[] {
 	return [
 		...new Set(
 			(paths ?? [])
-				.map((path) =>
-					path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")
-				)
+				.map((path) => path.trim().replace(/\\/g, "/"))
 				.filter(Boolean)
 		),
 	];

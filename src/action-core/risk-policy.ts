@@ -15,9 +15,23 @@ function normalizePath(path: string): string {
 	return path
 		.trim()
 		.replace(/\\/g, "/")
-		.replace(/^\.\//, "")
-		.replace(/^\/+/, "")
 		.replace(/\/+/g, "/");
+}
+
+function hasUnsafePathSyntax(path: string): boolean {
+	const normalized = path.trim().replace(/\\/g, "/");
+	const segments = normalized.split("/");
+	return (
+		normalized.startsWith("/") ||
+		/^[a-zA-Z]:\//.test(normalized) ||
+		normalized.includes("\0") ||
+		segments.some(
+			(segment, index) =>
+				segment === "." ||
+				segment === ".." ||
+				(segment === "" && index > 0)
+		)
+	);
 }
 
 function matchesScope(path: string, scope: string): boolean {
@@ -32,7 +46,11 @@ function matchesScope(path: string, scope: string): boolean {
 }
 
 function outsideScope(paths: string[], scopes: string[]): string | undefined {
-	return paths.find((path) => !scopes.some((scope) => matchesScope(path, scope)));
+	return paths.find(
+		(path) =>
+			hasUnsafePathSyntax(path) ||
+			!scopes.some((scope) => matchesScope(path, scope))
+	);
 }
 
 export function evaluateActionRisk(

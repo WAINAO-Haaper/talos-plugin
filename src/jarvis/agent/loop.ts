@@ -91,14 +91,18 @@ export class AgentLoop {
 	private once(): Promise<{ stop: "end" | "tool_use"; calls: ToolCall[] }> {
 		return new Promise((resolve, reject) => {
 			const calls: ToolCall[] = [];
-			void this.model.stream({
-				onTextDelta: (t) => this.ev.onTextDelta?.(t),
-				onThinkingDelta: (t) => this.ev.onThinkingDelta?.(t),
-				onToolCall: (c) => calls.push(c),
-				onUsage: (u) => this.ev.onUsage?.(u),
-				onError: (e) => reject(e),
-				onDone: (stop) => resolve({ stop, calls }),
-			});
+			void this.model
+				.stream({
+					onTextDelta: (t) => this.ev.onTextDelta?.(t),
+					onThinkingDelta: (t) => this.ev.onThinkingDelta?.(t),
+					onToolCall: (c) => calls.push(c),
+					onUsage: (u) => this.ev.onUsage?.(u),
+					onError: (e) => reject(e),
+					onDone: (stop) => resolve({ stop, calls }),
+				})
+				.catch((error: unknown) => {
+					reject(error instanceof Error ? error : new Error(String(error)));
+				});
 		});
 	}
 

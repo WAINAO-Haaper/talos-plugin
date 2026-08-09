@@ -62,4 +62,43 @@ describe("VaultRecoveryStore", () => {
 			})
 		).rejects.toThrow("private");
 	});
+
+	it.each([
+		"safe/../.talos/private/secret.md",
+		["", "00 收件箱", "absolute.md"].join("/"),
+		["C:", "Vault", "00 收件箱", "absolute.md"].join("\\"),
+		"00 收件箱//empty-segment.md",
+	])("refuses unsafe recovery path %s before adapter access", async (path) => {
+		const files = new MemoryFiles();
+		const exists = files.exists.bind(files);
+		let adapterAccessed = false;
+		files.exists = async (candidate) => {
+			adapterAccessed = true;
+			return exists(candidate);
+		};
+		const store = new VaultRecoveryStore(files);
+
+		await expect(
+			store.capture({
+				taskId: "task-unsafe",
+				actionId: "create-note",
+				targetPaths: [path],
+				createdAt: "2026-07-25T00:00:00.000Z",
+			})
+		).rejects.toThrow("不安全路径");
+		expect(adapterAccessed).toBe(false);
+	});
+
+	it("treats private recovery paths case-insensitively", async () => {
+		const store = new VaultRecoveryStore(new MemoryFiles());
+
+		await expect(
+			store.capture({
+				taskId: "task-private-case",
+				actionId: "create-note",
+				targetPaths: [".TALOS/PRIVATE/secret.md"],
+				createdAt: "2026-07-25T00:00:00.000Z",
+			})
+		).rejects.toThrow("private");
+	});
 });

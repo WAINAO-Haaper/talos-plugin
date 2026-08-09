@@ -95,9 +95,11 @@ export class ApiAgentRuntime implements TalosProvider {
 		});
 		this.resumedSessionId = null;
 		const executed = request.executedToolIds ?? new Set<string>();
+		const toolResultScope = request.sessionId ?? request.runId;
 		const tools: AgentToolRunner = {
 			run: async (call: ToolCall) => {
-				const cached = this.toolResults.get(call.id);
+				const cacheKey = `${toolResultScope}\0${call.id}`;
+				const cached = this.toolResults.get(cacheKey);
 				if (cached) return cached;
 				if (executed.has(call.id)) {
 					return {
@@ -109,7 +111,7 @@ export class ApiAgentRuntime implements TalosProvider {
 					return { content: "复核模式禁止执行工具", isError: true };
 				}
 				const result = await this.options.toolRunner.run(call);
-				if (!result.isError) this.toolResults.set(call.id, result);
+				if (!result.isError) this.toolResults.set(cacheKey, result);
 				return result;
 			},
 		};

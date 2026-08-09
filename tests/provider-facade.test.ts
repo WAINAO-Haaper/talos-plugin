@@ -10,6 +10,7 @@ import {
 import type {
 	AskEvent,
 	ProviderCapability,
+	TalosProvider,
 	TalosProviderKind,
 } from "../src/ai/provider/types";
 
@@ -205,6 +206,63 @@ describe("ProviderFacade", () => {
 			},
 		]);
 		expect(facade.getSession("session").completedToolIds).toEqual([]);
+	});
+
+	it("cancels a running request on its original provider after a session switch", async () => {
+		let releaseFirstRun = () => undefined;
+		let firstCancelCalls = 0;
+		let secondCancelCalls = 0;
+		const firstProvider: TalosProvider = {
+			id: "first",
+			kind: "api",
+			capabilities: () => new Set(["chat", "stream", "cancel"]),
+			chat: async function* () {
+				const cancellation = new Promise<void>((resolve) => {
+					releaseFirstRun = resolve;
+				});
+				yield { type: "text", text: "started" };
+				await cancellation;
+				yield { type: "done" };
+			},
+			async cancel() {
+				firstCancelCalls += 1;
+				releaseFirstRun();
+			},
+			async resume() {},
+		};
+		const secondProvider: TalosProvider = {
+			id: "second",
+			kind: "api",
+			capabilities: () => new Set(["chat", "stream", "cancel"]),
+			chat: async function* () {
+				yield { type: "done" };
+			},
+			async cancel() {
+				secondCancelCalls += 1;
+			},
+			async resume() {},
+		};
+		const facade = new ProviderFacade();
+		facade.register(firstProvider);
+		facade.register(secondProvider);
+		facade.createSession({ sessionId: "session", providerId: "first" });
+		const iterator = facade.chat("session", {
+			runId: "run",
+			turnId: "turn",
+			text: "start",
+		})[Symbol.asyncIterator]();
+
+		await expect(iterator.next()).resolves.toEqual({
+			done: false,
+			value: { type: "text", text: "started" },
+		});
+		facade.switchProvider("session", "second", "turn-2");
+		await facade.cancel("session", "run");
+		await iterator.next();
+		await iterator.next();
+
+		expect(firstCancelCalls).toBe(1);
+		expect(secondCancelCalls).toBe(0);
 	});
 });
 

@@ -1,4 +1,5 @@
 export type SecretBlockReason =
+	| "unsafe-path"
 	| "environment-file"
 	| "plugin-data"
 	| "talos-private"
@@ -29,7 +30,21 @@ export function inspectVaultPath(
 	path: string,
 	options: SecretPolicyOptions = {}
 ): SecretInspection {
-	const normalized = path.replace(/\\/g, "/").replace(/^\/+/, "");
+	const normalized = path.trim().replace(/\\/g, "/");
+	const pathSegments = normalized.split("/");
+	if (
+		normalized.startsWith("/") ||
+		/^[a-zA-Z]:\//.test(normalized) ||
+		normalized.includes("\0") ||
+		pathSegments.some(
+			(segment, index) =>
+				segment === "." ||
+				segment === ".." ||
+				(segment === "" && index > 0)
+		)
+	) {
+		return blocked("unsafe-path");
+	}
 	const lower = normalized.toLowerCase();
 	const segments = lower.split("/");
 	const filename = segments[segments.length - 1] ?? "";

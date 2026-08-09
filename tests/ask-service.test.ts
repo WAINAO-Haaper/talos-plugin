@@ -167,6 +167,47 @@ describe("TalosAskService", () => {
 		expect(facade.getSession("chat:session").switchPoints).toHaveLength(1);
 	});
 
+	it("proposes the same provider tool id again in a later run", async () => {
+		const provider = new RecordingProvider("mock-main");
+		const facade = new ProviderFacade();
+		facade.register(provider);
+		const proposals: string[] = [];
+		const service = new TalosAskService({
+			facade,
+			retriever: retriever({ hits: [], blocked: [] }),
+			manualReview: () => true,
+			toolGateway: {
+				async propose(input) {
+					proposals.push(`${input.runId}:${input.toolCallId}`);
+					return { taskId: `task-${proposals.length}` };
+				},
+			},
+		});
+
+		await collect(
+			service.ask({
+				sessionId: "session",
+				namespace: "chat",
+				runId: "run-1",
+				turnId: "turn-1",
+				providerId: "mock-main",
+				query: "first",
+			})
+		);
+		await collect(
+			service.ask({
+				sessionId: "session",
+				namespace: "chat",
+				runId: "run-2",
+				turnId: "turn-2",
+				providerId: "mock-main",
+				query: "second",
+			})
+		);
+
+		expect(proposals).toEqual(["run-1:tool-1", "run-2:tool-1"]);
+	});
+
 	it("never places blocked excerpts in provider context", async () => {
 		const provider = new RecordingProvider("mock");
 		const facade = new ProviderFacade();

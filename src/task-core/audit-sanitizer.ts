@@ -2,17 +2,20 @@ const SENSITIVE_KEY =
 	/(authorization|api[-_]?key|token|secret|cookie|password|credential)/i;
 const SENSITIVE_VALUE =
 	/(?:Bearer\s+\S+|sk-(?:ant-)?[A-Za-z0-9_-]{12,}|ghp_[A-Za-z0-9]{20,}|(?:token|api[-_]?key)\s*=\s*\S+)/gi;
-const HOME_PATH = /^\/(?:Users|home)\/[^/]+(?<suffix>\/.*)?$/;
+const HOME_PATH =
+	/(?:\/(?:Users|home)\/[^/\s:;,"')\]}!?]+|[A-Za-z]:\\Users\\[^\\\s:;,"')\]}!?]+)(?:[/\\][^\s:;,"')\]}!?]+)*/g;
 
 function sanitizeString(value: string): string {
-	if (SENSITIVE_VALUE.test(value)) {
-		SENSITIVE_VALUE.lastIndex = 0;
-		return value.replace(SENSITIVE_VALUE, "[REDACTED]");
-	}
 	SENSITIVE_VALUE.lastIndex = 0;
-	const home = HOME_PATH.exec(value);
-	if (home) return `[HOME]${home.groups?.suffix || ""}`;
-	return value;
+	const secretsRedacted = value.replace(SENSITIVE_VALUE, "[REDACTED]");
+	SENSITIVE_VALUE.lastIndex = 0;
+	HOME_PATH.lastIndex = 0;
+	const sanitized = secretsRedacted.replace(HOME_PATH, (match) => {
+		const trailingPunctuation = /[.!?]+$/.exec(match)?.[0] ?? "";
+		return `[HOME_PATH]${trailingPunctuation}`;
+	});
+	HOME_PATH.lastIndex = 0;
+	return sanitized;
 }
 
 export function sanitizeAuditValue(value: unknown): unknown {
