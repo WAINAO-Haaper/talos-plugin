@@ -1023,6 +1023,10 @@ function initializeTalosQuyuanActions(tab: TabData, plugin: ClaudianPlugin): voi
     void tab.ui.imageContextManager?.pickImages();
   });
 
+  actionButton('file-search', '预览', 'is-preview', () => {
+    tab.ui.fileContextManager?.pickLocalPreviewFile();
+  });
+
   const micButton = actionButton('mic', '语音', 'is-mic', () => {
     if (!bridge.toggleQuyuanVoiceInput) {
       new Notice('当前环境未启用屈原语音输入。');

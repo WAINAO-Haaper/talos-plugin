@@ -15,6 +15,7 @@ import { externalContextScanner } from '../../../utils/externalContextScanner';
 import { getVaultPath, normalizePathForVault as normalizePathForVaultUtil } from '../../../utils/path';
 import { FileContextState } from './file-context/state/FileContextState';
 import { FileChipsView } from './file-context/view/FileChipsView';
+import { LocalFilePreviewPicker } from './file-preview/LocalFilePreviewModal';
 
 export interface FileContextCallbacks {
   getExcludedTags: () => string[];
@@ -117,6 +118,11 @@ export class FileContextManager {
 
   getAttachedFiles(): Set<string> {
     return this.state.getAttachedFiles();
+  }
+
+  /** Opens the G3 local-only preview picker. Selection never leaves the Vault. */
+  pickLocalPreviewFile(): void {
+    new LocalFilePreviewPicker(this.app).open();
   }
 
   /** Checks whether current note should be sent for this session. */

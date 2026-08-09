@@ -1,0 +1,104 @@
+.claudian-local-file-preview-modal {
+  width: min(920px, 92vw);
+  max-width: 92vw;
+}
+
+.claudian-local-file-preview-modal .modal-content {
+  max-height: 78vh;
+  overflow: auto;
+}
+
+.claudian-local-file-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.claudian-local-file-preview-meta span {
+  padding: 2px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-secondary);
+}
+
+.claudian-local-file-preview-text {
+  max-height: 62vh;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.claudian-local-file-preview-table-wrap {
+  max-height: 62vh;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.claudian-local-file-preview-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.claudian-local-file-preview-table th,
+.claudian-local-file-preview-table td {
+  max-width: 360px;
+  padding: 6px 10px;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudian-local-file-preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--background-secondary);
+  z-index: 1;
+}
+
+.claudian-local-file-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 64vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.claudian-local-file-preview-pdf {
+  width: 100%;
+  height: 64vh;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+}
+
+.claudian-local-file-preview-status,
+.claudian-local-file-preview-fallback,
+.claudian-local-file-preview-truncated {
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.claudian-local-file-preview-fallback strong {
+  color: var(--text-warning);
+}
+
+.claudian-local-file-preview-fallback p {
+  margin: 8px 0;
+}
+
+.claudian-local-file-preview-truncated {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
