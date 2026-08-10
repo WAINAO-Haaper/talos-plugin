@@ -54,7 +54,38 @@ export interface CanonicalRequestInput {
 export interface CanonicalRequestPersistence {
 	ensureDirectory(path: string): void | Promise<void>;
 	write(path: string, value: string): void | Promise<void>;
-	rename(from: string, to: string): void | Promise<void>;
+	replace(from: string, to: string): void | Promise<void>;
+}
+
+interface AtomicReplaceAdapter {
+	exists(path: string): Promise<boolean>;
+	rename(from: string, to: string): Promise<void>;
+	remove(path: string): Promise<void>;
+}
+
+/**
+ * Obsidian's Vault adapter refuses rename when the destination exists. Move
+ * the previous request aside, publish the staged request, then remove the
+ * previous copy. If publication fails, restore the previous request.
+ */
+export async function replaceVaultFile(
+	adapter: AtomicReplaceAdapter,
+	from: string,
+	to: string
+): Promise<void> {
+	const backup = `${from}.previous`;
+	if (await adapter.exists(backup)) await adapter.remove(backup);
+	const hadPrevious = await adapter.exists(to);
+	if (hadPrevious) await adapter.rename(to, backup);
+	try {
+		await adapter.rename(from, to);
+	} catch (error) {
+		if (hadPrevious && (await adapter.exists(backup))) {
+			await adapter.rename(backup, to);
+		}
+		throw error;
+	}
+	if (hadPrevious) await adapter.remove(backup);
 }
 
 export interface CanonicalRequestWriteResult {
@@ -140,7 +171,7 @@ export class CanonicalRequestWriter {
 			`${REQUEST_DIRECTORY}/.talos-ask.${safeInput.requestId}.tmp`;
 		await this.persistence.ensureDirectory(REQUEST_DIRECTORY);
 		await this.persistence.write(temporaryPath, value);
-		await this.persistence.rename(
+		await this.persistence.replace(
 			temporaryPath,
 			CANONICAL_TALOS_ASK_REQUEST_PATH
 		);
@@ -167,6 +198,16 @@ export function createVaultCanonicalRequestWriter(
 	return new CanonicalRequestWriter({
 		ensureDirectory: (path) => ensureVaultDirectory(app, path),
 		write: (path, value) => app.vault.adapter.write(path, value),
-		rename: (from, to) => app.vault.adapter.rename(from, to),
+		replace: (from, to) =>
+			replaceVaultFile(
+				{
+					exists: (path) => app.vault.adapter.exists(path),
+					rename: (source, target) =>
+						app.vault.adapter.rename(source, target),
+					remove: (path) => app.vault.adapter.remove(path),
+				},
+				from,
+				to
+			),
 	});
 }

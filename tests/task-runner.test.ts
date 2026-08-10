@@ -312,6 +312,42 @@ describe("TalosTaskRunner", () => {
 		expect(runner.canRevert(completed.id)).toBe(false);
 	});
 
+	it("allows a failed reversible task to restore its captured snapshot", async () => {
+		const restored: string[] = [];
+		const recovery = new MemoryRecoveryStore(
+			undefined,
+			(record) => restored.push(record.id)
+		);
+		const store = new MemoryTaskStore();
+		const runner = new TalosTaskRunner(
+			new TalosActionRegistry([
+				action(async () => {
+					throw new Error("write failed after mutation");
+				}),
+			]),
+			store,
+			recovery,
+			nodeTimers
+		);
+		const failed = await runner.run({
+			actionId: "organize-inbox",
+			idempotencyKey: "failed-revert-request",
+			input: undefined,
+			request: {
+				readPaths: [],
+				writePaths: ["30 洞察/想法.md"],
+				effects: ["write"],
+			},
+		});
+
+		expect(failed.state).toBe("failed");
+		expect(failed.recoveryId).toBeTruthy();
+		expect(runner.canRevert(failed.id)).toBe(true);
+		expect(await runner.revert(failed.id)).toBe(true);
+		expect(store.get(failed.id)?.state).toBe("reverted");
+		expect(restored).toEqual([failed.recoveryId]);
+	});
+
 	it("does not offer cancellation or recovery for unsupported actions", async () => {
 		const store = new MemoryTaskStore();
 		const runner = new TalosTaskRunner(

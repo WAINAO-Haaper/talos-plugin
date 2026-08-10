@@ -5,7 +5,7 @@ import { JarvisView, VIEW_TYPE_JARVIS } from "./jarvis-view";
 import ClaudianWorkbenchPlugin from "./quyuan/claudian/main";
 import { VIEW_TYPE_CLAUDIAN } from "./quyuan/claudian/core/types";
 import {
-	loadQuyuanSoulContext,
+	loadQuyuanSoulContextWithFallback,
 	type QuyuanSoulContext,
 } from "./quyuan/persona-context";
 import {
@@ -1421,11 +1421,15 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	private async initializeQuyuanSoul(): Promise<void> {
 		try {
 			const P = this.paths;
-			this.quyuanSoul = await loadQuyuanSoulContext(this.app, [
-				P.personaFile,
-				P.personaMemoryFile,
-				P.contextFile,
-			]);
+			this.quyuanSoul = await loadQuyuanSoulContextWithFallback(
+				this.app,
+				[P.personaFile, P.personaMemoryFile, P.contextFile],
+				[
+					P.join("identity", "身份.md"),
+					P.join("identity", "偏好与边界.md"),
+					P.join("identity", "目标.md"),
+				]
+			);
 			this.talosProviderFacade = null;
 			this.talosAskService = null;
 			this.quyuanSoulError = "";

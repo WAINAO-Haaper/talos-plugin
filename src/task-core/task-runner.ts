@@ -122,7 +122,9 @@ export class TalosTaskRunner {
 		const task = this.store.get(taskId);
 		if (
 			!task ||
-			(task.state !== "completed" && task.state !== "partial") ||
+			(task.state !== "completed" &&
+				task.state !== "partial" &&
+				task.state !== "failed") ||
 			!task.recoveryId
 		) {
 			return false;

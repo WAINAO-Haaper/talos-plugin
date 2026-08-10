@@ -9,7 +9,7 @@ const TRANSITIONS: Readonly<Record<TalosTaskState, readonly TalosTaskState[]>> =
 	running: ["completed", "partial", "failed", "cancelled"],
 	completed: ["reverted"],
 	partial: ["reverted"],
-	failed: [],
+	failed: ["reverted"],
 	cancelled: [],
 	reverted: [],
 };

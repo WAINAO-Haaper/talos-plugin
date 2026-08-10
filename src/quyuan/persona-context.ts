@@ -73,3 +73,21 @@ export async function loadQuyuanSoulContext(
 	};
 }
 
+/**
+ * Preserve the legacy three-file persona contract while allowing Standard
+ * Vaults to reuse their canonical confirmed identity files. The fallback is
+ * attempted only when the complete primary set cannot be loaded; sources are
+ * never mixed across the two identity layouts.
+ */
+export async function loadQuyuanSoulContextWithFallback(
+	app: App,
+	primaryPaths: readonly string[],
+	fallbackPaths: readonly string[]
+): Promise<QuyuanSoulContext> {
+	try {
+		return await loadQuyuanSoulContext(app, primaryPaths);
+	} catch (error) {
+		if (!(error instanceof QuyuanSoulBootstrapError)) throw error;
+		return loadQuyuanSoulContext(app, fallbackPaths);
+	}
+}
