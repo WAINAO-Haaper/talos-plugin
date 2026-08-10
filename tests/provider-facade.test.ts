@@ -269,10 +269,14 @@ describe("ProviderFacade", () => {
 describe("ClaudianProviderAdapter", () => {
 	it("maps the existing registry/runtime without taking ownership of native history", async () => {
 		const history = [{ id: "native-history-ref" }];
-		const providerStateRef = { native: "state" };
+		const providerStateRef = {
+			native: "state",
+			providerSessionId: "native-state-session",
+		};
 		let historySeen: unknown;
 		let syncedState: unknown;
 		let workspaceLookups = 0;
+		let cleanupCalls = 0;
 		let approval:
 			| ((toolName: string, input: Record<string, unknown>) => Promise<string>)
 			| null = null;
@@ -317,6 +321,9 @@ describe("ClaudianProviderAdapter", () => {
 			},
 			cancel: () => undefined,
 			getSessionId: () => "native-session",
+			cleanup: () => {
+				cleanupCalls += 1;
+			},
 			setApprovalCallback: (callback) => {
 				approval = callback;
 			},
@@ -362,9 +369,10 @@ describe("ClaudianProviderAdapter", () => {
 
 		expect(historySeen).toBe(history);
 		expect(syncedState).toEqual({
-			sessionId: "talos-session",
+			sessionId: "native-state-session",
 			providerState: providerStateRef,
 		});
+		expect(cleanupCalls).toBe(1);
 		expect(events.map((event) => event.type)).toEqual([
 			"text",
 			"tool-request",
@@ -387,9 +395,84 @@ describe("ClaudianProviderAdapter", () => {
 		await expect(approval?.("Write", {})).resolves.toBe("deny");
 	});
 
+	it("keeps TALOS logical session ids out of native runtimes and reuses the native session", async () => {
+		const nativeSessionId = "019fe914-8c2b-7ff3-ac07-4700adb1d326";
+		const syncedSessions: Array<string | null> = [];
+		let cleanupCalls = 0;
+		const registry: ClaudianRegistryPort = {
+			getRegisteredProviderIds: () => ["codex"],
+			createRuntime: () => {
+				let runtimeSessionId: string | null = null;
+				return {
+					prepareTurn: (request) => ({
+						request,
+						persistedContent: request.text,
+						prompt: request.text,
+						isCompact: false,
+						mcpMentions: new Set(),
+					}),
+					syncConversationState: (state) => {
+						runtimeSessionId = state?.sessionId ?? null;
+						syncedSessions.push(runtimeSessionId);
+					},
+					ensureReady: async () => true,
+					query: async function* () {
+						runtimeSessionId ??= nativeSessionId;
+						yield { type: "done" };
+					},
+					cancel: () => undefined,
+					getSessionId: () => runtimeSessionId,
+					cleanup: () => {
+						cleanupCalls += 1;
+					},
+					setApprovalCallback: () => undefined,
+				};
+			},
+			getCapabilities: () => ({
+				providerId: "codex",
+				supportsPersistentRuntime: true,
+				supportsNativeHistory: true,
+				supportsPlanMode: true,
+				supportsRewind: false,
+				supportsFork: true,
+				supportsProviderCommands: true,
+				supportsImageAttachments: true,
+				supportsInstructionMode: true,
+				supportsMcpTools: true,
+				reasoningControl: "effort",
+			}),
+			getWorkspaceServices: () => null,
+		};
+		const adapter = new ClaudianProviderAdapter({
+			providerId: "codex",
+			plugin: {} as never,
+			registry,
+		});
+
+		for (const runId of ["run-1", "run-2"]) {
+			await collect(
+				adapter.chat({
+					runId,
+					turnId: runId,
+					sessionId: "command:canonical",
+					text: "hello",
+				})
+			);
+		}
+
+		expect(syncedSessions).toEqual([null, nativeSessionId]);
+		expect(syncedSessions).not.toContain("command:canonical");
+		expect(cleanupCalls).toBe(2);
+	});
+
 	it("routes cancel by run id and resumes the next native runtime", async () => {
 		let cancelCalls = 0;
+		let cleanupCalls = 0;
+		let releaseQuery = () => undefined;
 		const syncedSessions: Array<string | null> = [];
+		const queryReleased = new Promise<void>((resolve) => {
+			releaseQuery = resolve;
+		});
 		const runtime: ClaudianRuntimePort = {
 			prepareTurn: (request) => ({
 				request,
@@ -403,12 +486,18 @@ describe("ClaudianProviderAdapter", () => {
 			},
 			ensureReady: async () => true,
 			query: async function* () {
+				yield { type: "text", content: "started" };
+				await queryReleased;
 				yield { type: "done" };
 			},
 			cancel: () => {
 				cancelCalls += 1;
+				releaseQuery();
 			},
-			getSessionId: () => null,
+			getSessionId: () => "native-resume",
+			cleanup: () => {
+				cleanupCalls += 1;
+			},
 			setApprovalCallback: () => undefined,
 		};
 		const registry: ClaudianRegistryPort = {
@@ -435,15 +524,20 @@ describe("ClaudianProviderAdapter", () => {
 			registry,
 		});
 
-		await collect(
-			adapter.chat({
+		const iterator = adapter.chat({
 				runId: "run-1",
 				turnId: "turn-1",
+				sessionId: "logical-resume",
 				text: "first",
-			})
-		);
+			})[Symbol.asyncIterator]();
+		await expect(iterator.next()).resolves.toMatchObject({
+			done: false,
+			value: { type: "text", text: "started" },
+		});
 		await adapter.cancel("run-1");
-		await adapter.resume("native-resume");
+		await iterator.next();
+		await iterator.next();
+		await adapter.resume("logical-resume");
 		await collect(
 			adapter.chat({
 				runId: "run-2",
@@ -454,6 +548,7 @@ describe("ClaudianProviderAdapter", () => {
 
 		expect(cancelCalls).toBe(1);
 		expect(syncedSessions).toEqual([null, "native-resume"]);
+		expect(cleanupCalls).toBe(2);
 	});
 
 	it("discovers existing CLI providers from Claudian's registry instead of duplicating the catalog", () => {

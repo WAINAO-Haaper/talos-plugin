@@ -661,7 +661,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		this.talosSettings = settings;
 		if (
 			!secretStore &&
-			this.talosSettings.engineProvider !== "claude-cli"
+			this.talosSettings.engineProvider !== "claude-cli" &&
+			this.talosSettings.engineProvider !== "codex-cli"
 		) {
 			this.talosSettings.engineProvider = "claude-cli";
 			new Notice(
@@ -775,6 +776,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				name:
 					provider.id === "claude"
 						? "Claude · 本机 CLI"
+						: provider.id === "codex"
+							? "Codex · 本机 CLI"
 						: `${provider.id} · 本机 Provider`,
 				kind: provider.kind,
 				endpoint: "local://cli",

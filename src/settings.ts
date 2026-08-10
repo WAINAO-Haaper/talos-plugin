@@ -99,7 +99,7 @@ export interface TalosSettings {
 	// 屈原 agentic（B 方案 · claude-agent-sdk 流式）
 	jarvisClaudeBin: string; // claude CLI 路径，留空自动 which claude
 	jarvisModel: string; // 模型，留空用 CLI 默认
-	engineProvider: string; // 执行通道：claude-cli（现行）| claude-api（P1）| codex（P2）
+	engineProvider: string; // 执行通道：claude-cli | codex-cli | claude-api | codex（OpenAI-compatible）
 	anthropicApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	anthropicBaseUrl: string; // 留空用官方 api.anthropic.com；自建网关填此
 	openaiApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
@@ -678,6 +678,7 @@ export class TalosSettingTab extends PluginSettingTab {
 			.addDropdown((d) =>
 				d
 					.addOption("claude-cli", "Claude · 本机 CLI（满血）")
+					.addOption("codex-cli", "Codex · 本机 CLI")
 					.addOption("claude-api", "Claude · 直连 API（免 CLI）")
 					.addOption("codex", "OpenAI-compatible · 任意兼容 API")
 					.setValue(this.plugin.talosSettings.engineProvider)

@@ -42,6 +42,7 @@ export interface ClaudianRuntimePort {
 	): AsyncIterable<StreamChunk>;
 	cancel(): void;
 	getSessionId(): string | null;
+	cleanup(): void;
 	setApprovalCallback(callback: ClaudianApprovalCallback | null): void;
 }
 
@@ -101,12 +102,24 @@ function asHistoryRef(value: unknown): ChatMessage[] | undefined {
 	return Array.isArray(value) ? (value as ChatMessage[]) : undefined;
 }
 
+function nativeSessionIdFromProviderState(
+	providerState: Record<string, unknown> | undefined
+): string | null {
+	if (!providerState) return null;
+	for (const key of ["providerSessionId", "threadId", "sessionId"] as const) {
+		const value = providerState[key];
+		if (typeof value === "string" && value.trim()) return value.trim();
+	}
+	return null;
+}
+
 export class ClaudianProviderAdapter implements TalosProvider {
 	readonly id: string;
 	readonly kind = "cli" as const;
 	private readonly registry: ClaudianRegistryPort;
 	private readonly runtimes = new Map<string, ClaudianRuntimePort>();
-	private pendingResumeSessionId: string | null = null;
+	private readonly nativeSessionIds = new Map<string, string>();
+	private pendingResumeLogicalSessionId: string | null = null;
 
 	constructor(private readonly options: ClaudianProviderAdapterOptions) {
 		this.id = options.providerId;
@@ -126,29 +139,52 @@ export class ClaudianProviderAdapter implements TalosProvider {
 			this.options.plugin
 		);
 		this.runtimes.set(request.runId, runtime);
-		const sessionId = request.sessionId ?? this.pendingResumeSessionId;
-		this.pendingResumeSessionId = null;
-		runtime.syncConversationState(
-			sessionId
-				? {
-						sessionId,
-						providerState: request.providerStateRef,
-					}
-				: null,
-			[]
-		);
-		if (request.toolsAllowed === false) {
-			runtime.setApprovalCallback(async () => "deny");
-		}
-		await runtime.ensureReady({ allowSessionCreation: true });
-		const turn = runtime.prepareTurn({ text: request.text });
-		for await (const chunk of runtime.query(
-			turn,
-			asHistoryRef(request.historyRef),
-			request.toolsAllowed === false ? { allowedTools: [] } : undefined
-		)) {
-			const event = this.mapChunk(chunk, runtime);
-			if (event) yield event;
+		const logicalSessionId =
+			request.sessionId ?? this.pendingResumeLogicalSessionId;
+		this.pendingResumeLogicalSessionId = null;
+		const nativeSessionId =
+			nativeSessionIdFromProviderState(request.providerStateRef) ??
+			(logicalSessionId
+				? (this.nativeSessionIds.get(logicalSessionId) ?? null)
+				: null);
+
+		try {
+			runtime.syncConversationState(
+				nativeSessionId || request.providerStateRef
+					? {
+							sessionId: nativeSessionId,
+							...(request.providerStateRef
+								? { providerState: request.providerStateRef }
+								: {}),
+						}
+					: null,
+				[]
+			);
+			if (request.toolsAllowed === false) {
+				runtime.setApprovalCallback(async () => "deny");
+			}
+			await runtime.ensureReady({ allowSessionCreation: true });
+			const turn = runtime.prepareTurn({ text: request.text });
+			for await (const chunk of runtime.query(
+				turn,
+				asHistoryRef(request.historyRef),
+				request.toolsAllowed === false ? { allowedTools: [] } : undefined
+			)) {
+				const event = this.mapChunk(chunk, runtime);
+				if (event) yield event;
+			}
+		} finally {
+			const completedNativeSessionId = runtime.getSessionId();
+			if (logicalSessionId && completedNativeSessionId) {
+				this.nativeSessionIds.set(
+					logicalSessionId,
+					completedNativeSessionId
+				);
+			}
+			if (this.runtimes.get(request.runId) === runtime) {
+				this.runtimes.delete(request.runId);
+			}
+			runtime.cleanup();
 		}
 	}
 
@@ -157,7 +193,7 @@ export class ClaudianProviderAdapter implements TalosProvider {
 	}
 
 	async resume(sessionId: string): Promise<void> {
-		this.pendingResumeSessionId = sessionId;
+		this.pendingResumeLogicalSessionId = sessionId;
 	}
 
 	private mapChunk(

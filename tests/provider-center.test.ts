@@ -66,12 +66,14 @@ describe("ProviderCenter", () => {
 		expect(engineProviderSettingForProvider("claude-api")).toBe("claude-api");
 		expect(engineProviderSettingForProvider("openai-compatible")).toBe("codex");
 		expect(engineProviderSettingForProvider("claude")).toBe("claude-cli");
+		expect(engineProviderSettingForProvider("codex")).toBe("codex-cli");
 		expect(engineProviderSettingForProvider("mock-acceptance")).toBe(
 			"mock-acceptance"
 		);
 		expect(providerIdForEngineSetting("claude-api")).toBe("claude-api");
 		expect(providerIdForEngineSetting("codex")).toBe("openai-compatible");
 		expect(providerIdForEngineSetting("claude-cli")).toBe("claude");
+		expect(providerIdForEngineSetting("codex-cli")).toBe("codex");
 		expect(providerIdForEngineSetting("mock-acceptance")).toBe(
 			"mock-acceptance"
 		);

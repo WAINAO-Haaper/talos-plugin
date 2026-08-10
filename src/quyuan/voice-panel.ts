@@ -371,6 +371,7 @@ export class QuyuanVoicePanel {
 	private modelLabel(): string {
 		const model = this.settings.jarvisModel?.trim() || this.settings.openaiModel?.trim();
 		if (model) return model;
+		if (this.settings.engineProvider === "codex-cli") return "Codex CLI · 自动模型";
 		if (this.settings.engineProvider === "codex") return "Codex · 自动模型";
 		if (this.settings.engineProvider === "claude-api") return "Claude API · 自动模型";
 		return "Claude · 自动模型";
