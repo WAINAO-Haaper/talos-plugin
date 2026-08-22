@@ -12488,3 +12488,23 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .overview-kanban-col-head h3 { font-size: 15px; }
 .talos-console.theme-geometric-modern .overview-kanban-card b { font-size: 14px; font-weight: 500; }
 .talos-console.theme-geometric-modern .overview-kanban-card small { font-size: 12px; }
+
+/* D-TLP-012 · 黑底修复（2026-08-22）：contentEl 即 .view-content 本体，
+   既有 :has(.talos-console.theme-geometric-modern) 自指选择器永不命中，
+   文件头部 view-content 深色 !important（特异性 0,3,0）盖住主题米色底（0,2,0）。
+   此处用 0,4,0 直接命中控制台根元素，并清掉 Aurora 深色光晕 ::before。 */
+.workspace-leaf-content[data-type="talos-console-view"] .view-content.talos-console.theme-geometric-modern {
+	background-color: #f1ede3 !important;
+	color-scheme: light;
+}
+.workspace-leaf-content[data-type="talos-console-view"] .view-content.talos-console.theme-geometric-modern::before {
+	background: none;
+}
+/* 总览页行动行、统计条、首要焦点卡纳入几何现代描边规范（原 1px 细线） */
+.talos-console.theme-geometric-modern .overview-action-row,
+.talos-console.theme-geometric-modern .overview-stat-bar {
+	border-width: 2px;
+}
+.talos-console.theme-geometric-modern .overview-primary-card {
+	border-width: 2px 2px 2px 5px;
+}

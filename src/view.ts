@@ -1588,7 +1588,16 @@ export class TalosView extends ItemView {
 			const capCount = d.capGroups.reduce((sum, group) => sum + group.items.length, 0);
 			const identityCount = (this.moduleCount(d, "identity") || 0)
 				+ (this.moduleCount(d, "soul") || 0);
-			const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
+			const kanbanPanel = this.panel(
+			page,
+			"#F59E0B",
+			"任务进度看板",
+			"待办 · 进行中 · 最近完成"
+		);
+		kanbanPanel.setAttribute("data-workbench-section", "task-kanban");
+		this.fillOverviewKanban(kanbanPanel, d);
+
+		const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
 			const actionColumn = overviewGrid.createDiv({ cls: "overview-action-column" });
 			const statColumn = overviewGrid.createDiv({ cls: "overview-stat-column" });
 			actionColumn.setAttribute("data-workbench-section", "today-actions");
@@ -1763,15 +1772,6 @@ export class TalosView extends ItemView {
 				],
 			});
 			this.actionPanel.mount();
-
-		const kanbanPanel = this.panel(
-			page,
-			"#F59E0B",
-			"任务进度看板",
-			"待办 · 进行中 · 最近完成"
-		);
-		kanbanPanel.setAttribute("data-workbench-section", "task-kanban");
-		this.fillOverviewKanban(kanbanPanel, d);
 
 			const modulesPanel = this.panel(
 				page,
