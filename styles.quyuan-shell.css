@@ -4822,8 +4822,9 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
   background: var(--interactive-hover);
 }
 
-/* ===== D-TLP-015 · 对话页双通道滑动切换器（DeepSeek ｜ Codex） ===== */
-/* 遵循 D-TLP-012 数值规范：描边 2px、字号 12px 档。 */
+/* ===== D-TLP-015 · 对话页双通道切换器（DeepSeek ｜ Codex） ===== */
+/* iOS UISwitch 风格：无边框彩色轨道 + 白色圆形滑块，避免边框遮挡问题。
+   字号 12px 档（D-TLP-012）。 */
 .talos-harness-switcher {
   height: 100%;
   min-height: 0;
@@ -4832,50 +4833,63 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
 }
 
 .talos-harness-switch {
-  position: relative;
   flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: min(340px, 86%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   margin: 10px auto 6px;
-  padding: 2px;
-  border: 2px solid var(--background-modifier-border);
-  border-radius: 999px;
-  background: var(--background-secondary);
-}
-
-.talos-harness-switch__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: calc(50% - 2px);
-  height: calc(100% - 4px);
-  border-radius: 999px;
-  /* Apple 分段控件风格：选中档实心深色滑块（深浅主题反色自适应），
-     滑动带轻微回弹 */
-  background: var(--text-normal);
-  transition: transform 0.28s cubic-bezier(0.25, 0.9, 0.3, 1.08);
-  pointer-events: none;
 }
 
 .talos-harness-switch__option {
-  position: relative;
-  z-index: 1;
-  padding: 6px 12px;
+  padding: 4px 2px;
   font-size: 12px;
   line-height: 1.4;
-  text-align: center;
   background: none;
   border: 0;
-  border-radius: 999px;
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.18s ease;
 }
 
 .talos-harness-switch__option.is-active {
-  color: var(--background-primary);
+  color: var(--text-normal);
   font-weight: 600;
+}
+
+.talos-harness-switch__track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.talos-harness-switch__track.is-on {
+  background: var(--interactive-accent);
+}
+
+.talos-harness-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Apple 式回弹滑动 */
+  transition: transform 0.28s cubic-bezier(0.25, 0.9, 0.3, 1.08);
+  pointer-events: none;
+}
+
+.talos-harness-switch__track.is-on .talos-harness-switch__thumb {
+  transform: translateX(22px);
 }
 
 .talos-harness-switcher__body {
