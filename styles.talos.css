@@ -12664,3 +12664,13 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .command .cap-src {
 	font-size: clamp(11px, 0.78cqw, 13px);
 }
+
+/* ============================================================
+   控制台视图标题栏隐藏（2026-08-23 · 仓库所有者指令）
+   隐藏 Obsidian 视图头部「TALOS 控制台」标题行，让控制台界面
+   直接顶对齐。作用域限 talos-console-view 叶子，其他视图
+   （图谱、 Markdown 等）不受影响。
+   ============================================================ */
+.workspace-leaf-content[data-type="talos-console-view"] .view-header {
+	display: none;
+}

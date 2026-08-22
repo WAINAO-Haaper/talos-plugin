@@ -75,4 +75,12 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		expect(v2).not.toContain(".logo-ping");
 		expect(v2).not.toContain(".pixel-head");
 	});
+
+	it("hides the console view header for top-aligned content", () => {
+		// 2026-08-23 仓库所有者指令：去除「TALOS 控制台」标题行、界面顶对齐
+		expect(css).toContain(
+			'.workspace-leaf-content[data-type="talos-console-view"] .view-header'
+		);
+		expect(css).toContain("display: none");
+	});
 });
