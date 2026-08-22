@@ -494,6 +494,12 @@ export class TalosView extends ItemView {
 		this.secTitle(navCard, "导航", `${PRIMARY_NAVIGATION.length} SECTIONS`);
 		this.pageNavEl = navCard.createEl("nav", { cls: "nav" });
 		this.renderNav();
+		this.taskDrawer = new TaskDrawer({
+			parent: navCard,
+			store: this.plugin.getConsoleActionRuntime().store,
+			controller: this.plugin.getConsoleActionRuntime().runner,
+		});
+		this.taskDrawer.mount();
 
 		// 快捷入口
 		const quick = side.createEl("section", { cls: "card action-card" });
@@ -690,12 +696,6 @@ export class TalosView extends ItemView {
 		});
 		this.renderSecondaryTabs();
 		this.pageEl = main.createDiv({ cls: "page-content" });
-		this.taskDrawer = new TaskDrawer({
-			parent: main,
-			store: this.plugin.getConsoleActionRuntime().store,
-			controller: this.plugin.getConsoleActionRuntime().runner,
-		});
-		this.taskDrawer.mount();
 
 		const commandBar = main.createDiv({ cls: "cosmos-commandbar" });
 		const voice = commandBar.createDiv({ cls: "cosmos-command-voice" });
@@ -1990,13 +1990,25 @@ export class TalosView extends ItemView {
 		const header = shell.createEl("header", {
 			cls: "talos-inline-settings__header",
 		});
-		const icon = header.createSpan({ cls: "talos-inline-settings__icon" });
+		const identity = header.createDiv({
+			cls: "talos-inline-settings__identity",
+		});
+		const icon = identity.createSpan({ cls: "talos-inline-settings__icon" });
 		setIcon(icon, "settings");
-		const title = header.createDiv({ cls: "talos-inline-settings__title" });
+		const title = identity.createDiv({ cls: "talos-inline-settings__title" });
 		title.createEl("h1", { text: "TALOS 设置" });
 		title.createEl("p", {
 			text: "界面、目录映射、数据源、AI Provider 与屈原工作台配置",
 		});
+		const status = header.createDiv({
+			cls: "talos-inline-settings__status",
+		});
+		status.createSpan({ cls: "talos-inline-settings__status-dot" });
+		const statusCopy = status.createSpan({
+			cls: "talos-inline-settings__status-copy",
+		});
+		statusCopy.createEl("strong", { text: "本地配置" });
+		statusCopy.createEl("small", { text: "修改后自动保存" });
 		const body = shell.createDiv({
 			cls: "talos-inline-settings__body",
 		});

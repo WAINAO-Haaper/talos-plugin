@@ -29,4 +29,16 @@ describe("embedded TALOS settings", () => {
 			".talos-console.section-settings .page-content"
 		);
 	});
+
+	it("renders the shared settings surface as an application workspace", () => {
+		expect(view).toContain("talos-inline-settings__status");
+		expect(view).toContain("修改后自动保存");
+		expect(shellCss).toMatch(
+			/\.talos-settings--console\s*\{[^}]*grid-template-columns:\s*minmax\(154px, 184px\)\s+minmax\(0, 1fr\)/s
+		);
+		expect(shellCss).toContain(
+			".talos-settings--console .talos-setcontent > .setting-item"
+		);
+		expect(shellCss).toContain("animation: talos-app-content-in");
+	});
 });

@@ -25,7 +25,7 @@ export class TaskDrawer {
 		if (this.root) return this.root;
 		const document = this.options.parent.ownerDocument;
 		const root = document.createElement("aside");
-		root.className = "talos-task-drawer";
+		root.className = "talos-task-drawer command";
 		root.setAttribute("aria-label", "TALOS 任务抽屉");
 		root.setAttribute("tabindex", "0");
 		root.addEventListener("keydown", (event) => {
@@ -35,11 +35,22 @@ export class TaskDrawer {
 		});
 
 		const header = document.createElement("header");
+		header.className = "talos-task-drawer__header";
+		const mark = document.createElement("span");
+		mark.className = "talos-task-drawer__mark mark";
+		mark.setAttribute("aria-hidden", "true");
+		mark.textContent = "✓";
+		header.appendChild(mark);
 		const heading = document.createElement("h2");
-		heading.textContent = "任务";
+		heading.className = "talos-task-drawer__title";
+		const label = document.createElement("span");
+		label.className = "nav-label";
+		label.textContent = "任务";
+		heading.appendChild(label);
 		header.appendChild(heading);
 		const toggle = document.createElement("button");
 		toggle.type = "button";
+		toggle.className = "talos-task-drawer__toggle";
 		toggle.textContent = "收起";
 		toggle.setAttribute("aria-label", "收起或展开任务抽屉");
 		toggle.addEventListener("click", () => {
@@ -48,16 +59,19 @@ export class TaskDrawer {
 		});
 		header.appendChild(toggle);
 		root.appendChild(header);
+		const body = document.createElement("div");
+		body.className = "talos-task-drawer__body";
 
 		const live = document.createElement("p");
 		live.className = "talos-task-drawer__live";
 		live.setAttribute("aria-live", "polite");
 		live.textContent = "当前没有任务";
-		root.appendChild(live);
+		body.appendChild(live);
 
 		const list = document.createElement("div");
 		list.className = "talos-task-drawer__list";
-		root.appendChild(list);
+		body.appendChild(list);
+		root.appendChild(body);
 
 		this.root = root;
 		this.list = list;
