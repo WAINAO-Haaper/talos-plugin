@@ -83,4 +83,12 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		);
 		expect(css).toContain("display: none");
 	});
+
+	it("cleans up the stray divider line above the console content", () => {
+		// 2026-08-23 仓库所有者指令：标题栏隐藏后页签行与内容间的原生分割线清除
+		expect(css).toContain(
+			'.workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])'
+		);
+		expect(css).toContain("> .workspace-tab-header-container");
+	});
 });

@@ -12674,3 +12674,19 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .workspace-leaf-content[data-type="talos-console-view"] .view-header {
 	display: none;
 }
+
+/* ============================================================
+   控制台顶部分割线清理（2026-08-23 · 仓库所有者指令）
+   标题栏隐藏后，页签行与内容之间仍残留 Obsidian 原生分割线。
+   覆盖三个可能来源（作用域均限控制台叶子所在标签组）：
+   ① 标签组页签行的下边框/阴影；② 叶子内容区上边框；
+   ③ 个别主题在 view-header 容器上残留的分隔线。
+   ============================================================ */
+.workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])
+	> .workspace-tab-header-container {
+	border-bottom: none;
+	box-shadow: none;
+}
+.workspace-leaf-content[data-type="talos-console-view"] {
+	border-top: none;
+}
