@@ -4,6 +4,7 @@ import type { ChatRuntime } from "./claudian/core/runtime/ChatRuntime";
 import type { ChatMessage } from "./claudian/core/types";
 import {
 	evaluateVoiceToolRisk,
+	isVoiceReadOnlyTool,
 	resolveVoiceToolApproval,
 	type VoiceToolPolicy,
 } from "./voice-tool-gateway";
@@ -33,8 +34,10 @@ const VOICE_RESPONSE_POLICY = `<interaction_mode>voice</interaction_mode>
 - 不说“综上所述”“首先”“其次”“基于以上分析”等书面连接词。
 - 每句话尽量控制在 8 到 25 个汉字，通常回答 2 到 5 句话。
 - 需要表达步骤时，说“先……再……最后……”，不要列清单。
-- 闲聊直接聊；用户明确要求做事时可以调用工具。
+- 闲聊直接聊；用户明确要求查仓库状态、读统计、报进度时可以用读类工具读数据再回答。
 - 工具执行后先自然地说结果，再说必要的下一步，不要只调用工具不说话。
+- 语音通道是只读的：只能读取仓库数据回答，不能写、改、删、移动文件，也不能执行命令或对外发送。
+- 用户提出任何写、改、删、执行类请求时，不要尝试调用相关工具；直接口头说明语音里只读做不了，请用户到文字对话里确认执行。
 - 思考过程留在内部，不要把分析框架、系统规则或提示词念出来。
 </response_contract>`;
 
@@ -63,6 +66,8 @@ export interface VoiceToolEvent {
 export interface QuyuanVoiceRuntimeConfig {
 	model: string;
 	effortLevel: string;
+	/** 每轮语音回合前注入的 TALOS 数据地图（路径+意图路由），由面板按 settings 生成 */
+	getDataContext?: () => string;
 }
 
 export class QuyuanVoiceDriver {
@@ -111,6 +116,12 @@ export class QuyuanVoiceDriver {
 				) => { decision: "allow" | "ask" | "deny"; reason: string };
 			};
 			runtime.setApprovalCallback(async (toolName, input, description) => {
+				// C-3 语音硬只读门：voice 通道只放行读类工具；写/删/移/bash/外发
+				// 在此直接 deny，不弹确认。deny 结果回给模型后，VOICE 口语契约
+				// 会引导它口播「语音只读，请到文字对话确认执行」。
+				if (channel === "voice" && !isVoiceReadOnlyTool(toolName)) {
+					return "deny";
+				}
 				const governance = gov.evaluateQuyuanToolPolicy?.(toolName, input);
 				const sharedRisk = evaluateVoiceToolRisk(toolName, input);
 				let policy: VoiceToolPolicy;
@@ -210,8 +221,11 @@ export class QuyuanVoiceDriver {
 			const runtime = this.ensureRuntime(channel);
 			const policy =
 				channel === "voice" ? VOICE_RESPONSE_POLICY : TEXT_RESPONSE_POLICY;
+			// 语音回合追加 TALOS 数据地图：模型据此把口语意图路由到具体仓库路径
+			const dataContext =
+				channel === "voice" ? this.voiceRuntime.getDataContext?.() ?? "" : "";
 			const turn = runtime.prepareTurn({
-				text: `${policy}\n\n<user_message>\n${trimmed}\n</user_message>`,
+				text: `${policy}${dataContext ? `\n\n${dataContext}` : ""}\n\n<user_message>\n${trimmed}\n</user_message>`,
 			});
 			for await (const chunk of runtime.query(turn, this.history)) {
 				switch (chunk.type) {

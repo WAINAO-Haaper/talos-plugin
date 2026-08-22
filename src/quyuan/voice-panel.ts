@@ -7,6 +7,7 @@ import { LocalAsr } from "./local-asr";
 import type ClaudianPlugin from "./claudian/main";
 import { QuyuanVoiceDriver } from "./voice-driver";
 import type { InteractionChannel } from "./voice-driver";
+import { buildTalosDataMap } from "./voice-data-map";
 import { QuyuanBackgroundField } from "./background-field";
 import type { QuyuanBackgroundType } from "./background-field";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
@@ -145,6 +146,7 @@ export class QuyuanVoicePanel {
 		this.driver = new QuyuanVoiceDriver(this.plugin, {
 			model: this.settings.quyuanVoiceModel || "haiku",
 			effortLevel: this.settings.quyuanVoiceEffort || "low",
+			getDataContext: () => buildTalosDataMap(this.settings),
 		});
 		this.driver.setConfirmHandler((tool, desc) => this.askConfirm(tool, desc));
 		this.voiceMode = new VoiceModeController();
@@ -481,6 +483,9 @@ export class QuyuanVoicePanel {
 		this.sessionEmptyEl.createEl("b", { text: "从这里开始对话" });
 		this.sessionEmptyEl.createEl("small", {
 			text: "本页使用独立语音历史，不读取文字工作台会话",
+		});
+		this.sessionEmptyEl.createEl("small", {
+			text: "语音只读：可查状态、读统计、报进度；写、改、删请到文字对话确认执行",
 		});
 		const prompts = this.sessionEmptyEl.createDiv({ cls: "tq-quick-prompts" });
 		for (const prompt of ["梳理今日焦点", "检查系统状态", "打开完整工作台"]) {
