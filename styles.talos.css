@@ -12510,3 +12510,29 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .overview-primary-card {
 	border-width: 2px 2px 2px 5px;
 }
+
+/* D-TLP-012 · 设置页数值统一（2026-08-22）：设置页元素此前未纳入规范，
+   黑底修复后露出真值——卡片 1px/圆角 12px、名称 750 字重、描述 14px，
+   与其他页 2px/直角、15/14/12/11 阶梯不一致。此处对齐（特异性 0,5,0
+   高于 layout-overrides 的 0,4,0，无需 !important）。 */
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settabs,
+.talos-console.theme-geometric-modern .talos-settings--console .talos-setcontent > .setting-item,
+.talos-console.theme-geometric-modern .talos-settings--console .talos-embedded-workbench-settings .setting-item {
+	border-width: 2px;
+	border-radius: 0;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab {
+	border-radius: 0;
+	font-size: 12px;
+	font-weight: 500;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab.is-active {
+	font-weight: 600;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .setting-item-name {
+	font-size: 14px;
+	font-weight: 500;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .setting-item-description {
+	font-size: 12px;
+}
