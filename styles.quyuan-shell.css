@@ -4857,16 +4857,18 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
   font-weight: 700;
 }
 
-.talos-harness-switch__track {
+.talos-console .talos-harness-switch .talos-harness-switch__track {
   position: relative;
   flex: 0 0 auto;
   box-sizing: border-box;
   width: 54px;
   height: 32px;
   padding: 0;
-  /* 椭圆（胶囊）描边：关态也清晰可见，不再融进页面底色 */
+  appearance: none;
+  -webkit-appearance: none;
+  /* 椭圆（胶囊）描边：结构性几何，!important 防 vault 主题把按钮压成直角 */
   border: 2px solid var(--text-faint, var(--background-modifier-border));
-  border-radius: 999px;
+  border-radius: 999px !important;
   background: var(--background-secondary);
   cursor: pointer;
   transition:
@@ -4875,7 +4877,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
     box-shadow 0.2s ease;
 }
 
-.talos-harness-switch__track.is-on {
+.talos-console .talos-harness-switch .talos-harness-switch__track.is-on {
   background: var(--interactive-accent);
   border-color: var(--interactive-accent);
   /* 选中态加强： accent 光晕 + 投影 */
@@ -4884,13 +4886,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
     0 4px 14px color-mix(in srgb, var(--interactive-accent) 45%, transparent);
 }
 
-.talos-harness-switch__thumb {
+.talos-console .talos-harness-switch .talos-harness-switch__thumb {
   position: absolute;
   top: 2px;
   left: 2px;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: 50% !important;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   /* Apple 式回弹滑动 */
@@ -4898,7 +4900,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
   pointer-events: none;
 }
 
-.talos-harness-switch__track.is-on .talos-harness-switch__thumb {
+.talos-console .talos-harness-switch .talos-harness-switch__track.is-on .talos-harness-switch__thumb {
   transform: translateX(22px);
 }
 
