@@ -57,6 +57,7 @@ import {
 } from "./actions";
 import { TaskDrawer } from "./ui/task-drawer";
 import { ConsoleActionPanel } from "./ui/console-action-panel";
+import { taskStateLabel } from "./ui/task-state-label";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
@@ -1497,7 +1498,59 @@ export class TalosView extends ItemView {
 	}
 
 		// 总览页：主判断缩成可操作模块，指标与二级状态重排，避免横向大面板铺满。
-		private pageOverview(page: HTMLElement, d: Collected): void {
+		private fillOverviewKanban(parent: HTMLElement, d: Collected): void {
+		const runs = this.plugin.getConsoleActionRuntime().store.list();
+		const activeStates = new Set(["ready", "queued", "running"]);
+		const active = runs.filter((run) => activeStates.has(run.state));
+		const finished = runs.filter((run) => !activeStates.has(run.state)).slice(-5).reverse();
+		const kanban = parent.createDiv({ cls: "overview-kanban" });
+
+		const todoCol = kanban.createDiv({ cls: "overview-kanban-col" });
+		const todoHead = todoCol.createDiv({ cls: "overview-kanban-col-head" });
+		todoHead.createEl("h3", { text: "待办" });
+		todoHead.createSpan({ cls: "overview-kanban-count", text: String(d.focus.length) });
+		if (d.focus.length === 0) {
+			todoCol.createDiv({ cls: "overview-kanban-empty", text: "暂无待办 · 运行 /morning 生成今日焦点" });
+		}
+		for (const item of d.focus.slice(0, 6)) {
+			const card = todoCol.createDiv({ cls: "overview-kanban-card" });
+			card.createEl("b", { text: item.title });
+			card.createEl("small", { text: item.doneWhen ? `done_when · ${item.doneWhen}` : item.desc });
+			if (item.path) {
+				const target = item.path;
+				card.addClass("is-clickable");
+				card.addEventListener("click", () => void openFile(this.app, target));
+			}
+		}
+
+		const activeCol = kanban.createDiv({ cls: "overview-kanban-col" });
+		const activeHead = activeCol.createDiv({ cls: "overview-kanban-col-head" });
+		activeHead.createEl("h3", { text: "进行中" });
+		activeHead.createSpan({ cls: "overview-kanban-count", text: String(active.length) });
+		if (active.length === 0) {
+			activeCol.createDiv({ cls: "overview-kanban-empty", text: "暂无执行中的动作" });
+		}
+		for (const run of active.slice(0, 6)) {
+			const card = activeCol.createDiv({ cls: "overview-kanban-card" });
+			card.createEl("b", { text: run.actionId });
+			card.createEl("small", { text: `${taskStateLabel(run.state)} · ${run.createdAt.slice(11, 16)}` });
+		}
+
+		const doneCol = kanban.createDiv({ cls: "overview-kanban-col" });
+		const doneHead = doneCol.createDiv({ cls: "overview-kanban-col-head" });
+		doneHead.createEl("h3", { text: "最近完成" });
+		doneHead.createSpan({ cls: "overview-kanban-count", text: String(finished.length) });
+		if (finished.length === 0) {
+			doneCol.createDiv({ cls: "overview-kanban-empty", text: "暂无已结束的动作记录" });
+		}
+		for (const run of finished) {
+			const card = doneCol.createDiv({ cls: "overview-kanban-card" });
+			card.createEl("b", { text: run.actionId });
+			card.createEl("small", { text: `${taskStateLabel(run.state)} · ${(run.finishedAt || run.createdAt).slice(11, 16)}` });
+		}
+	}
+
+	private pageOverview(page: HTMLElement, d: Collected): void {
 			const attention = this.collectOverviewAttention(d);
 			const focusItem = d.focus[0];
 			const primary: OverviewAttention = attention[0] || {
@@ -1710,6 +1763,15 @@ export class TalosView extends ItemView {
 				],
 			});
 			this.actionPanel.mount();
+
+		const kanbanPanel = this.panel(
+			page,
+			"#F59E0B",
+			"任务进度看板",
+			"待办 · 进行中 · 最近完成"
+		);
+		kanbanPanel.setAttribute("data-workbench-section", "task-kanban");
+		this.fillOverviewKanban(kanbanPanel, d);
 
 			const modulesPanel = this.panel(
 				page,

@@ -43,7 +43,7 @@ export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
 		key: "workbench",
 		label: "工作台",
 		icon: "layout-dashboard",
-		subtitle: "今日行动、系统概览与模块入口",
+		subtitle: "待办、任务进度看板与模块入口",
 		children: [],
 	},
 	{

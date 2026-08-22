@@ -17,10 +17,20 @@ describe("overview approval compatibility layout", () => {
   });
 
   it("keeps the full candidate title for exact write-back", () => {
-    expect(stats).toContain(
-      'out.push({ title: stripMd(s.slice(2)), meta: "待确认", path: file.path });'
-    );
+    expect(stats).toContain('out.push({ title: stripMd(s.slice(2)), meta: "待确认", path: file.path });');
     expect(stats).not.toContain("stripMd(s.slice(2)).slice(0, 70)");
+  });
+
+  it("renders a task kanban section between action panel and modules", () => {
+    expect(view).toContain('cls: "overview-kanban"');
+    expect(view).toContain('"data-workbench-section", "task-kanban"');
+    expect(view).toContain("任务进度看板");
+    expect(view).toContain("fillOverviewKanban");
+  });
+
+  it("styles the kanban with thin default rules and geometric-modern overrides", () => {
+    expect(css).toContain(".overview-kanban-col");
+    expect(css).toContain(".talos-console.theme-geometric-modern .overview-kanban-col");
   });
 
   it("uses container-aware reflow without the incompatible fixed column pair", () => {

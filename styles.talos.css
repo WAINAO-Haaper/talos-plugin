@@ -12465,3 +12465,26 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .jv-agent .jv-welcome-eyebrow {
 	font-size: 11px;
 }
+
+/* D-TLP-012 · C-1 任务进度看板：总览页统计首页（待办 / 进行中 / 最近完成） */
+.talos-console .overview-kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.talos-console .overview-kanban-col { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); padding: 10px; min-width: 0; }
+.talos-console .overview-kanban-col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.talos-console .overview-kanban-col-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.talos-console .overview-kanban-count { font-family: var(--mono); font-size: 11px; color: var(--faint); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+.talos-console .overview-kanban-card { border: 1px solid var(--line); border-radius: calc(var(--radius) - 2px); padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 2px; transition: border-color .18s ease; }
+.talos-console .overview-kanban-card:last-child { margin-bottom: 0; }
+.talos-console .overview-kanban-card:hover { border-color: var(--line-strong); }
+.talos-console .overview-kanban-card b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talos-console .overview-kanban-card small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talos-console .overview-kanban-card.is-clickable { cursor: pointer; }
+.talos-console .overview-kanban-empty { font-size: 12px; color: var(--faint); padding: 6px 2px; }
+@container overview-content (max-width: 760px) {
+	.talos-console .overview-kanban { grid-template-columns: 1fr; }
+}
+/* geometric-modern 主题覆盖：加粗线条、统一字号，延续 D-TLP-012 规范块 */
+.talos-console.theme-geometric-modern .overview-kanban-col { border-width: 2px; }
+.talos-console.theme-geometric-modern .overview-kanban-card { border-width: 1.5px; }
+.talos-console.theme-geometric-modern .overview-kanban-col-head h3 { font-size: 15px; }
+.talos-console.theme-geometric-modern .overview-kanban-card b { font-size: 14px; font-weight: 500; }
+.talos-console.theme-geometric-modern .overview-kanban-card small { font-size: 12px; }
