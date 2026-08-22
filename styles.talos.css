@@ -12536,3 +12536,52 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .talos-settings--console .setting-item-description {
 	font-size: 12px;
 }
+
+/* D-TLP-012 · 等比流式字号（2026-08-22）：几何现代主题按控制台宽度等比缩放文字，
+   宽屏下内容不再显得过小；分页签保持 12px 固定小字号，避免喧宾夺主。
+   前述 px 阶梯规则作窄屏兜底，本块同特异性靠后生效。 */
+.talos-console.theme-geometric-modern { container-type: inline-size; }
+
+/* 模块标题档：15px → 随宽度最大 19px */
+.talos-console.theme-geometric-modern .section-title h2,
+.talos-console.theme-geometric-modern .overview-kanban-col-head h3 {
+	font-size: clamp(15px, 1.05cqw, 19px);
+}
+/* 正文列表档：14px → 最大 17px */
+.talos-console.theme-geometric-modern .nav span,
+.talos-console.theme-geometric-modern .command span,
+.talos-console.theme-geometric-modern .daily-route-item b,
+.talos-console.theme-geometric-modern .daily-slot-time b,
+.talos-console.theme-geometric-modern .daily-slot-body h3,
+.talos-console.theme-geometric-modern .jv-agent .jv-welcome-subtitle,
+.talos-console.theme-geometric-modern .overview-kanban-card b,
+.talos-console.theme-geometric-modern .talos-settings--console .setting-item-name,
+.talos-console.theme-geometric-modern .talos-settings--console :is(input, select, textarea, button) {
+	font-size: clamp(14px, 0.98cqw, 17px);
+}
+/* 辅助文字档：12px → 最大 14px */
+.talos-console.theme-geometric-modern .stat span,
+.talos-console.theme-geometric-modern .quote span,
+.talos-console.theme-geometric-modern .section-title small,
+.talos-console.theme-geometric-modern .daily-command-copy b,
+.talos-console.theme-geometric-modern .daily-focus b,
+.talos-console.theme-geometric-modern .daily-proto b,
+.talos-console.theme-geometric-modern .daily-slot-body p,
+.talos-console.theme-geometric-modern .overview-kanban-card small,
+.talos-console.theme-geometric-modern .talos-settings--console .setting-item-description {
+	font-size: clamp(12px, 0.85cqw, 14px);
+}
+/* 元信息档：11px → 最大 13px */
+.talos-console.theme-geometric-modern .eyebrow,
+.talos-console.theme-geometric-modern .cap-actions > span,
+.talos-console.theme-geometric-modern .talos-page-tab__meta,
+.talos-console.theme-geometric-modern .daily-route-item small,
+.talos-console.theme-geometric-modern .daily-command-copy small,
+.talos-console.theme-geometric-modern .daily-slot-time small,
+.talos-console.theme-geometric-modern .daily-slot-body span,
+.talos-console.theme-geometric-modern .daily-day small,
+.talos-console.theme-geometric-modern .daily-day span,
+.talos-console.theme-geometric-modern .daily-node span,
+.talos-console.theme-geometric-modern .jv-agent .jv-welcome-eyebrow {
+	font-size: clamp(11px, 0.78cqw, 13px);
+}
