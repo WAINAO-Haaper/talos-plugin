@@ -4851,9 +4851,10 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
   width: calc(50% - 2px);
   height: calc(100% - 4px);
   border-radius: 999px;
-  background: var(--interactive-accent);
-  opacity: 0.22;
-  transition: transform 0.18s ease;
+  /* Apple 分段控件风格：选中档实心深色滑块（深浅主题反色自适应），
+     滑动带轻微回弹 */
+  background: var(--text-normal);
+  transition: transform 0.28s cubic-bezier(0.25, 0.9, 0.3, 1.08);
   pointer-events: none;
 }
 
@@ -4869,10 +4870,11 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
   border-radius: 999px;
   color: var(--text-muted);
   cursor: pointer;
+  transition: color 0.18s ease;
 }
 
 .talos-harness-switch__option.is-active {
-  color: var(--text-normal);
+  color: var(--background-primary);
   font-weight: 600;
 }
 
