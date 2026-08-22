@@ -60,9 +60,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 export class LocalAsr extends VadMic {
 	private transcriber: Transcriber | null = null;
 	private loading: Promise<Transcriber> | null = null;
+	// 同一个 ONNX session 不能并发跑：中途转写与最终转写在这里排队
+	private queue: Promise<unknown> = Promise.resolve();
 
 	protected preflight(): string | null {
 		return null; // 无需 key；模型首次转写时按需加载
+	}
+
+	// 本地推理不计费、不外传录音，可以边说边转；云端引擎保持默认 false
+	protected override supportsPartial(): boolean {
+		return true;
 	}
 
 	private async ensureTranscriber(): Promise<Transcriber> {
@@ -137,6 +144,13 @@ export class LocalAsr extends VadMic {
 		}
 	}
 
+	// 串行闸：前一次成功或失败都放行下一次，不让一次异常卡死整条队列
+	private enqueue<T>(task: () => Promise<T>): Promise<T> {
+		const next = this.queue.then(task, task);
+		this.queue = next.catch(() => undefined);
+		return next;
+	}
+
 	protected async transcribe(samples: Float32Array): Promise<string> {
 		const transcriber = await this.ensureTranscriber();
 		const options: Record<string, unknown> = { task: "transcribe", chunk_length_s: 30 };
@@ -144,10 +158,8 @@ export class LocalAsr extends VadMic {
 			options.language = "chinese";
 		}
 		// 只给转写调用套超时；首次下模型在 ensureTranscriber 内完成，不受此超时约束
-		const out = await withTimeout(
-			transcriber(samples, options),
-			TRANSCRIBE_TIMEOUT_MS,
-			"语音转写超时"
+		const out = await this.enqueue(() =>
+			withTimeout(transcriber(samples, options), TRANSCRIBE_TIMEOUT_MS, "语音转写超时")
 		);
 		return (out?.text ?? "").trim();
 	}

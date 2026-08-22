@@ -632,6 +632,9 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			)
 		) as Partial<TalosSettings>;
 		let settings = Object.assign({}, DEFAULT_SETTINGS, knownSettings);
+		// 旧 primary 曾默认启用网络 VAD，但没有独立的联网同意位。升级时必须
+		// 保持离线，只有用户在新版设置中重新开启后才允许下载运行时与模型。
+		if (!settings.quyuanVadNetworkConsent) settings.quyuanVadEnabled = false;
 		settings.visualTheme = normalizeVisualTheme(settings.visualTheme);
 		// 屈原背景效果容错：只接受合法值，否则回退默认
 		if (settings.quyuanBackground !== "letter-glitch" && settings.quyuanBackground !== "grid-scan") {

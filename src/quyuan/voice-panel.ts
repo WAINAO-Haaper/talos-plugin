@@ -909,6 +909,7 @@ export class QuyuanVoicePanel {
 					this.renderPushToTalkReady();
 				}
 			},
+			onPartial: (text) => this.showPartialTranscript(text),
 			onError: (msg) => {
 				const line = `语音输入：${msg}`;
 				if (this.fabStatusEl) this.fabStatusEl.setText(line);
@@ -1246,6 +1247,24 @@ export class QuyuanVoicePanel {
 		this.overlayLines = [];
 		this.scrollConvo();
 		void this.respond(trimmed, channel);
+	}
+
+	/**
+	 * 流式转写的中途结果：只滚动更新识别卡，说话过程中就能看见。
+	 * 绝不走 matchWake / commitUser——半截文本既不该唤醒也不该发送，
+	 * 唤醒词匹配与发送一律只在最终结果（handleVoiceTranscript）上做。
+	 */
+	private showPartialTranscript(text: string): void {
+		if (this.settings.quyuanVoiceRecognitionEnabled === false) return;
+		// 待机期不显示：没唤醒时的环境语音不该被打到屏幕上
+		if (!this.wakeActive) return;
+		const trimmed = text.trim();
+		if (!trimmed || !this.overlayTranscriptEl || !this.overlayUser) return;
+		this.setState("reco");
+		this.overlayUser.value = trimmed;
+		this.overlayUser.tabIndex = 0;
+		this.overlayTranscriptEl.setAttribute("aria-hidden", "false");
+		this.overlayTranscriptEl.addClass("is-visible");
 	}
 
 	private showTranscriptEditor(text: string): void {

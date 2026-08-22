@@ -1,4 +1,12 @@
 import type { TalosSettings } from "../settings";
+import {
+	SILERO_SAMPLE_RATE,
+	SILERO_WINDOW,
+	SPEECH_KEEP_PROB,
+	SPEECH_START_PROB,
+	SileroVad,
+} from "./silero-vad";
+import { PRE_ROLL, VadTurnMachine } from "./vad-turn";
 
 // ============================================================
 // 屈原 · 麦克风 + 能量 VAD 基类（云端/本地识别共用）
@@ -8,19 +16,21 @@ import type { TalosSettings } from "../settings";
 //   则结束一段 → 交子类转写。开启 AEC/降噪减回授。
 // ============================================================
 
-// VAD 阈值（16k；AudioWorklet 渲染量子 128 样本 ≈ 8ms/帧）
+// 响度阈值（16k；AudioWorklet 渲染量子 128 样本 ≈ 8ms/帧）。
+// Silero VAD 就绪后收音判定改用人声概率，这里只剩「未就绪/已回退」时的兜底
+// 与打断判定——打断仍按响度，因为屈原自己的朗读在模型看来同样是人声。
 const START_RMS = 0.03;
 const KEEP_RMS = 0.015;
-const START_FRAMES = 4;
-const SILENCE_MS = 550;
-const MIN_SPEECH_MS = 500;
-const MIN_PEAK_RMS = 0.045;
-const PRE_ROLL = 12;
 const BARGE_RMS = 0.05;
 const BARGE_FRAMES = 40;
 const BARGE_GUARD_MS = 500;
 // 打断窗口内的滚动缓冲长度：覆盖触发打断的那段语音，让打断句本身也能被完整转写
 const BARGE_PREROLL = PRE_ROLL + BARGE_FRAMES + 12;
+// VAD 推理积压上限（每个窗口 32ms）：正常只会有 0-1 个，积压说明机器忙，丢旧保新
+const VAD_QUEUE_MAX = 12;
+// 流式转写：短于此不值得跑；两次之间至少要新增这么多音频
+const PARTIAL_MIN_MS = 1200;
+const PARTIAL_INTERVAL_MS = 700;
 
 export interface VadMicHandlers {
 	onListeningChange: (on: boolean) => void;
@@ -28,6 +38,8 @@ export interface VadMicHandlers {
 	onLevel?: (level: number) => void;
 	onSpeechStart: () => void;
 	onText: (text: string) => void;
+	/** 流式转写的中途结果，仅供字幕展示：不定案、不唤醒、不发送 */
+	onPartial?: (text: string) => void;
 	onError: (message: string) => void;
 }
 
@@ -42,6 +54,7 @@ class TqPcm extends AudioWorkletProcessor {
 registerProcessor('tq-pcm', TqPcm);
 `;
 
+
 export abstract class VadMic {
 	protected settings: TalosSettings;
 	protected h: VadMicHandlers;
@@ -52,27 +65,51 @@ export abstract class VadMic {
 	private on = false;
 	protected sampleRate = 16000;
 
-	private capturing = false;
-	private voicedFrames = 0;
-	private silenceMs = 0;
 	private frameMs = 8;
-	private peakRms = 0;
 	private bargeFrames = 0;
 	private busy = false;
 	private bargeEnabled = false;
 	private busySince = 0;
-	private captured: Float32Array[] = [];
+	// 打断窗口专用滚动缓冲；正常收音的 pre-roll 由 turn 自己维护
 	private preRoll: Float32Array[] = [];
+	private turn: VadTurnMachine;
+	// Silero VAD：就绪前与失败后一律走原响度判定，链路永不中断
+	private silero: SileroVad | null = null;
+	private sileroReady = false;
+	private sileroFailed = false;
+	private sileroNotified = false;
+	private vadFill = new Float32Array(SILERO_WINDOW);
+	private vadFilled = 0;
+	private vadQueue: Float32Array[] = [];
+	private vadRunning = false;
+	private speechProb = 0;
+	// 流式转写（仅本地引擎）：中途结果只喂字幕，定案仍以最终整段结果为准
+	private partialInFlight = false;
+	private partialTurn = -1;
+	private partialMarkMs = 0;
+	private lastPartial: { turnId: number; samples: number; text: string } | null = null;
 
 	constructor(settings: TalosSettings, handlers: VadMicHandlers) {
 		this.settings = settings;
 		this.h = handlers;
+		this.turn = new VadTurnMachine({
+			onState: (state) => this.h.onState(state),
+			onCommit: (frames, _peak, _durationMs, turnId) => this.commitUtterance(frames, turnId),
+		});
 	}
 
 	// 子类：开始前的就绪检查（返回错误文案或 null）
 	protected abstract preflight(): string | null;
 	// 子类：把一段 16k 单声道 Float32 转成文字
 	protected abstract transcribe(samples: Float32Array, sampleRate: number): Promise<string>;
+	/**
+	 * 子类：是否支持边说边转写。默认 false。
+	 * 云端引擎必须保持 false——按次计费 + 每次都要上传一段真实环境录音，
+	 * 「多跑几次」会同时放大账单与隐私暴露面。
+	 */
+	protected supportsPartial(): boolean {
+		return false;
+	}
 
 	isOn(): boolean {
 		return this.on;
@@ -106,6 +143,7 @@ export abstract class VadMic {
 				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 			this.ctx = new Ctor({ sampleRate: 16000 });
 			this.sampleRate = this.ctx.sampleRate;
+			this.turn.setSampleRate(this.sampleRate);
 			const url = URL.createObjectURL(new Blob([PCM_WORKLET_SRC], { type: "application/javascript" }));
 			try {
 				await this.ctx.audioWorklet.addModule(url);
@@ -129,8 +167,89 @@ export abstract class VadMic {
 			return;
 		}
 		this.on = true;
+		// 后台加载：模型没就绪的这段时间照常用响度判定收音，不阻塞开麦
+		this.initSilero();
 		this.h.onListeningChange(true);
 		this.h.onState("listening");
+	}
+
+	private initSilero(): void {
+		if (this.silero || this.sileroFailed) return;
+		if (
+			this.settings.quyuanVadEnabled === false ||
+			this.settings.quyuanVadNetworkConsent !== true
+		) return;
+		if (this.sampleRate !== SILERO_SAMPLE_RATE) {
+			console.warn(
+				`[TALOS 屈原] 采样率 ${this.sampleRate} 非 16k，Silero VAD 不启用，继续用响度判定`
+			);
+			return;
+		}
+		const vad = new SileroVad(this.settings);
+		this.silero = vad;
+		vad.load().then(
+			() => {
+				if (this.silero !== vad) return;
+				this.sileroReady = true;
+				this.vadQueue = [];
+				this.vadFilled = 0;
+				this.speechProb = 0;
+				// 判定改由模型给出，峰值响度闸必须让位，否则小声说话仍被滤掉
+				this.turn.setPeakGate(false);
+			},
+			(error: unknown) => {
+				this.fallbackToRms(error instanceof Error ? error.message : String(error));
+			}
+		);
+	}
+
+	// 任何一环挂了都回到响度判定，并给一次性中文提示，绝不静默失效
+	private fallbackToRms(reason: string): void {
+		this.sileroReady = false;
+		this.sileroFailed = true;
+		this.silero?.dispose();
+		this.silero = null;
+		this.vadQueue = [];
+		this.vadFilled = 0;
+		this.speechProb = 0;
+		this.turn.setPeakGate(true);
+		console.warn("[TALOS 屈原] Silero VAD 不可用，已回退响度判定：", reason);
+		if (this.sileroNotified) return;
+		this.sileroNotified = true;
+		this.h.onError(`语音断句已回退到响度判定（Silero VAD 不可用）：${reason}`);
+	}
+
+	// 128 样本/帧攒成 512 样本窗口再推理；推理是异步的，串行排队保证模型状态连续
+	private feedSilero(frame: Float32Array): void {
+		let offset = 0;
+		while (offset < frame.length) {
+			const take = Math.min(SILERO_WINDOW - this.vadFilled, frame.length - offset);
+			this.vadFill.set(frame.subarray(offset, offset + take), this.vadFilled);
+			this.vadFilled += take;
+			offset += take;
+			if (this.vadFilled < SILERO_WINDOW) continue;
+			this.vadQueue.push(this.vadFill.slice());
+			this.vadFilled = 0;
+			while (this.vadQueue.length > VAD_QUEUE_MAX) this.vadQueue.shift();
+			void this.pumpSilero();
+		}
+	}
+
+	private async pumpSilero(): Promise<void> {
+		if (this.vadRunning) return;
+		this.vadRunning = true;
+		try {
+			for (;;) {
+				const vad = this.silero;
+				const win = this.vadQueue.shift();
+				if (!vad || !this.sileroReady || !win) break;
+				this.speechProb = await vad.process(win);
+			}
+		} catch (error) {
+			this.fallbackToRms(error instanceof Error ? error.message : String(error));
+		} finally {
+			this.vadRunning = false;
+		}
 	}
 
 	stop(): void {
@@ -148,25 +267,40 @@ export abstract class VadMic {
 		this.bargeEnabled = bargeEnabled;
 		this.busySince = busy ? performance.now() : 0;
 		this.bargeFrames = 0;
-		if (busy && this.capturing) {
-			this.capturing = false;
-			this.captured = [];
-			this.preRoll = [];
-			this.voicedFrames = 0;
-		}
+		this.preRoll = [];
+		// 忙碌意味着这一轮已经交给 agent：软结束中的轮次立即定案，
+		// 收音到一半的半句直接丢弃，不允许再重开追加。
+		// 忙碌结束 = 屈原刚说完，随后一小段时间放宽短段门槛，接住「好」「继续」。
+		if (busy) this.turn.onBusy();
+		else this.turn.openShortWindow();
+		// 忙碌期不喂 VAD（屈原自己的朗读会被判成人声），进出忙碌都清一次模型状态，
+		// 否则跨越这段空档的残留记忆会带偏随后的判定。
+		this.resetSileroStream();
+		if (busy) this.resetPartial();
+	}
+
+	private resetPartial(): void {
+		this.partialTurn = -1;
+		this.partialMarkMs = 0;
+		this.lastPartial = null;
+	}
+
+	private resetSileroStream(): void {
+		this.vadQueue = [];
+		this.vadFilled = 0;
+		this.speechProb = 0;
+		this.silero?.resetState();
 	}
 
 	private resetVad(): void {
-		this.capturing = false;
-		this.voicedFrames = 0;
-		this.silenceMs = 0;
-		this.peakRms = 0;
 		this.bargeFrames = 0;
+		this.resetSileroStream();
+		this.resetPartial();
 		this.busy = false;
 		this.bargeEnabled = false;
 		this.busySince = 0;
-		this.captured = [];
 		this.preRoll = [];
+		this.turn.reset();
 	}
 
 	private onFrame(frame: Float32Array): void {
@@ -190,12 +324,8 @@ export abstract class VadMic {
 					this.bargeFrames = 0;
 					this.h.onSpeechStart();
 					// 打断成功后直接转入收音：打断句可以作为新指令转写，无需重说
-					this.capturing = true;
-					this.silenceMs = 0;
-					this.peakRms = rms;
-					this.captured = this.preRoll.slice();
+					this.turn.beginFromBarge(this.preRoll, rms);
 					this.preRoll = [];
-					this.h.onState("capturing");
 				}
 			} else {
 				this.bargeFrames = 0;
@@ -203,47 +333,68 @@ export abstract class VadMic {
 			return;
 		}
 
-		if (!this.capturing) {
-			this.preRoll.push(frame);
-			if (this.preRoll.length > PRE_ROLL) this.preRoll.shift();
-			if (rms > START_RMS) {
-				this.voicedFrames++;
-				if (this.voicedFrames >= START_FRAMES) {
-					this.capturing = true;
-					this.silenceMs = 0;
-					this.peakRms = rms;
-					this.captured = this.preRoll.slice();
-					this.preRoll = [];
-					this.h.onState("capturing");
-				}
-			} else {
-				this.voicedFrames = 0;
-			}
-			return;
-		}
-		this.captured.push(frame);
-		if (rms > this.peakRms) this.peakRms = rms;
-		if (rms < KEEP_RMS) {
-			this.silenceMs += this.frameMs;
-			if (this.silenceMs >= SILENCE_MS) this.endUtterance();
-		} else {
-			this.silenceMs = 0;
-		}
+		// 判定来源：Silero 就绪时用人声概率，否则退回响度阈值。
+		// 轮次编排（软结束 / 可重开 / 短段合并）与判定来源无关，两条路径共用。
+		if (this.sileroReady) this.feedSilero(frame);
+		const byProb = this.sileroReady;
+		this.turn.push({
+			frame,
+			rms,
+			frameMs: this.frameMs,
+			startVoiced: byProb ? this.speechProb >= SPEECH_START_PROB : rms > START_RMS,
+			keepVoiced: byProb ? this.speechProb >= SPEECH_KEEP_PROB : rms >= KEEP_RMS,
+		});
+		if (this.supportsPartial()) this.maybePartial();
 	}
 
-	private endUtterance(): void {
-		const frames = this.captured;
-		const peak = this.peakRms;
-		this.capturing = false;
-		this.voicedFrames = 0;
-		this.silenceMs = 0;
-		this.peakRms = 0;
-		this.captured = [];
-		this.preRoll = [];
-		const total = frames.reduce((n, c) => n + c.length, 0);
+	/**
+	 * 边说边转写：对「本轮已累积的整段音频」重跑，用最新结果整体替换字幕
+	 * （whisper 对重叠音频的输出不保证一致，增量字符串拼接会串味）。
+	 * 软结束窗口里也跑一次——那段音频已经定型，结果能被 commit 直接复用，
+	 * 于是重开窗口的等待被变成有用的转写时间。
+	 */
+	private maybePartial(): void {
+		if (this.partialInFlight || !this.on) return;
+		const snap = this.turn.peekCaptured();
+		if (!snap) return;
+		const total = snap.frames.reduce((n, c) => n + c.length, 0);
 		const ms = (total / this.sampleRate) * 1000;
-		if (ms < MIN_SPEECH_MS || peak < MIN_PEAK_RMS) {
-			this.h.onState("listening");
+		if (ms < PARTIAL_MIN_MS) return;
+		if (snap.turnId === this.partialTurn && ms - this.partialMarkMs < PARTIAL_INTERVAL_MS) return;
+		this.partialTurn = snap.turnId;
+		this.partialMarkMs = ms;
+		this.partialInFlight = true;
+		const samples = this.mergeFrames(snap.frames, total);
+		this.transcribe(samples, this.sampleRate)
+			.then((text) => {
+				this.lastPartial = { turnId: snap.turnId, samples: total, text };
+				const live = this.turn.peekCaptured();
+				// 轮次已定案/被丢弃就别再刷字幕了，那是上一句的残影
+				if (this.on && text && live?.turnId === snap.turnId) this.h.onPartial?.(text);
+			})
+			.catch((error: unknown) => {
+				// 中途结果失败不打扰用户：最终整段转写会把真正的错误报出来
+				console.warn("[TALOS 屈原] 流式转写失败（不影响最终结果）", error);
+			})
+			.finally(() => {
+				this.partialInFlight = false;
+			});
+	}
+
+	private commitUtterance(frames: Float32Array[], turnId: number): void {
+		const total = frames.reduce((n, c) => n + c.length, 0);
+		if (total === 0) return;
+		// 软结束窗口里已把这段音频原样转写过（样本数完全一致）→ 直接用，
+		// 省掉一次重复推理。只在完全相同的音频上复用，不做任何近似。
+		const cached = this.lastPartial;
+		this.lastPartial = null;
+		if (cached && cached.turnId === turnId && cached.samples === total && cached.text) {
+			this.h.onState("transcribing");
+			window.setTimeout(() => {
+				if (!this.on) return;
+				this.h.onText(cached.text);
+				this.h.onState("listening");
+			}, 0);
 			return;
 		}
 		this.h.onState("transcribing");
@@ -296,6 +447,10 @@ export abstract class VadMic {
 
 	dispose(): void {
 		this.stop();
+		// 会话内 stop/start 保留已加载的模型（避免重复下载），彻底销毁才释放
+		this.silero?.dispose();
+		this.silero = null;
+		this.sileroReady = false;
 	}
 }
 

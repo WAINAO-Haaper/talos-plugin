@@ -14,6 +14,7 @@ import {
 	SESSIONS_PATH,
 } from "./src/quyuan/claudian/core/bootstrap/StoragePaths.ts";
 import { VIEW_TYPE_CLAUDIAN } from "./src/quyuan/claudian/core/types/chat.ts";
+import { VadTurnMachine } from "./src/quyuan/vad-turn.ts";
 import {
 	generateTalosMarkOutlinePoints,
 	generateTalosMarkPoints,
@@ -258,6 +259,8 @@ const voiceCharacterSource = readFileSync("src/quyuan/voice-character-stage.ts",
 const voiceDriverSource = readFileSync("src/quyuan/voice-driver.ts", "utf8");
 const voiceParticleSource = readFileSync("src/quyuan/voice-particle-field.ts", "utf8");
 const vadSource = readFileSync("src/quyuan/vad-mic.ts", "utf8");
+const vadTurnSource = readFileSync("src/quyuan/vad-turn.ts", "utf8");
+const sileroSource = readFileSync("src/quyuan/silero-vad.ts", "utf8");
 const voiceIoSource = readFileSync("src/jarvis/voiceio.ts", "utf8");
 const particleCreateRegion = sourceRegion(
 	voiceParticleSource,
@@ -362,8 +365,86 @@ assert.match(vadSource, /BARGE_RMS = 0\.05[\s\S]*BARGE_FRAMES = 40/);
 assert.match(vadSource, /BARGE_GUARD_MS = 500/);
 // 打断成功后转入收音：打断句本身可被转写为新指令
 assert.match(vadSource, /BARGE_PREROLL = PRE_ROLL \+ BARGE_FRAMES \+ 12/);
-assert.match(vadSource, /onSpeechStart\(\)[\s\S]*this\.capturing = true/);
-assert.match(vadSource, /SILENCE_MS = 550/);
+assert.match(vadSource, /onSpeechStart\(\)[\s\S]*this\.turn\.beginFromBarge\(/);
+assert.match(vadTurnSource, /SILENCE_MS = 550/);
+// 软结束：静音判定不再是硬切，定案前留可重开窗口 + 短段合并窗口
+assert.match(vadTurnSource, /REOPEN_MS = 700[\s\S]*CONTINUATION_FRAMES = 2[\s\S]*MERGE_MS = 350/);
+assert.match(vadTurnSource, /BUSY_SHORT_MIN_SPEECH_MS = 220/);
+assert.doesNotMatch(vadSource, /endUtterance/);
+// 阶段 2：判定来源换成 Silero 人声概率，响度只留兜底与打断
+assert.match(
+	vadSource,
+	/startVoiced: byProb \? this\.speechProb >= SPEECH_START_PROB : rms > START_RMS/
+);
+assert.match(vadSource, /keepVoiced: byProb \?[\s\S]*SPEECH_KEEP_PROB : rms >= KEEP_RMS/);
+// onLevel（粒子球音量驱动）仍由 RMS 计算，不能被概率判定顶掉
+assert.match(vadSource, /const rms = this\.rmsOf\(frame\);[\s\S]*this\.h\.onLevel\?\.\(/);
+// 打断判定必须留在响度：屈原自己的朗读在模型看来同样是人声
+assert.match(vadSource, /BARGE_RMS = 0\.05[\s\S]*rms > BARGE_RMS/);
+// 降级路径：任一环失败都回退响度判定 + 一次性中文提示，且不缓存失败的 promise
+assert.match(vadSource, /private fallbackToRms\(reason: string\): void/);
+assert.match(vadSource, /this\.turn\.setPeakGate\(true\)[\s\S]*语音断句已回退到响度判定/);
+assert.match(sileroSource, /this\.loading = null;\s*\n\s*throw error/);
+assert.match(sileroSource, /withTimeout\(import\(entry\)/);
+assert.match(sileroSource, /wasmPaths = base[\s\S]*numThreads = 1/);
+assert.match(sileroSource, /requestUrl\(\{ url: modelUrl/);
+// CDN 与模型地址必须来自设置拼出的运行时字符串，esbuild 不得静态打包
+assert.match(sileroSource, /this\.settings\.quyuanVadCdn\?\.trim\(\) \|\| DEFAULT_ORT_CDN/);
+assert.match(sileroSource, /this\.settings\.quyuanVadModel\?\.trim\(\) \|\| DEFAULT_MODEL_URL/);
+assert.match(talosSettingsSource, /quyuanVadEnabled:\s*boolean/);
+// 神经 VAD 会下载并执行外部运行时与模型，统一主线必须保持显式选择、默认不联网。
+assert.match(talosSettingsSource, /quyuanVadEnabled:\s*false/);
+assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*boolean/);
+assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*false/);
+assert.match(
+	vadSource,
+	/quyuanVadEnabled === false \|\|[\s\S]*quyuanVadNetworkConsent !== true/
+);
+assert.match(
+	talosSettingsSource,
+	/quyuanVadEnabled = v;[\s\S]*quyuanVadNetworkConsent = v;/
+);
+assert.match(
+	talosMain,
+	/if \(!settings\.quyuanVadNetworkConsent\) settings\.quyuanVadEnabled = false;/
+);
+assert.match(talosSettingsSource, /quyuanVadCdn:\s*""[\s\S]*quyuanVadModel:\s*""/);
+
+// 阶段 3：流式转写只对本地引擎开；云端引擎（按次计费 + 上传录音）必须零改动
+const localAsrSource = readFileSync("src/quyuan/local-asr.ts", "utf8");
+const cloudAsrSource = readFileSync("src/quyuan/cloud-asr.ts", "utf8");
+assert.match(vadSource, /protected supportsPartial\(\): boolean \{\s*return false;/);
+assert.match(localAsrSource, /protected override supportsPartial\(\): boolean \{\s*return true;/);
+assert.doesNotMatch(cloudAsrSource, /supportsPartial|onPartial|partial/i);
+// 同一个 ONNX session 不能并发跑：中途与最终转写必须排队
+assert.match(localAsrSource, /private enqueue<T>[\s\S]*this\.queue = next\.catch/);
+assert.match(localAsrSource, /await this\.enqueue\(\(\) =>\s*\n?\s*withTimeout\(transcriber/);
+// 中途结果只喂字幕；轮次已定案就不再刷，避免上一句残影
+assert.match(vadSource, /if \(this\.supportsPartial\(\)\) this\.maybePartial\(\);/);
+assert.match(vadSource, /live\?\.turnId === snap\.turnId\) this\.h\.onPartial\?\.\(text\)/);
+assert.match(vadSource, /PARTIAL_MIN_MS = 1200[\s\S]*PARTIAL_INTERVAL_MS = 700/);
+// 完全相同的音频才复用中途结果，不做任何近似
+assert.match(
+	vadSource,
+	/cached\.turnId === turnId && cached\.samples === total && cached\.text/
+);
+// 面板：partial 绝不触发唤醒或发送
+assert.match(voicePanelSource, /onPartial: \(text\) => this\.showPartialTranscript\(text\)/);
+const partialRegion = sourceRegion(
+	voicePanelSource,
+	"private showPartialTranscript(text: string): void {",
+	"private showTranscriptEditor"
+);
+assert.doesNotMatch(partialRegion, /commitUser|matchWake|activateWake|respond\(/);
+assert.match(partialRegion, /if \(!this\.wakeActive\) return;/);
+assert.match(partialRegion, /this\.setState\("reco"\)/);
+// 忙碌 = 本轮已交给 agent：软结束的立即定案，半句一律丢弃
+assert.match(vadSource, /if \(busy\) this\.turn\.onBusy\(\);/);
+// VadMic 对外契约不变（子类 LocalAsr / CloudAsr 不受影响）
+assert.match(
+	vadSource,
+	/protected abstract transcribe\(samples: Float32Array, sampleRate: number\): Promise<string>/
+);
 assert.match(voiceIoSource, /rest\.length > 28/);
 assert.match(
 	voicePanelSource,
@@ -614,5 +695,169 @@ await assert.rejects(
 		error instanceof QuyuanSoulBootstrapError &&
 		error.missingPaths.includes("灵魂/persona-memory.md")
 );
+
+// ============================================================
+// 屈原语音层 · VAD 轮次状态机沙盘
+//   构造 8ms/帧的帧序列（16k、128 样本），断言「什么时候定案、定案几次、
+//   合并后多长」。只驱动状态机，不碰 AudioWorklet / 麦克风。
+// ============================================================
+const VAD_FRAME_SAMPLES = 128;
+const VAD_FRAME_MS = 8;
+const VOICE_LEVEL = 0.08; // > START_RMS(0.03) 且 > MIN_PEAK_RMS(0.045)
+const QUIET_LEVEL = 0.002; // < KEEP_RMS(0.015)
+
+function vadSandbox() {
+	const commits = [];
+	const states = [];
+	const machine = new VadTurnMachine(
+		{
+			onState: (state) => states.push(state),
+			onCommit: (frames, peak, durationMs) => commits.push({ frames, peak, durationMs }),
+		},
+		16000
+	);
+	const feed = (ms, level) => {
+		const count = Math.round(ms / VAD_FRAME_MS);
+		for (let i = 0; i < count; i++) {
+			machine.push({
+				frame: new Float32Array(VAD_FRAME_SAMPLES).fill(level),
+				rms: level,
+				frameMs: VAD_FRAME_MS,
+				startVoiced: level > 0.03,
+				keepVoiced: level >= 0.015,
+			});
+		}
+	};
+	return { machine, commits, states, feed };
+}
+
+// 1) 中途停顿 600ms：软结束后在可重开窗口内续说 → 只定案一次，两截拼成一句
+{
+	const { commits, feed } = vadSandbox();
+	feed(600, VOICE_LEVEL);
+	feed(600, QUIET_LEVEL);
+	feed(800, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 1, "中途停顿 600ms 不得切成两句");
+	// 语音净时长 1400ms + 尾部保留 + 续说前导缓冲，允许区间断言
+	assert.ok(
+		commits[0].durationMs > 1400 && commits[0].durationMs < 1800,
+		`合并后总时长异常：${commits[0].durationMs}`
+	);
+}
+
+// 2) 停顿超过「静音判定 + 可重开窗口」→ 两次独立定案
+{
+	const { commits, feed } = vadSandbox();
+	feed(600, VOICE_LEVEL);
+	feed(1400, QUIET_LEVEL); // > SILENCE_MS(550) + REOPEN_MS(700)
+	feed(800, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 2, "长停顿应切成两句");
+}
+
+// 3) 连续短促语气（250ms + 200ms 停 + 250ms）→ 合并为一次定案，不再被丢弃
+{
+	const { commits, feed } = vadSandbox();
+	feed(250, VOICE_LEVEL);
+	feed(200, QUIET_LEVEL);
+	feed(250, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 1, "短促语气应合并为一句");
+}
+
+// 3b) 两段都短且间隔跨过重开窗口 → 走短段合并窗口，仍只定案一次
+{
+	const { commits, feed } = vadSandbox();
+	feed(250, VOICE_LEVEL);
+	feed(1400, QUIET_LEVEL);
+	feed(250, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 1, "短段合并窗口内的第二段应接回前一段");
+}
+
+// 4) 孤立短噪音：重开窗口 + 合并窗口都过期 → 按噪音丢弃
+{
+	const { commits, feed } = vadSandbox();
+	feed(250, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 0, "孤立短段应按噪音丢弃");
+}
+
+// 5) 软结束期间 agent 转入忙碌 → 立即强制定案，不得再重开追加
+{
+	const { machine, commits, feed } = vadSandbox();
+	feed(600, VOICE_LEVEL);
+	feed(600, QUIET_LEVEL);
+	assert.equal(commits.length, 0, "软结束阶段还不该定案");
+	machine.onBusy();
+	assert.equal(commits.length, 1, "转入忙碌必须立即定案");
+	const firstDuration = commits[0].durationMs;
+	assert.ok(firstDuration > 550 && firstDuration < 900, `首段时长异常：${firstDuration}`);
+	assert.equal(machine.getPhase(), "idle");
+}
+
+// 6) 收音途中转入忙碌 → 半句丢弃，绝不送进 agent
+{
+	const { machine, commits, feed } = vadSandbox();
+	feed(300, VOICE_LEVEL);
+	machine.onBusy();
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 0, "忙碌打断的半句不得定案");
+}
+
+// 7) 打断句（朗读中喊「停」）走放宽阈值 → 短指令也能被收下
+{
+	const { machine, commits, feed } = vadSandbox();
+	machine.beginFromBarge([], VOICE_LEVEL);
+	feed(300, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 1, "打断短指令必须被收下");
+}
+
+// 7b) 屈原刚说完的短答窗口内，单个短促指令（「好」「继续」）同样收得下
+{
+	const { machine, commits, feed } = vadSandbox();
+	machine.openShortWindow();
+	feed(300, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 1, "短答窗口内的短指令必须被收下");
+}
+
+// 7c) 短答窗口过期后回到严格门槛：待机噪音不得白烧一次转写
+{
+	const { machine, commits, feed } = vadSandbox();
+	machine.openShortWindow(200);
+	feed(400, QUIET_LEVEL); // 窗口在静默中过期
+	feed(300, VOICE_LEVEL);
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 0, "短答窗口过期后应回到严格门槛");
+}
+
+// 7d) 轮次序号：续说仍是同一轮（中途结果可继续用），新一轮才递增
+{
+	const { machine, feed } = vadSandbox();
+	feed(600, VOICE_LEVEL);
+	assert.equal(machine.peekCaptured()?.turnId, 1, "第一轮序号应为 1");
+	feed(600, QUIET_LEVEL); // 软结束但未定案
+	assert.ok(machine.peekCaptured(), "软结束期间仍可取到本轮音频（供流式转写）");
+	feed(800, VOICE_LEVEL); // 续说接回
+	assert.equal(machine.peekCaptured()?.turnId, 1, "续说不得换轮次号");
+	feed(2000, QUIET_LEVEL); // 定案
+	assert.equal(machine.peekCaptured(), null, "定案后不应再有可取音频");
+	feed(600, VOICE_LEVEL);
+	assert.equal(machine.peekCaptured()?.turnId, 2, "新一轮序号必须递增");
+}
+
+// 8) reset 后不得留下任何待定轮次
+{
+	const { machine, commits, feed } = vadSandbox();
+	feed(600, VOICE_LEVEL);
+	feed(600, QUIET_LEVEL);
+	machine.reset();
+	feed(2000, QUIET_LEVEL);
+	assert.equal(commits.length, 0, "reset 必须清空软结束与短段缓冲");
+	assert.equal(machine.getPhase(), "idle");
+}
 
 console.log("Quyuan v2 self-test: passed");

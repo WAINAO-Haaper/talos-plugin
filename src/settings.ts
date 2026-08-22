@@ -112,6 +112,10 @@ export interface TalosSettings {
 	quyuanAsrEngine: string; // 屈原语音页识别引擎：cloud（千问）| local（本地 Whisper）
 	quyuanLocalAsrModel: string; // 本地 Whisper 模型（transformers.js），留空用默认
 	quyuanLocalAsrCdn: string; // transformers.js CDN ESM 地址，留空用默认
+	quyuanVadEnabled: boolean; // 用 Silero VAD 判断人声；关闭或加载失败则回退响度阈值
+	quyuanVadNetworkConsent: boolean; // 仅由新版设置显式开启；旧数据不得自动触发外部运行时/模型下载
+	quyuanVadCdn: string; // onnxruntime-web dist 目录地址，留空用默认
+	quyuanVadModel: string; // Silero VAD ONNX 权重地址，留空用默认
 	quyuanVoiceModel: string; // Claude 语音通道独立模型，不影响文字工作台
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
@@ -192,6 +196,10 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanAsrEngine: "cloud",
 	quyuanLocalAsrModel: "",
 	quyuanLocalAsrCdn: "",
+	quyuanVadEnabled: false,
+	quyuanVadNetworkConsent: false,
+	quyuanVadCdn: "",
+	quyuanVadModel: "",
 	quyuanVoiceModel: "haiku",
 	quyuanVoiceEffort: "low",
 	quyuanBackground: "letter-glitch",
@@ -950,6 +958,25 @@ export class TalosSettingTab extends PluginSettingTab {
 					})
 			);
 		this.textIn(c, "识别语言", "麦克风识别语言，如 zh-CN / en-US。", "jarvisSttLang", "zh-CN");
+
+		new Setting(c).setName("屈原 · 语音断句（VAD）").setHeading();
+		new Setting(c)
+			.setName("用 Silero VAD 判断人声")
+			.setDesc(
+				"默认关闭。启用后会在首次使用时从所配置 CDN 下载并执行 onnxruntime-web 与约 2.3 MB 模型；仅在允许联网并信任来源时启用。失败会自动回退响度判定。"
+			)
+			.addToggle((t) =>
+				t.setValue(
+					this.plugin.talosSettings.quyuanVadEnabled &&
+						this.plugin.talosSettings.quyuanVadNetworkConsent
+				).onChange(async (v) => {
+					this.plugin.talosSettings.quyuanVadEnabled = v;
+					this.plugin.talosSettings.quyuanVadNetworkConsent = v;
+					await this.plugin.saveTalosSettings();
+				})
+			);
+		this.textIn(c, "VAD 运行时 CDN", "onnxruntime-web dist 目录（结尾带斜杠），留空用默认。", "quyuanVadCdn");
+		this.textIn(c, "VAD 模型地址", "Silero VAD v5 的 .onnx 地址，留空用默认。", "quyuanVadModel");
 
 		new Setting(c).setName("旧·语音助手（存档）").setHeading();
 		this.textIn(c, "语音大脑命令", "旧 voice.ts 用，已被 Agentic 取代。对话调用的 CLI，cwd 为库根。", "voiceAgentCommand", "claude -p");
