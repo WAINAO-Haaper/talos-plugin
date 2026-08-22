@@ -2,7 +2,7 @@
  * D-TLP-014：DeepSeek Harness 嵌入面的纯逻辑层（无 Node/DOM 依赖，可单测）。
  *
  * 关键合同：
- * - loopback-only：`dsh web --host 127.0.0.1 --no-open`，永不监听非回环地址。
+ * - loopback-only：`dsh --profile web --host 127.0.0.1 --no-open`，永不监听非回环地址。
  * - 工作区锁死：spawn cwd = 当前 vault 根，harness 沙箱可写根由会话 cwd 推导，
  *   因此可写范围即当前 Obsidian 仓库，不提供切换入口。
  * - 凭证出 vault：$DSH_HOME 固定在用户主目录下，API key 不进 vault、不进 data.json。
@@ -32,7 +32,10 @@ export function normalizeDshPort(value: unknown): number {
 }
 
 export function buildDshWebArgs(port: number): string[] {
+	// 实证（2026-08-23，dsh 0.1.0-rc.8）：web 是 --profile 值而非子命令，
+	// `dsh web` 会被当作未知参数立即退出。
 	return [
+		"--profile",
 		"web",
 		"--host",
 		DSH_HOST,

@@ -30,7 +30,9 @@ describe("harness embed contract (D-TLP-014)", () => {
 
 	it("launches dsh web loopback-only and never opens a browser", () => {
 		const args = buildDshWebArgs(3180);
+		// 实证（dsh 0.1.0-rc.8）：web 是 --profile 值；`dsh web` 会立即退出
 		expect(args).toEqual([
+			"--profile",
 			"web",
 			"--host",
 			"127.0.0.1",

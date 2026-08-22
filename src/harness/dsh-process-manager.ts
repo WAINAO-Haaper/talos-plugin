@@ -152,13 +152,17 @@ export class DshProcessManager {
 		child.stderr?.on("data", (chunk: Buffer) => {
 			stderrTail = (stderrTail + chunk.toString("utf8")).slice(-2000);
 		});
+		const exitMessage = (code: number | null): string =>
+			`dsh 进程退出（code ${code ?? "?"}）${stderrTail ? `：${stderrTail.slice(-300)}` : ""}`;
+		// 启动阶段快速失败：子进程退出即拒绝，不再空等就绪超时。
+		const earlyExit = new Promise<never>((_, reject) => {
+			child.once("exit", (code) => reject(new Error(exitMessage(code))));
+		});
+		earlyExit.catch(() => {});
 		child.on("exit", (code) => {
 			if (this.child === child) this.child = null;
 			if (this.state === "ready" || this.state === "starting") {
-				this.setState(
-					"error",
-					`dsh 进程退出（code ${code ?? "?"}）${stderrTail ? `：${stderrTail.slice(-300)}` : ""}`
-				);
+				this.setState("error", exitMessage(code));
 			}
 		});
 		child.on("error", (error) => {
@@ -167,7 +171,7 @@ export class DshProcessManager {
 		});
 
 		try {
-			await this.waitForReady();
+			await Promise.race([this.waitForReady(), earlyExit]);
 			this.setState("ready");
 		} catch (error) {
 			await this.stop();
