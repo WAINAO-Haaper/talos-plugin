@@ -10,6 +10,7 @@ import {
 	dshHomeRoot,
 	normalizeDshPort,
 } from "../src/harness/dsh-runtime";
+import { normalizeHarnessSurface } from "../src/harness/harness-switcher";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -80,16 +81,27 @@ describe("harness embed contract (D-TLP-014)", () => {
 		).toThrow();
 	});
 
-	it("wires the chat page to HarnessWorkbench instead of ClaudianView", () => {
+	it("wires the chat page to the dual-channel harness switcher", () => {
 		const view = readSrc("src/view.ts");
+		expect(view).toContain("HarnessSwitcherWorkbench");
 		expect(view).toContain("HarnessWorkbench");
+		expect(view).toContain("ClaudianCodexWorkbench");
 		expect(view).toContain("getHarnessManager");
-		// D-TLP-014：ClaudianView 嵌入与构造隔离代理随 C-2 之后退役，
-		// claudian 工作台仅保留为独立恢复视图（命令 open-quyuan-v2-recovery）。
+		// D-TLP-015（2026-08-23 改写）：对话页为 DeepSeek｜Codex 双通道滑动
+		// 切换器；ClaudianView 嵌入接线迁入 claudian-codex-workbench 适配器，
+		// 构造隔离代理不直接出现在 view.ts。
 		expect(view).not.toContain("chatWorkbenchView");
 		expect(view).not.toContain("createConstructorIsolatedProxy");
-		expect(view).not.toContain("EmbeddedClaudianView");
 		expect(view).not.toContain('import type { ClaudianView }');
+	});
+
+	it("keeps the Codex channel adapter wiring intact", () => {
+		const adapter = readSrc("src/harness/claudian-codex-workbench.ts");
+		expect(adapter).toContain("createConstructorIsolatedProxy");
+		expect(adapter).toContain("registerEmbeddedView");
+		expect(adapter).toContain("unregisterEmbeddedView");
+		expect(adapter).toContain("mountEmbedded");
+		expect(adapter).toContain("suspendEmbedded");
 	});
 
 	it("stops the harness process on plugin unload", () => {
@@ -105,5 +117,15 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(settings).toContain("harnessPort: number");
 		expect(settings).toContain("harnessPort: DEFAULT_DSH_PORT");
 		expect(settings).toContain("AI 对话 Harness（内嵌界面）");
+	});
+
+	it("persists the selected channel with a safe fallback (D-TLP-015)", () => {
+		const settings = readSrc("src/settings.ts");
+		expect(settings).toContain("harnessSurface: string");
+		expect(settings).toContain('harnessSurface: "dsh"');
+		expect(normalizeHarnessSurface("codex")).toBe("codex");
+		expect(normalizeHarnessSurface("dsh")).toBe("dsh");
+		expect(normalizeHarnessSurface("nope")).toBe("dsh");
+		expect(normalizeHarnessSurface(undefined)).toBe("dsh");
 	});
 });

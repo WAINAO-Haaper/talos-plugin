@@ -1984,14 +1984,45 @@ export class TalosView extends ItemView {
 	private async pageChat(page: HTMLElement): Promise<void> {
 		try {
 			if (!this.chatSurface) {
-				// D-TLP-014：对话页直接嵌入 DeepSeek Harness 桌面界面（iframe + loopback dsh web），
-				// 不再嵌入 ClaudianView；claudian 工作台保留为独立恢复视图（命令 open-quyuan-v2-recovery）。
+				// D-TLP-014/D-TLP-015：对话页为双通道滑动切换器——
+				// DeepSeek Harness（iframe 嵌入 dsh web 桌面界面）｜
+				// Codex 工作台（claudian codex 内核，经适配器挂回）。
+				// claudian 工作台另保留独立恢复视图（命令 open-quyuan-v2-recovery）。
 				const { HarnessWorkbench } = await import(
 					"./harness/harness-workbench"
 				);
+				const { ClaudianCodexWorkbench } = await import(
+					"./harness/claudian-codex-workbench"
+				);
+				const { HarnessSwitcherWorkbench, normalizeHarnessSurface } =
+					await import("./harness/harness-switcher");
 				this.chatSurface = new TalosChatSurface(
-					new HarnessWorkbench({
-						manager: this.plugin.getHarnessManager(),
+					new HarnessSwitcherWorkbench({
+						channels: [
+							{
+								id: "dsh",
+								label: "DeepSeek Harness",
+								workbench: new HarnessWorkbench({
+									manager: this.plugin.getHarnessManager(),
+								}),
+							},
+							{
+								id: "codex",
+								label: "Codex 工作台",
+								workbench: new ClaudianCodexWorkbench({
+									leaf: this.leaf,
+									plugin: this.plugin,
+								}),
+							},
+						],
+						getActiveId: () =>
+							normalizeHarnessSurface(
+								this.plugin.talosSettings.harnessSurface
+							),
+						setActiveId: (id) => {
+							this.plugin.talosSettings.harnessSurface = id;
+							void this.plugin.saveTalosSettings();
+						},
 					})
 				);
 			}

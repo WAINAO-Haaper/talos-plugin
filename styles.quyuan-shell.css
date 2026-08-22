@@ -4821,3 +4821,75 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-
 .talos-harness__error button:hover {
   background: var(--interactive-hover);
 }
+
+/* ===== D-TLP-015 · 对话页双通道滑动切换器（DeepSeek ｜ Codex） ===== */
+/* 遵循 D-TLP-012 数值规范：描边 2px、字号 12px 档。 */
+.talos-harness-switcher {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.talos-harness-switch {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(340px, 86%);
+  margin: 10px auto 6px;
+  padding: 2px;
+  border: 2px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-secondary);
+}
+
+.talos-harness-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  opacity: 0.22;
+  transition: transform 0.18s ease;
+  pointer-events: none;
+}
+
+.talos-harness-switch__option {
+  position: relative;
+  z-index: 1;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.talos-harness-switch__option.is-active {
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.talos-harness-switcher__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.talos-harness-switcher__slot {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.talos-harness-switcher__slot.is-active {
+  display: flex;
+  flex-direction: column;
+}

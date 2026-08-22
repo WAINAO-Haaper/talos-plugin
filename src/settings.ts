@@ -112,6 +112,7 @@ export interface TalosSettings {
 	// D-TLP-014：AI 对话页内嵌 DeepSeek Harness 桌面界面（iframe + loopback dsh web）
 	harnessExecutable: string; // dsh CLI 路径，留空自动探测 PATH
 	harnessPort: number; // dsh web 仅监听 127.0.0.1，默认 3180
+	harnessSurface: string; // D-TLP-015 对话页通道：dsh（默认）| codex，由切换块写入
 	jarvisPermissionMode: string; // default | acceptEdits | plan | bypassPermissions
 	jarvisSttEngine: string; // webspeech | aliyun | off（语音转写）
 	jarvisSttApiKey: string; // STT API key（阿里云 Paraformer 等）
@@ -202,6 +203,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	codexModel: "",
 	harnessExecutable: "",
 	harnessPort: DEFAULT_DSH_PORT,
+	harnessSurface: "dsh",
 	jarvisPermissionMode: "default",
 	jarvisSttEngine: "webspeech",
 	jarvisSttApiKey: "",
