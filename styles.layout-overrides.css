@@ -339,6 +339,13 @@
 
 .talos-console .talos-inline-settings__body {
   min-width: 0;
+  /* 修复 2026-08-23 设置页无法滚动：quyuan-shell 的弹层规则给 __body 设了
+     overflow:auto + overscroll-behavior:contain。控制台里 __body 随内容自然撑高，
+     内部永不滚动，但 contain 会截获滚轮事件、阻断向 .talos-console（.view-content
+     本体，真正的滚动容器）的滚动链传递，整个设置页滚不动（CDP 滚轮实证：
+     5×600px 滚轮后 scrollTop 仍为 0）。控制台设置页滚动统一由 .talos-console 承担。 */
+  overflow: visible;
+  overscroll-behavior: auto;
 }
 
 .talos-console .talos-settings--console {

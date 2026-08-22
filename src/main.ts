@@ -1,4 +1,4 @@
-import { Modal, Notice, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath } from "obsidian";
+import { FileSystemAdapter, Modal, Notice, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeVisualTheme } from "./settings";
 import { TalosView, VIEW_TYPE_TALOS } from "./view";
 import { JarvisView, VIEW_TYPE_JARVIS } from "./jarvis-view";
@@ -71,6 +71,8 @@ import {
 	providerIdForEngineSetting,
 	type ProviderCenterSnapshot,
 } from "./ui/provider-center";
+import { DshProcessManager } from "./harness/dsh-process-manager";
+import { normalizeDshPort } from "./harness/dsh-runtime";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -188,6 +190,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	private talosAskCommand: TalosAskCommand | null = null;
 	private talosProviderFacade: ProviderFacade | null = null;
 	private talosActionRuntime: ConsoleActionRuntime | null = null;
+	private harnessManager: DshProcessManager | null = null;
 	private quyuanChatAuditSequence = 0;
 	private readonly handleWindowError = (event: ErrorEvent): void => {
 		this.recordQuyuanRuntimeError("window.error", event.error ?? event.message);
@@ -522,10 +525,29 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		);
 	}
 
+	// D-TLP-014：DeepSeek Harness 嵌入面的进程管理单例。
+	// cwd 锁死当前 vault 根（工作区锁死），$DSH_HOME 固定在用户主目录（凭证出 vault）。
+	getHarnessManager(): DshProcessManager {
+		this.harnessManager ??= new DshProcessManager({
+			getConfiguredExecutable: () =>
+				this.talosSettings.harnessExecutable ?? "",
+			getPort: () => normalizeDshPort(this.talosSettings.harnessPort),
+			getVaultRoot: () => {
+				const adapter = this.app.vault.adapter;
+				return adapter instanceof FileSystemAdapter
+					? adapter.getBasePath()
+					: null;
+			},
+		});
+		return this.harnessManager;
+	}
+
 	onunload(): void {
 		unregisterApprovalTaskRuntime(this.app);
 		this.talosActionRuntime = null;
 		super.onunload();
+		void this.harnessManager?.stop();
+		this.harnessManager = null;
 		this.quyuanStt?.dispose();
 		this.quyuanStt = null;
 		this.quyuanTts?.stop();

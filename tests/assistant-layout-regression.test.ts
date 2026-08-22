@@ -10,6 +10,10 @@ const quyuanStyles = readFileSync(
 	`${projectRoot}styles.quyuan-shell.css`,
 	"utf8"
 );
+const layoutOverrides = readFileSync(
+	`${projectRoot}styles.layout-overrides.css`,
+	"utf8"
+);
 
 describe("assistant layout regression", () => {
 	it("reuses the current navigable leaf instead of adding a second workspace leaf", () => {
@@ -21,21 +25,19 @@ describe("assistant layout regression", () => {
 		);
 	});
 
-	it("constructs the embedded Claudian view without mutating the TALOS leaf", () => {
-		expect(viewSource).toContain(
-			"createConstructorIsolatedProxy(this.leaf, {"
-		);
-		expect(viewSource).toContain(
-			'containerEl: page.ownerDocument.createElement("div")'
-		);
-		expect(viewSource).toContain("workbench.leaf = this.leaf");
+	it("embeds the DeepSeek Harness surface without mutating the TALOS leaf", () => {
+		// D-TLP-014（2026-08-22 改写）：对话页从嵌入 ClaudianView 改为
+		// iframe 嵌入 dsh web 桌面界面（loopback），构造隔离代理与
+		// workbench.leaf 改写随之退役；ClaudianView 仅保留为独立恢复视图
+		// （命令 open-quyuan-v2-recovery），orphan 清理逻辑仍钉死。
+		expect(viewSource).toContain("HarnessWorkbench");
+		expect(viewSource).toContain("getHarnessManager");
+		expect(viewSource).not.toContain("createConstructorIsolatedProxy");
+		expect(viewSource).not.toContain("workbench.leaf = this.leaf");
 		expect(viewSource).toContain(
 			'.workspace-leaf-content[data-type="talos-quyuan-view"]'
 		);
 		expect(viewSource).toContain("orphan.remove()");
-		expect(viewSource).not.toContain(
-			"new EmbeddedClaudianView(this.leaf, this.plugin)"
-		);
 	});
 
 	it("sizes embedded chat and voice surfaces from the current leaf", () => {
@@ -64,6 +66,18 @@ describe("assistant layout regression", () => {
 		);
 		expect(quyuanStyles).toMatch(
 			/\.talos-console\[data-talos-page="jarvis"\] \.pagenav-card \{[^}]*display: block !important;[^}]*visibility: visible;[^}]*opacity: 1;/s
+		);
+	});
+
+	it("lets the console settings page scroll via the console container", () => {
+		// 2026-08-23 CDP 滚轮实证：quyuan-shell 弹层规则
+		// .talos-inline-settings__body { overflow:auto; overscroll-behavior:contain }
+		// 在控制台内截获滚轮、阻断向 .talos-console 滚动容器的链式传递，
+		// 设置页完全无法滚动（5×600px 滚轮后 scrollTop 仍为 0）。
+		// layout-overrides 必须在控制台作用域复位这两条，滚动统一由
+		// .talos-console（.view-content 本体）承担。
+		expect(layoutOverrides).toMatch(
+			/\.talos-console \.talos-inline-settings__body \{[^}]*overflow: visible;[^}]*overscroll-behavior: auto;/s
 		);
 	});
 });

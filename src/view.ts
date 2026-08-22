@@ -65,9 +65,7 @@ import {
 	primaryPage,
 } from "./ui/navigation-model";
 import { TalosPageRouter } from "./ui/page-router";
-import { createConstructorIsolatedProxy } from "./ui/constructor-isolated-proxy";
 import { TalosChatSurface } from "./quyuan/chat-surface";
-import type { ClaudianView } from "./quyuan/claudian/features/chat/ClaudianView";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -216,7 +214,6 @@ export class TalosView extends ItemView {
 	private jarvis: QuyuanVoicePanelLike | null = null;
 	private jarvisMounted = false;
 	private chatSurface: TalosChatSurface | null = null;
-	private chatWorkbenchView: ClaudianView | null = null;
 	private chatMounted = false;
 	private clockTimer: number | null = null;
 	private taskDrawer: TaskDrawer | null = null;
@@ -285,7 +282,6 @@ export class TalosView extends ItemView {
 		this.unmountJarvisSafely();
 		await this.chatSurface?.dispose();
 		this.chatSurface = null;
-		this.chatWorkbenchView = null;
 		this.chatMounted = false;
 		this.taskDrawer?.unmount();
 		this.taskDrawer = null;
@@ -1987,37 +1983,17 @@ export class TalosView extends ItemView {
 
 	private async pageChat(page: HTMLElement): Promise<void> {
 		try {
-			if (!this.plugin.storage || !this.plugin.settings) {
-				page.createDiv({
-					cls: "empty",
-					text: "AI 对话运行时仍在初始化，请稍后重试。",
-				});
-				return;
-			}
-			if (!this.chatWorkbenchView) {
-				const { ClaudianView: EmbeddedClaudianView } = await import(
-					"./quyuan/claudian/features/chat/ClaudianView"
+			if (!this.chatSurface) {
+				// D-TLP-014：对话页直接嵌入 DeepSeek Harness 桌面界面（iframe + loopback dsh web），
+				// 不再嵌入 ClaudianView；claudian 工作台保留为独立恢复视图（命令 open-quyuan-v2-recovery）。
+				const { HarnessWorkbench } = await import(
+					"./harness/harness-workbench"
 				);
-				const constructorLeaf = createConstructorIsolatedProxy(this.leaf, {
-					containerEl: page.ownerDocument.createElement("div"),
-				});
-				const workbench = new EmbeddedClaudianView(
-					constructorLeaf,
-					this.plugin
+				this.chatSurface = new TalosChatSurface(
+					new HarnessWorkbench({
+						manager: this.plugin.getHarnessManager(),
+					})
 				);
-				workbench.leaf = this.leaf;
-				this.plugin.registerEmbeddedView(workbench);
-				this.chatWorkbenchView = workbench;
-				this.chatSurface = new TalosChatSurface({
-					mount: (container, namespace) =>
-						workbench.mountEmbedded(container, namespace),
-					suspend: () => workbench.suspendEmbedded(),
-					focusComposer: () => workbench.focusComposer(),
-					destroy: async () => {
-						await workbench.destroyEmbedded();
-						this.plugin.unregisterEmbeddedView(workbench);
-					},
-				});
 			}
 			if (!this.chatSurface) throw new Error("AI 对话 surface 未创建");
 			await this.chatSurface.mount(page, "chat");

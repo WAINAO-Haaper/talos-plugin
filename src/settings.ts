@@ -30,6 +30,7 @@ import {
 } from "./ai/provider/provider-module-access";
 import { openAiModelsEndpoint } from "./ai/provider/openai-endpoints";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
+import { DEFAULT_DSH_PORT, normalizeDshPort } from "./harness/dsh-runtime";
 
 export type TalosVisualTheme =
 	| "aurora"
@@ -108,6 +109,9 @@ export interface TalosSettings {
 	codexApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	codexBaseUrl: string; // Codex harness 的 OpenAI Responses 端点，留空用官方
 	codexModel: string; // Codex harness 模型，留空用 harness 默认（gpt-5.5）
+	// D-TLP-014：AI 对话页内嵌 DeepSeek Harness 桌面界面（iframe + loopback dsh web）
+	harnessExecutable: string; // dsh CLI 路径，留空自动探测 PATH
+	harnessPort: number; // dsh web 仅监听 127.0.0.1，默认 3180
 	jarvisPermissionMode: string; // default | acceptEdits | plan | bypassPermissions
 	jarvisSttEngine: string; // webspeech | aliyun | off（语音转写）
 	jarvisSttApiKey: string; // STT API key（阿里云 Paraformer 等）
@@ -196,6 +200,8 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	codexApiKey: "",
 	codexBaseUrl: "",
 	codexModel: "",
+	harnessExecutable: "",
+	harnessPort: DEFAULT_DSH_PORT,
 	jarvisPermissionMode: "default",
 	jarvisSttEngine: "webspeech",
 	jarvisSttApiKey: "",
@@ -326,6 +332,22 @@ export class TalosSettingTab extends PluginSettingTab {
 				.setName("高级设置暂不可用")
 				.setDesc(error instanceof Error ? error.message : String(error));
 		}
+	}
+
+	private describeHarnessState(): string {
+		const manager = this.plugin.getHarnessManager();
+		const state = manager.getState();
+		const label =
+			state === "ready"
+				? "运行中"
+				: state === "starting"
+					? "正在启动"
+					: state === "error"
+						? "启动失败"
+						: "未启动";
+		const detail =
+			state === "error" ? `：${manager.getLastError()}` : "";
+		return `当前状态：${label}${detail}（${manager.getBaseUrl()}，仅回环监听）`;
 	}
 
 	// 通用文本设置项
@@ -685,6 +707,45 @@ export class TalosSettingTab extends PluginSettingTab {
 		new Setting(c).setDesc(
 			"云端 AI 为主力，本机 CLI 继续可用。模型可以读取整个 Vault 并提出复杂操作；真正写入、移动、删除或执行命令前，统一进入 TALOS 审批任务。"
 		);
+
+		// D-TLP-014：对话页内嵌 DeepSeek Harness 桌面界面
+		new Setting(c).setName("AI 对话 Harness（内嵌界面）").setHeading();
+		new Setting(c).setDesc(
+			"对话页直接嵌入 DeepSeek Harness 桌面界面，功能与独立版一致。API 与模型在嵌入界面的「设置 → Models」里配置：支持 OpenAI 兼容 / DeepSeek / 智谱 / Kimi 等任意端点，可无缝切换 API 与模型；凭证由 harness 侧管理，不进入 vault 与 data.json。工作区已锁死到当前仓库（harness 以 vault 根为工作目录启动，仅监听 127.0.0.1）。"
+		);
+		this.textIn(
+			c,
+			"dsh 可执行路径",
+			"留空自动探测 PATH 中的 dsh（npm i -g @deepseek-ai/dsh）。也可填绝对路径。修改后点「重启 Harness」生效。",
+			"harnessExecutable",
+			"(自动探测)"
+		);
+		new Setting(c)
+			.setName("Harness 端口")
+			.setDesc("dsh web 的 loopback 端口，非法值自动回退 3180。修改后点「重启 Harness」生效。")
+			.addText((t) =>
+				t
+					.setPlaceholder(String(DEFAULT_DSH_PORT))
+					.setValue(String(this.plugin.talosSettings.harnessPort || DEFAULT_DSH_PORT))
+					.onChange(async (v) => {
+						this.plugin.talosSettings.harnessPort = normalizeDshPort(v);
+						await this.plugin.saveTalosSettings();
+					})
+			);
+		new Setting(c)
+			.setName("Harness 运行状态")
+			.setDesc(this.describeHarnessState())
+			.addButton((button) =>
+				button.setButtonText("重启 Harness").onClick(() => {
+					button.setButtonText("正在重启…");
+					void this.plugin
+						.getHarnessManager()
+						.restart()
+						.catch(() => {})
+						.finally(() => this.rerender());
+				})
+			);
+
 		new Setting(c)
 			.setName("执行通道")
 			.setDesc(
