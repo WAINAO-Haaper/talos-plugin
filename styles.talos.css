@@ -9,11 +9,13 @@
 	background: #03040a !important;
 	color-scheme: dark;
 }
+/* contentEl 即 .view-content 本体（控制台滚动容器）。此处曾设 overflow:hidden，
+   特异性 0,3,0 压住 .talos-console 的 overflow-y:auto（0,1,0），导致整页无法滚动、
+   底部内容被裁掉（2026-08-22 复验发现）。滚动由 .talos-console 自身规则接管。 */
 .workspace-leaf-content[data-type="talos-console-view"] .view-content {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	overflow: hidden;
 	padding: 0;
 	background-color: #03040a !important;
 	position: relative;

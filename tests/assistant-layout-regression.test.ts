@@ -39,9 +39,16 @@ describe("assistant layout regression", () => {
 	});
 
 	it("sizes embedded chat and voice surfaces from the current leaf", () => {
+		// contentEl 即 .view-content 本体（控制台滚动容器）：弹性布局保留，
+		// 但不得再设 overflow: hidden——其特异性 0,3,0 曾压住 .talos-console 的
+		// overflow-y:auto（0,1,0），导致整页无法滚动（2026-08-22 复验修复）。
 		expect(talosStyles).toMatch(
-			/\.workspace-leaf-content\[data-type="talos-console-view"\] \.view-content \{[^}]*display: flex;[^}]*min-height: 0;[^}]*overflow: hidden;/s
+			/\.workspace-leaf-content\[data-type="talos-console-view"\] \.view-content \{[^}]*display: flex;[^}]*min-height: 0;/s
 		);
+		expect(talosStyles).not.toMatch(
+			/\.workspace-leaf-content\[data-type="talos-console-view"\] \.view-content \{[^}]*overflow: hidden;/s
+		);
+		expect(talosStyles).toMatch(/\.talos-console \{[^}]*overflow-y: auto;/s);
 		expect(quyuanStyles).toMatch(
 			/\.talos-console:is\(\.section-chat, \[data-talos-page="jarvis"\]\) \.app \{[^}]*flex: 1 1 auto;[^}]*height: 100%;[^}]*min-height: 0;/s
 		);
