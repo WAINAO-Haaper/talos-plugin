@@ -63,16 +63,16 @@ function facade(): ProviderFacade {
 
 describe("ProviderCenter", () => {
 	it("preserves registered mock provider ids while retaining legacy aliases", () => {
+		// D-TLP-013：claude/claude-cli 旧链路映射已随 harness 置换移除，
+		// 只保留 codex harness 与两条直连通道的映射。
 		expect(engineProviderSettingForProvider("claude-api")).toBe("claude-api");
 		expect(engineProviderSettingForProvider("openai-compatible")).toBe("codex");
-		expect(engineProviderSettingForProvider("claude")).toBe("claude-cli");
 		expect(engineProviderSettingForProvider("codex")).toBe("codex-cli");
 		expect(engineProviderSettingForProvider("mock-acceptance")).toBe(
 			"mock-acceptance"
 		);
 		expect(providerIdForEngineSetting("claude-api")).toBe("claude-api");
 		expect(providerIdForEngineSetting("codex")).toBe("openai-compatible");
-		expect(providerIdForEngineSetting("claude-cli")).toBe("claude");
 		expect(providerIdForEngineSetting("codex-cli")).toBe("codex");
 		expect(providerIdForEngineSetting("mock-acceptance")).toBe(
 			"mock-acceptance"

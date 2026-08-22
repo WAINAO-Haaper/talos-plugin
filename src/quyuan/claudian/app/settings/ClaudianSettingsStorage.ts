@@ -3,7 +3,6 @@ import {
   LEGACY_CLAUDIAN_SETTINGS_PATH,
 } from '../../core/bootstrap/StoragePaths';
 import {
-  normalizeHiddenCommandList,
   normalizeHiddenProviderCommands,
 } from '../../core/providers/commands/hiddenCommands';
 import {
@@ -18,25 +17,12 @@ import {
   type ClaudianSettings,
   type EnvironmentScope,
   type EnvSnippet,
-  type HiddenProviderCommands,
   type ProviderConfigMap,
 } from '../../core/types/settings';
-import {
-  getClaudeProviderSettings,
-  updateClaudeProviderSettings,
-} from '../../providers/claude/settings';
 import {
   getCodexProviderSettings,
   updateCodexProviderSettings,
 } from '../../providers/codex/settings';
-import {
-  getOpencodeProviderSettings,
-  updateOpencodeProviderSettings,
-} from '../../providers/opencode/settings';
-import {
-  getPiProviderSettings,
-  updatePiProviderSettings,
-} from '../../providers/pi/settings';
 import { DEFAULT_CLAUDIAN_SETTINGS } from './defaultSettings';
 
 export {
@@ -118,6 +104,9 @@ function shouldPersistChatViewPlacementMigration(
     );
 }
 
+// D-TLP-013：旧 harness 的 providerConfigs 随链路一并清除，不再载入或回写。
+const REMOVED_PROVIDER_IDS = new Set(['claude', 'opencode', 'pi']);
+
 function normalizeProviderConfigs(value: unknown): ProviderConfigMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
@@ -125,6 +114,9 @@ function normalizeProviderConfigs(value: unknown): ProviderConfigMap {
 
   const result: ProviderConfigMap = {};
   for (const [providerId, config] of Object.entries(value as Record<string, unknown>)) {
+    if (REMOVED_PROVIDER_IDS.has(providerId)) {
+      continue;
+    }
     if (config && typeof config === 'object' && !Array.isArray(config)) {
       result[providerId] = { ...(config as Record<string, unknown>) };
     }
@@ -132,11 +124,9 @@ function normalizeProviderConfigs(value: unknown): ProviderConfigMap {
   return result;
 }
 
+// D-TLP-013：唯一 harness 为 codex，只保留 codex 的 host 作用域字段归一化。
 const HOST_SCOPED_PROVIDER_CONFIG_FIELDS: Record<string, string[]> = {
-  claude: ['cliPathsByHost'],
   codex: ['cliPathsByHost', 'installationMethodsByHost', 'wslDistroOverridesByHost'],
-  opencode: ['cliPathsByHost'],
-  pi: ['cliPathsByHost'],
 };
 
 function hasHostScopedProviderConfigNormalization(
@@ -256,21 +246,6 @@ function hasLegacyTopLevelProviderFields(stored: Record<string, unknown>): boole
   return LEGACY_TOP_LEVEL_PROVIDER_FIELDS.some((key) => key in stored);
 }
 
-function mergeLegacyClaudeHiddenCommands(
-  hiddenProviderCommands: HiddenProviderCommands,
-  legacyHiddenSlashCommands: unknown,
-): HiddenProviderCommands {
-  const legacyCommands = normalizeHiddenCommandList(legacyHiddenSlashCommands);
-  if (legacyCommands.length === 0 || hiddenProviderCommands.claude) {
-    return hiddenProviderCommands;
-  }
-
-  return {
-    ...hiddenProviderCommands,
-    claude: legacyCommands,
-  };
-}
-
 export class ClaudianSettingsStorage {
   constructor(private adapter: VaultFileAdapter) {}
 
@@ -282,10 +257,8 @@ export class ClaudianSettingsStorage {
 
     const content = await this.adapter.read(settingsPath);
     const stored = JSON.parse(content) as Record<string, unknown>;
-    const hiddenProviderCommands = mergeLegacyClaudeHiddenCommands(
-      normalizeHiddenProviderCommands(stored.hiddenProviderCommands),
-      stored.hiddenSlashCommands,
-    );
+    // D-TLP-013：旧 claude 专属 hiddenSlashCommands 迁移随 claude 链路一并移除。
+    const hiddenProviderCommands = normalizeHiddenProviderCommands(stored.hiddenProviderCommands);
     const envSnippets = normalizeEnvSnippets(stored.envSnippets);
     const customModelAliases = normalizeModelAliases(stored.customModelAliases);
     const providerConfigs = normalizeProviderConfigs(stored.providerConfigs);
@@ -317,21 +290,9 @@ export class ClaudianSettingsStorage {
       ...legacyNormalized,
     };
 
-    updateClaudeProviderSettings(
-      merged,
-      getClaudeProviderSettings(legacyProviderSettings),
-    );
     updateCodexProviderSettings(
       merged,
       getCodexProviderSettings(legacyProviderSettings),
-    );
-    updateOpencodeProviderSettings(
-      merged,
-      getOpencodeProviderSettings(legacyProviderSettings),
-    );
-    updatePiProviderSettings(
-      merged,
-      getPiProviderSettings(legacyProviderSettings),
     );
     const didNormalizeHostScopedProviderConfigs = hasHostScopedProviderConfigNormalization(
       providerConfigs,
@@ -386,29 +347,6 @@ export class ClaudianSettingsStorage {
   async update(updates: Partial<StoredClaudianSettings>): Promise<void> {
     const current = await this.load();
     await this.save({ ...current, ...updates });
-  }
-
-  async setLastModel(model: string, isCustom: boolean): Promise<void> {
-    if (isCustom) {
-      await this.update({ lastCustomModel: model });
-      return;
-    }
-
-    const current = await this.load();
-    updateClaudeProviderSettings(
-      current,
-      { lastModel: model },
-    );
-    await this.save(current);
-  }
-
-  async setLastEnvHash(hash: string): Promise<void> {
-    const current = await this.load();
-    updateClaudeProviderSettings(
-      current,
-      { environmentHash: hash },
-    );
-    await this.save(current);
   }
 
   private getDefaults(): StoredClaudianSettings {

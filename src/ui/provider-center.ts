@@ -26,14 +26,13 @@ export interface ProviderCenterSnapshot {
 }
 
 export function providerIdForEngineSetting(engineProvider: string): string {
-	if (engineProvider === "claude-cli") return "claude";
+	// D-TLP-013：claude-cli 已移除；codex-cli 是唯一 harness 通道。
 	if (engineProvider === "codex-cli") return "codex";
 	if (engineProvider === "codex") return "openai-compatible";
 	return engineProvider;
 }
 
 export function engineProviderSettingForProvider(providerId: string): string {
-	if (providerId === "claude") return "claude-cli";
 	if (providerId === "codex") return "codex-cli";
 	if (providerId === "openai-compatible") return "codex";
 	return providerId;

@@ -99,12 +99,15 @@ export interface TalosSettings {
 	// 屈原 agentic（B 方案 · claude-agent-sdk 流式）
 	jarvisClaudeBin: string; // claude CLI 路径，留空自动 which claude
 	jarvisModel: string; // 模型，留空用 CLI 默认
-	engineProvider: string; // 执行通道：claude-cli | codex-cli | claude-api | codex（OpenAI-compatible）
+	engineProvider: string; // 执行通道：codex-cli（Codex harness 唯一内核）| claude-api | codex（OpenAI-compatible 直连）
 	anthropicApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	anthropicBaseUrl: string; // 留空用官方 api.anthropic.com；自建网关填此
 	openaiApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
-	openaiBaseUrl: string; // 留空用官方 api.openai.com；自建 OpenAI 兼容网关填此
-	openaiModel: string; // Codex/GPT 模型，留空用 gpt-4o
+	openaiBaseUrl: string; // 留空用官方 api.openai.com；自建 OpenAI 兼容网关填此（DeepSeek/智谱/Kimi 直连通道）
+	openaiModel: string; // OpenAI-compatible 直连模型，留空用 gpt-4o
+	codexApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
+	codexBaseUrl: string; // Codex harness 的 OpenAI Responses 端点，留空用官方
+	codexModel: string; // Codex harness 模型，留空用 harness 默认（gpt-5.5）
 	jarvisPermissionMode: string; // default | acceptEdits | plan | bypassPermissions
 	jarvisSttEngine: string; // webspeech | aliyun | off（语音转写）
 	jarvisSttApiKey: string; // STT API key（阿里云 Paraformer 等）
@@ -131,6 +134,7 @@ export interface TalosSettings {
 			| "aliyunApiKey"
 			| "anthropicApiKey"
 			| "openaiApiKey"
+			| "codexApiKey"
 			| "jarvisSttApiKey",
 			string
 		>
@@ -183,12 +187,15 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	live2dModelPath: "",
 	jarvisClaudeBin: "",
 	jarvisModel: "",
-	engineProvider: "claude-cli",
+	engineProvider: "codex-cli",
 	anthropicApiKey: "",
 	anthropicBaseUrl: "",
 	openaiApiKey: "",
 	openaiBaseUrl: "",
 	openaiModel: "",
+	codexApiKey: "",
+	codexBaseUrl: "",
+	codexModel: "",
 	jarvisPermissionMode: "default",
 	jarvisSttEngine: "webspeech",
 	jarvisSttApiKey: "",
@@ -681,20 +688,32 @@ export class TalosSettingTab extends PluginSettingTab {
 		new Setting(c)
 			.setName("执行通道")
 			.setDesc(
-				"Claude API 直连 Anthropic；OpenAI-compatible 可接 OpenAI 及兼容网关/其他模型 API；本机 CLI 用于本地或高级工具链。切换后重开对话页生效。"
+				"Codex harness 是唯一 agent 内核（OpenAI 走 codex 核心，Responses 协议）；Claude 直连与 OpenAI-compatible 直连（DeepSeek/智谱/Kimi/自建网关）是轻量对话通道。切换后重开对话页生效。"
 			)
 			.addDropdown((d) =>
 				d
-					.addOption("claude-cli", "Claude · 本机 CLI（满血）")
-					.addOption("codex-cli", "Codex · 本机 CLI")
-					.addOption("claude-api", "Claude · 直连 API（免 CLI）")
-					.addOption("codex", "OpenAI-compatible · 任意兼容 API")
+					.addOption("codex-cli", "Codex harness · 本机（唯一 agent 内核）")
+					.addOption("claude-api", "Claude · 直连 API")
+					.addOption("codex", "OpenAI-compatible 直连 · DeepSeek/智谱/Kimi")
 					.setValue(this.plugin.talosSettings.engineProvider)
 					.onChange(async (v) => {
 						this.plugin.talosSettings.engineProvider = v;
 						await this.plugin.saveTalosSettings();
 					})
 			);
+
+		new Setting(c).setName("Codex harness（codex-cli）").setHeading();
+		new Setting(c).setDesc(
+			"对话工作台的唯一大模型执行内核。需要本机已安装 codex CLI（npm i -g @openai/codex）；0.122+ 使用 OpenAI Responses 协议，第三方端点须兼容 Responses API。"
+		);
+		this.secretIn(
+			c,
+			"Codex API Key",
+			"仅以 OPENAI_API_KEY 注入 harness 子进程环境，保存到 Obsidian SecretStorage，不进入 data.json、日志或发行物。",
+			"codexApiKey"
+		);
+		this.textIn(c, "Codex Base URL", "留空用 OpenAI 官方端点；自建 Responses 兼容网关填这里（作为 OPENAI_BASE_URL 注入 harness）。", "codexBaseUrl", "(官方)");
+		this.textIn(c, "Codex 模型", "留空用 harness 默认（gpt-5.5）。可填 gpt-5.4-mini 等。", "codexModel", "(gpt-5.5)");
 
 		new Setting(c).setName("Claude 直连（claude-api）").setHeading();
 		this.secretIn(
@@ -713,15 +732,15 @@ export class TalosSettingTab extends PluginSettingTab {
 				)
 			);
 
-		new Setting(c).setName("OpenAI-compatible API（codex）").setHeading();
+		new Setting(c).setName("OpenAI-compatible 直连（DeepSeek/智谱/Kimi）").setHeading();
 		this.secretIn(
 			c,
 			"OpenAI-compatible API Key",
-			"支持 OpenAI 与兼容 Bearer + Chat Completions 的模型服务。",
+			"支持 OpenAI 与兼容 Bearer + Chat Completions 的模型服务（DeepSeek/智谱/Kimi/自建网关）。",
 			"openaiApiKey"
 		);
-		this.textIn(c, "OpenAI Base URL", "留空用官方 api.openai.com；自建 OpenAI 兼容网关填这里（填到 host 根，插件自动补 /v1/chat/completions）。", "openaiBaseUrl", "(官方)");
-		this.textIn(c, "OpenAI 模型", "留空用 gpt-4o。可填 gpt-5-codex / gpt-4.1 等。", "openaiModel", "(gpt-4o)");
+		this.textIn(c, "OpenAI-compatible Base URL", "留空用官方 api.openai.com；DeepSeek/智谱/Kimi 或自建兼容网关填这里（填到 host 根，插件自动补 /v1/chat/completions）。", "openaiBaseUrl", "(官方)");
+		this.textIn(c, "OpenAI-compatible 模型", "留空用 gpt-4o。可填 deepseek-chat / glm-4.6 / kimi-k2 等。", "openaiModel", "(gpt-4o)");
 		new Setting(c)
 			.setName("测试 OpenAI-compatible 连接")
 			.setDesc("只验证 endpoint 与鉴权，不发送 Vault 内容。")
@@ -731,9 +750,9 @@ export class TalosSettingTab extends PluginSettingTab {
 				)
 			);
 
-		new Setting(c).setName("本机 CLI（claude-cli）").setHeading();
-		this.textIn(c, "claude CLI 路径", "留空自动探测（macOS 用 command -v，Windows 用 where）。也可填绝对路径，如 /opt/homebrew/bin/claude 或 C:\\Users\\你\\AppData\\Roaming\\npm\\claude.cmd。", "jarvisClaudeBin", "(自动探测)");
-		this.textIn(c, "模型", "留空用 CLI 默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(CLI 默认)");
+		new Setting(c).setName("旧语音引擎（过渡，语音模块升级后移除）").setHeading();
+		this.textIn(c, "claude CLI 路径", "仅供旧语音引擎使用。留空自动探测（macOS 用 command -v，Windows 用 where）。也可填绝对路径。", "jarvisClaudeBin", "(自动探测)");
+		this.textIn(c, "Claude 模型", "claude-api 直连与旧语音引擎共用。留空用默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(默认)");
 
 		new Setting(c).setName("通用").setHeading();
 		new Setting(c)

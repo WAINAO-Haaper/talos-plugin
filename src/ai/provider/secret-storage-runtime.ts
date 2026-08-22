@@ -14,6 +14,7 @@ const SECRET_IDS: Readonly<Record<LegacySecretField, string>> = {
 	aliyunApiKey: "talos-aliyun-api-key",
 	anthropicApiKey: "talos-anthropic-api-key",
 	openaiApiKey: "talos-openai-api-key",
+	codexApiKey: "talos-codex-api-key",
 	jarvisSttApiKey: "talos-stt-api-key",
 };
 

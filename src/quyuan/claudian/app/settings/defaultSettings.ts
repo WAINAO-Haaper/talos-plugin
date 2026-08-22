@@ -7,9 +7,9 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
 
   permissionMode: 'yolo',
 
-  model: 'haiku',
+  model: 'gpt-5.5',
   thinkingBudget: 'off',
-  effortLevel: 'high',
+  effortLevel: 'medium',
   serviceTier: 'default',
   enableAutoTitleGeneration: true,
   titleGenerationModel: '',
@@ -35,7 +35,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
 
   providerConfigs: getBuiltInProviderDefaultConfigs(),
 
-  settingsProvider: 'claude',
+  settingsProvider: 'codex',
   savedProviderModel: {},
   savedProviderEffort: {},
   savedProviderServiceTier: {},

@@ -21,6 +21,10 @@ import { ProviderWorkspaceRegistry } from './core/providers/ProviderWorkspaceReg
 import type { ProviderId } from './core/providers/types';
 import type { AppTabManagerState } from './core/providers/types';
 import { DEFAULT_CHAT_PROVIDER_ID } from './core/providers/types';
+import {
+  getCodexProviderSettings,
+  updateCodexProviderSettings,
+} from './providers/codex/settings';
 import type {
   ClaudianSettings,
   Conversation,
@@ -35,7 +39,6 @@ import { type InlineEditContext, InlineEditModal } from './features/inline-edit/
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { setLocale } from './i18n/i18n';
 import type { Locale } from './i18n/types';
-import { OPENCODE_PLAN_MODE_ID, OPENCODE_SAFE_MODE_ID } from './providers/opencode/modes';
 import { extractUserDisplayContent } from './utils/context';
 import { buildCursorContext } from './utils/editor';
 import { revealWorkspaceLeaf } from './utils/obsidianCompat';
@@ -323,15 +326,9 @@ export default class ClaudianPlugin extends Plugin {
         }
       }
     }
-    const opencodeConfig = this.settings.providerConfigs?.opencode;
-    if (
-      opencodeConfig
-      && typeof opencodeConfig === 'object'
-      && !Array.isArray(opencodeConfig)
-      && opencodeConfig.selectedMode === OPENCODE_PLAN_MODE_ID
-    ) {
-      opencodeConfig.selectedMode = OPENCODE_SAFE_MODE_ID;
-    }
+    // D-TLP-013：codex 是唯一 harness，旧安装里 enabled=false 的必须强制打开，
+    // 否则工作台无任何可用 provider。
+    const didEnableSoleHarness = this.ensureSoleHarnessEnabled();
 
     const didNormalizeProviderSelection = ProviderSettingsCoordinator.normalizeProviderSelection(
       this.settings,
@@ -339,18 +336,23 @@ export default class ClaudianPlugin extends Plugin {
     const didNormalizeModelVariants = this.normalizeModelVariantSettings();
 
     const allMetadata = await this.storage.sessions.listMetadata();
+    const migratedLegacyConversations: Conversation[] = [];
     this.conversations = allMetadata.map(meta => {
       const resumeSessionId = meta.sessionId !== undefined ? meta.sessionId : meta.id;
+      // D-TLP-013：claude/opencode/pi 旧链路会话一次性迁移到 codex；
+      // 跨 harness 会话无法 resume，sessionId 与 providerState 一并作废。
+      const providerId = meta.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
+      const migratedFromLegacyProvider = providerId !== DEFAULT_CHAT_PROVIDER_ID;
 
-      return {
+      const conversation: Conversation = {
         id: meta.id,
-        providerId: meta.providerId ?? DEFAULT_CHAT_PROVIDER_ID,
+        providerId: DEFAULT_CHAT_PROVIDER_ID,
         title: meta.title,
         createdAt: meta.createdAt,
         updatedAt: meta.updatedAt,
         lastResponseAt: meta.lastResponseAt,
-        sessionId: resumeSessionId,
-        providerState: meta.providerState,
+        sessionId: migratedFromLegacyProvider ? null : resumeSessionId,
+        providerState: migratedFromLegacyProvider ? undefined : meta.providerState,
         messages: [],
         currentNote: meta.currentNote,
         externalContextPaths: meta.externalContextPaths,
@@ -359,6 +361,10 @@ export default class ClaudianPlugin extends Plugin {
         titleGenerationStatus: meta.titleGenerationStatus,
         resumeAtMessageId: meta.resumeAtMessageId,
       };
+      if (migratedFromLegacyProvider) {
+        migratedLegacyConversations.push(conversation);
+      }
+      return conversation;
     }).sort(
       (a, b) => (b.lastResponseAt ?? b.updatedAt) - (a.lastResponseAt ?? a.updatedAt)
     );
@@ -372,11 +378,15 @@ export default class ClaudianPlugin extends Plugin {
       this.settings,
     );
 
-    if (changed || didNormalizeModelVariants || didNormalizeProviderSelection) {
+    if (changed || didNormalizeModelVariants || didNormalizeProviderSelection || didEnableSoleHarness) {
       await this.saveSettings();
     }
 
-    const conversationsToSave = new Set([...backfilledConversations, ...invalidatedConversations]);
+    const conversationsToSave = new Set([
+      ...backfilledConversations,
+      ...invalidatedConversations,
+      ...migratedLegacyConversations,
+    ]);
     for (const conv of conversationsToSave) {
       await this.storage.sessions.saveMetadata(
         this.storage.sessions.toSessionMetadata(conv)
@@ -406,6 +416,15 @@ export default class ClaudianPlugin extends Plugin {
     return ProviderSettingsCoordinator.normalizeAllModelVariants(
       this.settings,
     );
+  }
+
+  /** D-TLP-013：codex 作为唯一 harness 必须保持启用。 */
+  private ensureSoleHarnessEnabled(): boolean {
+    if (getCodexProviderSettings(this.settings).enabled) {
+      return false;
+    }
+    updateCodexProviderSettings(this.settings, { enabled: true });
+    return true;
   }
 
   async saveSettings() {

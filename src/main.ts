@@ -5,6 +5,11 @@ import { JarvisView, VIEW_TYPE_JARVIS } from "./jarvis-view";
 import ClaudianWorkbenchPlugin from "./quyuan/claudian/main";
 import { VIEW_TYPE_CLAUDIAN } from "./quyuan/claudian/core/types";
 import {
+	getCodexProviderSettings,
+	updateCodexProviderSettings,
+} from "./quyuan/claudian/providers/codex/settings";
+import { parseEnvironmentVariables } from "./quyuan/claudian/utils/env";
+import {
 	loadQuyuanSoulContextWithFallback,
 	type QuyuanSoulContext,
 } from "./quyuan/persona-context";
@@ -23,6 +28,7 @@ import {
 import {
 	providerSecretStoreFromApp,
 	readProviderSecret,
+	saveProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
 import {
@@ -632,6 +638,10 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			)
 		) as Partial<TalosSettings>;
 		let settings = Object.assign({}, DEFAULT_SETTINGS, knownSettings);
+		// D-TLP-013：claude-cli 通道已移除，旧设置一次性迁移到 codex-cli harness。
+		if (settings.engineProvider === "claude-cli") {
+			settings.engineProvider = "codex-cli";
+		}
 		// 旧 primary 曾默认启用网络 VAD，但没有独立的联网同意位。升级时必须
 		// 保持离线，只有用户在新版设置中重新开启后才允许下载运行时与模型。
 		if (!settings.quyuanVadNetworkConsent) settings.quyuanVadEnabled = false;
@@ -650,13 +660,13 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			});
 			settings = migration.settings;
 			if (migration.status === "blocked") {
-				settings.engineProvider = "claude-cli";
+				settings.engineProvider = "codex-cli";
 				new Notice(
-					"当前 Obsidian 不支持 SecretStorage，WP7 密钥迁移已暂停且原明文未删除；云端 API Provider 已禁用，本机 CLI 仍可使用。"
+					"当前 Obsidian 不支持 SecretStorage，WP7 密钥迁移已暂停且原明文未删除；云端 API Provider 已禁用，本机 Codex harness 仍可使用。"
 				);
 			}
 		} catch {
-			settings.engineProvider = "claude-cli";
+			settings.engineProvider = "codex-cli";
 			new Notice(
 				"WP7 设置或密钥迁移中断，云端 API Provider 已禁用；已完成步骤将在下次启动继续，原设置不会提前删除。"
 			);
@@ -664,12 +674,11 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		this.talosSettings = settings;
 		if (
 			!secretStore &&
-			this.talosSettings.engineProvider !== "claude-cli" &&
 			this.talosSettings.engineProvider !== "codex-cli"
 		) {
-			this.talosSettings.engineProvider = "claude-cli";
+			this.talosSettings.engineProvider = "codex-cli";
 			new Notice(
-				"当前 Obsidian 不支持 SecretStorage，云端 API Provider 已禁用；请升级到 1.11.4 或更高版本。本机 CLI 仍可使用。"
+				"当前 Obsidian 不支持 SecretStorage，云端 API Provider 已禁用；请升级到 1.11.4 或更高版本。本机 Codex harness 仍可使用。"
 			);
 		}
 		await saveProviderConfigToVault(this.app, this.talosSettings);
@@ -691,6 +700,65 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		this.talosAskService = null;
 		this.talosAskCommand = null;
 		this.talosProviderFacade = null;
+		this.syncCodexHarnessEnvironment();
+	}
+
+	/**
+	 * D-TLP-013：设置页 → Codex harness 环境同步。
+	 * base_url/model 写入 codex provider 的环境文本（非密，可持久化）；
+	 * 环境文本里遗留的明文 OPENAI_API_KEY 先迁入 SecretStorage 再剔除（D-WP7-004）。
+	 */
+	private syncCodexHarnessEnvironment(): void {
+		if (!this.settings || !this.talosSettings) return;
+		const current = getCodexProviderSettings(this.settings).environmentVariables;
+		const parsed = parseEnvironmentVariables(current);
+		const legacyKey = parsed.OPENAI_API_KEY?.trim() ?? "";
+		if (legacyKey && !this.readProviderSecret("codexApiKey")) {
+			const store = providerSecretStoreFromApp(this.app);
+			if (store) {
+				try {
+					saveProviderSecret(
+						this.talosSettings,
+						"codexApiKey",
+						legacyKey,
+						store
+					);
+				} catch (error) {
+					this.recordQuyuanRuntimeError("syncCodexHarnessEnvironment.secret", error);
+				}
+			}
+		}
+
+		const managedKeys = new Set(["OPENAI_BASE_URL", "OPENAI_MODEL", "OPENAI_API_KEY"]);
+		const kept = current.split(/\r?\n/).filter((line) => {
+			const trimmed = line.trim();
+			if (!trimmed || trimmed.startsWith("#")) return true;
+			const normalized = trimmed.startsWith("export ") ? trimmed.slice(7) : trimmed;
+			const eqIndex = normalized.indexOf("=");
+			const key = eqIndex > 0 ? normalized.substring(0, eqIndex).trim() : "";
+			return !managedKeys.has(key);
+		});
+		const baseUrl = this.talosSettings.codexBaseUrl.trim();
+		const model = this.talosSettings.codexModel.trim();
+		if (baseUrl) kept.push(`OPENAI_BASE_URL=${baseUrl}`);
+		if (model) kept.push(`OPENAI_MODEL=${model}`);
+		const next = kept.join("\n").trim();
+		if (next !== current.trim()) {
+			updateCodexProviderSettings(this.settings, { environmentVariables: next });
+			void this.saveSettings();
+		}
+	}
+
+	/**
+	 * D-TLP-013/D-WP7-004：Codex API Key 只在 spawn 子进程前运行时注入，
+	 * 永不写入可持久化的设置文本。
+	 */
+	getActiveEnvironmentVariables(providerId?: Parameters<ClaudianWorkbenchPlugin["getActiveEnvironmentVariables"]>[0]): string {
+		const base = super.getActiveEnvironmentVariables(providerId);
+		if (providerId !== undefined && providerId !== "codex") return base;
+		const key = this.readProviderSecret("codexApiKey");
+		if (!key) return base;
+		return base.trim() ? `${base.trim()}\nOPENAI_API_KEY=${key}` : `OPENAI_API_KEY=${key}`;
 	}
 
 	private selectedTalosAskProviderId(): string {
@@ -777,10 +845,8 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			config.providers.push({
 				id: provider.id,
 				name:
-					provider.id === "claude"
-						? "Claude · 本机 CLI"
-						: provider.id === "codex"
-							? "Codex · 本机 CLI"
+					provider.id === "codex"
+						? "Codex harness · 本机"
 						: `${provider.id} · 本机 Provider`,
 				kind: provider.kind,
 				endpoint: "local://cli",
@@ -1412,6 +1478,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			this.talosProviderFacade = null;
 			this.talosAskService = null;
 			this.quyuanWorkbenchError = "";
+			this.syncCodexHarnessEnvironment();
 			this.syncQuyuanSoulPrompt();
 		} catch (error) {
 			this.quyuanWorkbenchReady = false;

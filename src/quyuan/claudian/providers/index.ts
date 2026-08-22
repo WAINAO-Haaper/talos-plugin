@@ -1,29 +1,19 @@
 import { ProviderRegistry } from '../core/providers/ProviderRegistry';
 import { ProviderWorkspaceRegistry } from '../core/providers/ProviderWorkspaceRegistry';
-import { claudeWorkspaceRegistration } from './claude/app/ClaudeWorkspaceServices';
-import { claudeProviderRegistration } from './claude/registration';
 import { codexWorkspaceRegistration } from './codex/app/CodexWorkspaceServices';
 import { codexProviderRegistration } from './codex/registration';
-import { opencodeWorkspaceRegistration } from './opencode/app/OpencodeWorkspaceServices';
-import { opencodeProviderRegistration } from './opencode/registration';
-import { piWorkspaceRegistration } from './pi/app/PiWorkspaceServices';
-import { piProviderRegistration } from './pi/registration';
 
 let builtInProvidersRegistered = false;
 
+// D-TLP-011/D-TLP-013：替换而非并存——只注册 Codex harness；
+// claude/opencode/pi 旧链路已删除，直连通道在 TALOS 外层 facade（非本注册表）。
 export function registerBuiltInProviders(): void {
   if (builtInProvidersRegistered) {
     return;
   }
 
-  ProviderRegistry.register('claude', claudeProviderRegistration);
   ProviderRegistry.register('codex', codexProviderRegistration);
-  ProviderRegistry.register('opencode', opencodeProviderRegistration);
-  ProviderRegistry.register('pi', piProviderRegistration);
-  ProviderWorkspaceRegistry.register('claude', claudeWorkspaceRegistration);
   ProviderWorkspaceRegistry.register('codex', codexWorkspaceRegistration);
-  ProviderWorkspaceRegistry.register('opencode', opencodeWorkspaceRegistration);
-  ProviderWorkspaceRegistry.register('pi', piWorkspaceRegistration);
   builtInProvidersRegistered = true;
 }
 

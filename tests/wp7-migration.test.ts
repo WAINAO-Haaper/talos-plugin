@@ -51,6 +51,7 @@ function settings(
 		aliyunApiKey: "",
 		anthropicApiKey: "",
 		openaiApiKey: "",
+		codexApiKey: "",
 		jarvisSttApiKey: "",
 		providerSecretRefs: {},
 		engineProvider: "claude-cli",

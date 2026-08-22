@@ -5,6 +5,7 @@ export type LegacySecretField =
 	| "aliyunApiKey"
 	| "anthropicApiKey"
 	| "openaiApiKey"
+	| "codexApiKey"
 	| "jarvisSttApiKey";
 
 export interface LegacySecretSettings
@@ -24,6 +25,7 @@ const SECRET_IDS: ReadonlyArray<
 	["aliyunApiKey", "talos-aliyun-api-key"],
 	["anthropicApiKey", "talos-anthropic-api-key"],
 	["openaiApiKey", "talos-openai-api-key"],
+	["codexApiKey", "talos-codex-api-key"],
 	["jarvisSttApiKey", "talos-stt-api-key"],
 ];
 
@@ -32,7 +34,8 @@ export function migrateLegacyProviderSecrets(
 	store: ProviderSecretStore
 ): LegacySecretMigrationResult {
 	const pending = SECRET_IDS.flatMap(([field, secretId]) => {
-		const value = settings[field].trim();
+		// 旧版本持久化数据可能缺少后加的字段（如 codexApiKey），按空串处理。
+		const value = (settings[field] ?? "").trim();
 		return value ? [{ field, secretId, value }] : [];
 	});
 	if (pending.length === 0) {

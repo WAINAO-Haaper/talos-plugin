@@ -37,7 +37,8 @@ export interface ProviderCapabilities {
   planPathPrefix?: string;
 }
 
-export const DEFAULT_CHAT_PROVIDER_ID = 'claude' as const satisfies ProviderId;
+// D-TLP-011/D-TLP-013：Codex harness 是唯一大模型运行时，默认 provider 固定为 codex。
+export const DEFAULT_CHAT_PROVIDER_ID = 'codex' as const satisfies ProviderId;
 
 export interface CreateChatRuntimeOptions {
   plugin: ClaudianPlugin;
