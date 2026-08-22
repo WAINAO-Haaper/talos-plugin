@@ -1,7 +1,6 @@
 import { FileSystemAdapter, Modal, Notice, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeVisualTheme } from "./settings";
 import { TalosView, VIEW_TYPE_TALOS } from "./view";
-import { JarvisView, VIEW_TYPE_JARVIS } from "./jarvis-view";
 import ClaudianWorkbenchPlugin from "./quyuan/claudian/main";
 import { VIEW_TYPE_CLAUDIAN } from "./quyuan/claudian/core/types";
 import {
@@ -228,10 +227,6 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			VIEW_TYPE_TALOS,
 			(leaf: WorkspaceLeaf) => new TalosView(leaf, this)
 		);
-		this.registerView(
-			VIEW_TYPE_JARVIS,
-			(leaf: WorkspaceLeaf) => new JarvisView(leaf, this)
-		);
 
 		this.addRibbonIcon(TALOS_ICON, "打开 TALOS 控制台", () => {
 			void this.activateTalosView();
@@ -241,11 +236,6 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			id: "open",
 			name: "Open console",
 			callback: () => void this.activateTalosView(),
-		});
-		this.addCommand({
-			id: "open-jarvis",
-			name: "打开屈原旧版（回滚）",
-			callback: () => void this.activateJarvisView(),
 		});
 		this.addCommand({
 			id: "open-quyuan-v2",
@@ -508,10 +498,6 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			const view = leaf.view;
 			if (view instanceof TalosView) view.applySettings();
 		}
-		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_JARVIS)) {
-			const view = leaf.view;
-			if (view instanceof JarvisView) view.applyTheme();
-		}
 	}
 
 	private applyVaultTheme(): void {
@@ -555,22 +541,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		activeDocument.body.removeAttribute("data-talos-vault-theme");
 	}
 
-	// 屈原独立对话：在右侧边栏打开（仿 Claudian）
-	async activateJarvisView(): Promise<void> {
-		const { workspace } = this.app;
-		const existing = workspace.getLeavesOfType(VIEW_TYPE_JARVIS);
-		if (existing.length > 0) {
-			const leaf = existing[0];
-			if (leaf) void workspace.revealLeaf(leaf);
-			return;
-		}
-		const leaf = workspace.getRightLeaf(false);
-		if (leaf) {
-			await leaf.setViewState({ type: VIEW_TYPE_JARVIS, active: true });
-			void workspace.revealLeaf(leaf);
-		}
-	}
-
+	// 旧版右侧栏 JarvisView 已随 C-3b 移除；语音统一走控制台内屈原语音页。
 	async activateQuyuanV2View(): Promise<void> {
 		try {
 			const leaf = await this.openOrReviveTalosLeaf(false);

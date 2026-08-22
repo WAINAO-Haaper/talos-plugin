@@ -273,7 +273,10 @@ describe("WP7 migration", () => {
 		expect(persistCalls).toBe(0);
 		expect(mainSource).toContain("migrateWp7Data");
 		expect(mainSource).toContain('id: "open-quyuan-v2"');
-		expect(mainSource).toContain('id: "open-jarvis"');
+		// C-3b（D-TLP-016）：旧右侧栏 JarvisView 与 open-jarvis 回滚命令随旧引擎栈移除，
+		// 语音统一走控制台内屈原语音页；此处由「存在性」反转为「不存在」契约。
+		expect(mainSource).not.toContain('id: "open-jarvis"');
+		expect(mainSource).not.toContain("jarvis-view");
 		expect(mainSource).toContain("VIEW_TYPE_CLAUDIAN");
 	});
 });

@@ -98,8 +98,8 @@ export interface TalosSettings {
 	aliyunModel: string; // qwen3-tts-flash 等
 	live2dModelPath: string; // 库内 *.model3.json 路径，留空用 SVG 角色
 	// 屈原 agentic（B 方案 · claude-agent-sdk 流式）
-	jarvisClaudeBin: string; // claude CLI 路径，留空自动 which claude
-	jarvisModel: string; // 模型，留空用 CLI 默认
+	jarvisClaudeBin: string; // 遗留字段：旧语音引擎已随 C-3b 移除，仅保留以兼容既有 data.json
+	jarvisModel: string; // 模型，留空用默认（直连通道与语音页共用）
 	engineProvider: string; // 执行通道：codex-cli（Codex harness 唯一内核）| claude-api | codex（OpenAI-compatible 直连）
 	anthropicApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	anthropicBaseUrl: string; // 留空用官方 api.anthropic.com；自建网关填此
@@ -813,9 +813,8 @@ export class TalosSettingTab extends PluginSettingTab {
 				)
 			);
 
-		new Setting(c).setName("旧语音引擎（过渡，语音模块升级后移除）").setHeading();
-		this.textIn(c, "claude CLI 路径", "仅供旧语音引擎使用。留空自动探测（macOS 用 command -v，Windows 用 where）。也可填绝对路径。", "jarvisClaudeBin", "(自动探测)");
-		this.textIn(c, "Claude 模型", "claude-api 直连与旧语音引擎共用。留空用默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(默认)");
+		new Setting(c).setName("模型（直连通道）").setHeading();
+		this.textIn(c, "Claude 模型", "claude-api 直连共用。留空用默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(默认)");
 
 		new Setting(c).setName("通用").setHeading();
 		new Setting(c)
