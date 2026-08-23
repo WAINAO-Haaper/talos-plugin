@@ -798,13 +798,15 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   .talos-quyuan-shell .claudian-model-btn,
   .talos-quyuan-shell .claudian-thinking-current {
     padding-inline: 4px;
-    font-size: 9px;
+    /* C-4 字号归梯：9px → 11px（元信息档下限） */
+    font-size: 11px;
   }
 
   .talos-quyuan-shell .claudian-thinking-label-text,
   .talos-quyuan-shell .claudian-permission-label,
   .talos-quyuan-voice-toggle {
-    font-size: 9px;
+    /* C-4 字号归梯：9px → 11px（元信息档下限） */
+    font-size: 11px;
   }
 
   .talos-quyuan-shell .claudian-external-context-selector,
@@ -1494,9 +1496,12 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--tq-btn-accent) 68%, var(--tq-border));
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-btn-accent) 16%, var(--tq-panel-strong));
+  /* C-4（D-TLP-018）：!important 必需——vault 主题毯式规则
+     （styles.talos.css:7632）以 !important 压制全部 button 的
+     背景/文字/描边色，本 hover 设计色此前被压死。 */
+  border-color: color-mix(in srgb, var(--tq-btn-accent) 68%, var(--tq-border)) !important;
+  color: var(--tq-text) !important;
+  background: color-mix(in srgb, var(--tq-btn-accent) 16%, var(--tq-panel-strong)) !important;
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.18);
   transform: translateY(-1px);
@@ -2641,7 +2646,8 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 .tq-side-identity small {
   margin-top: 2px;
   color: var(--tq-muted);
-  font-size: 9px;
+  /* C-4 字号归梯：9px → 11px（元信息档下限） */
+  font-size: 11px;
 }
 
 .tq-side-actions,
@@ -2659,7 +2665,8 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
   color: var(--tq-text);
   background: color-mix(in srgb, var(--tq-state) 10%, transparent);
-  font-size: 9px;
+  /* C-4 字号归梯：9px → 12px（辅助档；按钮标签不得低于 12px） */
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -2720,10 +2727,18 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-side-tab.is-active {
   --tq-btn-accent: var(--tq-state);
-  color: var(--tq-text);
-  border-color: color-mix(in srgb, var(--tq-state) 42%, var(--tq-border));
-  background: color-mix(in srgb, var(--tq-state) 13%, var(--tq-panel-strong));
+  color: var(--tq-text) !important; /* C-4（D-TLP-018）：越过 vault 主题毯式按钮规则 */
+  border-color: color-mix(in srgb, var(--tq-state) 42%, var(--tq-border)) !important;
+  background: color-mix(in srgb, var(--tq-state) 13%, var(--tq-panel-strong)) !important;
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* C-4：语音页侧栏页签补悬停反馈（此前只有 is-active，无 hover）；
+   !important 越过 vault 主题毯式按钮规则（D-TLP-018）。 */
+.tq-side-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--tq-text) !important;
+  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border)) !important;
+  background: color-mix(in srgb, var(--tq-state) 9%, var(--tq-panel-strong)) !important;
 }
 
 .tq-side-panels {
@@ -2781,12 +2796,14 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 .tq-session-head small {
   margin-top: 2px;
   color: var(--tq-muted);
-  font-size: 9px;
+  /* C-4 字号归梯：9px → 11px（元信息档下限） */
+  font-size: 11px;
 }
 
 .tq-side-section span {
   color: var(--tq-faint);
-  font-size: 10px;
+  /* C-4 字号归梯：10px → 11px（元信息档下限） */
+  font-size: 11px;
 }
 
 .tq-side-row {
@@ -2810,9 +2827,10 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-side-row:hover,
 .tq-side-row:focus-visible {
-  color: var(--tq-text);
-  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
-  background: color-mix(in srgb, var(--tq-state) 9%, transparent);
+  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
+  color: var(--tq-text) !important;
+  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border)) !important;
+  background: color-mix(in srgb, var(--tq-state) 9%, transparent) !important;
   outline: none;
   transform: translateX(2px);
 }
@@ -3017,13 +3035,15 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-quick-prompt {
-  font-size: 9px;
+  /* C-4 字号归梯：9px → 12px（辅助档；按钮标签不得低于 12px） */
+  font-size: 12px;
 }
 
 .tq-quick-prompt:hover,
 .tq-quick-prompt:focus-visible {
-  border-color: color-mix(in srgb, var(--tq-state) 48%, var(--tq-border));
-  color: var(--tq-text);
+  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
+  border-color: color-mix(in srgb, var(--tq-state) 48%, var(--tq-border)) !important;
+  color: var(--tq-text) !important;
   outline: 0;
 }
 
@@ -3079,7 +3099,8 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .tq-composer-hint {
   color: var(--tq-faint);
-  font-size: 9px;
+  /* C-4 字号归梯：9px → 11px（元信息档下限） */
+  font-size: 11px;
 }
 
 .tq-send-btn {
@@ -3487,8 +3508,9 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 .talos-console .tq-voice .tq-side .tq-side-row:hover,
 .talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
-  border-color: rgba(125, 211, 252, 0.36);
-  background: rgba(125, 211, 252, 0.08);
+  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
+  border-color: rgba(125, 211, 252, 0.36) !important;
+  background: rgba(125, 211, 252, 0.08) !important;
   box-shadow:
     0 8px 22px rgba(2, 8, 16, 0.35),
     0 0 16px rgba(125, 211, 252, 0.12);

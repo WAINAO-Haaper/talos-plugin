@@ -171,3 +171,61 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		);
 	});
 });
+
+// C-4 阶段 2（2026-08-23）：语音助手页（tq-* 语音面板）收敛契约。
+// 审计发现：tq 交互元素全是 <button>，vault 主题毯式规则
+// （styles.talos.css:7632，!important）同样压死其悬停反馈；
+// 另有多处 9/10px 离梯字号。修复＝hover/active 设计色加 !important
+// 恢复（D-TLP-018），9/10px 文本升至阶梯档（按钮 12px、元信息 11px）。
+const qcss = readFileSync(`${projectRoot}styles.quyuan-shell.css`, "utf8");
+
+describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
+	it("restores tq button hover colors over the vault-theme blanket", () => {
+		const hoverStart = qcss.indexOf(".tq-btn:hover:not(:disabled) {");
+		expect(hoverStart).toBeGreaterThan(-1);
+		const block = qcss.slice(hoverStart, hoverStart + 700);
+		expect(block).toContain("!important");
+		expect(block).toContain("var(--tq-btn-accent) 16%, var(--tq-panel-strong)) !important");
+	});
+
+	it("gives voice side tabs a hover state and keeps the active state intact", () => {
+		// 此前 .tq-side-tab 只有 is-active 无 hover；补 hover 且两者均
+		// 需 !important 才能不被毯式规则压死
+		expect(qcss).toContain(
+			".tq-side-tab:hover:not(.is-active):not(:disabled)"
+		);
+		const activeStart = qcss.indexOf(".tq-side-tab.is-active {");
+		expect(activeStart).toBeGreaterThan(-1);
+		expect(qcss.slice(activeStart, activeStart + 500)).toContain("!important");
+	});
+
+	it("lifts voice panel off-ladder font sizes into the ladder", () => {
+		// 9px 快捷提示/语音模式按钮 → 12px 辅助档；
+		// 9/10px 元信息（身份副题/会话副题/输入提示/分区标签）→ 11px 档
+		const blockWithSize = (sel: string, size: string) => {
+			const re = new RegExp(
+				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*font-size: " + size
+			);
+			return re.test(qcss);
+		};
+		expect(blockWithSize(".tq-quick-prompt", "12px")).toBe(true);
+		expect(blockWithSize(".tq-voice-mode-btn", "12px")).toBe(true);
+		for (const sel of [".tq-side-identity small", ".tq-session-head small", ".tq-composer-hint", ".tq-side-section span"]) {
+			expect(blockWithSize(sel, "11px")).toBe(true);
+		}
+		// tq 面板不再残留 9px/10px 离梯字号
+		expect(qcss).not.toContain("font-size: 9px;\n}\n\n.tq-quick-prompt:hover");
+	});
+
+	it("documents the console font:inherit flattening on embedded tq buttons", () => {
+		// 审计发现（2026-08-23 探针实证）：styles.talos.css:77
+		// `.talos-console button { font: inherit }`（0,1,1）以更高特异性把
+		// 控制台内全部按钮字号拍平为继承值（实测 14px，正文档在梯），
+		// tq 按钮的 0,1,0 字号规则在内嵌语境本就无效——它们只管辖独立
+		// 屈原工作台视图。钉死此约束，防止后来者再改 tq 按钮字号
+		// 却看不到效果。
+		expect(css).toContain(
+			".talos-console button, .talos-console input, .talos-console textarea { font: inherit; }"
+		);
+	});
+});
