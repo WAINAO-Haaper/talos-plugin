@@ -12684,12 +12684,29 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
        border-bottom: var(--tab-outline-width) solid var(--tab-outline-color);
      }
    此处以 0,4,0 特异性覆盖（官方规则 0,1,0），作用域经 :has()
-   限控制台叶子所在标签组，其他视图与其他标签组不受影响；
-   激活页签的 box-shadow 描边（官方另一条规则）有意保留。
+   限控制台叶子所在标签组，其他视图与其他标签组不受影响。
+   选中效果配套修复（2026-08-23 实机反馈）：基准线下边框移除后，
+   mod-root 激活页签的整圈 box-shadow 描边与两侧圆弧伪元素
+   （官方 app.css 第 6708/6713 行）悬空成超长红线；左侧导航
+   （mod-left-split 图标页签）无此规则故正常。此处同作用域
+   摘掉激活页签的描边与圆弧阴影，选中态由背景色区分。
    ============================================================ */
 .workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])
 	> .workspace-tab-header-container {
 	border-bottom: none;
+	box-shadow: none;
+}
+.workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])
+	> .workspace-tab-header-container
+	.workspace-tab-header.is-active {
+	box-shadow: none;
+}
+.workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])
+	> .workspace-tab-header-container
+	.workspace-tab-header.is-active::before,
+.workspace-tabs:has(.workspace-leaf-content[data-type="talos-console-view"])
+	> .workspace-tab-header-container
+	.workspace-tab-header.is-active::after {
 	box-shadow: none;
 }
 .workspace-leaf-content[data-type="talos-console-view"] {

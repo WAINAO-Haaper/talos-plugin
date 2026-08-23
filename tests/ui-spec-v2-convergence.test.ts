@@ -91,4 +91,12 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		);
 		expect(css).toContain("> .workspace-tab-header-container");
 	});
+
+	it("detaches the floating active-tab outline in the console tab group", () => {
+		// 2026-08-23 实机反馈：基准线移除后 mod-root 激活页签描边与圆弧
+		// 伪元素悬空成超长红线；同作用域摘掉 box-shadow，左栏不受影响
+		expect(css).toContain(".workspace-tab-header.is-active {");
+		expect(css).toContain(".workspace-tab-header.is-active::before");
+		expect(css).toContain(".workspace-tab-header.is-active::after");
+	});
 });
