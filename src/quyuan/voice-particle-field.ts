@@ -288,7 +288,9 @@ export class QuyuanVoiceParticleField {
 		if (!force && key === this.themeKey) return;
 		this.themeKey = key;
 		this.lightSurface = style.colorScheme.includes("light");
-		const factor = this.lightSurface ? 0.72 : 1;
+		/* 浅色底对比度加强（2026-08-23 实机反馈）：加深系数 0.72 → 0.52，
+		   粒子主色在白底上更饱和、更暗、更醒目；深色保持 1 不变 */
+		const factor = this.lightSurface ? 0.52 : 1;
 		this.targetPrimary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-a"), { r: 45, g: 132, b: 255 }), factor);
 		this.targetSecondary = deepen(hexToRgb(style.getPropertyValue("--tq-particle-b"), { r: 124, g: 86, b: 255 }), factor);
 		this.targetWarm = deepen(hexToRgb(style.getPropertyValue("--tq-particle-c"), { r: 0, g: 245, b: 212 }), factor);
@@ -332,8 +334,11 @@ export class QuyuanVoiceParticleField {
 	private particleColor(particle: Particle, energy: number, time: number): Rgb {
 		const shimmer = (Math.sin(particle.phase + time * 0.0028 + particle.logoX * 8) + 1) / 2;
 		if (!this.awake) return mix(this.neonCloudColor(particle.colorMix, time), WHITE, shimmer * 0.08);
-		const electricCyan: Rgb = { r: 72, g: 224, b: 255 };
-		const electricViolet: Rgb = { r: 174, g: 104, b: 255 };
+		/* 浅色底对比度加强（2026-08-23 实机反馈）：电青/电紫常量原值
+		   （72,224,255 / 174,104,255）在白底上过于苍白，浅色模式换用
+		   深版（2,132,199 / 124,58,237）；深色保持原霓虹常量 */
+		const electricCyan: Rgb = this.lightSurface ? { r: 2, g: 132, b: 199 } : { r: 72, g: 224, b: 255 };
+		const electricViolet: Rgb = this.lightSurface ? { r: 124, g: 58, b: 237 } : { r: 174, g: 104, b: 255 };
 		const spectral = particle.colorMix < 0.34
 			? mix(this.primary, electricCyan, 0.58)
 			: particle.colorMix < 0.68
@@ -576,9 +581,10 @@ export class QuyuanVoiceParticleField {
 			const color = this.particleColor(particle, energy, animationTime);
 			const twinkle = this.reducedMotion ? 0.82 : 0.68 + (Math.sin(animationTime * 0.0016 + particle.phase) + 1) * 0.15;
 			const logoClarity = 0.18 + particleAttraction * 0.72;
+			/* 浅色底对比度加强：原浅色透明度衰减（0.88/0.9）取消，深浅统一全额 */
 			const alpha = this.awake
-				? logoClarity * twinkle * (0.56 + particle.layer * 0.5) * (this.lightSurface ? 0.88 : 1)
-				: (0.42 + particle.layer * 0.34) * twinkle * (this.lightSurface ? 0.9 : 1);
+				? logoClarity * twinkle * (0.56 + particle.layer * 0.5)
+				: (0.42 + particle.layer * 0.34) * twinkle;
 			const spherePulse = this.reducedMotion
 				? 1
 				: 0.88 + (Math.sin(animationTime * 0.0038 + particle.phase * 1.4) + 1) * 0.12;
