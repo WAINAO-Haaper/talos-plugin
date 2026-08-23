@@ -270,5 +270,23 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(
 			blockHas('body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar', "background: #ffffff")
 		).toBe(true);
+		// 右侧对话区：控制台 Aurora 沉浸块的硬编码深色（0,3,0）须被
+		// body.theme-light 前缀块（0,4,1）逐块翻浅——侧栏/页签轨道/输入条
+		expect(
+			blockHas("body.theme-light .talos-console .tq-voice .tq-side", "rgba(255, 255, 255, 0.94)")
+		).toBe(true);
+		expect(
+			blockHas("body.theme-light .talos-console .tq-voice .tq-side-tabs", "rgba(15, 23, 42, 0.05)")
+		).toBe(true);
+		expect(
+			blockHas("body.theme-light .talos-console .tq-voice .tq-side-composer", "rgba(255, 255, 255, 0.88)")
+		).toBe(true);
+		// 转写覆盖层用户字幕白字 !important 在浅底不可读，须翻深
+		expect(
+			blockHas(
+				"body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user",
+				"color: rgba(15, 23, 42, 0.92) !important"
+			)
+		).toBe(true);
 	});
 });

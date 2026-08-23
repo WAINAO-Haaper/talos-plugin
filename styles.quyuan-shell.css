@@ -3605,6 +3605,76 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   }
 }
 
+/* === 浅色模式：右侧对话区硬编码深色逐块翻浅（2026-08-23 实机反馈） ===
+   上方控制台作用域 Aurora 沉浸块的侧栏/顶栏/页签轨道/列表行/输入条
+   都是硬编码深色（rgba(5-16, …)），变量翻转管不到。此处以
+   body.theme-light 前缀（每条 0,4,0 > 原 0,3,0）逐块覆盖为浅色版；
+   深色主题下整块不命中，现状不变。 */
+body.theme-light .talos-console .tq-voice .tq-side {
+  border-left-color: rgba(15, 23, 42, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
+  box-shadow: -18px 0 44px rgba(15, 23, 42, 0.08);
+}
+body.theme-light .talos-console .tq-voice .tq-side-topbar {
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.6);
+}
+body.theme-light .talos-console .tq-voice .tq-side-tabs {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+body.theme-light .talos-console .tq-voice .tq-side .tq-side-row {
+  border-color: rgba(15, 23, 42, 0.09);
+  background: rgba(15, 23, 42, 0.04);
+}
+body.theme-light .talos-console .tq-voice .tq-side .tq-side-row:hover,
+body.theme-light .talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
+  border-color: rgba(2, 132, 199, 0.4) !important;
+  background: rgba(2, 132, 199, 0.07) !important;
+  box-shadow:
+    0 8px 22px rgba(15, 23, 42, 0.1),
+    0 0 16px rgba(2, 132, 199, 0.1);
+}
+body.theme-light .talos-console .tq-voice .tq-side .tq-side-row-icon {
+  border-color: rgba(2, 132, 199, 0.22);
+  background: rgba(2, 132, 199, 0.07);
+}
+body.theme-light .talos-console .tq-voice .tq-side-composer {
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+}
+body.theme-light .talos-console .tq-voice .tq-side-composer:focus-within {
+  border-color: rgba(2, 132, 199, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(2, 132, 199, 0.22),
+    0 0 26px rgba(2, 132, 199, 0.16),
+    0 12px 36px rgba(15, 23, 42, 0.14);
+}
+body.theme-light .talos-console .tq-voice .tq-side .tq-mini-btn {
+  background-color: rgba(2, 132, 199, 0.06);
+  border-color: rgba(2, 132, 199, 0.2);
+}
+body.theme-light .talos-console .tq-voice .tq-side-footer {
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+/* 转写覆盖层用户字幕：白字+深影在浅底上不可读，翻深并换浅影；
+   原规则带 vault 属性与 !important，此处特异性 0,6,1 压过 0,5,1 */
+body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user {
+  color: rgba(15, 23, 42, 0.92) !important;
+  caret-color: #0284c7;
+  text-shadow:
+    0 0 20px rgba(2, 132, 199, 0.25),
+    0 1px 4px rgba(255, 255, 255, 0.8) !important;
+}
+@media (max-width: 1080px) {
+  body.theme-light .talos-console .tq-voice .tq-side {
+    border-top-color: rgba(15, 23, 42, 0.1);
+    box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.08);
+  }
+}
+
 @media (max-width: 1080px) {
   .talos-console .app {
     grid-template-columns: 72px minmax(0, 1fr) !important;
