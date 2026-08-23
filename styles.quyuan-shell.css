@@ -2615,9 +2615,9 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   border: 1px solid color-mix(in srgb, var(--tq-state) 38%, var(--tq-border));
   border-radius: 9px;
   color: var(--tq-state);
@@ -2625,8 +2625,9 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-side-identity-icon svg {
-  width: 15px;
-  height: 15px;
+  /* C-4 阶段 2：随图标块 30→34px 等比放大 */
+  width: 17px;
+  height: 17px;
 }
 
 .tq-side-identity b,
@@ -2637,8 +2638,9 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 .tq-side-identity b {
   overflow: hidden;
   color: var(--tq-text);
-  font-size: 12px;
-  font-weight: 650;
+  /* C-4 阶段 2（2026-08-23 实机反馈）：标题模块放大，12px → 15px 标题档 */
+  font-size: 15px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2697,10 +2699,11 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 .tq-side-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  gap: 4px;
   flex: 0 0 auto;
-  margin: 9px 10px;
-  padding: 4px;
+  /* C-4 阶段 2（实机反馈）：次级模块缩小，容器收紧 */
+  margin: 7px 10px;
+  padding: 3px;
   border: 1px solid var(--tq-border);
   border-radius: 12px;
   border-bottom: 1px solid var(--tq-border);
@@ -2708,9 +2711,13 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-side-tab {
-  gap: 6px;
+  gap: 5px;
   width: 100%;
-  height: 34px;
+  /* C-4 阶段 2（实机反馈）：次级页签缩小，34px → 30px；
+     min-height 必须显式覆盖——.tq-btn 基规则的
+     min-height: var(--tq-btn-height)=36px 会把 30px 的 height 抬回 36px */
+  height: 30px;
+  min-height: 30px;
   padding: 0 7px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -2721,8 +2728,8 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .tq-side-tab svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 .tq-side-tab.is-active {
@@ -3515,6 +3522,14 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     0 8px 22px rgba(2, 8, 16, 0.35),
     0 0 16px rgba(125, 211, 252, 0.12);
   transform: translateY(-1px);
+}
+
+/* C-4 阶段 2（2026-08-23 实机反馈）：语音侧栏次级页签在内嵌控制台
+   被 `.talos-console button { font: inherit }`（0,1,1）拍平为 14px，
+   此处以 0,3,0 特异性收敛到 12px 辅助档（独立工作台视图不受此规则
+   影响，仍走 .tq-side-tab 基规则）。 */
+.talos-console .tq-voice .tq-side-tab {
+  font-size: 12px;
 }
 .talos-console .tq-voice .tq-side .tq-side-row-icon {
   border-color: rgba(125, 211, 252, 0.16);

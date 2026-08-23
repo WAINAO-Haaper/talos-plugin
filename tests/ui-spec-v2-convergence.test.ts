@@ -228,4 +228,25 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 			".talos-console button, .talos-console input, .talos-console textarea { font: inherit; }"
 		);
 	});
+
+	it("rebalances the voice side panel proportions (title up, tabs down)", () => {
+		// 2026-08-23 实机反馈：标题模块放大（12px→15px 标题档、图标
+		// 30→34px 等比、字重 700），次级页签模块缩小（高 34→30px、
+		// 容器收紧、图标 13→12px）；内嵌控制台页签经 inherit 拍平为
+		// 14px，须以 0,3,0 控制台作用域规则收到 12px 辅助档。
+		const blockHas = (sel: string, needle: string) => {
+			const re = new RegExp(
+				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			);
+			return re.test(qcss);
+		};
+		expect(blockHas(".tq-side-identity b", "font-size: 15px")).toBe(true);
+		expect(blockHas(".tq-side-identity b", "font-weight: 700")).toBe(true);
+		expect(blockHas(".tq-side-identity-icon", "flex: 0 0 34px")).toBe(true);
+		expect(blockHas(".tq-side-tab", "height: 30px")).toBe(true);
+		// min-height 显式覆盖：.tq-btn 基规则的 min-height: var(--tq-btn-height)
+		// =36px 会把 30px 的 height 抬回 36px（无头探针实测回归）
+		expect(blockHas(".tq-side-tab", "min-height: 30px")).toBe(true);
+		expect(blockHas(".talos-console .tq-voice .tq-side-tab", "font-size: 12px")).toBe(true);
+	});
 });
