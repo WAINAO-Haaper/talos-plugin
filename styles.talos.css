@@ -12716,16 +12716,22 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 /* ============================================================
    UI 规范 v2 增补 · 二级页签行纳入规范（2026-08-23 · 仓库所有者指令）
    工作流/知识/系统健康三页顶部的二级页签（.talos-page-tabs）为 WP7
-   后加入组件，未纳入 D-TLP-012 规范块：容器与按钮 1px 细线、
-   标签跟随继承字号偏小。此处统一为风格一致的粗线条与字号阶梯：
-   容器/按钮描边 2px、标签 14px 正文档（随宽度流式到 17px）、
-   计数徽标 11px 元信息档（v1 已覆盖，此块不再重复）。
+   后加入组件：容器与按钮细线、标签字号偏小。此处统一为风格一致的
+   粗线条与字号阶梯：容器/按钮描边 2px、标签 14px 正文档
+   （随宽度流式到 17px）、计数徽标 11px 元信息档（v1 已覆盖）。
+
+   2026-08-23 14:00 根因修正：本组规则最初限 theme-geometric-modern
+   作用域，但实机 data.json 从未写入 visualTheme，回退默认 aurora，
+   几何作用域整体不命中（实机「修改无变化」的根因）。改为全主题
+   生效：.talos-console[data-talos-theme] 比 layout-overrides 的
+   .talos-console 基规则高一级特异性（该文件构建时拼在最后），
+   --gm-* 墨纸变量经 var() 回退到主题通用变量，深浅主题各自成立。
    ============================================================ */
-.talos-console.theme-geometric-modern .talos-page-tabs {
+.talos-console[data-talos-theme] .talos-page-tabs {
 	border-width: 2px;
 	padding: 10px;
 }
-.talos-console.theme-geometric-modern .talos-page-tab {
+.talos-console[data-talos-theme] .talos-page-tab {
 	border-width: 2px;
 	border-radius: 0;
 	min-height: 40px;
@@ -12733,67 +12739,69 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	font-size: 14px;
 	font-weight: 500;
 }
-.talos-console.theme-geometric-modern .talos-page-tab.is-active {
+.talos-console[data-talos-theme] .talos-page-tab.is-active {
 	font-weight: 600;
 }
-.talos-console.theme-geometric-modern .talos-page-tab {
+.talos-console[data-talos-theme] .talos-page-tab {
 	font-size: clamp(14px, 0.98cqw, 17px);
 }
 /* 悬停反馈（2026-08-23 实机反馈）：基规则 hover 仅 12% accent 淡色，
-   铺在米色底上几乎不可见且按钮无 transition。此处给出明确变色：
-   悬停反色为墨底纸字，与 Bauhaus 硬对比签名一致。 */
-.talos-console.theme-geometric-modern .talos-page-tab {
+   铺在底面上几乎不可见且按钮无 transition。此处给出明确变色：
+   悬停反色为墨底纸字（几何主题取 --gm-*，其余主题回退为
+   text-normal / background-primary 的反色对），硬对比签名一致。 */
+.talos-console[data-talos-theme] .talos-page-tab {
 	transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
-.talos-console.theme-geometric-modern .talos-page-tab:hover:not(.is-active) {
-	background-color: var(--gm-ink);
-	border-color: var(--gm-ink);
-	color: var(--gm-paper);
+.talos-console[data-talos-theme] .talos-page-tab:hover:not(.is-active) {
+	background-color: var(--gm-ink, var(--text-normal));
+	border-color: var(--gm-ink, var(--text-normal));
+	color: var(--gm-paper, var(--background-primary));
 }
 
 /* ============================================================
    设置页顶部模块与左侧导航模块视觉强化（2026-08-23 · 仓库所有者指令）
-   两模块沿用 layout-overrides 的 1px 细线 + 柔阴影，与几何现代
-   主题签名（2px 墨线 + 直角 + 6px 硬投影）不一致、存在感弱。
-   此处对齐签名样式并加硬投影让两模块更显眼；左侧栏选中项
-   升级为 2px 墨线 + 4px 内嵌强调条。v1「分页签保持 12px」的
-   取舍被本指令取代：侧栏项升至 14px 正文档（原 12px 700）。
+   两模块沿用 layout-overrides 的 1px 细线 + 柔阴影，存在感弱。
+   此处对齐规范签名（2px 墨线 + 直角 + 6px 硬投影）让两模块更显眼；
+   左侧栏选中项升级为 2px 墨线 + 4px 内嵌强调条。v1「分页签保持
+   12px」的取舍被本指令取代：侧栏项升至 14px 正文档（原 12px 700）。
+   2026-08-23 14:00 同上根因修正：全主题生效 + 特异性提升。
    ============================================================ */
-.talos-console.theme-geometric-modern .talos-inline-settings__header {
+.talos-console[data-talos-theme] .talos-inline-settings__header {
 	border-width: 2px;
 	border-radius: 0;
-	box-shadow: 6px 6px 0 var(--gm-ink);
+	box-shadow: 6px 6px 0 var(--gm-ink, var(--text-normal));
 }
-.talos-console.theme-geometric-modern .talos-inline-settings__icon,
-.talos-console.theme-geometric-modern .talos-inline-settings__status {
+.talos-console[data-talos-theme] .talos-inline-settings__icon,
+.talos-console[data-talos-theme] .talos-inline-settings__status {
 	border-width: 2px;
 	border-radius: 0;
 }
-.talos-console.theme-geometric-modern .talos-settings--console .talos-settabs {
-	box-shadow: 6px 6px 0 var(--gm-ink);
+.talos-console[data-talos-theme] .talos-settings--console .talos-settabs {
+	box-shadow: 6px 6px 0 var(--gm-ink, var(--text-normal));
 }
-.talos-console.theme-geometric-modern .talos-settings--console .talos-settab {
+.talos-console[data-talos-theme] .talos-settings--console .talos-settab {
 	border-radius: 0;
 	font-size: 14px;
 }
-.talos-console.theme-geometric-modern .talos-settings--console .talos-settab.is-active {
-	border-color: var(--gm-ink);
+.talos-console[data-talos-theme] .talos-settings--console .talos-settab.is-active {
+	border-color: var(--gm-ink, var(--text-normal));
 	border-width: 2px;
-	box-shadow: inset 4px 0 0 var(--ac);
+	box-shadow: inset 4px 0 0 var(--ac, var(--interactive-accent));
 }
 
 /* ============================================================
    设置页左侧导航悬停反色（2026-08-23 实机反馈）
    基规则（styles.layout-overrides.css:403）hover 仅 7% 蓝淡色，
-   铺在纸面上几乎不可见；与二级页签一致改为墨底纸字硬反色
-   （激活项不反色，保留其墨线 + 内嵌强调条）。基规则 hover 的
-   translateX(2px) 位移保留，反色之上仍有位移反馈。
+   铺在底面上几乎不可见；与二级页签一致改为硬反色（激活项不反色，
+   保留其墨线 + 内嵌强调条）。基规则 hover 的 translateX(2px)
+   位移保留，反色之上仍有位移反馈。2026-08-23 14:00 同上根因
+   修正：全主题生效 + 特异性提升。
    ============================================================ */
-.talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active) {
-	background-color: var(--gm-ink);
-	border-color: var(--gm-ink);
-	color: var(--gm-paper);
+.talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active) {
+	background-color: var(--gm-ink, var(--text-normal));
+	border-color: var(--gm-ink, var(--text-normal));
+	color: var(--gm-paper, var(--background-primary));
 }
-.talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)::before {
-	background: var(--gm-paper);
+.talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before {
+	background: var(--gm-paper, var(--background-primary));
 }

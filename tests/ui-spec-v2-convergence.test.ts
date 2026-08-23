@@ -102,49 +102,58 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 
 	it("brings the secondary page tabs into the thick-border ladder", () => {
 		// 2026-08-23 仓库所有者指令：工作流/知识/健康三页顶部二级页签
-		// （WP7 后加入组件）统一为 2px 粗线 + 14px 正文档流式字号
+		// （WP7 后加入组件）统一为 2px 粗线 + 14px 正文档流式字号。
+		// 根因修正：实机 visualTheme 未写入（默认 aurora），几何现代
+		// 作用域不命中，故规范块改为 .talos-console[data-talos-theme]
+		// 全主题作用域（比 layout-overrides 基规则高一级特异性）。
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-page-tabs {"
+			".talos-console[data-talos-theme] .talos-page-tabs {"
 		);
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-page-tab {"
+			".talos-console[data-talos-theme] .talos-page-tab {"
 		);
 		expect(css).toContain("min-height: 40px");
 		expect(css).toContain("clamp(14px, 0.98cqw, 17px)");
 	});
 
-	it("strengthens the settings header and side nav with the Bauhaus signature", () => {
+	it("strengthens the settings header and side nav with the spec signature", () => {
 		// 2026-08-23 仓库所有者指令：设置页顶部模块与左侧导航模块统一
-		// 2px 墨线 + 直角 + 6px 硬投影，选中项 2px 墨线 + 4px 内嵌强调条
+		// 2px 墨线 + 直角 + 6px 硬投影，选中项 2px 墨线 + 4px 内嵌强调条。
+		// 根因修正：同上当主题作用域修正（--gm-* 经 var() 回退）。
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-inline-settings__header"
+			".talos-console[data-talos-theme] .talos-inline-settings__header"
 		);
-		expect(css).toContain("box-shadow: 6px 6px 0 var(--gm-ink)");
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab.is-active"
+			"box-shadow: 6px 6px 0 var(--gm-ink, var(--text-normal))"
 		);
-		expect(css).toContain("box-shadow: inset 4px 0 0 var(--ac)");
+		expect(css).toContain(
+			".talos-console[data-talos-theme] .talos-settings--console .talos-settab.is-active"
+		);
+		expect(css).toContain(
+			"box-shadow: inset 4px 0 0 var(--ac, var(--interactive-accent))"
+		);
 	});
 
 	it("gives secondary page tabs a hard-contrast hover inversion", () => {
-		// 2026-08-23 实机反馈：页签悬停无变色——基规则 12% 淡色在米色底
-		// 不可见；反色为墨底纸字（激活项不反色），并补 transition
+		// 2026-08-23 实机反馈：页签悬停无变色——基规则 12% 淡色在底面
+		// 不可见；反色为墨底纸字（激活项不反色），并补 transition。
+		// 根因修正：同上全主题作用域，非几何主题回退 text-normal 反色。
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-page-tab:hover:not(.is-active)"
+			".talos-console[data-talos-theme] .talos-page-tab:hover:not(.is-active)"
 		);
-		expect(css).toContain("background-color: var(--gm-ink)");
-		expect(css).toContain("color: var(--gm-paper)");
+		expect(css).toContain("background-color: var(--gm-ink, var(--text-normal))");
+		expect(css).toContain("color: var(--gm-paper, var(--background-primary))");
 	});
 
 	it("gives the settings side nav the same hard-contrast hover inversion", () => {
 		// 2026-08-23 实机反馈：设置页左侧导航非选中项悬停无变色——
-		// 基规则 7% 蓝淡色不可见；与页签一致反色为墨底纸字，
-		// 方块指示点同步反色为纸色（激活项保持墨线+强调条不反色）
+		// 基规则 7% 蓝淡色不可见；与页签一致反色，方块指示点同步反色
+		// （激活项保持墨线+强调条不反色）。根因修正：同上全主题作用域。
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)"
+			".talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)"
 		);
 		expect(css).toContain(
-			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)::before"
+			".talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before"
 		);
 	});
 });
