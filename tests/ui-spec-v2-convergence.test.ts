@@ -135,4 +135,16 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		expect(css).toContain("background-color: var(--gm-ink)");
 		expect(css).toContain("color: var(--gm-paper)");
 	});
+
+	it("gives the settings side nav the same hard-contrast hover inversion", () => {
+		// 2026-08-23 实机反馈：设置页左侧导航非选中项悬停无变色——
+		// 基规则 7% 蓝淡色不可见；与页签一致反色为墨底纸字，
+		// 方块指示点同步反色为纸色（激活项保持墨线+强调条不反色）
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)"
+		);
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)::before"
+		);
+	});
 });

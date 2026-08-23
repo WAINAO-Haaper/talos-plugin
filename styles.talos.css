@@ -12781,3 +12781,19 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	border-width: 2px;
 	box-shadow: inset 4px 0 0 var(--ac);
 }
+
+/* ============================================================
+   设置页左侧导航悬停反色（2026-08-23 实机反馈）
+   基规则（styles.layout-overrides.css:403）hover 仅 7% 蓝淡色，
+   铺在纸面上几乎不可见；与二级页签一致改为墨底纸字硬反色
+   （激活项不反色，保留其墨线 + 内嵌强调条）。基规则 hover 的
+   translateX(2px) 位移保留，反色之上仍有位移反馈。
+   ============================================================ */
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active) {
+	background-color: var(--gm-ink);
+	border-color: var(--gm-ink);
+	color: var(--gm-paper);
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab:hover:not(.is-active)::before {
+	background: var(--gm-paper);
+}
