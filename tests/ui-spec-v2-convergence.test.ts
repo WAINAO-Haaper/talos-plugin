@@ -99,4 +99,17 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		expect(css).toContain(".workspace-tab-header.is-active::before");
 		expect(css).toContain(".workspace-tab-header.is-active::after");
 	});
+
+	it("brings the secondary page tabs into the thick-border ladder", () => {
+		// 2026-08-23 仓库所有者指令：工作流/知识/健康三页顶部二级页签
+		// （WP7 后加入组件）统一为 2px 粗线 + 14px 正文档流式字号
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-page-tabs {"
+		);
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-page-tab {"
+		);
+		expect(css).toContain("min-height: 40px");
+		expect(css).toContain("clamp(14px, 0.98cqw, 17px)");
+	});
 });

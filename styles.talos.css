@@ -12712,3 +12712,30 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .workspace-leaf-content[data-type="talos-console-view"] {
 	border-top: none;
 }
+
+/* ============================================================
+   UI 规范 v2 增补 · 二级页签行纳入规范（2026-08-23 · 仓库所有者指令）
+   工作流/知识/系统健康三页顶部的二级页签（.talos-page-tabs）为 WP7
+   后加入组件，未纳入 D-TLP-012 规范块：容器与按钮 1px 细线、
+   标签跟随继承字号偏小。此处统一为风格一致的粗线条与字号阶梯：
+   容器/按钮描边 2px、标签 14px 正文档（随宽度流式到 17px）、
+   计数徽标 11px 元信息档（v1 已覆盖，此块不再重复）。
+   ============================================================ */
+.talos-console.theme-geometric-modern .talos-page-tabs {
+	border-width: 2px;
+	padding: 10px;
+}
+.talos-console.theme-geometric-modern .talos-page-tab {
+	border-width: 2px;
+	border-radius: 0;
+	min-height: 40px;
+	padding: 8px 14px;
+	font-size: 14px;
+	font-weight: 500;
+}
+.talos-console.theme-geometric-modern .talos-page-tab.is-active {
+	font-weight: 600;
+}
+.talos-console.theme-geometric-modern .talos-page-tab {
+	font-size: clamp(14px, 0.98cqw, 17px);
+}
