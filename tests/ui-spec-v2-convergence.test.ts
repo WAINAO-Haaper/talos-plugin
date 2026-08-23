@@ -112,4 +112,17 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		expect(css).toContain("min-height: 40px");
 		expect(css).toContain("clamp(14px, 0.98cqw, 17px)");
 	});
+
+	it("strengthens the settings header and side nav with the Bauhaus signature", () => {
+		// 2026-08-23 仓库所有者指令：设置页顶部模块与左侧导航模块统一
+		// 2px 墨线 + 直角 + 6px 硬投影，选中项 2px 墨线 + 4px 内嵌强调条
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-inline-settings__header"
+		);
+		expect(css).toContain("box-shadow: 6px 6px 0 var(--gm-ink)");
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-settings--console .talos-settab.is-active"
+		);
+		expect(css).toContain("box-shadow: inset 4px 0 0 var(--ac)");
+	});
 });

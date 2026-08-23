@@ -12739,3 +12739,34 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .talos-page-tab {
 	font-size: clamp(14px, 0.98cqw, 17px);
 }
+
+/* ============================================================
+   设置页顶部模块与左侧导航模块视觉强化（2026-08-23 · 仓库所有者指令）
+   两模块沿用 layout-overrides 的 1px 细线 + 柔阴影，与几何现代
+   主题签名（2px 墨线 + 直角 + 6px 硬投影）不一致、存在感弱。
+   此处对齐签名样式并加硬投影让两模块更显眼；左侧栏选中项
+   升级为 2px 墨线 + 4px 内嵌强调条。v1「分页签保持 12px」的
+   取舍被本指令取代：侧栏项升至 14px 正文档（原 12px 700）。
+   ============================================================ */
+.talos-console.theme-geometric-modern .talos-inline-settings__header {
+	border-width: 2px;
+	border-radius: 0;
+	box-shadow: 6px 6px 0 var(--gm-ink);
+}
+.talos-console.theme-geometric-modern .talos-inline-settings__icon,
+.talos-console.theme-geometric-modern .talos-inline-settings__status {
+	border-width: 2px;
+	border-radius: 0;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settabs {
+	box-shadow: 6px 6px 0 var(--gm-ink);
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab {
+	border-radius: 0;
+	font-size: 14px;
+}
+.talos-console.theme-geometric-modern .talos-settings--console .talos-settab.is-active {
+	border-color: var(--gm-ink);
+	border-width: 2px;
+	box-shadow: inset 4px 0 0 var(--ac);
+}
