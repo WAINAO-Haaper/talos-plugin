@@ -137,23 +137,37 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 	it("gives secondary page tabs a hard-contrast hover inversion", () => {
 		// 2026-08-23 实机反馈：页签悬停无变色——基规则 12% 淡色在底面
 		// 不可见；反色为墨底纸字（激活项不反色），并补 transition。
-		// 根因修正：同上全主题作用域，非几何主题回退 text-normal 反色。
+		// 根因修正①：实机主题为 geometric-modern 且默认回退为 aurora
+		// 的说法被 CDP 实况证伪——真根因是 vault 主题毯式规则
+		// （styles.talos.css:7632 body[data-talos-vault-theme] :is(button…)
+		// 以 !important 压制全部按钮背景/文字色），特异性永远无法赢
+		// !important，故本规则声明全部加 !important（同级比特异性，
+		// 0,5,0 胜 0,1,2）。
 		expect(css).toContain(
 			".talos-console[data-talos-theme] .talos-page-tab:hover:not(.is-active)"
 		);
-		expect(css).toContain("background-color: var(--gm-ink, var(--text-normal))");
-		expect(css).toContain("color: var(--gm-paper, var(--background-primary))");
+		expect(css).toContain(
+			"background-color: var(--gm-ink, var(--text-normal)) !important"
+		);
+		expect(css).toContain(
+			"color: var(--gm-paper, var(--background-primary)) !important"
+		);
 	});
 
 	it("gives the settings side nav the same hard-contrast hover inversion", () => {
 		// 2026-08-23 实机反馈：设置页左侧导航非选中项悬停无变色——
 		// 基规则 7% 蓝淡色不可见；与页签一致反色，方块指示点同步反色
-		// （激活项保持墨线+强调条不反色）。根因修正：同上全主题作用域。
+		// （激活项保持墨线+强调条不反色）。根因修正：同上——声明加
+		// !important 越过 vault 主题毯式按钮规则；选中项墨线同样
+		// 需要 !important（毯式规则含 border-color !important）。
 		expect(css).toContain(
 			".talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)"
 		);
 		expect(css).toContain(
 			".talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before"
+		);
+		expect(css).toContain(
+			"border-color: var(--gm-ink, var(--text-normal)) !important"
 		);
 	});
 });

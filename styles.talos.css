@@ -12748,14 +12748,18 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 /* 悬停反馈（2026-08-23 实机反馈）：基规则 hover 仅 12% accent 淡色，
    铺在底面上几乎不可见且按钮无 transition。此处给出明确变色：
    悬停反色为墨底纸字（几何主题取 --gm-*，其余主题回退为
-   text-normal / background-primary 的反色对），硬对比签名一致。 */
+   text-normal / background-primary 的反色对），硬对比签名一致。
+   !important 必需：vault 主题毯式规则（styles.talos.css:7632
+   body[data-talos-vault-theme] button 等）以 !important 压制全部按钮
+   背景/文字/描边色，本规则以更高特异性 + !important 越过它
+   （既有 approval-action 先例同款打法，见 7642 行）。 */
 .talos-console[data-talos-theme] .talos-page-tab {
 	transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .talos-console[data-talos-theme] .talos-page-tab:hover:not(.is-active) {
-	background-color: var(--gm-ink, var(--text-normal));
-	border-color: var(--gm-ink, var(--text-normal));
-	color: var(--gm-paper, var(--background-primary));
+	background-color: var(--gm-ink, var(--text-normal)) !important;
+	border-color: var(--gm-ink, var(--text-normal)) !important;
+	color: var(--gm-paper, var(--background-primary)) !important;
 }
 
 /* ============================================================
@@ -12784,7 +12788,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	font-size: 14px;
 }
 .talos-console[data-talos-theme] .talos-settings--console .talos-settab.is-active {
-	border-color: var(--gm-ink, var(--text-normal));
+	border-color: var(--gm-ink, var(--text-normal)) !important; /* 越过 7632 毯式 !important */
 	border-width: 2px;
 	box-shadow: inset 4px 0 0 var(--ac, var(--interactive-accent));
 }
@@ -12795,12 +12799,13 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
    铺在底面上几乎不可见；与二级页签一致改为硬反色（激活项不反色，
    保留其墨线 + 内嵌强调条）。基规则 hover 的 translateX(2px)
    位移保留，反色之上仍有位移反馈。2026-08-23 14:00 同上根因
-   修正：全主题生效 + 特异性提升。
+   修正：全主题生效 + 特异性提升；14:20 再修正：加 !important
+   越过 vault 主题毯式按钮规则（styles.talos.css:7632）。
    ============================================================ */
 .talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active) {
-	background-color: var(--gm-ink, var(--text-normal));
-	border-color: var(--gm-ink, var(--text-normal));
-	color: var(--gm-paper, var(--background-primary));
+	background-color: var(--gm-ink, var(--text-normal)) !important;
+	border-color: var(--gm-ink, var(--text-normal)) !important;
+	color: var(--gm-paper, var(--background-primary)) !important;
 }
 .talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before {
 	background: var(--gm-paper, var(--background-primary));
