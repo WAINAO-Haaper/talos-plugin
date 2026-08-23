@@ -6,6 +6,7 @@ import {
 	SecretComponent,
 	Setting,
 	requestUrl,
+	setIcon,
 } from "obsidian";
 import type TalosPlugin from "./main";
 import {
@@ -245,6 +246,52 @@ type FreeTextSettingKey = Exclude<
 
 type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
 
+interface TalosSettingTabDefinition {
+	id: TabId;
+	label: string;
+	description: string;
+	icon: string;
+}
+
+const TALOS_SETTING_TABS: readonly TalosSettingTabDefinition[] = [
+	{
+		id: "ui",
+		label: "界面",
+		description: "主题、标题与启动行为",
+		icon: "palette",
+	},
+	{
+		id: "schema",
+		label: "目录映射",
+		description: "自动检测、预设与校验",
+		icon: "folder-tree",
+	},
+	{
+		id: "data",
+		label: "数据源",
+		description: "统计、审批与写入路径",
+		icon: "database",
+	},
+	{
+		id: "channel",
+		label: "AI Provider",
+		description: "Harness、模型、密钥与权限",
+		icon: "bot",
+	},
+	{
+		id: "voice",
+		label: "屈原 · 语音",
+		description: "模型、朗读、识别与 VAD",
+		icon: "audio-lines",
+	},
+	{
+		id: "workbench",
+		label: "屈原 · 高级",
+		description: "环境、MCP、快捷键与多标签",
+		icon: "sliders-horizontal",
+	},
+];
+
 export class TalosSettingTab extends PluginSettingTab {
 	plugin: TalosPlugin;
 	private activeTab: TabId = "ui";
@@ -271,43 +318,104 @@ export class TalosSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass("talos-settings");
 
-		const tabs: { id: TabId; label: string }[] = [
-			{ id: "ui", label: "界面" },
-			{ id: "schema", label: "目录映射" },
-			{ id: "data", label: "数据源" },
-			{ id: "channel", label: "AI Provider" },
-			{ id: "voice", label: "屈原 · 语音" },
-			{ id: "workbench", label: "屈原 · 高级" },
-		];
-
-		const bar = containerEl.createDiv({ cls: "talos-settabs" });
-		const content = containerEl.createDiv({ cls: "talos-setcontent" });
+		const bar = containerEl.createDiv({
+			cls: "talos-settabs",
+			attr: { role: "tablist", "aria-label": "TALOS 设置分类" },
+		});
+		const content = containerEl.createDiv({
+			cls: "talos-setcontent",
+			attr: { role: "tabpanel", tabindex: "0" },
+		});
 
 		const renderActive = (): void => {
+			const active =
+				TALOS_SETTING_TABS.find((tab) => tab.id === this.activeTab) ??
+				TALOS_SETTING_TABS[0];
+			if (!active) return;
 			content.empty();
-			if (this.activeTab === "ui") this.renderUi(content);
-			else if (this.activeTab === "schema") this.renderSchema(content);
-			else if (this.activeTab === "data") this.renderData(content);
-			else if (this.activeTab === "channel") this.renderChannel(content);
-			else if (this.activeTab === "voice") this.renderVoice(content);
+			content.dataset.settingsTab = active.id;
+			content.setAttribute("aria-label", `${active.label}设置`);
+			this.renderTabIntro(content, active);
+			if (active.id === "ui") this.renderUi(content);
+			else if (active.id === "schema") this.renderSchema(content);
+			else if (active.id === "data") this.renderData(content);
+			else if (active.id === "channel") this.renderChannel(content);
+			else if (active.id === "voice") this.renderVoice(content);
 			else void this.renderWorkbench(content);
 		};
 
-		const btns: HTMLElement[] = [];
-		tabs.forEach((t) => {
-			const b = bar.createDiv({
-				cls: "talos-settab" + (t.id === this.activeTab ? " is-active" : ""),
-				text: t.label,
+		const buttons: HTMLButtonElement[] = [];
+		const activate = (id: TabId): void => {
+			this.activeTab = id;
+			buttons.forEach((button, index) => {
+				const active = TALOS_SETTING_TABS[index]?.id === id;
+				button.toggleClass("is-active", active);
+				button.setAttribute("aria-selected", String(active));
+				button.tabIndex = active ? 0 : -1;
 			});
-			b.addEventListener("click", () => {
-				this.activeTab = t.id;
-				btns.forEach((x, i) => x.toggleClass("is-active", tabs[i]?.id === this.activeTab));
-				renderActive();
+			renderActive();
+		};
+
+		TALOS_SETTING_TABS.forEach((tab, index) => {
+			const button = bar.createEl("button", {
+				cls: `talos-settab${tab.id === this.activeTab ? " is-active" : ""}`,
+				attr: {
+					type: "button",
+					role: "tab",
+					"aria-selected": String(tab.id === this.activeTab),
+					tabindex: tab.id === this.activeTab ? "0" : "-1",
+				},
 			});
-			btns.push(b);
+			button.dataset.settingsTab = tab.id;
+			const icon = button.createSpan({ cls: "talos-settab-icon" });
+			setIcon(icon, tab.icon);
+			const copy = button.createSpan({ cls: "talos-settab-copy" });
+			copy.createEl("strong", { text: tab.label });
+			copy.createEl("small", { text: tab.description });
+			button.addEventListener("click", () => activate(tab.id));
+			button.addEventListener("keydown", (event) => {
+				let targetIndex = index;
+				if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+					targetIndex = (index + 1) % TALOS_SETTING_TABS.length;
+				} else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+					targetIndex =
+						(index - 1 + TALOS_SETTING_TABS.length) %
+						TALOS_SETTING_TABS.length;
+				} else if (event.key === "Home") {
+					targetIndex = 0;
+				} else if (event.key === "End") {
+					targetIndex = TALOS_SETTING_TABS.length - 1;
+				} else {
+					return;
+				}
+				event.preventDefault();
+				const target = buttons[targetIndex];
+				target?.click();
+				target?.focus();
+			});
+			buttons.push(button);
 		});
 
 		renderActive();
+	}
+
+	private renderTabIntro(
+		container: HTMLElement,
+		tab: TalosSettingTabDefinition
+	): void {
+		const intro = container.createEl("header", {
+			cls: "talos-settings-section-intro",
+		});
+		intro.dataset.settingsSection = tab.id;
+		const mark = intro.createSpan({ cls: "talos-settings-section-intro__mark" });
+		setIcon(mark, tab.icon);
+		const copy = intro.createDiv({ cls: "talos-settings-section-intro__copy" });
+		copy.createEl("small", { text: "CONFIGURATION WORKSPACE" });
+		copy.createEl("strong", {
+			cls: "talos-settings-section-intro__title",
+			text: tab.label,
+		});
+		copy.createEl("p", { text: tab.description });
 	}
 
 	private rerender(): void {

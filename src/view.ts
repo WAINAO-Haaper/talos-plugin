@@ -61,11 +61,16 @@ import { taskStateLabel } from "./ui/task-state-label";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
-	WORKBENCH_MODULES,
 	primaryPage,
 } from "./ui/navigation-model";
 import { TalosPageRouter } from "./ui/page-router";
 import { TalosChatSurface } from "./quyuan/chat-surface";
+import {
+	renderTalosEmptyState,
+	renderTalosKpiStrip,
+	renderTalosPageHeader,
+} from "./ui/page-primitives";
+import { QuickNote } from "./ui/quick-note";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -77,6 +82,25 @@ type QuyuanVoicePanelLike = {
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const SVG_NS = "http://www.w3.org/2000/svg";
+
+type TalosPageArchetype = "dashboard" | "execution" | "knowledge" | "workspace" | "settings";
+
+const PAGE_ARCHETYPES: Record<string, TalosPageArchetype> = {
+	overview: "dashboard",
+	health: "dashboard",
+	vault: "dashboard",
+	daily: "execution",
+	inbox: "execution",
+	output: "execution",
+	projects: "execution",
+	talos: "execution",
+	knowledge: "knowledge",
+	identity: "knowledge",
+	capability: "knowledge",
+	chat: "workspace",
+	jarvis: "workspace",
+	settings: "settings",
+};
 const dailyRota = (P: VaultPaths, tasksPath: string) => [
 	{ day: 1, code: "MON", label: "周一", project: "TALOS 系统", desc: "产品脊柱、交付包、控制台", path: `${P.talosProjectDir}/_README.md` },
 	{ day: 2, code: "TUE", label: "周二", project: "输出器官 / 首发件", desc: "发布流程、首发件、承接口", path: P.readme("output") },
@@ -191,6 +215,7 @@ export class TalosView extends ItemView {
 	private dateEl!: HTMLElement;
 	private weekEl!: HTMLElement;
 	private pageNavEl!: HTMLElement;
+	private chatSwitchHostEl!: HTMLElement;
 	private cosmosNodesEl!: HTMLElement;
 	private cosmosTitleEl!: HTMLElement;
 	private cosmosSubEl!: HTMLElement;
@@ -357,7 +382,7 @@ export class TalosView extends ItemView {
 	}
 
 	private secTitle(card: HTMLElement, title: string, small: string): void {
-		const st = card.createDiv({ cls: "section-title" });
+		const st = card.createDiv({ cls: "section-title talos-ui-panel-header" });
 		st.createEl("h2", { text: title });
 		st.createEl("small", { text: small });
 	}
@@ -442,6 +467,10 @@ export class TalosView extends ItemView {
 
 	private applyPageState(): void {
 		this.contentEl.setAttribute("data-talos-page", this.activePage);
+		this.contentEl.setAttribute(
+			"data-talos-archetype",
+			PAGE_ARCHETYPES[this.activePage] || "workspace"
+		);
 		for (const pageKey of [...LEGACY_PAGE_KEYS, "chat", "settings"]) {
 			this.contentEl.classList.remove(`page-${pageKey}`);
 		}
@@ -497,6 +526,10 @@ export class TalosView extends ItemView {
 			controller: this.plugin.getConsoleActionRuntime().runner,
 		});
 		this.taskDrawer.mount();
+		this.chatSwitchHostEl = navCard.createDiv({
+			cls: "talos-chat-nav-switch-host",
+		});
+		this.chatSwitchHostEl.dataset.talosComponent = "chat-switch-host";
 
 		// 快捷入口
 		const quick = side.createEl("section", { cls: "card action-card" });
@@ -632,7 +665,7 @@ export class TalosView extends ItemView {
 
 	private buildMain(main: HTMLElement): void {
 		// Hero 仅服务总览页；子页面通过 data-talos-page 隐藏，直接展示自身内容。
-		const hero = main.createEl("header", { cls: "hero" });
+		const hero = main.createEl("header", { cls: "hero talos-ui-overview-header" });
 		const cosmos = hero.createDiv({ cls: "cosmos-scene" });
 		const cosmosTop = cosmos.createDiv({ cls: "cosmos-top" });
 		const cosmosTitle = cosmosTop.createDiv({ cls: "cosmos-title" });
@@ -692,7 +725,7 @@ export class TalosView extends ItemView {
 			cls: "talos-page-tabs is-hidden",
 		});
 		this.renderSecondaryTabs();
-		this.pageEl = main.createDiv({ cls: "page-content" });
+		this.pageEl = main.createDiv({ cls: "page-content talos-ui-page" });
 
 		const commandBar = main.createDiv({ cls: "cosmos-commandbar" });
 		const voice = commandBar.createDiv({ cls: "cosmos-command-voice" });
@@ -981,6 +1014,59 @@ export class TalosView extends ItemView {
 		this.createCandidateActionButton(actions, "reject", "x", "拒绝", it);
 	}
 
+	private renderDecisionWorkspace(
+		parent: HTMLElement,
+		d: Collected,
+		limit = 2
+	): void {
+		parent.addClass("talos-decision-workspace");
+		parent.addClass("overview-v2-approval-panel");
+
+		const pendingGroup = parent.createDiv({
+			cls: "talos-decision-group overview-v2-approval-group overview-pending-panel",
+		});
+		const pendingHead = pendingGroup.createDiv({
+			cls: "talos-decision-group__head overview-v2-approval-group__head",
+		});
+		pendingHead.createEl("strong", { text: "变更审批" });
+		pendingHead.createSpan({ text: String(d.approvals.length) });
+		const pendingList = pendingGroup.createDiv({
+			cls: "approval talos-decision-list overview-approval-list",
+		});
+		this.renderApprovalFeedback(pendingList);
+		for (const item of d.approvals.slice(0, limit)) {
+			this.renderApprovalItem(pendingList, item);
+		}
+		if (d.approvals.length === 0) {
+			pendingList.createDiv({
+				cls: "ok",
+				text: "当前没有待审批变更",
+			});
+		}
+
+		const preferenceGroup = parent.createDiv({
+			cls: "talos-decision-group overview-v2-approval-group overview-preference-panel",
+		});
+		const preferenceHead = preferenceGroup.createDiv({
+			cls: "talos-decision-group__head overview-v2-approval-group__head",
+		});
+		preferenceHead.createEl("strong", { text: "偏好确认" });
+		preferenceHead.createSpan({ text: String(d.candidates.length) });
+		const preferenceList = preferenceGroup.createDiv({
+			cls: "approval talos-decision-list overview-approval-list",
+		});
+		this.renderCandidateFeedback(preferenceList);
+		for (const item of d.candidates.slice(0, limit)) {
+			this.renderCandidateItem(preferenceList, item);
+		}
+		if (d.candidates.length === 0) {
+			preferenceList.createDiv({
+				cls: "ok",
+				text: "当前没有待确认偏好",
+			});
+		}
+	}
+
 	private createCandidateActionButton(
 		parent: HTMLElement,
 		decision: "approve" | "reject",
@@ -1178,61 +1264,41 @@ export class TalosView extends ItemView {
 
 	// ---------- 页 ----------
 	private panel(parent: HTMLElement, ac: string, title: string, small: string): HTMLElement {
-		const p = parent.createDiv({ cls: "panel" });
+		const p = parent.createDiv({ cls: "panel talos-ui-panel" });
 		p.setCssProps({ "--ac": ac });
 		this.secTitle(p, title, small);
 		return p;
 	}
 
 	private moduleHero(parent: HTMLElement, options: ModuleHeroOptions): HTMLElement {
-		const hero = parent.createDiv({ cls: "panel module-hero" });
-		hero.setCssProps({ "--ac": options.ac });
+		const hero = renderTalosPageHeader(parent, {
+			accent: options.ac,
+			icon: options.icon,
+			eyebrow: options.eyebrow,
+			title: options.title,
+			description: options.desc,
+			metrics: options.stats.map((stat) => ({
+				label: stat.label,
+				value: stat.value,
+				detail: stat.sub,
+				tone: stat.tone,
+				...(stat.path
+					? { onActivate: () => void openFile(this.app, stat.path as string) }
+					: {}),
+			})),
+			actions: (options.actions || []).map((action) => ({
+				label: action.label,
+				icon: action.icon,
+				onActivate: () => {
+					if (action.command) void this.copyText(action.command);
+					else if (action.path) void openFile(this.app, action.path);
+				},
+			})),
+		});
 
-		const main = hero.createDiv({ cls: "module-hero-main" });
-		const icon = main.createDiv({ cls: "module-hero-icon" });
-		setIcon(icon, options.icon);
-		const copy = main.createDiv({ cls: "module-hero-copy" });
-		copy.createEl("small", { text: options.eyebrow });
-		// h1：与首页标题共用各主题的 h1 字体处理（字号/字重/渐变），突出页面名称
-		copy.createEl("h1", { cls: "module-hero-title", text: options.title });
-		copy.createEl("p", { text: options.desc });
-
-		const stats = hero.createDiv({ cls: "module-hero-stats" });
-		for (const stat of options.stats) {
-			const item = stats.createDiv({ cls: `module-hero-stat tone-${stat.tone || "default"}` });
-			item.createEl("span", { text: stat.label });
-			item.createEl("b", { text: stat.value });
-			if (stat.sub) item.createEl("small", { text: stat.sub });
-			const statPath = stat.path;
-			if (statPath) {
-				item.addClass("is-clickable");
-				item.addEventListener("click", () => void openFile(this.app, statPath));
-			}
-		}
-
-		// 像素小人舞台行：插在统计卡与操作按钮之间，占满整行。
-		// 场景皮肤按 data-talos-page 由 CSS 切换（批次 1：inbox 搬运工 / daily 通勤者）。
+		// 像素场景保留为紧凑身份带，不再占据整页宽的大型 Hero 区域。
 		const scene = this.buildPixelPatrol(hero);
-		scene.addClass("in-module-hero");
-
-		if (options.actions?.length) {
-			const actions = hero.createDiv({ cls: "module-hero-actions" });
-			for (const action of options.actions) {
-				const button = actions.createEl("button", { cls: "module-hero-action" });
-				button.type = "button";
-				button.setAttribute("aria-label", action.label);
-				const actionIcon = button.createSpan({ cls: "module-hero-action-icon" });
-				setIcon(actionIcon, action.icon);
-				button.createSpan({ text: action.label });
-				const command = action.command;
-				const path = action.path;
-				button.addEventListener("click", () => {
-					if (command) void this.copyText(command);
-					else if (path) void openFile(this.app, path);
-				});
-			}
-		}
-
+		scene.addClass("in-module-hero", "talos-ui-page-header__scene");
 		return hero;
 	}
 
@@ -1547,298 +1613,251 @@ export class TalosView extends ItemView {
 	}
 
 	private pageOverview(page: HTMLElement, d: Collected): void {
-			const attention = this.collectOverviewAttention(d);
-			const focusItem = d.focus[0];
-			const primary: OverviewAttention = attention[0] || {
-				title: focusItem?.title || "今日焦点尚未设置",
-				meta: focusItem?.doneWhen ? `done_when · ${focusItem.doneWhen}` : "从 tasks.md 读取",
-				detail: focusItem?.desc || "先运行 /morning，写下今天唯一胜利条件，再进入执行。",
-				action: focusItem ? "打开今日焦点" : "打开任务池",
-				path: focusItem?.path || this.plugin.talosSettings.tasksPath,
-				icon: focusItem ? "target" : "calendar-plus",
-				tone: focusItem ? "default" : "warn",
-			};
-			const taskRate = this.percentValue(d.overview.taskFlow.value);
-			const publishRate = d.warRoom.totalPub > 0
-				? Math.round((d.warRoom.published / d.warRoom.totalPub) * 100)
-				: 0;
-			const healthRate = this.percentValue(d.overview.health.value);
-			const now = new Date();
-			const refreshedAt = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-			const sourceCount = [
-				d.overview.taskFlow.value !== "—",
-				d.overview.health.value !== "—",
-				d.total > 0,
-			].filter(Boolean).length;
+		const attention = this.collectOverviewAttention(d);
+		const focusItem = d.focus[0];
+		const primary: OverviewAttention = attention[0] || {
+			title: focusItem?.title || "今日焦点尚未设置",
+			meta: focusItem?.doneWhen
+				? `done_when · ${focusItem.doneWhen}`
+				: "从 tasks.md 读取",
+			detail:
+				focusItem?.desc ||
+				"先运行 /morning，写下今天唯一胜利条件，再进入执行。",
+			action: focusItem ? "打开今日焦点" : "打开任务池",
+			path: focusItem?.path || this.plugin.talosSettings.tasksPath,
+			icon: focusItem ? "target" : "calendar-plus",
+			tone: focusItem ? "default" : "warn",
+		};
+		const latestHealth = d.healthTrend[d.healthTrend.length - 1];
+		const previousHealth = d.healthTrend[d.healthTrend.length - 2];
+		const healthDelta = latestHealth && previousHealth
+			? latestHealth.score - previousHealth.score
+			: 0;
+		const pendingTotal = d.approvals.length + d.candidates.length;
 
-			const metricNumber = (raw?: string): number => {
-				const parsed = Number.parseInt(String(raw || "").replace(/[^\d-]/g, ""), 10);
-				return Number.isFinite(parsed) ? parsed : 0;
-			};
-			const outputTotal = d.output.platforms.reduce((sum, platform) => sum + platform.count, 0);
-			const outputPublished = d.output.platforms.reduce((sum, platform) => sum + platform.published, 0);
-			const insightMetric = d.knowledge.metrics.find((item) => item.label === "原创洞察");
-			const materialMetric = d.knowledge.metrics.find((item) => item.label === "外部素材");
-			const talosAssets = d.talosProduct.metrics.find((item) => item.label === "TALOS 资产") || d.talosProduct.metrics[0];
-			const brokenMetric = d.healthDigest.metrics.find((item) => item.label === "断链");
-			const capCount = d.capGroups.reduce((sum, group) => sum + group.items.length, 0);
-			const identityCount = (this.moduleCount(d, "identity") || 0)
-				+ (this.moduleCount(d, "soul") || 0);
-			const kanbanPanel = this.panel(
+		const primaryGrid = page.createDiv({
+			cls: "overview-v2-primary",
+		});
+		primaryGrid.setAttribute("data-workbench-section", "primary-split");
+
+		const dataColumn = primaryGrid.createDiv({
+			cls: "overview-v2-column overview-v2-data-column",
+		});
+		dataColumn.setAttribute("data-workbench-section", "core-data");
+		renderTalosKpiStrip(dataColumn, [
+			{
+				label: "知识笔记",
+				value: d.overview.totalNotes.value,
+				detail: d.overview.totalNotes.sub,
+				tone: d.overview.totalNotes.tone,
+				onActivate: () => void openFile(this.app, this.paths.readme("insights")),
+			},
+			{
+				label: "今日执行",
+				value: d.overview.taskFlow.value,
+				detail: d.overview.taskFlow.sub,
+				tone: d.overview.taskFlow.tone,
+				onActivate: () =>
+					void openFile(this.app, this.plugin.talosSettings.tasksPath),
+			},
+			{
+				label: "系统健康",
+				value: d.overview.health.value,
+				detail:
+					healthDelta === 0
+						? d.overview.health.sub
+						: `${healthDelta > 0 ? "较上次 +" : "较上次 "}${healthDelta}`,
+				tone: d.overview.health.tone,
+				onActivate: () =>
+					void openFile(this.app, this.plugin.talosSettings.healthLogPath),
+			},
+			{
+				label: "发布闭环",
+				value: `${d.warRoom.published}/${d.warRoom.totalPub}`,
+				detail: `冻结 ${d.warRoom.frozenDays} 天`,
+				tone: d.warRoom.stopTriggered ? "hot" : "good",
+				onActivate: () =>
+					void openFile(this.app, this.plugin.talosSettings.talosTasksPath),
+			},
+		]);
+
+		const trendPanel = this.panel(
+			dataColumn,
+			"#F472B6",
+			"健康分趋势",
+			"health-log · 近 9 次真实记录"
+		);
+		trendPanel.addClass("overview-v2-chart-panel");
+		this.fillTrend(trendPanel, d.healthTrend);
+
+		const distributionPanel = this.panel(
+			dataColumn,
+			"#34D399",
+			"知识分布",
+			`六大内容目录 · 共 ${d.total} 篇`
+		);
+		distributionPanel.addClass("overview-v2-chart-panel");
+		this.fillDist(
+			distributionPanel.createDiv({ cls: "barchart overview-v2-distribution" }),
+			d.dist
+		);
+
+		const attentionColumn = primaryGrid.createDiv({
+			cls: "overview-v2-column overview-v2-attention-column",
+		});
+		attentionColumn.setAttribute(
+			"data-workbench-section",
+			"attention-and-approvals"
+		);
+
+		const attentionPanel = this.panel(
+			attentionColumn,
+			this.overviewToneColor(primary.tone),
+			"重要事项",
+			attention.length > 0
+				? `${attention.length} 项需要处理`
+				: "当前没有阻塞性异常"
+		);
+		attentionPanel.addClass("overview-v2-attention-panel");
+		const priority = attentionPanel.createDiv({
+			cls: `overview-v2-priority tone-${primary.tone}`,
+		});
+		const priorityHead = priority.createDiv({ cls: "overview-v2-priority__head" });
+		const priorityIcon = priorityHead.createSpan({
+			cls: "overview-v2-priority__icon",
+		});
+		setIcon(priorityIcon, primary.icon);
+		const priorityCopy = priorityHead.createDiv({
+			cls: "overview-v2-priority__copy",
+		});
+		priorityCopy.createEl("small", {
+			text: attention.length > 0 ? "第一优先级" : "下一步",
+		});
+		priorityCopy.createEl("h3", { text: primary.title });
+		priority.createEl("p", { text: primary.detail });
+		priority.createEl("span", { text: primary.meta });
+		const priorityAction = priority.createEl("button", {
+			cls: "module-hero-action overview-v2-priority__action",
+			attr: { type: "button" },
+		});
+		setIcon(
+			priorityAction.createSpan({ cls: "module-hero-action-icon" }),
+			"arrow-up-right"
+		);
+		priorityAction.createSpan({ text: primary.action });
+		priorityAction.addEventListener("click", () =>
+			void openFile(this.app, primary.path)
+		);
+		this.renderOverviewAttentionRows(attentionPanel, attention.slice(1, 4));
+
+		const approvalPanel = this.panel(
+			attentionColumn,
+			"var(--amber)",
+			"审批工作区",
+			pendingTotal > 0 ? `${pendingTotal} 项待决策` : "审批池已清空"
+		);
+		this.renderDecisionWorkspace(approvalPanel, d, 2);
+
+		const kanbanPanel = this.panel(
 			page,
 			"#F59E0B",
 			"任务进度看板",
 			"待办 · 进行中 · 最近完成"
 		);
+		kanbanPanel.addClass("overview-v2-kanban-panel");
 		kanbanPanel.setAttribute("data-workbench-section", "task-kanban");
 		this.fillOverviewKanban(kanbanPanel, d);
 
-		const overviewGrid = page.createDiv({ cls: "overview-ops-grid" });
-			const actionColumn = overviewGrid.createDiv({ cls: "overview-action-column" });
-			const statColumn = overviewGrid.createDiv({ cls: "overview-stat-column" });
-			actionColumn.setAttribute("data-workbench-section", "today-actions");
-			statColumn.setAttribute("data-workbench-section", "system-overview");
-
-			const command = actionColumn.createDiv({ cls: `panel overview-command tone-${primary.tone}` });
-			command.setCssProps({ "--ac": this.overviewToneColor(primary.tone) });
-
-			const head = command.createDiv({ cls: "overview-command-head" });
-			const headIcon = head.createDiv({ cls: "overview-command-icon" });
-			setIcon(headIcon, attention.length > 0 ? "activity" : "circle-check-big");
-			const headCopy = head.createDiv({ cls: "overview-command-copy" });
-			headCopy.createEl("small", { text: "TALOS 运行态势" });
-			headCopy.createEl("h2", {
-				text: attention.length > 0
-					? `可运行，但有 ${attention.length} 项需要处理`
-					: "运行正常，暂无待处理异常",
-			});
-			headCopy.createEl("p", {
-				text: attention.length > 0
-					? `先处理「${primary.title}」，其余状态降为二级巡检。`
-					: `今日 ${d.focus.length} 个焦点可继续推进。`,
-			});
-			const commandAction = head.createEl("button", {
-				cls: "overview-command-action",
-				text: primary.action,
-			});
-			commandAction.type = "button";
-			commandAction.addEventListener("click", () => void openFile(this.app, primary.path));
-
-			const primaryCard = command.createDiv({ cls: `overview-primary-card tone-${primary.tone}` });
-			const primaryLabel = primaryCard.createDiv({ cls: "overview-primary-label" });
-			const primaryIcon = primaryLabel.createSpan({ cls: "overview-primary-icon" });
-			setIcon(primaryIcon, primary.icon);
-			primaryLabel.createSpan({ text: attention.length > 0 ? "第一优先级" : "下一步" });
-			primaryCard.createEl("h3", { text: primary.title });
-			primaryCard.createEl("p", { text: primary.detail });
-			primaryCard.createEl("small", { text: primary.meta });
-			primaryCard.addEventListener("click", () => void openFile(this.app, primary.path));
-
-			const statPanel = statColumn.createDiv({ cls: "panel overview-stat-wall" });
-			statPanel.setCssProps({ "--ac": "var(--blue)" });
-			this.secTitle(statPanel, "健康分统计", "图形指标 · 纵向柱状图");
-			this.fillOverviewHealthScore(
-				statPanel,
-				d.overview.health.value,
-				d.overview.health.sub,
-				healthRate,
-				refreshedAt,
-				sourceCount,
-				brokenMetric?.value || "—",
-				this.plugin.talosSettings.healthLogPath,
-				d.overview.health.tone === "warn" ? "warn" : "good"
-			);
-			const barGrid = statPanel.createDiv({ cls: "overview-stat-bars" });
-			this.fillOverviewStatBar(barGrid, "今日执行", d.overview.taskFlow.value, taskRate, "play-circle", this.plugin.talosSettings.tasksPath, "default");
-			this.fillOverviewStatBar(barGrid, "发布闭环", `${d.warRoom.published}/${d.warRoom.totalPub}`, publishRate, "refresh-cw", this.plugin.talosSettings.talosTasksPath, d.warRoom.stopTriggered ? "hot" : "default");
-			this.fillOverviewStatBar(barGrid, "知识总量", d.overview.totalNotes.value, Math.min(100, Math.round((d.total / 2000) * 100)), "book-open", this.paths.readme("insights"), "default");
-			this.fillOverviewStatBar(barGrid, "输出资产", String(outputTotal), Math.min(100, Math.round((outputTotal / 24) * 100)), "send", this.paths.readme("output"), outputTotal > outputPublished ? "warn" : "good");
-			this.fillOverviewStatBar(barGrid, "项目场景", String(d.projects.length), Math.min(100, Math.round((d.projects.length / 24) * 100)), "briefcase", this.paths.readme("projects"), "default");
-			this.fillOverviewStatBar(barGrid, "原创洞察", insightMetric?.value || "0", Math.min(100, Math.round((metricNumber(insightMetric?.value) / 160) * 100)), "lightbulb", insightMetric?.path || this.paths.readme("insights"), "default");
-			this.fillOverviewStatBar(barGrid, "外部素材", materialMetric?.value || "0", Math.min(100, Math.round((metricNumber(materialMetric?.value) / 400) * 100)), "archive", materialMetric?.path || this.paths.readme("assets"), "default");
-			this.fillOverviewStatBar(barGrid, "能力中心", String(capCount), Math.min(100, Math.round((capCount / 36) * 100)), "workflow", this.paths.readme("system"), "default");
-			this.fillOverviewStatBar(barGrid, "TALOS 资产", talosAssets?.value || "0", Math.min(100, Math.round((metricNumber(talosAssets?.value) / 120) * 100)), "filter", talosAssets?.path || `${this.paths.talosProjectDir}/_README.md`, "default");
-			this.fillOverviewStatBar(barGrid, "身份上下文", String(identityCount), Math.min(100, Math.round((identityCount / 24) * 100)), "fingerprint", this.paths.readme("identity"), "default");
-
-			const actionPanel = this.panel(actionColumn, this.overviewToneColor(primary.tone), "行动队列", "审批 · 待办 · 收件箱");
-			actionPanel.addClass("overview-action-panel");
-			const actionList = actionPanel.createDiv({ cls: "overview-action-list" });
-			this.fillOverviewActionRow(actionList, "审批", d.approvals.length > 0 ? `${d.approvals.length} 条待确认` : "无待审批", "clipboard-check", this.plugin.talosSettings.pendingApprovalsPath, d.approvals.length > 0 ? "warn" : "good");
-			this.fillOverviewActionRow(actionList, "待办", d.focus.length > 0 ? `${d.focus.length} 个焦点` : "建议运行 /morning", "target", this.plugin.talosSettings.tasksPath, d.focus.length > 0 ? "default" : "warn");
-			this.fillOverviewActionRow(actionList, "收件箱", `${d.inbox.count} 篇待处理`, "inbox", this.paths.readme("inbox"), d.inbox.count > 0 ? (d.inbox.oldestDays >= 7 ? "hot" : "warn") : "good");
-			this.fillOverviewActionRow(actionList, "偏好候选", d.candidates.length > 0 ? `${d.candidates.length} 条待确认` : "无候选", "list-checks", this.plugin.talosSettings.candidatesPath, d.candidates.length > 0 ? "warn" : "good");
-
-			const actionRuntimePanel = this.panel(
-				actionColumn,
-				"#38E1FF",
-				"可执行动作",
-				"A 直接执行 · B 快照执行 · C 提案审批"
-			);
-			const actionStamp = Date.now();
-			const noteTarget = `${this.paths.dir(
-				"inbox"
-			)}/talos-action-${actionStamp}.md`;
-			this.actionPanel = new ConsoleActionPanel({
-				parent: actionRuntimePanel,
-				runtime: this.plugin.getConsoleActionRuntime(),
-				actions: [
-					{
-						actionId: "refresh-stats",
-						idempotencyKey: `overview-refresh-${actionStamp}`,
-						input: undefined,
-						request: {
-							readPaths: ["**"],
-							writePaths: [],
-							effects: ["read"],
-						},
-						proposal: {
-							title: "刷新统计",
-							provider: "TALOS 本地运行时",
-							steps: ["重新读取 Vault 统计", "刷新当前控制台"],
-							fileCount: 0,
-							keyDiffs: ["只读动作，不修改文件"],
-							reversible: false,
-						},
+		const utilityGrid = page.createDiv({ cls: "overview-v2-utility-grid" });
+		const actionRuntimePanel = this.panel(
+			utilityGrid,
+			"#38E1FF",
+			"可执行动作",
+			"A 直接执行 · C 提案后审批"
+		);
+		actionRuntimePanel.setAttribute("data-workbench-section", "runtime-actions");
+		const actionStamp = Date.now();
+		this.actionPanel = new ConsoleActionPanel({
+			parent: actionRuntimePanel,
+			runtime: this.plugin.getConsoleActionRuntime(),
+			actions: [
+				{
+					actionId: "refresh-stats",
+					idempotencyKey: `overview-refresh-${actionStamp}`,
+					input: undefined,
+					request: {
+						readPaths: ["**"],
+						writePaths: [],
+						effects: ["read"],
 					},
-					{
-						actionId: "vault-lint",
-						idempotencyKey: `overview-lint-${actionStamp}`,
-						input: undefined,
-						request: {
-							readPaths: ["**"],
-							writePaths: [],
-							effects: ["read"],
-						},
-						proposal: {
-							title: "只读 Vault Lint",
-							provider: "TALOS 本地运行时",
-							steps: ["扫描 Markdown 元数据", "报告结构化检查结果"],
-							fileCount: 0,
-							keyDiffs: ["只读动作，不生成报告文件"],
-							reversible: false,
-						},
+					proposal: {
+						title: "刷新统计",
+						provider: "TALOS 本地运行时",
+						steps: ["重新读取 Vault 统计", "刷新当前控制台"],
+						fileCount: 0,
+						keyDiffs: ["只读动作，不修改文件"],
+						reversible: false,
 					},
-					{
-						actionId: "create-note",
-						idempotencyKey: `overview-create-${actionStamp}`,
-						input: {
-							targetPath: noteTarget,
-							content:
-								"---\ntags: [TALOS]\nstatus: inbox\ntype: note\n---\n\n# TALOS 行动记录\n",
-						},
-						request: {
-							readPaths: [],
-							writePaths: [noteTarget],
-							effects: ["write"],
-						},
-						proposal: {
-							title: "新建行动记录",
-							provider: "TALOS 本地运行时",
-							steps: ["创建恢复点", "在收件箱创建行动记录"],
-							fileCount: 1,
-							keyDiffs: [`新增 ${noteTarget}`],
-							reversible: true,
-						},
+				},
+				{
+					actionId: "vault-lint",
+					idempotencyKey: `overview-lint-${actionStamp}`,
+					input: undefined,
+					request: {
+						readPaths: ["**"],
+						writePaths: [],
+						effects: ["read"],
 					},
-					{
-						actionId: "deep-research",
-						idempotencyKey: `overview-research-${actionStamp}`,
-						input: undefined,
-						request: {
-							readPaths: ["**"],
-							writePaths: ["<external>"],
-							effects: ["external-publish"],
-						},
-						proposal: {
-							title: "启动 Deep Research",
-							provider: "当前 Agent 命令",
-							steps: [
-								"展示本次外部执行范围",
-								"等待独立批准",
-								"进入 10 秒可取消安全窗口",
-								"批准后调用同一 TALOS runner",
-							],
-							fileCount: 1,
-							keyDiffs: [
-								`研究结果将写入 ${this.plugin.talosSettings.reportsFolder}`,
-							],
-							reversible: false,
-						},
+					proposal: {
+						title: "只读 Vault Lint",
+						provider: "TALOS 本地运行时",
+						steps: ["扫描 Markdown 元数据", "报告结构化检查结果"],
+						fileCount: 0,
+						keyDiffs: ["只读动作，不生成报告文件"],
+						reversible: false,
 					},
-				],
-			});
-			this.actionPanel.mount();
-
-			const modulesPanel = this.panel(
-				page,
-				"#7C3AED",
-				"九个模块入口",
-				"客户模块 · 只改变导航，不移动目录"
-			);
-			modulesPanel.addClass("workbench-module-panel");
-			modulesPanel.setAttribute("data-workbench-section", "customer-modules");
-			const moduleGrid = modulesPanel.createDiv({
-				cls: "workbench-module-grid",
-			});
-			for (const module of WORKBENCH_MODULES) {
-				const card = moduleGrid.createEl("button", {
-					cls: "workbench-module-card",
-					attr: {
-						type: "button",
-						"data-module-key": module.key,
-						"aria-label": `打开${module.label}`,
+				},
+				{
+					actionId: "deep-research",
+					idempotencyKey: `overview-research-${actionStamp}`,
+					input: undefined,
+					request: {
+						readPaths: ["**"],
+						writePaths: ["<external>"],
+						effects: ["external-publish"],
 					},
-				});
-				const icon = card.createSpan({
-					cls: "workbench-module-card__icon",
-				});
-				setIcon(icon, module.icon);
-				card.createSpan({ text: module.label });
-				card.addEventListener("click", () => {
-					this.activePage = module.pageKey;
-					this.renderNav();
-					this.renderPage();
-				});
-			}
+					proposal: {
+						title: "启动 Deep Research",
+						provider: "当前 Agent 命令",
+						steps: [
+							"展示本次外部执行范围",
+							"等待独立批准",
+							"进入 10 秒可取消安全窗口",
+							"批准后调用同一 TALOS runner",
+						],
+						fileCount: 1,
+						keyDiffs: [
+							`研究结果将写入 ${this.plugin.talosSettings.reportsFolder}`,
+						],
+						reversible: false,
+					},
+				},
+			],
+		});
+		this.actionPanel.mount();
 
-			const approvalGrid = page.createDiv({ cls: "overview-approval-grid" });
-			const pendingPanel = this.panel(
-				approvalGrid,
-				"var(--amber)",
-				"待审批",
-				"批准 · 拒绝 · 模型执行"
-			);
-			pendingPanel.addClass("overview-approval-panel", "overview-pending-panel");
-			const pendingList = pendingPanel.createDiv({ cls: "approval overview-approval-list" });
-			this.renderApprovalFeedback(pendingList);
-			for (const it of d.approvals.slice(0, 3)) {
-				this.renderApprovalItem(pendingList, it);
-			}
-			if (d.approvals.length === 0) {
-				pendingList.createDiv({ cls: "ok", text: "当前没有待审批项" });
-			}
-
-			const preferencePanel = this.panel(
-				approvalGrid,
-				"#A78BFA",
-				"偏好审批",
-				"批准 · 拒绝 · 写回候选池"
-			);
-			preferencePanel.addClass("overview-approval-panel", "overview-preference-panel");
-			const preferenceList = preferencePanel.createDiv({ cls: "approval overview-approval-list" });
-			this.renderCandidateFeedback(preferenceList);
-			for (const it of d.candidates.slice(0, 3)) {
-				this.renderCandidateItem(preferenceList, it);
-			}
-			if (d.candidates.length === 0) {
-				preferenceList.createDiv({ cls: "ok", text: "当前没有待确认偏好" });
-			}
-		}
-
-		private percentValue(raw: string): number {
-		const parsed = Number.parseInt(raw.replace(/[^\d-]/g, ""), 10);
-		if (!Number.isFinite(parsed)) return 0;
-		return Math.min(100, Math.max(0, parsed));
+		const quickNotePanel = this.panel(
+			utilityGrid,
+			"#A78BFA",
+			"快捷便签",
+			"B 类可恢复写入 · ⌘/Ctrl + Enter 保存"
+		);
+		quickNotePanel.setAttribute("data-workbench-section", "quick-note");
+		new QuickNote({
+			parent: quickNotePanel,
+			runtime: this.plugin.getConsoleActionRuntime(),
+			targetFolder: this.paths.dir("inbox"),
+		}).mount();
 	}
 
 	private collectOverviewAttention(d: Collected): OverviewAttention[] {
@@ -1847,7 +1866,8 @@ export class TalosView extends ItemView {
 			items.push({
 				title: "发布停止条件已触发",
 				meta: `${d.warRoom.frozenDays} 天未形成发布闭环 · 高优先级`,
-				detail: "当前发布节奏已经触发重估条件。继续建设前，先决定恢复发布、调整目标或正式暂停。",
+				detail:
+					"当前发布节奏已经触发重估条件。继续建设前，先决定恢复发布、调整目标或正式暂停。",
 				action: "打开发布任务",
 				path: this.plugin.talosSettings.talosTasksPath,
 				icon: "octagon-alert",
@@ -1858,7 +1878,8 @@ export class TalosView extends ItemView {
 			items.push({
 				title: `待审批变更 ${d.approvals.length} 项`,
 				meta: `${d.approvals[0]?.title || "B/C 类变更"} · 需要决策`,
-				detail: "这些变更不会自动执行。先处理会阻塞当前工作流或影响身份、规则与系统结构的提案。",
+				detail:
+					"这些变更不会自动执行。先处理会阻塞当前工作流或影响身份、规则与系统结构的提案。",
 				action: "进入审批池",
 				path: this.plugin.talosSettings.pendingApprovalsPath,
 				icon: "clipboard-check",
@@ -1869,7 +1890,8 @@ export class TalosView extends ItemView {
 			items.push({
 				title: `收件箱积压 ${d.inbox.count} 篇`,
 				meta: `最老 ${d.inbox.oldestDays} 天 · 建议运行 /intake`,
-				detail: "优先处理长期滞留条目，避免收件箱变成第二个无人维护的知识库。",
+				detail:
+					"优先处理长期滞留条目，避免收件箱变成第二个无人维护的知识库。",
 				action: "打开收件箱",
 				path: this.paths.readme("inbox"),
 				icon: "inbox",
@@ -1880,106 +1902,61 @@ export class TalosView extends ItemView {
 			items.push({
 				title: `偏好候选 ${d.candidates.length} 条`,
 				meta: "待确认 · 运行 /digest 晋升或退回",
-				detail: "候选偏好尚未成为稳定规则。集中确认，避免未经验证的信号长期悬空。",
+				detail:
+					"候选偏好尚未成为稳定规则。集中确认，避免未经验证的信号长期悬空。",
 				action: "打开候选池",
 				path: this.plugin.talosSettings.candidatesPath,
 				icon: "list-checks",
 				tone: "default",
 			});
 		}
-			return items;
-		}
+		return items;
+	}
 
-		private overviewToneColor(tone: OverviewAttention["tone"] | "good"): string {
-			if (tone === "hot") return "var(--rose)";
-			if (tone === "warn") return "var(--amber)";
-			if (tone === "good") return "var(--green)";
-			return "var(--blue)";
-		}
+	private overviewToneColor(
+		tone: OverviewAttention["tone"] | "good"
+	): string {
+		if (tone === "hot") return "var(--rose)";
+		if (tone === "warn") return "var(--amber)";
+		if (tone === "good") return "var(--green)";
+		return "var(--blue)";
+	}
 
-		private fillOverviewHealthScore(
-			parent: HTMLElement,
-			value: string,
-			meta: string,
-			percent: number,
-			refreshedAt: string,
-			sourceCount: number,
-			brokenLinks: string,
-			path: string,
-			tone: "default" | "warn" | "hot" | "good"
-		): void {
-			const card = parent.createDiv({ cls: `overview-health-score tone-${tone}` });
-			card.setCssProps({
-				"--health-score": `${percent}%`,
-				"--health-ac": this.overviewToneColor(tone),
+	private renderOverviewAttentionRows(
+		parent: HTMLElement,
+		items: OverviewAttention[]
+	): void {
+		const list = parent.createDiv({ cls: "overview-v2-attention-list" });
+		if (items.length === 0) {
+			list.createDiv({
+				cls: "ok",
+				text: "其余巡检项正常，暂无需要展开的异常。",
 			});
-			const ring = card.createDiv({ cls: "overview-health-ring" });
-			ring.createEl("strong", { text: value });
-			ring.createEl("span", { text: "健康分" });
-			const copy = card.createDiv({ cls: "overview-health-copy" });
-			copy.createEl("b", { text: "系统健康统计" });
-			copy.createEl("p", { text: meta });
-			const chips = copy.createDiv({ cls: "overview-health-chips" });
-			const chipData = [
-				["数据源", `${sourceCount}/3`, sourceCount >= 3 ? "good" : "warn"],
-				["刷新", refreshedAt, "default"],
-				["断链", brokenLinks, brokenLinks !== "—" && Number(brokenLinks) > 0 ? "warn" : "good"],
-			] as const;
-			for (const [label, chipValue, chipTone] of chipData) {
-				const chip = chips.createDiv({ cls: `overview-health-chip tone-${chipTone}` });
-				chip.createEl("span", { text: label });
-				chip.createEl("b", { text: chipValue });
-			}
-			card.addEventListener("click", () => void openFile(this.app, path));
+			return;
 		}
-
-		private fillOverviewStatBar(
-			parent: HTMLElement,
-			label: string,
-			value: string,
-			percent: number,
-			iconName: string,
-			path: string,
-			tone: "default" | "warn" | "hot" | "good"
-		): void {
-			const safePercent = Math.max(3, Math.min(100, percent));
-			const item = parent.createDiv({ cls: `overview-stat-bar tone-${tone}` });
-			item.setCssProps({ "--bar-h": `${safePercent}%` });
-			const head = item.createDiv({ cls: "overview-stat-bar-head" });
-			const icon = head.createSpan({ cls: "overview-stat-bar-icon" });
-			setIcon(icon, iconName);
-			head.createSpan({ text: label });
-			const chart = item.createDiv({ cls: "overview-stat-bar-chart" });
-			const track = chart.createDiv({ cls: "overview-stat-bar-track" });
-			track.createDiv({ cls: "overview-stat-bar-fill" });
-			const foot = item.createDiv({ cls: "overview-stat-bar-foot" });
-			foot.createEl("b", { text: value });
-			foot.createEl("small", { text: `${Math.round(percent)}%` });
-			item.addEventListener("click", () => void openFile(this.app, path));
-		}
-
-		private fillOverviewActionRow(
-			parent: HTMLElement,
-			label: string,
-			value: string,
-			iconName: string,
-			path: string,
-			tone: "default" | "warn" | "hot" | "good"
-		): void {
-			const row = parent.createDiv({ cls: `overview-action-row tone-${tone}` });
-			const icon = row.createSpan({ cls: "overview-action-row-icon" });
-			setIcon(icon, iconName);
-			const copy = row.createDiv({ cls: "overview-action-row-copy" });
-			copy.createEl("span", { text: label });
-			copy.createEl("b", { text: value });
-			const arrow = row.createSpan({ cls: "overview-action-row-arrow" });
+		for (const item of items) {
+			const row = list.createDiv({
+				cls: `overview-v2-attention-row tone-${item.tone}`,
+			});
+			row.setAttribute("role", "button");
+			row.setAttribute("tabindex", "0");
+			row.setAttribute("aria-label", `${item.title}：${item.action}`);
+			const icon = row.createSpan({ cls: "overview-v2-attention-row__icon" });
+			setIcon(icon, item.icon);
+			const copy = row.createDiv({ cls: "overview-v2-attention-row__copy" });
+			copy.createEl("strong", { text: item.title });
+			copy.createEl("span", { text: item.meta });
+			const arrow = row.createSpan({ cls: "overview-v2-attention-row__arrow" });
 			setIcon(arrow, "chevron-right");
-			row.addEventListener("click", () => void openFile(this.app, path));
+			const activate = () => void openFile(this.app, item.path);
+			row.addEventListener("click", activate);
+			row.addEventListener("keydown", (event) => {
+				if (event.key !== "Enter" && event.key !== " ") return;
+				event.preventDefault();
+				activate();
+			});
 		}
-
-
-
-
+	}
 
 	private async pageChat(page: HTMLElement): Promise<void> {
 		try {
@@ -2023,6 +2000,7 @@ export class TalosView extends ItemView {
 							this.plugin.talosSettings.harnessSurface = id;
 							void this.plugin.saveTalosSettings();
 						},
+						getSwitchHost: () => this.chatSwitchHostEl,
 					})
 				);
 			}
@@ -2130,11 +2108,13 @@ export class TalosView extends ItemView {
 
 	private pageDaily(page: HTMLElement, d: Collected): void {
 		const now = new Date();
+		const minsNow = now.getHours() * 60 + now.getMinutes();
 		const rota = this.dailyRota();
 		const today = rota.find((item) => item.day === now.getDay()) || rota[0];
 		const primary = d.focus[0];
 		const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 · 周${WEEKDAYS[now.getDay()]}`;
-		const victory = primary?.doneWhen || "先跑 /morning，把今天的 done_when 写进 tasks.md";
+		const victory =
+			primary?.doneWhen || "先跑 /morning，把今天的 done_when 写进 tasks.md";
 
 		this.moduleHero(page, {
 			ac: "#4D8DFF",
@@ -2168,24 +2148,47 @@ export class TalosView extends ItemView {
 			actions: [
 				{ label: "开工", icon: "play", command: "开工" },
 				{ label: "晨间", icon: "sunrise", command: "/morning" },
-				{ label: "任务池", icon: "list-checks", path: this.plugin.talosSettings.tasksPath },
+				{
+					label: "任务池",
+					icon: "list-checks",
+					path: this.plugin.talosSettings.tasksPath,
+				},
 			],
 		});
 
-		const work = page.createDiv({ cls: "daily-work-grid" });
-		const timelinePanel = this.panel(work, "#38E1FF", "每日固定骨架", "ZERO DECISION TIMELINE");
+		const primaryGrid = page.createDiv({
+			cls: "workflow-v2-primary daily-v2-primary",
+		});
+		primaryGrid.setAttribute("data-workflow-layout", "split");
+
+		const timelinePanel = this.panel(
+			primaryGrid,
+			"#38E1FF",
+			"今日执行节奏",
+			"ZERO DECISION TIMELINE"
+		);
+		timelinePanel.setAttribute("data-workflow-section", "core-data");
 		const timeline = timelinePanel.createDiv({ cls: "daily-timeline" });
 		for (const slot of this.dailyTimeline()) {
-			// 08:30 开工入口指向任务池设置项；14:00 深度块② 跟随周轮值动态变化
-			const slotPath = slot.time === "08:30"
-				? this.plugin.talosSettings.tasksPath
-				: slot.time === "14:00"
-					? today?.path || slot.path
-					: slot.path;
-			const slotDesc = slot.time === "14:00"
-				? `${today?.label || "今日"}推进「${today?.project || "周轮值项目"}」的一个可见结果。`
-				: slot.desc;
-			const item = timeline.createDiv({ cls: `daily-slot daily-item${slot.deep ? " is-deep" : ""}` });
+			const slotPath =
+				slot.time === "08:30"
+					? this.plugin.talosSettings.tasksPath
+					: slot.time === "14:00"
+						? today?.path || slot.path
+						: slot.path;
+			const slotDesc =
+				slot.time === "14:00"
+					? `${today?.label || "今日"}推进「${today?.project || "周轮值项目"}」的一个可见结果。`
+					: slot.desc;
+			const state =
+				minsNow >= slot.mins + slot.dur
+					? "done"
+					: minsNow >= slot.mins
+						? "now"
+						: "todo";
+			const item = timeline.createDiv({
+				cls: `daily-slot daily-item${slot.deep ? " is-deep" : ""} is-${state}`,
+			});
 			const time = item.createDiv({ cls: "daily-slot-time" });
 			time.createEl("b", { text: slot.time });
 			time.createEl("small", { text: slot.length });
@@ -2193,27 +2196,46 @@ export class TalosView extends ItemView {
 			body.createEl("h3", { text: slot.title });
 			body.createEl("p", { text: slotDesc });
 			body.createEl("span", { text: slot.starter });
-			// 填充式布局：右侧状态徽章（已完成/进行中/待开始），消除右侧留白
-			const minsNow = new Date().getHours() * 60 + new Date().getMinutes();
-			const state = minsNow >= slot.mins + slot.dur ? "done" : minsNow >= slot.mins ? "now" : "todo";
-			item.addClass(`is-${state}`);
 			item.createSpan({
 				cls: `daily-slot-badge is-${state}`,
-				text: state === "done" ? "已完成" : state === "now" ? "进行中" : "待开始",
+				text:
+					state === "done"
+						? "已完成"
+						: state === "now"
+							? "进行中"
+							: "待开始",
 			});
 			item.addEventListener("click", () => void openFile(this.app, slotPath));
 		}
 
-		const cockpit = this.panel(page, "#FB7185", "每日执行舱", `LIVE EXECUTION · ${dateLabel}`);
+		const cockpit = this.panel(
+			primaryGrid,
+			"#FB7185",
+			"当前战役",
+			`IMPORTANT ACTIONS · ${dateLabel}`
+		);
 		cockpit.addClass("daily-cockpit");
+		cockpit.setAttribute("data-workflow-section", "attention-and-actions");
 		const overview = cockpit.createDiv({ cls: "daily-overview" });
-		const win = overview.createDiv({ cls: "daily-win daily-item" });
+		const win = overview.createDiv({
+			cls: `daily-win${primary ? " daily-item" : ""}`,
+		});
 		win.createEl("small", { text: "今日唯一胜利条件" });
 		win.createEl("strong", { text: victory });
 		if (primary) {
-			win.createEl("span", { text: `${primary.title}${primary.desc ? ` · ${primary.desc}` : ""}` });
-			win.addEventListener("click", () => void openFile(this.app, primary.path || this.plugin.talosSettings.tasksPath));
+			win.createEl("span", {
+				text: `${primary.title}${primary.desc ? ` · ${primary.desc}` : ""}`,
+			});
+			win.addEventListener("click", () =>
+				void openFile(
+					this.app,
+					primary.path || this.plugin.talosSettings.tasksPath
+				)
+			);
+		} else {
+			win.createEl("span", { text: "尚未锁定焦点，先运行晨间流程。" });
 		}
+
 		const route = overview.createDiv({ cls: "daily-route" });
 		const routeItem = (label: string, value: string, path: string) => {
 			const item = route.createDiv({ cls: "daily-route-item daily-item" });
@@ -2222,17 +2244,42 @@ export class TalosView extends ItemView {
 			item.addEventListener("click", () => void openFile(this.app, path));
 		};
 		routeItem("深度块 01", "输出闭环", this.paths.outletFile);
-		routeItem("深度块 02", today?.project || "周轮值项目", today?.path || this.plugin.talosSettings.tasksPath);
-		routeItem("当前焦点", `${d.focus.length} 项`, this.plugin.talosSettings.tasksPath);
+		routeItem(
+			"深度块 02",
+			today?.project || "周轮值项目",
+			today?.path || this.plugin.talosSettings.tasksPath
+		);
+		routeItem(
+			"当前焦点",
+			`${d.focus.length} 项`,
+			this.plugin.talosSettings.tasksPath
+		);
 
 		const actions = cockpit.createDiv({ cls: "daily-actions" });
 		for (const action of [
 			{ label: "开工", command: "开工", desc: "接收今天第一步", icon: "play" },
-			{ label: "晨间", command: "/morning", desc: "简报与焦点确认", icon: "sunrise" },
-			{ label: "收工", command: "收工", desc: "回填并铺好明天", icon: "square" },
-			{ label: "记忆", command: "/memory", desc: "保存实质碎片", icon: "brain" },
+			{
+				label: "晨间",
+				command: "/morning",
+				desc: "简报与焦点确认",
+				icon: "sunrise",
+			},
+			{
+				label: "收工",
+				command: "收工",
+				desc: "回填并铺好明天",
+				icon: "square",
+			},
+			{
+				label: "记忆",
+				command: "/memory",
+				desc: "保存实质碎片",
+				icon: "brain",
+			},
 		]) {
-			const button = actions.createEl("button", { cls: "daily-command daily-item" });
+			const button = actions.createEl("button", {
+				cls: "daily-command daily-item",
+			});
 			button.type = "button";
 			const icon = button.createSpan({ cls: "daily-command-icon" });
 			setIcon(icon, action.icon);
@@ -2242,50 +2289,130 @@ export class TalosView extends ItemView {
 			button.addEventListener("click", () => void this.copyText(action.command));
 		}
 
-		const rails = this.panel(work, "#F472B6", "执行铁轨", "NO SECOND GUESSING");
+		const supportGrid = page.createDiv({
+			cls: "workflow-v2-secondary daily-v2-secondary",
+		});
+		const rails = this.panel(
+			supportGrid,
+			"#F472B6",
+			"执行铁轨",
+			"RULES · ACTIVE FOCUS"
+		);
+		rails.setAttribute("data-workflow-section", "supporting-rules");
 		const railList = rails.createDiv({ cls: "daily-rails" });
 		for (const rail of [
-			{ title: "主轨 · 输出闭环", desc: "每天优先推动一条内容走到发布、排期或回填。" },
-			{ title: "副轨 · 周轮值项目", desc: "项目推进不靠心情，轮到谁就推进谁的一个结果。" },
-			{ title: "回轨 · 收工记忆", desc: "未完成不内耗，只记录阻塞原因与明早第一步。" },
-			{ title: "硬刹车", desc: "没发之前，不扩建发布系统；输入处理不清仓。" },
+			{
+				title: "主轨 · 输出闭环",
+				desc: "每天优先推动一条内容走到发布、排期或回填。",
+			},
+			{
+				title: "副轨 · 周轮值项目",
+				desc: "项目推进不靠心情，轮到谁就推进谁的一个结果。",
+			},
+			{
+				title: "回轨 · 收工记忆",
+				desc: "未完成不内耗，只记录阻塞原因与明早第一步。",
+			},
+			{
+				title: "硬刹车",
+				desc: "没发之前，不扩建发布系统；输入处理不清仓。",
+			},
 		]) {
-			const item = railList.createDiv({ cls: "daily-rail daily-item" });
+			const item = railList.createDiv({ cls: "daily-rail" });
 			item.createEl("b", { text: rail.title });
 			item.createEl("span", { text: rail.desc });
 		}
+
 		const focusList = rails.createDiv({ cls: "daily-focus-list" });
-		for (const focus of d.focus) {
-			const item = focusList.createDiv({ cls: `daily-focus daily-item level-${focus.level}` });
-			item.createEl("b", { text: focus.title });
-			if (focus.doneWhen) item.createEl("small", { text: `done_when · ${focus.doneWhen}` });
-			else if (focus.desc) item.createEl("small", { text: focus.desc });
-			item.addEventListener("click", () => void openFile(this.app, focus.path || this.plugin.talosSettings.tasksPath));
+		if (d.focus.length === 0) {
+			renderTalosEmptyState(
+				focusList,
+				"暂无活跃焦点",
+				"打开任务池写下今天唯一的 done_when。",
+				{
+					label: "打开任务池",
+					icon: "list-checks",
+					onActivate: () =>
+						void openFile(this.app, this.plugin.talosSettings.tasksPath),
+				}
+			);
+		} else {
+			for (const focus of d.focus) {
+				const item = focusList.createDiv({
+					cls: `daily-focus daily-item level-${focus.level}`,
+				});
+				item.createEl("b", { text: focus.title });
+				if (focus.doneWhen) {
+					item.createEl("small", {
+						text: `done_when · ${focus.doneWhen}`,
+					});
+				} else if (focus.desc) {
+					item.createEl("small", { text: focus.desc });
+				}
+				item.addEventListener("click", () =>
+					void openFile(
+						this.app,
+						focus.path || this.plugin.talosSettings.tasksPath
+					)
+				);
+			}
 		}
 
-		// 排列密排：协议卡与执行入口并排（都是卡片组，半栏刚好）；周轮值 7 项保通栏
-		const pair = page.createDiv({ cls: "panel-grid" });
-		const protocol = this.panel(pair, "#FBBF24", "抗选择瘫痪协议", "FOUR SWITCHES");
-		const protocolGrid = protocol.createDiv({ cls: "daily-protocol" });
+		const guide = this.panel(
+			supportGrid,
+			"#FBBF24",
+			"执行协议与入口",
+			"FOUR SWITCHES · LIVE FILES"
+		);
+		guide.addClass("daily-v2-guide");
+		guide.setAttribute("data-workflow-section", "protocol-and-entry");
+		const protocolGrid = guide.createDiv({ cls: "daily-protocol" });
 		for (const item of [
 			["唯一胜利条件", "一天只盯第一个 done_when，其他进展都是 bonus。"],
 			["先发后修", "公开发布没破零前，新模板与新基建默认延后。"],
 			["周几替你选", "第二深度块由周轮值表决定，不现场挑项目。"],
 			["明早第一步", "收工时必须写下明早第一个动作。"],
 		]) {
-			const card = protocolGrid.createDiv({ cls: "daily-proto daily-item" });
+			const card = protocolGrid.createDiv({ cls: "daily-proto" });
 			card.createEl("b", { text: item[0] });
 			card.createEl("span", { text: item[1] });
 		}
 
-		const mapPanel = this.panel(pair, "#34D399", "执行入口", "LIVE FILES");
-		const map = mapPanel.createDiv({ cls: "daily-map" });
+		const entryHead = guide.createDiv({ cls: "workflow-v2-subhead" });
+		entryHead.createEl("strong", { text: "快速入口" });
+		entryHead.createEl("span", { text: "点击进入原始文件" });
+		const map = guide.createDiv({ cls: "daily-map" });
 		for (const node of [
-			{ label: "每日操作系统", desc: "原始说明与规则", path: "每日操作系统.md", icon: "calendar-check" },
-			{ label: "tasks.md", desc: "焦点与 done_when", path: this.plugin.talosSettings.tasksPath, icon: "list-checks" },
-			{ label: "输出统一出口", desc: "发布前唯一队列", path: this.paths.outletFile, icon: "send" },
-			{ label: "运营候选池", desc: "发布后反馈池", path: this.paths.opsCandidatesFile, icon: "activity" },
-			{ label: "CONTEXT", desc: "近期状态与项目台账", path: this.paths.contextFile, icon: "scan-text" },
+			{
+				label: "每日操作系统",
+				desc: "原始说明与规则",
+				path: "每日操作系统.md",
+				icon: "calendar-check",
+			},
+			{
+				label: "tasks.md",
+				desc: "焦点与 done_when",
+				path: this.plugin.talosSettings.tasksPath,
+				icon: "list-checks",
+			},
+			{
+				label: "输出统一出口",
+				desc: "发布前唯一队列",
+				path: this.paths.outletFile,
+				icon: "send",
+			},
+			{
+				label: "运营候选池",
+				desc: "发布后反馈池",
+				path: this.paths.opsCandidatesFile,
+				icon: "activity",
+			},
+			{
+				label: "CONTEXT",
+				desc: "近期状态与项目台账",
+				path: this.paths.contextFile,
+				icon: "scan-text",
+			},
 		]) {
 			const card = map.createDiv({ cls: "daily-node daily-item" });
 			const icon = card.createSpan({ cls: "daily-node-icon" });
@@ -2296,10 +2423,18 @@ export class TalosView extends ItemView {
 			card.addEventListener("click", () => void openFile(this.app, node.path));
 		}
 
-		const weekPanel = this.panel(page, "#A78BFA", "周轮值表 · 深度块②", "WEEK ROUTER");
+		const weekPanel = this.panel(
+			page,
+			"#A78BFA",
+			"周轮值表 · 深度块②",
+			"WEEK ROUTER"
+		);
+		weekPanel.addClass("daily-v2-week-panel");
 		const week = weekPanel.createDiv({ cls: "daily-week" });
 		for (const item of rota) {
-			const day = week.createDiv({ cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}` });
+			const day = week.createDiv({
+				cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}`,
+			});
 			day.createEl("small", { text: `${item.code} · ${item.label}` });
 			day.createEl("b", { text: item.project });
 			day.createEl("span", { text: item.desc });
@@ -2308,9 +2443,16 @@ export class TalosView extends ItemView {
 	}
 
 	private pageOutput(page: HTMLElement, d: Collected): void {
-		const pending = d.output.metrics.find((item) => item.label === "今日待发") || d.output.metrics[0];
-		const platformMetric = d.output.metrics.find((item) => item.label === "平台稿件") || d.output.metrics[1];
-		const opsMetric = d.output.metrics.find((item) => item.label === "运营候选") || d.output.metrics[2];
+		const pending =
+			d.output.metrics.find((item) => item.label === "今日待发") ||
+			d.output.metrics[0];
+		const platformMetric =
+			d.output.metrics.find((item) => item.label === "平台稿件") ||
+			d.output.metrics[1];
+		const opsMetric =
+			d.output.metrics.find((item) => item.label === "运营候选") ||
+			d.output.metrics[2];
+
 		this.moduleHero(page, {
 			ac: "#FB7185",
 			icon: "send",
@@ -2318,31 +2460,131 @@ export class TalosView extends ItemView {
 			title: "输出作战室",
 			desc: "从统一出口到五平台分发，把待发、发布、回填放在同一条线上看。",
 			stats: [
-				{ label: pending?.label || "今日待发", value: pending?.value || "0", sub: pending?.sub, path: pending?.path, tone: pending?.tone || "default" },
-				{ label: platformMetric?.label || "平台稿件", value: platformMetric?.value || "0", sub: platformMetric?.sub, path: platformMetric?.path, tone: platformMetric?.tone || "default" },
-				{ label: opsMetric?.label || "运营候选", value: opsMetric?.value || "0", sub: opsMetric?.sub, path: opsMetric?.path, tone: opsMetric?.tone || "default" },
+				{
+					label: pending?.label || "今日待发",
+					value: pending?.value || "0",
+					sub: pending?.sub,
+					path: pending?.path,
+					tone: pending?.tone || "default",
+				},
+				{
+					label: platformMetric?.label || "平台稿件",
+					value: platformMetric?.value || "0",
+					sub: platformMetric?.sub,
+					path: platformMetric?.path,
+					tone: platformMetric?.tone || "default",
+				},
+				{
+					label: opsMetric?.label || "运营候选",
+					value: opsMetric?.value || "0",
+					sub: opsMetric?.sub,
+					path: opsMetric?.path,
+					tone: opsMetric?.tone || "default",
+				},
 			],
 			actions: [
-				{ label: "统一出口", icon: "external-link", path: this.paths.outletFile },
+				{
+					label: "统一出口",
+					icon: "external-link",
+					path: this.paths.outletFile,
+				},
 				{ label: "输出流", icon: "copy", command: "/output" },
-				{ label: "运营池", icon: "activity", path: this.paths.opsCandidatesFile },
+				{
+					label: "运营池",
+					icon: "activity",
+					path: this.paths.opsCandidatesFile,
+				},
 			],
 		});
-		const p = this.panel(page, "#34D399", "输出作战室", "统一出口 · 五平台发布闭环");
-		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.output.metrics);
-		const row = page.createDiv({ cls: "dashboard-grid" });
-		const queue = this.panel(row, "#FB7185", "今日待发", this.paths.outletFile);
-		this.fillSignalList(queue.createDiv({ cls: "detail-list" }), d.output.queue, "统一出口暂无待发条目");
-		const ops = this.panel(row, "#A78BFA", "运营候选", "发布后观察 · 待确认");
-		this.fillSignalList(ops.createDiv({ cls: "detail-list" }), d.output.opsCandidates, "暂无待确认运营候选");
-		const platforms = this.panel(page, "#38E1FF", "平台分发", "抖音 / 小红书 / X / 公众号 / 知识星球");
-		this.fillPlatforms(platforms.createDiv({ cls: "platform-grid" }), d.output.platforms);
+
+		const primary = page.createDiv({
+			cls: "workflow-v2-primary output-v2-primary",
+		});
+		primary.setAttribute("data-workflow-layout", "split");
+
+		const closure = this.panel(
+			primary,
+			"#34D399",
+			"平台闭环分布",
+			"已发布 · 待闭环 · 未分类"
+		);
+		closure.setAttribute("data-workflow-section", "core-data");
+		this.fillOutputClosureChart(
+			closure.createDiv({ cls: "output-v2-closure-chart" }),
+			d.output.platforms
+		);
+
+		const attention = this.panel(
+			primary,
+			"#FB7185",
+			"今日关注",
+			"待发队列 · 运营候选"
+		);
+		attention.addClass("output-v2-attention-panel");
+		attention.setAttribute(
+			"data-workflow-section",
+			"attention-and-actions"
+		);
+		for (const group of [
+			{
+				title: "今日待发",
+				meta: this.paths.outletFile,
+				items: d.output.queue,
+				empty: "统一出口暂无待发条目",
+			},
+			{
+				title: "运营候选",
+				meta: "发布后观察 · 待确认",
+				items: d.output.opsCandidates,
+				empty: "暂无待确认运营候选",
+			},
+		]) {
+			const section = attention.createDiv({
+				cls: "output-v2-attention-group",
+			});
+			const head = section.createDiv({
+				cls: "output-v2-attention-group__head",
+			});
+			head.createEl("strong", { text: group.title });
+			head.createEl("span", {
+				text: `${group.items.length} · ${group.meta}`,
+			});
+			this.fillSignalList(
+				section.createDiv({ cls: "detail-list" }),
+				group.items,
+				group.empty
+			);
+		}
+
+		const platforms = this.panel(
+			page,
+			"#38E1FF",
+			"平台分发明细",
+			"抖音 / 小红书 / X / 公众号 / 知识星球"
+		);
+		platforms.addClass("output-v2-platform-panel");
+		platforms.setAttribute("data-workflow-section", "platform-details");
+		this.fillPlatforms(
+			platforms.createDiv({ cls: "platform-grid" }),
+			d.output.platforms
+		);
 	}
 
 	private pageTalos(page: HTMLElement, d: Collected): void {
-		const assets = d.talosProduct.metrics.find((item) => item.label === "TALOS 资产") || d.talosProduct.metrics[0];
-		const delivery = d.talosProduct.metrics.find((item) => item.label === "交付 SOP") || d.talosProduct.metrics[1];
-		const consoleMod = d.talosProduct.metrics.find((item) => item.label === "控制台") || d.talosProduct.metrics[2];
+		const assets =
+			d.talosProduct.metrics.find(
+				(item) => item.label === "TALOS 资产"
+			) || d.talosProduct.metrics[0];
+		const delivery =
+			d.talosProduct.metrics.find(
+				(item) => item.label === "交付 SOP"
+			) || d.talosProduct.metrics[1];
+		const consoleMod =
+			d.talosProduct.metrics.find(
+				(item) => item.label === "控制台"
+			) || d.talosProduct.metrics[2];
+		const allGates = [...d.warRoom.gates, ...d.warRoom.pubActions];
+
 		this.moduleHero(page, {
 			ac: "#1D4ED8",
 			icon: "filter",
@@ -2357,31 +2599,119 @@ export class TalosView extends ItemView {
 					path: `${this.paths.talosProjectDir}/tasks.md`,
 					tone: d.warRoom.stopTriggered ? "hot" : "good",
 				},
-				{ label: assets?.label || "TALOS 资产", value: assets?.value || "0", sub: assets?.sub, path: assets?.path, tone: assets?.tone || "default" },
-				{ label: delivery?.label || "交付 SOP", value: delivery?.value || "0", sub: delivery?.sub, path: delivery?.path, tone: delivery?.tone || "default" },
-				{ label: consoleMod?.label || "控制台", value: consoleMod?.value || "0", sub: consoleMod?.sub, path: consoleMod?.path, tone: consoleMod?.tone || "default" },
+				{
+					label: assets?.label || "TALOS 资产",
+					value: assets?.value || "0",
+					sub: assets?.sub,
+					path: assets?.path,
+					tone: assets?.tone || "default",
+				},
+				{
+					label: delivery?.label || "交付 SOP",
+					value: delivery?.value || "0",
+					sub: delivery?.sub,
+					path: delivery?.path,
+					tone: delivery?.tone || "default",
+				},
+				{
+					label: consoleMod?.label || "控制台",
+					value: consoleMod?.value || "0",
+					sub: consoleMod?.sub,
+					path: consoleMod?.path,
+					tone: consoleMod?.tone || "default",
+				},
 			],
 			actions: [
-				{ label: "任务闸门", icon: "list-checks", path: `${this.paths.talosProjectDir}/tasks.md` },
-				{ label: "产品地图", icon: "map", path: `${this.paths.talosProjectDir}/_README.md` },
+				{
+					label: "任务闸门",
+					icon: "list-checks",
+					path: `${this.paths.talosProjectDir}/tasks.md`,
+				},
+				{
+					label: "产品地图",
+					icon: "map",
+					path: `${this.paths.talosProjectDir}/_README.md`,
+				},
 				{ label: "发布流", icon: "copy", command: "/output" },
 			],
 		});
-		const banner = page.createDiv({ cls: "panel banner" });
-		banner.setCssProps({ "--ac": d.warRoom.stopTriggered ? "#FB7185" : "#4D8DFF" });
+
+		const primary = page.createDiv({
+			cls: "workflow-v2-primary talos-v2-primary",
+		});
+		primary.setAttribute("data-workflow-layout", "split");
+
+		const release = this.panel(
+			primary,
+			d.warRoom.stopTriggered ? "#FB7185" : "#4D8DFF",
+			"发布态势",
+			"发布动作 · 冻结天数 · 闸门状态分布"
+		);
+		release.addClass("talos-v2-release-panel");
+		release.setAttribute("data-workflow-section", "core-data");
+		const banner = release.createDiv({
+			cls: "banner talos-v2-release-banner",
+		});
+		banner.setCssProps({
+			"--ac": d.warRoom.stopTriggered ? "#FB7185" : "#4D8DFF",
+		});
 		this.fillBanner(banner, d.warRoom);
-		const metrics = this.panel(page, "#FBBF24", "TALOS 产品总览", "七个产品分区 · 发布闸门");
-		this.fillMetricGrid(metrics.createDiv({ cls: "metric-grid" }), d.talosProduct.metrics);
-		const row = page.createDiv({ cls: "dashboard-grid" });
-		const gates = this.panel(row, "#FBBF24", "统一七门", "G1–G7");
-		this.fillGates(gates.createDiv({ cls: "gates" }), d.warRoom.gates);
-		const pub = this.panel(row, "#FB7185", "内容发布动作", "PUB-W · 非产品发布门");
-		this.fillGates(pub.createDiv({ cls: "gates" }), d.warRoom.pubActions);
-		const modules = this.panel(page, "#4D8DFF", "产品分区", "理论 / 品牌 / 内容 / 产品 / 获客 / 交付 / 控制台");
-		this.fillTalosModules(modules.createDiv({ cls: "module-grid" }), d.talosProduct.modules);
+		this.fillGateStateChart(
+			release.createDiv({ cls: "talos-v2-gate-chart" }),
+			allGates
+		);
+
+		const gates = this.panel(
+			primary,
+			"#FBBF24",
+			"关键闸门",
+			d.warRoom.stopTriggered
+				? "停止条件已触发 · 先处理阻塞"
+				: "G1–G7 · PUB-W"
+		);
+		gates.addClass("talos-v2-gate-panel");
+		gates.setAttribute(
+			"data-workflow-section",
+			"attention-and-actions"
+		);
+		const gateGroups: Array<[string, string, GateItem[]]> = [
+			["统一七门", "G1–G7", d.warRoom.gates],
+			["内容发布动作", "PUB-W · 非产品发布门", d.warRoom.pubActions],
+		];
+		for (const [title, meta, items] of gateGroups) {
+			const section = gates.createDiv({
+				cls: "talos-v2-gate-group",
+			});
+			const head = section.createDiv({
+				cls: "talos-v2-gate-group__head",
+			});
+			head.createEl("strong", { text: title });
+			head.createEl("span", {
+				text: `${items.filter((item) => item.state === "blocked").length} 阻塞 · ${meta}`,
+			});
+			this.fillGates(section.createDiv({ cls: "gates" }), items);
+		}
+
+		const modules = this.panel(
+			page,
+			"#4D8DFF",
+			"产品分区",
+			"理论 / 品牌 / 内容 / 产品 / 获客 / 交付 / 控制台"
+		);
+		modules.addClass("talos-v2-module-panel");
+		modules.setAttribute("data-workflow-section", "product-modules");
+		this.fillTalosModules(
+			modules.createDiv({ cls: "module-grid" }),
+			d.talosProduct.modules
+		);
 	}
 
 	private pageInbox(page: HTMLElement, d: Collected): void {
+		const rankedClusters = [...d.inbox.clusters].sort(
+			(left, right) => right.count - left.count
+		);
+		const priorityCluster = rankedClusters[0];
+
 		this.moduleHero(page, {
 			ac: "#FBBF24",
 			icon: "inbox",
@@ -2414,30 +2744,99 @@ export class TalosView extends ItemView {
 			actions: [
 				{ label: "开始归档", icon: "copy", command: "/intake" },
 				{ label: "消化偏好", icon: "copy", command: "/digest" },
-				{ label: "收件地图", icon: "external-link", path: this.paths.readme("inbox") },
+				{
+					label: "收件地图",
+					icon: "external-link",
+					path: this.paths.readme("inbox"),
+				},
 			],
 		});
-		// 排列密排：消化台与最近进入并排，不再两个整行长条
-		const grid = page.createDiv({ cls: "panel-grid" });
-		const p = this.panel(grid, "#FBBF24", "收件箱消化台", "积压年龄 · 主题聚类");
-		this.fillInboxAgeDist(p.createDiv({ cls: "age-dist" }), d.inbox);
-		this.fillInboxClusters(p.createDiv({ cls: "cluster-grid" }), d.inbox.clusters);
-		const recent = this.panel(grid, "#38E1FF", "最近进入", "点击打开原文件");
-		this.fillSignalList(recent.createDiv({ cls: "detail-list" }), d.inbox.recent, "收件箱已清空");
+
+		const triage = page.createDiv({
+			cls: "workflow-v2-primary inbox-v2-primary",
+		});
+		triage.setAttribute("data-workflow-layout", "split");
+
+		const age = this.panel(
+			triage,
+			"#FBBF24",
+			"积压年龄",
+			"0–3D · 4–7D · 8–14D · >14D"
+		);
+		age.setAttribute("data-workflow-section", "core-data");
+		if (d.inbox.count > 0) {
+			this.fillInboxAgeDist(age.createDiv({ cls: "age-dist" }), d.inbox);
+		} else {
+			renderTalosEmptyState(
+				age,
+				"收件箱已清空",
+				"当前没有需要分诊的内容，新的输入会继续进入这里。",
+				{
+					label: "打开收件箱",
+					icon: "inbox",
+					onActivate: () =>
+						void openFile(this.app, this.paths.readme("inbox")),
+				}
+			);
+		}
+
+		const clusters = this.panel(
+			triage,
+			"#38E1FF",
+			"主题分诊",
+			priorityCluster
+				? `按规模排序 · 先处理「${priorityCluster.name}」`
+				: "暂无待消化主题"
+		);
+		clusters.setAttribute(
+			"data-workflow-section",
+			"attention-and-actions"
+		);
+		this.fillInboxClusters(
+			clusters.createDiv({ cls: "cluster-grid" }),
+			rankedClusters
+		);
+
+		const recent = this.panel(
+			page,
+			"#A78BFA",
+			"最近进入",
+			"第三层入口 · 点击打开原文件"
+		);
+		recent.addClass("inbox-v2-recent-panel");
+		recent.setAttribute("data-workflow-section", "recent-entry");
+		this.fillSignalList(
+			recent.createDiv({ cls: "detail-list" }),
+			d.inbox.recent,
+			"收件箱已清空"
+		);
 	}
 
 	private pageHealth(page: HTMLElement, d: Collected): void {
-		const health = d.healthDigest.metrics.find((item) => item.label === "健康分") || d.healthDigest.metrics[0];
-		const approvals = d.healthDigest.metrics.find((item) => item.label === "待审批") || d.healthDigest.metrics[1];
-		const candidates = d.healthDigest.metrics.find((item) => item.label === "偏好候选") || d.healthDigest.metrics[2];
-		// 填充式布局 aux：健康分趋势差值（已有 healthTrend 数据）、审批池清空态
+		const health =
+			d.healthDigest.metrics.find((item) => item.label === "健康分") ||
+			d.healthDigest.metrics[0];
+		const approvals =
+			d.healthDigest.metrics.find((item) => item.label === "待审批") ||
+			d.healthDigest.metrics[1];
+		const candidates =
+			d.healthDigest.metrics.find((item) => item.label === "偏好候选") ||
+			d.healthDigest.metrics[2];
+		const pendingTotal = d.approvals.length + d.candidates.length;
+
 		if (health && d.healthTrend.length > 1) {
 			const last = d.healthTrend[d.healthTrend.length - 1];
-			const prev = d.healthTrend[d.healthTrend.length - 2];
-			const delta = (last?.score ?? 0) - (prev?.score ?? 0);
-			health.aux = delta > 0 ? `↑ ${delta} vs 上次` : delta < 0 ? `↓ ${Math.abs(delta)} vs 上次` : "→ 持平";
+			const previous = d.healthTrend[d.healthTrend.length - 2];
+			const delta = (last?.score ?? 0) - (previous?.score ?? 0);
+			health.aux =
+				delta > 0
+					? `↑ ${delta} vs 上次`
+					: delta < 0
+						? `↓ ${Math.abs(delta)} vs 上次`
+						: "→ 持平";
 		}
 		if (approvals && d.approvals.length === 0) approvals.aux = "清空";
+
 		this.moduleHero(page, {
 			ac: "#34D399",
 			icon: "activity",
@@ -2445,36 +2844,120 @@ export class TalosView extends ItemView {
 			title: "系统健康",
 			desc: "把健康分、审批池、偏好候选和错误模式放到同一屏，优先处理会卡住系统的风险。",
 			stats: [
-				{ label: health?.label || "健康分", value: health?.value || "—", sub: health?.sub, path: health?.path, tone: health?.tone || "default" },
-				{ label: approvals?.label || "待审批", value: approvals?.value || "0", sub: approvals?.sub, path: approvals?.path, tone: approvals?.tone || "default" },
-				{ label: candidates?.label || "偏好候选", value: candidates?.value || "0", sub: candidates?.sub, path: candidates?.path, tone: candidates?.tone || "default" },
+				{
+					label: health?.label || "健康分",
+					value: health?.value || "—",
+					sub: health?.sub,
+					path: health?.path,
+					tone: health?.tone || "default",
+				},
+				{
+					label: approvals?.label || "待审批",
+					value: approvals?.value || "0",
+					sub: approvals?.sub,
+					path: approvals?.path,
+					tone: approvals?.tone || "default",
+				},
+				{
+					label: candidates?.label || "偏好候选",
+					value: candidates?.value || "0",
+					sub: candidates?.sub,
+					path: candidates?.path,
+					tone: candidates?.tone || "default",
+				},
 			],
 			actions: [
-				{ label: "健康日志", icon: "external-link", path: this.plugin.talosSettings.healthLogPath },
-				{ label: "审批池", icon: "clipboard-list", path: this.plugin.talosSettings.pendingApprovalsPath },
+				{
+					label: "健康日志",
+					icon: "external-link",
+					path: this.plugin.talosSettings.healthLogPath,
+				},
+				{
+					label: "审批池",
+					icon: "clipboard-list",
+					path: this.plugin.talosSettings.pendingApprovalsPath,
+				},
 				{ label: "快检", icon: "copy", command: "/maintain quick" },
 			],
 		});
-		const p = this.panel(page, "#34D399", "系统健康中心", "健康分 · 审批 · 候选 · 错误模式");
-		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.healthDigest.metrics);
-		// 排列密排：趋势图通栏（图表需要横宽），四个列表 panel 2×2 密排，消灭整行长条
-		const grid = page.createDiv({ cls: "panel-grid" });
-		const trendP = this.panel(grid, "#F472B6", "健康分趋势", "health-log · 近 9 次");
-		trendP.addClass("span-2");
-		this.fillTrend(trendP, d.healthTrend);
-		const loops = this.panel(grid, "#38E1FF", "循环状态", "loop-health-log");
-		this.fillSignalList(loops.createDiv({ cls: "detail-list" }), d.healthDigest.loopStatus, "暂无循环状态记录");
-		const apP = this.panel(grid, "#FBBF24", "待审批", "pending-approvals");
-		this.fillSignalList(apP.createDiv({ cls: "detail-list" }), d.approvals, "无待审批");
-		const caP = this.panel(grid, "#A78BFA", "偏好候选", "candidates");
-		this.fillSignalList(caP.createDiv({ cls: "detail-list" }), d.candidates, "无待确认偏好");
-		const errors = this.panel(grid, "#FB7185", "错误模式", "error-patterns");
-		this.fillSignalList(errors.createDiv({ cls: "detail-list" }), d.healthDigest.errors, "暂无活跃错误模式");
+
+		const primary = page.createDiv({
+			cls: "system-v2-primary health-v2-primary",
+		});
+		primary.setAttribute("data-system-layout", "split");
+
+		const trend = this.panel(
+			primary,
+			"#F472B6",
+			"健康分趋势",
+			"health-log · 近 9 次"
+		);
+		trend.addClass("health-v2-trend-panel");
+		trend.setAttribute("data-system-section", "core-data");
+		this.fillTrend(trend, d.healthTrend);
+
+		const decisions = this.panel(
+			primary,
+			"#FBBF24",
+			"审批与偏好",
+			pendingTotal > 0
+				? `${pendingTotal} 项可直接处理`
+				: "审批池已清空"
+		);
+		decisions.setAttribute(
+			"data-system-section",
+			"attention-and-actions"
+		);
+		this.renderDecisionWorkspace(decisions, d, 3);
+
+		const diagnostics = page.createDiv({
+			cls: "system-v2-secondary health-v2-diagnostics",
+		});
+		const loops = this.panel(
+			diagnostics,
+			"#38E1FF",
+			"循环状态",
+			"loop-health-log"
+		);
+		this.fillSignalList(
+			loops.createDiv({ cls: "detail-list" }),
+			d.healthDigest.loopStatus,
+			"暂无循环状态记录"
+		);
+		const errors = this.panel(
+			diagnostics,
+			"#FB7185",
+			"错误模式",
+			d.healthDigest.errors.length > 0
+				? `${d.healthDigest.errors.length} 项需要诊断`
+				: "error-patterns · 当前清空"
+		);
+		this.fillSignalList(
+			errors.createDiv({ cls: "detail-list" }),
+			d.healthDigest.errors,
+			"暂无活跃错误模式"
+		);
 	}
 
 	private pageProjects(page: HTMLElement, d: Collected): void {
-		const p0Count = d.projects.filter((project) => project.priority === "p0").length;
-		const projectNotes = d.projects.reduce((sum, project) => sum + project.count, 0);
+		const p0Count = d.projects.filter(
+			(project) => project.priority === "p0"
+		).length;
+		const projectNotes = d.projects.reduce(
+			(sum, project) => sum + project.count,
+			0
+		);
+		const priorityOrder: Record<ProjectScene["priority"], number> = {
+			p0: 0,
+			p1: 1,
+			p2: 2,
+		};
+		const rankedProjects = [...d.projects].sort(
+			(left, right) =>
+				priorityOrder[left.priority] - priorityOrder[right.priority] ||
+				right.count - left.count
+		);
+
 		this.moduleHero(page, {
 			ac: "#F59E0B",
 			icon: "folder-kanban",
@@ -2482,62 +2965,231 @@ export class TalosView extends ItemView {
 			title: "项目场景",
 			desc: "按活跃度和优先级扫项目，先让高频项目露头，再进入具体场景推进。",
 			stats: [
-				{ label: "项目数", value: String(d.projects.length), sub: `${this.paths.dir("projects")} 子场景`, path: this.paths.readme("projects"), tone: "default" },
-				{ label: "高频项目", value: String(p0Count), sub: "P0 场景优先推进", path: this.paths.sceneIndexFile, tone: p0Count > 0 ? "hot" : "default" },
-				{ label: "项目笔记", value: String(projectNotes), sub: "不含 README", path: this.paths.readme("projects"), tone: "good" },
+				{
+					label: "项目数",
+					value: String(d.projects.length),
+					sub: `${this.paths.dir("projects")} 子场景`,
+					path: this.paths.readme("projects"),
+					tone: "default",
+				},
+				{
+					label: "高频项目",
+					value: String(p0Count),
+					sub: "P0 场景优先推进",
+					path: this.paths.sceneIndexFile,
+					tone: p0Count > 0 ? "hot" : "default",
+				},
+				{
+					label: "项目笔记",
+					value: String(projectNotes),
+					sub: "不含 README",
+					path: this.paths.readme("projects"),
+					tone: "good",
+				},
 			],
 			actions: [
-				{ label: "项目总图", icon: "map", path: this.paths.readme("projects") },
-				{ label: "场景索引", icon: "external-link", path: this.paths.sceneIndexFile },
+				{
+					label: "项目总图",
+					icon: "map",
+					path: this.paths.readme("projects"),
+				},
+				{
+					label: "场景索引",
+					icon: "external-link",
+					path: this.paths.sceneIndexFile,
+				},
 				{ label: "检索项目", icon: "copy", command: "/retrieval" },
 			],
 		});
-		// 排列密排：项目地图与场景索引并排（场景索引只有 2 条，整行拉满留白严重）
-		const grid = page.createDiv({ cls: "panel-grid project-scene-layout" });
-		const p = this.panel(grid, "#4D8DFF", "项目场景地图", `${this.paths.dir("projects")} · 高频项目优先`);
-		p.addClass("project-map-panel");
-		const cards = p.createDiv({ cls: "project-grid" });
+
+		const primary = page.createDiv({
+			cls: "workflow-v2-primary projects-v2-primary project-scene-layout",
+		});
+		primary.setAttribute("data-workflow-layout", "split");
+
+		const portfolio = this.panel(
+			primary,
+			"#4D8DFF",
+			"项目组合",
+			"优先级分布 · 已跟踪任务完成率"
+		);
+		portfolio.addClass("project-portfolio-panel");
+		portfolio.setAttribute("data-workflow-section", "core-data");
+		this.fillProjectPortfolioChart(
+			portfolio.createDiv({ cls: "project-v2-portfolio-chart" }),
+			d.projects
+		);
+
+		const attention = this.panel(
+			primary,
+			"#F59E0B",
+			"重点项目",
+			"P0 优先 · 最近活跃度次序"
+		);
+		attention.addClass("project-entry-panel");
+		attention.setAttribute(
+			"data-workflow-section",
+			"attention-and-actions"
+		);
+		const attentionList = attention.createDiv({
+			cls: "project-v2-attention-list",
+		});
+		if (rankedProjects.length === 0) {
+			renderTalosEmptyState(
+				attentionList,
+				"暂无项目场景",
+				"建立项目 README 后，这里会显示优先级与最新进展。",
+				{
+					label: "打开项目目录",
+					icon: "folder-kanban",
+					onActivate: () =>
+						void openFile(this.app, this.paths.readme("projects")),
+				}
+			);
+		} else {
+			for (const project of rankedProjects.slice(0, 4)) {
+				const row = attentionList.createEl("button", {
+					cls: `project-card project-v2-priority-row priority-${project.priority}`,
+					attr: { type: "button" },
+				});
+				const head = row.createDiv({
+					cls: "project-v2-priority-row__head",
+				});
+				head.createEl("strong", { text: project.name });
+				head.createEl("span", {
+					cls: `project-v2-priority-badge priority-${project.priority}`,
+					text: project.priority.toUpperCase(),
+				});
+				row.createEl("small", { text: project.status });
+				row.createEl("small", {
+					cls: "module-latest",
+					text: `最新：${project.latestTitle}`,
+				});
+				if (project.progress) {
+					const pct = Math.round(
+						(project.progress.done /
+							Math.max(project.progress.total, 1)) *
+							100
+					);
+					const progress = row.createDiv({
+						cls: "project-v2-priority-progress",
+					});
+					progress.createSpan().style.width = `${pct}%`;
+					progress.createEl("small", {
+						text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+					});
+				}
+				row.addEventListener("click", () =>
+					void openFile(this.app, project.readme)
+				);
+			}
+		}
+
+		const entryActions = attention.createDiv({
+			cls: "project-v2-entry-actions",
+		});
+		for (const action of [
+			{
+				label: "场景索引",
+				icon: "map",
+				path: this.paths.sceneIndexFile,
+			},
+			{
+				label: "项目总 README",
+				icon: "folder-open",
+				path: this.paths.readme("projects"),
+			},
+		]) {
+			const button = entryActions.createEl("button", {
+				cls: "module-hero-action",
+				attr: { type: "button" },
+			});
+			setIcon(
+				button.createSpan({ cls: "module-hero-action-icon" }),
+				action.icon
+			);
+			button.createSpan({ text: action.label });
+			button.addEventListener("click", () =>
+				void openFile(this.app, action.path)
+			);
+		}
+
+		const mapPanel = this.panel(
+			page,
+			"#A78BFA",
+			"项目场景地图",
+			`${this.paths.dir("projects")} · 全部项目`
+		);
+		mapPanel.addClass("project-map-panel");
+		mapPanel.setAttribute("data-workflow-section", "project-map");
+		const cards = mapPanel.createDiv({ cls: "project-grid" });
+		if (d.projects.length === 0) {
+			renderTalosEmptyState(
+				cards,
+				"暂无项目",
+				"项目目录中出现可识别场景后，将自动生成项目卡片。"
+			);
+		}
 		for (const project of d.projects) {
-			const card = cards.createDiv({ cls: `project-card priority-${project.priority}` });
+			const card = cards.createDiv({
+				cls: `project-card priority-${project.priority}`,
+			});
 			card.createEl("b", { text: project.name });
 			card.createEl("span", { cls: "big", text: String(project.count) });
 			card.createEl("small", { text: project.status });
-			// 任务进度条：复选框完成率（无任务清单的项目给空态提示）
 			if (project.progress) {
-				const pct = Math.round((project.progress.done / project.progress.total) * 100);
-				const prog = card.createDiv({ cls: "proj-progress" });
-				const head = prog.createDiv({ cls: "proj-progress-head" });
+				const pct = Math.round(
+					(project.progress.done /
+						Math.max(project.progress.total, 1)) *
+						100
+				);
+				const progress = card.createDiv({ cls: "proj-progress" });
+				const head = progress.createDiv({
+					cls: "proj-progress-head",
+				});
 				head.createEl("small", { text: "任务进度" });
 				head.createEl("small", {
 					cls: "proj-progress-num",
 					text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
 				});
-				const track = prog.createDiv({ cls: "proj-progress-track" });
-				track.createDiv({ cls: "proj-progress-fill" }).style.width = `${pct}%`;
+				const track = progress.createDiv({
+					cls: "proj-progress-track",
+				});
+				track.createDiv({ cls: "proj-progress-fill" }).style.width =
+					`${pct}%`;
 			} else {
-				card.createEl("small", { cls: "proj-progress-none", text: "无任务清单 · 进度未跟踪" });
+				card.createEl("small", {
+					cls: "proj-progress-none",
+					text: "无任务清单 · 进度未跟踪",
+				});
 			}
-			const latest = card.createEl("small", { cls: "module-latest", text: `最新：${project.latestTitle}` });
+			const latest = card.createEl("small", {
+				cls: "module-latest",
+				text: `最新：${project.latestTitle}`,
+			});
 			if (project.latestPath) {
-				latest.addEventListener("click", (ev) => {
-					ev.stopPropagation();
+				latest.addEventListener("click", (event) => {
+					event.stopPropagation();
 					void openFile(this.app, project.latestPath || "");
 				});
 			}
-			card.addEventListener("click", () => void openFile(this.app, project.readme));
+			card.addEventListener("click", () =>
+				void openFile(this.app, project.readme)
+			);
 		}
-		const scene = this.panel(grid, "#A78BFA", "场景索引", "项目入口总地图");
-		scene.addClass("project-entry-panel");
-		this.fillSignalList(scene.createDiv({ cls: "detail-list" }), [
-			{ title: "打开场景索引", meta: this.paths.sceneIndexFile, path: this.paths.sceneIndexFile },
-			{ title: "打开项目总 README", meta: this.paths.readme("projects"), path: this.paths.readme("projects") },
-		], "场景索引未找到");
 	}
 
 	private pageKnowledge(page: HTMLElement, d: Collected): void {
-		const mocs = d.knowledge.metrics.find((item) => item.label === "MOC 枢纽") || d.knowledge.metrics[0];
-		const insightMetric = d.knowledge.metrics.find((item) => item.label === "原创洞察") || d.knowledge.metrics[1];
-		const materialMetric = d.knowledge.metrics.find((item) => item.label === "外部素材") || d.knowledge.metrics[2];
+		const mocs =
+			d.knowledge.metrics.find((item) => item.label === "MOC 枢纽") ||
+			d.knowledge.metrics[0];
+		const insightMetric =
+			d.knowledge.metrics.find((item) => item.label === "原创洞察") ||
+			d.knowledge.metrics[1];
+		const materialMetric =
+			d.knowledge.metrics.find((item) => item.label === "外部素材") ||
+			d.knowledge.metrics[2];
+
 		this.moduleHero(page, {
 			ac: "#A78BFA",
 			icon: "brain",
@@ -2545,29 +3197,123 @@ export class TalosView extends ItemView {
 			title: "知识枢纽",
 			desc: "原创洞察、外部素材和 MOC 入口分层展示，快速判断该检索、该整理，还是该产出。",
 			stats: [
-				{ label: mocs?.label || "MOC 枢纽", value: mocs?.value || "0", sub: mocs?.sub, path: mocs?.path, tone: mocs?.tone || "default" },
-				{ label: insightMetric?.label || "原创洞察", value: insightMetric?.value || "0", sub: insightMetric?.sub, path: insightMetric?.path, tone: insightMetric?.tone || "default" },
-				{ label: materialMetric?.label || "外部素材", value: materialMetric?.value || "0", sub: materialMetric?.sub, path: materialMetric?.path, tone: materialMetric?.tone || "default" },
+				{
+					label: mocs?.label || "MOC 枢纽",
+					value: mocs?.value || "0",
+					sub: mocs?.sub,
+					path: mocs?.path,
+					tone: mocs?.tone || "default",
+				},
+				{
+					label: insightMetric?.label || "原创洞察",
+					value: insightMetric?.value || "0",
+					sub: insightMetric?.sub,
+					path: insightMetric?.path,
+					tone: insightMetric?.tone || "default",
+				},
+				{
+					label: materialMetric?.label || "外部素材",
+					value: materialMetric?.value || "0",
+					sub: materialMetric?.sub,
+					path: materialMetric?.path,
+					tone: materialMetric?.tone || "default",
+				},
 			],
 			actions: [
-				{ label: "MOC", icon: "external-link", path: this.paths.mocReadme },
-				{ label: "洞察库", icon: "lightbulb", path: this.paths.readme("insights") },
-				{ label: "素材库", icon: "archive", path: this.paths.readme("assets") },
+				{
+					label: "MOC",
+					icon: "external-link",
+					path: this.paths.mocReadme,
+				},
+				{
+					label: "洞察库",
+					icon: "lightbulb",
+					path: this.paths.readme("insights"),
+				},
+				{
+					label: "素材库",
+					icon: "archive",
+					path: this.paths.readme("assets"),
+				},
 			],
 		});
-		const p = this.panel(page, "#A78BFA", "知识枢纽", "MOC · 原创洞察 · 外部素材");
-		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), d.knowledge.metrics);
-		// 排列密排：三个同级列表 panel 三列并排，素材不再独占整行
-		const row = page.createDiv({ cls: "panel-grid cols-3" });
-		const moc = this.panel(row, "#38E1FF", "MOC 概念入口", this.paths.mocDir);
-		this.fillSignalList(moc.createDiv({ cls: "detail-list" }), d.knowledge.mocs, "暂无 MOC");
-		const insights = this.panel(row, "#F472B6", "最近原创洞察", this.paths.dir("insights"));
-		this.fillSignalList(insights.createDiv({ cls: "detail-list" }), d.knowledge.recentInsights, "暂无洞察");
-		const materials = this.panel(row, "#FBBF24", "最近外部素材", this.paths.dir("assets"));
-		this.fillSignalList(materials.createDiv({ cls: "detail-list" }), d.knowledge.recentMaterials, "暂无素材");
+
+		const primary = page.createDiv({
+			cls: "knowledge-v2-primary knowledge-hub-v2-primary",
+		});
+		primary.setAttribute("data-knowledge-layout", "split");
+
+		const structure = this.panel(
+			primary,
+			"#A78BFA",
+			"知识资产结构",
+			"按真实总量生成树状占比"
+		);
+		structure.setAttribute("data-knowledge-section", "core-data");
+		this.fillKnowledgeTreemap(
+			structure.createDiv({ cls: "knowledge-v2-treemap" }),
+			d.knowledge.metrics
+		);
+
+		const recent = this.panel(
+			primary,
+			"#F472B6",
+			"最近新增",
+			"原创洞察 · 外部素材"
+		);
+		recent.addClass("knowledge-v2-recent-panel");
+		recent.setAttribute(
+			"data-knowledge-section",
+			"attention-and-entry"
+		);
+		for (const group of [
+			{
+				title: "原创洞察",
+				meta: this.paths.dir("insights"),
+				items: d.knowledge.recentInsights,
+				empty: "暂无洞察",
+			},
+			{
+				title: "外部素材",
+				meta: this.paths.dir("assets"),
+				items: d.knowledge.recentMaterials,
+				empty: "暂无素材",
+			},
+		]) {
+			const section = recent.createDiv({
+				cls: "knowledge-v2-recent-group",
+			});
+			const head = section.createDiv({
+				cls: "knowledge-v2-recent-group__head",
+			});
+			head.createEl("strong", { text: group.title });
+			head.createEl("span", {
+				text: `${group.items.length} · ${group.meta}`,
+			});
+			this.fillSignalList(
+				section.createDiv({ cls: "detail-list" }),
+				group.items,
+				group.empty
+			);
+		}
+
+		const moc = this.panel(
+			page,
+			"#38E1FF",
+			"MOC 概念入口",
+			this.paths.mocDir
+		);
+		moc.addClass("knowledge-v2-moc-panel");
+		moc.setAttribute("data-knowledge-section", "moc-entry");
+		this.fillSignalList(
+			moc.createDiv({ cls: "detail-list" }),
+			d.knowledge.mocs,
+			"暂无 MOC"
+		);
 	}
 
 	private pageIdentity(page: HTMLElement, d: Collected): void {
+		const pendingTotal = d.approvals.length + d.candidates.length;
 		this.moduleHero(page, {
 			ac: "#6366F1",
 			icon: "fingerprint",
@@ -2575,97 +3321,205 @@ export class TalosView extends ItemView {
 			title: "身份上下文",
 			desc: "用户身份、AI 灵魂和工作记忆并排巡检，确保行动没有脱离长期自我和当前状态。",
 			stats: [
-				{ label: "用户身份", value: String(this.moduleCount(d, "identity")), sub: "使命、状态、偏好、决策", path: this.paths.readme("identity"), tone: "default" },
-				{ label: "AI 灵魂", value: String(this.moduleCount(d, "soul")), sub: "人格契约与立场账本", path: this.paths.readme("soul"), tone: "default" },
+				{
+					label: "用户身份",
+					value: String(this.moduleCount(d, "identity")),
+					sub: "使命、状态、偏好、决策",
+					path: this.paths.readme("identity"),
+					tone: "default",
+				},
+				{
+					label: "AI 灵魂",
+					value: String(this.moduleCount(d, "soul")),
+					sub: "人格契约与立场账本",
+					path: this.paths.readme("soul"),
+					tone: "default",
+				},
 				{
 					label: "待确认",
-					value: String(d.approvals.length + d.candidates.length),
+					value: String(pendingTotal),
 					sub: `${d.approvals.length} 审批 · ${d.candidates.length} 偏好`,
 					path: this.plugin.talosSettings.pendingApprovalsPath,
-					tone: d.approvals.length + d.candidates.length > 0 ? "warn" : "good",
+					tone: pendingTotal > 0 ? "warn" : "good",
 				},
 			],
 			actions: [
-				{ label: "CONTEXT", icon: "scan-text", path: this.paths.contextFile },
-				{ label: "PERSONA", icon: "sparkles", path: this.paths.personaFile },
+				{
+					label: "CONTEXT",
+					icon: "scan-text",
+					path: this.paths.contextFile,
+				},
+				{
+					label: "PERSONA",
+					icon: "sparkles",
+					path: this.paths.personaFile,
+				},
 				{ label: "记忆流", icon: "copy", command: "/memory" },
 			],
 		});
-		const p = this.panel(page, "#4D8DFF", "身份与上下文中枢", "Identity · 灵魂 · working-memory");
-		const metrics: MetricTile[] = [
-			{
-				label: "用户身份",
-				value: String(this.moduleCount(d, "identity")),
-				sub: "使命、状态、偏好、决策",
-				path: this.paths.readme("identity"),
-				tone: "default",
-			},
-			{
-				label: "AI 灵魂",
-				value: String(this.moduleCount(d, "soul")),
-				sub: "人格契约与立场账本",
-				path: this.paths.readme("soul"),
-				tone: "default",
-			},
-			{
-				label: "当前焦点",
-				value: String(d.focus.length),
-				sub: "tasks.md 活跃焦点",
-				path: this.plugin.talosSettings.tasksPath,
-				tone: d.focus.length > 0 ? "good" : "warn",
-			},
-			{
-				label: "待确认",
-				value: String(d.approvals.length + d.candidates.length),
-				sub: `${d.approvals.length} 审批 · ${d.candidates.length} 偏好`,
-				path: this.plugin.talosSettings.pendingApprovalsPath,
-				tone: d.approvals.length + d.candidates.length > 0 ? "warn" : "good",
-			},
-		];
-		this.fillMetricGrid(p.createDiv({ cls: "metric-grid" }), metrics);
 
-		const identities = page.createDiv({ cls: "dashboard-grid identity-grid" });
-		const user = this.panel(identities, "#38E1FF", "Haaper · Identity", "身份事实与当前状态");
-		this.fillSignalList(user.createDiv({ cls: "detail-list" }), [
-			{ title: "TELOS", meta: "使命、目标、信念与长期方向", path: this.paths.telosFile },
-			{ title: "CONTEXT", meta: "近期焦点、项目与系统状态", path: this.paths.contextFile },
-			{ title: "PROFILE", meta: "经确认的场景化偏好", path: this.paths.profileFile },
-			{ title: "战略决策", meta: "方向、方法与品牌级判断", path: this.paths.decisionsFile },
-		], "Identity 文件未找到");
+		const primary = page.createDiv({
+			cls: "knowledge-v2-primary identity-v2-primary",
+		});
+		primary.setAttribute("data-knowledge-layout", "split");
 
-		const soul = this.panel(identities, "#F472B6", "屈原 · 灵魂", "人格契约与独立判断");
-		this.fillSignalList(soul.createDiv({ cls: "detail-list" }), [
-			{ title: "PERSONA", meta: "名字、价值内核、反驳权与边界", path: this.paths.personaFile },
-			{ title: "persona-memory", meta: "演化立场、判断与自我修正", path: this.paths.personaMemoryFile },
-		], "灵魂文件未找到");
+		const contextColumn = primary.createDiv({
+			cls: "knowledge-v2-column identity-v2-context-column",
+		});
+		contextColumn.setAttribute(
+			"data-knowledge-section",
+			"core-context"
+		);
+		const foundation = this.panel(
+			contextColumn,
+			"#4D8DFF",
+			"身份底座",
+			"Haaper · Identity / 屈原 · 灵魂"
+		);
+		foundation.addClass("identity-v2-foundation");
+		for (const group of [
+			{
+				title: "Haaper · Identity",
+				meta: "身份事实与当前状态",
+				items: [
+					{
+						title: "TELOS",
+						meta: "使命、目标、信念与长期方向",
+						path: this.paths.telosFile,
+					},
+					{
+						title: "CONTEXT",
+						meta: "近期焦点、项目与系统状态",
+						path: this.paths.contextFile,
+					},
+					{
+						title: "PROFILE",
+						meta: "经确认的场景化偏好",
+						path: this.paths.profileFile,
+					},
+					{
+						title: "战略决策",
+						meta: "方向、方法与品牌级判断",
+						path: this.paths.decisionsFile,
+					},
+				],
+				empty: "Identity 文件未找到",
+			},
+			{
+				title: "屈原 · 灵魂",
+				meta: "人格契约与独立判断",
+				items: [
+					{
+						title: "PERSONA",
+						meta: "名字、价值内核、反驳权与边界",
+						path: this.paths.personaFile,
+					},
+					{
+						title: "persona-memory",
+						meta: "演化立场、判断与自我修正",
+						path: this.paths.personaMemoryFile,
+					},
+				],
+				empty: "灵魂文件未找到",
+			},
+		]) {
+			const section = foundation.createDiv({
+				cls: "identity-v2-context-group",
+			});
+			const head = section.createDiv({
+				cls: "identity-v2-context-group__head",
+			});
+			head.createEl("strong", { text: group.title });
+			head.createEl("span", { text: group.meta });
+			this.fillSignalList(
+				section.createDiv({ cls: "detail-list" }),
+				group.items,
+				group.empty
+			);
+		}
 
-		const live = page.createDiv({ cls: "dashboard-grid identity-grid" });
-		const focus = this.panel(live, "#FB7185", "当前工作状态", "tasks.md · 最多三个焦点");
+		const attentionColumn = primary.createDiv({
+			cls: "knowledge-v2-column identity-v2-attention-column",
+		});
+		attentionColumn.setAttribute(
+			"data-knowledge-section",
+			"attention-and-actions"
+		);
+		const focus = this.panel(
+			attentionColumn,
+			"#FB7185",
+			"当前工作状态",
+			"tasks.md · 最多三个焦点"
+		);
 		this.fillSignalList(
 			focus.createDiv({ cls: "detail-list" }),
-			d.focus.map((item) => ({
+			d.focus.slice(0, 3).map((item) => ({
 				title: item.title,
-				meta: item.doneWhen ? `done_when · ${item.doneWhen}` : item.desc,
+				meta: item.doneWhen
+					? `done_when · ${item.doneWhen}`
+					: item.desc,
 				path: item.path || this.plugin.talosSettings.tasksPath,
 			})),
 			"今日尚未设置焦点"
 		);
 
-		const governance = this.panel(live, "#FBBF24", "记忆与治理", "工作记忆的真实入口");
-		this.fillSignalList(governance.createDiv({ cls: "detail-list" }), [
-			{ title: "任务池", meta: `${d.focus.length} 个当前焦点`, path: this.plugin.talosSettings.tasksPath },
-			{ title: "审批池", meta: `${d.approvals.length} 项待决策`, path: this.plugin.talosSettings.pendingApprovalsPath },
-			{ title: "偏好候选", meta: `${d.candidates.length} 条待确认`, path: this.plugin.talosSettings.candidatesPath },
-			{ title: "健康日志", meta: `系统分 ${d.overview.health.value}`, path: this.plugin.talosSettings.healthLogPath },
-		], "工作记忆入口未找到");
+		const decisions = this.panel(
+			attentionColumn,
+			"#FBBF24",
+			"审批与偏好",
+			pendingTotal > 0
+				? `${pendingTotal} 项可直接处理`
+				: "审批池已清空"
+		);
+		this.renderDecisionWorkspace(decisions, d, 2);
+
+		const governance = this.panel(
+			page,
+			"#34D399",
+			"记忆与治理入口",
+			"任务 · 审批 · 偏好 · 健康"
+		);
+		governance.addClass("identity-v2-governance-panel");
+		governance.setAttribute(
+			"data-knowledge-section",
+			"governance-entry"
+		);
+		this.fillSignalList(
+			governance.createDiv({ cls: "detail-list" }),
+			[
+				{
+					title: "任务池",
+					meta: `${d.focus.length} 个当前焦点`,
+					path: this.plugin.talosSettings.tasksPath,
+				},
+				{
+					title: "审批池",
+					meta: `${d.approvals.length} 项待决策`,
+					path: this.plugin.talosSettings.pendingApprovalsPath,
+				},
+				{
+					title: "偏好候选",
+					meta: `${d.candidates.length} 条待确认`,
+					path: this.plugin.talosSettings.candidatesPath,
+				},
+				{
+					title: "健康日志",
+					meta: `系统分 ${d.overview.health.value}`,
+					path: this.plugin.talosSettings.healthLogPath,
+				},
+			],
+			"工作记忆入口未找到"
+		);
 	}
 
-
-
-
 	private pageVault(page: HTMLElement, d: Collected): void {
-		const activeDays = d.heatmap.meta.split(" · ")[0] || d.heatmap.meta;
-		const missingReadmes = d.modules.filter((module) => !module.readmeExists).length;
+		const activeDays =
+			d.heatmap.meta.split(" · ")[0] || d.heatmap.meta;
+		const missingModules = d.modules.filter(
+			(module) => !module.readmeExists
+		);
+		const missingReadmes = missingModules.length;
+
 		this.moduleHero(page, {
 			ac: "#38E1FF",
 			icon: "database",
@@ -2673,63 +3527,191 @@ export class TalosView extends ItemView {
 			title: "全库视图",
 			desc: "从内容分布、顶层模块到创建热力图，给整个外脑系统做一次横向巡航。",
 			stats: [
-				{ label: "知识笔记", value: String(d.total), sub: "六大内容目录", path: this.paths.readme("projects"), tone: "default" },
-				{ label: "顶层模块", value: String(d.modules.length), sub: `${missingReadmes} 个 README 异常`, path: this.paths.readme("system"), tone: missingReadmes > 0 ? "warn" : "good" },
-				{ label: "活跃天数", value: activeDays, sub: d.heatmap.meta.split(" · ")[1] || "近 12 个月", path: this.paths.readme("logs"), tone: "good" },
+				{
+					label: "知识笔记",
+					value: String(d.total),
+					sub: "六大内容目录",
+					path: this.paths.readme("projects"),
+					tone: "default",
+				},
+				{
+					label: "顶层模块",
+					value: String(d.modules.length),
+					sub: `${missingReadmes} 个 README 异常`,
+					path: this.paths.readme("system"),
+					tone: missingReadmes > 0 ? "warn" : "good",
+				},
+				{
+					label: "活跃天数",
+					value: activeDays,
+					sub: d.heatmap.meta.split(" · ")[1] || "近 12 个月",
+					path: this.paths.readme("logs"),
+					tone: "good",
+				},
 			],
 			actions: [
-				{ label: "系统地图", icon: "map", path: this.paths.readme("system") },
-				{ label: "项目地图", icon: "folder-kanban", path: this.paths.readme("projects") },
+				{
+					label: "系统地图",
+					icon: "map",
+					path: this.paths.readme("system"),
+				},
+				{
+					label: "项目地图",
+					icon: "folder-kanban",
+					path: this.paths.readme("projects"),
+				},
 				{ label: "周重置", icon: "copy", command: "/weekly-reset" },
 			],
 		});
-		const row = page.createDiv({ cls: "chart-row" });
-		const distP = this.panel(row, "#34D399", "知识库分布", `共 ${d.total} 篇`);
-		this.fillDist(distP.createDiv({ cls: "barchart" }), d.dist);
-		const trendP = this.panel(row, "#F472B6", "健康分趋势", "health-log · 近 9 次");
-		this.fillTrend(trendP, d.healthTrend);
 
-		// 热力图上移：紧跟分布/趋势（数据图表区），模块地图沉底（2026-07-20 实机反馈）
-		const heat = this.panel(page, "#A78BFA", "笔记创建热力图", d.heatmap.meta);
+		const primary = page.createDiv({
+			cls: "system-v2-primary vault-v2-primary",
+		});
+		primary.setAttribute("data-system-layout", "split");
+
+		const distribution = this.panel(
+			primary,
+			"#34D399",
+			"知识库分布",
+			`共 ${d.total} 篇`
+		);
+		distribution.setAttribute("data-system-section", "core-data");
+		this.fillDist(
+			distribution.createDiv({ cls: "barchart" }),
+			d.dist
+		);
+
+		const health = this.panel(
+			primary,
+			"#F472B6",
+			"库健康与异常",
+			missingReadmes > 0
+				? `${missingReadmes} 个模块缺少 README`
+				: "README 完整"
+		);
+		health.addClass("vault-v2-health-panel");
+		health.setAttribute(
+			"data-system-section",
+			"attention-and-actions"
+		);
+		this.fillTrend(health, d.healthTrend);
+		const anomalyHead = health.createDiv({
+			cls: "workflow-v2-subhead vault-v2-anomaly-head",
+		});
+		anomalyHead.createEl("strong", { text: "README 异常" });
+		anomalyHead.createEl("span", {
+			text:
+				missingReadmes > 0
+					? `${missingReadmes} 项待修复`
+					: "当前清空",
+		});
+		this.fillSignalList(
+			health.createDiv({ cls: "detail-list vault-v2-anomaly-list" }),
+			missingModules.map((module) => ({
+				title: module.name,
+				meta: `${module.count} 篇 · 缺少模块 README`,
+				path: module.readme,
+			})),
+			"所有顶层模块均有 README"
+		);
+
+		const heat = this.panel(
+			page,
+			"#A78BFA",
+			"笔记创建热力图",
+			d.heatmap.meta
+		);
+		heat.addClass("vault-v2-heat-panel");
+		heat.setAttribute("data-system-section", "activity-heatmap");
 		const heatWrap = heat.createDiv({ cls: "heatmap" });
+		heatWrap.setAttribute("role", "img");
+		heatWrap.setAttribute(
+			"aria-label",
+			`笔记创建热力图：${d.heatmap.meta}`
+		);
 		for (const month of d.heatmap.months) {
-			const mEl = heatWrap.createDiv({ cls: "heat-month" });
-			mEl.createEl("span", { cls: "heat-mlabel", text: month.label });
-			const weeks = mEl.createDiv({ cls: "heat-weeks" });
+			const monthElement = heatWrap.createDiv({
+				cls: "heat-month",
+			});
+			monthElement.createEl("span", {
+				cls: "heat-mlabel",
+				text: month.label,
+			});
+			const weeks = monthElement.createDiv({ cls: "heat-weeks" });
 			for (const week of month.weeks) {
-				const wEl = weeks.createDiv({ cls: "heat-week" });
+				const weekElement = weeks.createDiv({
+					cls: "heat-week",
+				});
 				for (const cell of week) {
-					const cEl = wEl.createDiv({ cls: "heat-cell" });
-					if (cell.date === "") cEl.addClass("is-empty");
-					else {
-						cEl.setAttribute("data-level", String(cell.level));
-						cEl.setAttribute("title", `${cell.date} · ${cell.count}`);
+					const cellElement = weekElement.createDiv({
+						cls: "heat-cell",
+					});
+					if (cell.date === "") {
+						cellElement.addClass("is-empty");
+					} else {
+						cellElement.setAttribute(
+							"data-level",
+							String(cell.level)
+						);
+						cellElement.setAttribute(
+							"title",
+							`${cell.date} · ${cell.count}`
+						);
 					}
 				}
 			}
 		}
 
-		const modules = this.panel(page, "#4D8DFF", "系统模块地图", "顶层模块 · README / 最新文件");
+		const modules = this.panel(
+			page,
+			"#4D8DFF",
+			"系统模块地图",
+			"顶层模块 · README / 最新文件"
+		);
+		modules.addClass("vault-v2-module-panel");
+		modules.setAttribute("data-system-section", "module-map");
 		const grid = modules.createDiv({ cls: "note-grid" });
-		for (const m of d.modules) {
-			const note = grid.createDiv({ cls: m.readmeExists ? "note module-card" : "note module-card missing-readme" });
-			note.createEl("b", { text: m.name });
-			note.createEl("span", { cls: "big", text: String(m.count) });
-			note.createEl("span", { text: `更新 ${m.lastChange} · ${m.readmeExists ? "README OK" : "缺 README"}` });
-			const latest = note.createEl("small", { cls: "module-latest", text: `最新：${m.latestTitle}` });
-			if (m.latestPath) {
-				latest.addEventListener("click", (ev) => {
-					ev.stopPropagation();
-					void openFile(this.app, m.latestPath || "");
+		for (const module of d.modules) {
+			const note = grid.createDiv({
+				cls: module.readmeExists
+					? "note module-card"
+					: "note module-card missing-readme",
+			});
+			note.createEl("b", { text: module.name });
+			note.createEl("span", {
+				cls: "big",
+				text: String(module.count),
+			});
+			note.createEl("span", {
+				text: `更新 ${module.lastChange} · ${module.readmeExists ? "README OK" : "缺 README"}`,
+			});
+			const latest = note.createEl("small", {
+				cls: "module-latest",
+				text: `最新：${module.latestTitle}`,
+			});
+			if (module.latestPath) {
+				latest.addEventListener("click", (event) => {
+					event.stopPropagation();
+					void openFile(this.app, module.latestPath || "");
 				});
 			}
-			note.addEventListener("click", () => void openFile(this.app, m.readme));
+			note.addEventListener("click", () =>
+				void openFile(this.app, module.readme)
+			);
 		}
 	}
 
 	private pageCapability(page: HTMLElement, d: Collected): void {
-		const groupCount = (key: string) => d.capGroups.find((group) => group.key === key)?.items.length ?? 0;
-		const capabilityTotal = d.capGroups.reduce((sum, group) => sum + group.items.length, 0);
+		const groupCount = (key: string) =>
+			d.capGroups.find((group) => group.key === key)?.items.length ?? 0;
+		const capabilityTotal = d.capGroups.reduce(
+			(sum, group) => sum + group.items.length,
+			0
+		);
+		if (!d.capGroups.some((group) => group.key === this.activeCap)) {
+			this.activeCap = d.capGroups[0]?.key ?? "commands";
+		}
+
 		this.moduleHero(page, {
 			ac: "#14B8A6",
 			icon: "blocks",
@@ -2737,9 +3719,26 @@ export class TalosView extends ItemView {
 			title: "能力中心",
 			desc: "把命令、Agents 和工作流做成可复制入口，需要调用时不再从规则文件里翻。",
 			stats: [
-				{ label: "能力总数", value: String(capabilityTotal), sub: "可复制调用入口", path: ".claude/commands/morning.md", tone: "good" },
-				{ label: "命令", value: String(groupCount("commands")), sub: "对话中直接调用", path: ".claude/commands/morning.md", tone: "default" },
-				{ label: "Agents", value: String(groupCount("agents")), sub: "子代理与技能", tone: "default" },
+				{
+					label: "能力总数",
+					value: String(capabilityTotal),
+					sub: "可复制调用入口",
+					path: ".claude/commands/morning.md",
+					tone: "good",
+				},
+				{
+					label: "命令",
+					value: String(groupCount("commands")),
+					sub: "对话中直接调用",
+					path: ".claude/commands/morning.md",
+					tone: "default",
+				},
+				{
+					label: "Agents",
+					value: String(groupCount("agents")),
+					sub: "子代理与技能",
+					tone: "default",
+				},
 			],
 			actions: [
 				{ label: "晨间", icon: "copy", command: "/morning" },
@@ -2747,56 +3746,140 @@ export class TalosView extends ItemView {
 				{ label: "维护", icon: "copy", command: "/maintain" },
 			],
 		});
-		const p = this.panel(page, "#38E1FF", "能力中心", "库内真实命令/Agents/工作流 · 点击复制");
-		const tabs = p.createDiv({ cls: "tabs" });
-		const grid = p.createDiv({ cls: "commands" });
-		if (!d.capGroups.some((g) => g.key === this.activeCap)) {
-			this.activeCap = d.capGroups[0]?.key ?? "commands";
-		}
+
+		const primary = page.createDiv({
+			cls: "knowledge-v2-primary capability-v2-primary",
+		});
+		primary.setAttribute("data-knowledge-layout", "split");
+
+		const distribution = this.panel(
+			primary,
+			"#38E1FF",
+			"能力分布",
+			"库内真实命令 / Agents / 工作流"
+		);
+		distribution.setAttribute("data-knowledge-section", "core-data");
+		this.fillCapabilityDistribution(
+			distribution.createDiv({
+				cls: "capability-v2-distribution",
+			}),
+			d.capGroups
+		);
+
+		const controls = this.panel(
+			primary,
+			"#14B8A6",
+			"分组控制",
+			"选择后更新下方调用入口"
+		);
+		controls.addClass("capability-v2-controls");
+		controls.setAttribute(
+			"data-knowledge-section",
+			"attention-and-actions"
+		);
+		const summary = controls.createDiv({
+			cls: "capability-v2-current-summary",
+		});
+		const tabs = controls.createDiv({ cls: "tabs capability-v2-tabs" });
+
+		const browser = this.panel(
+			page,
+			"#A78BFA",
+			"能力调用入口",
+			"点击卡片复制调用 · 源文件按钮只负责打开"
+		);
+		browser.addClass("capability-v2-browser");
+		browser.setAttribute("data-knowledge-section", "capability-browser");
+		const grid = browser.createDiv({ cls: "commands" });
+
 		const drawGrid = () => {
 			grid.empty();
-			const group = d.capGroups.find((g) => g.key === this.activeCap);
-			if (!group || group.items.length === 0) { grid.createDiv({ cls: "empty", text: "无可用项" }); return; }
-			for (const it of group.items) {
+			const group = d.capGroups.find(
+				(item) => item.key === this.activeCap
+			);
+			if (!group || group.items.length === 0) {
+				renderTalosEmptyState(
+					grid,
+					"无可用项",
+					"当前分组没有可复制的调用入口。"
+				);
+				return;
+			}
+			for (const item of group.items) {
 				const card = grid.createDiv({ cls: "command" });
-				// 填充式布局：顶部行 = 命令左 + 按钮右；底部来源路径行
 				const top = card.createDiv({ cls: "cap-top" });
-				top.createEl("code", { text: it.name });
+				top.createEl("code", { text: item.name });
 				const actions = top.createDiv({ cls: "cap-actions" });
 				actions.createSpan({ text: "复制调用" });
-				if (it.path) {
-					const src = actions.createSpan();
-					this.addActionButtonContent(src, "打开源文件", "mini");
-					src.addEventListener("click", (ev) => {
-						ev.stopPropagation();
-						void openFile(this.app, it.path || "");
+				if (item.path) {
+					const source = actions.createSpan();
+					this.addActionButtonContent(
+						source,
+						"打开源文件",
+						"mini"
+					);
+					source.addEventListener("click", (event) => {
+						event.stopPropagation();
+						void openFile(this.app, item.path || "");
 					});
 				}
-				card.createEl("small", { text: it.desc || "—" });
-				if (it.path) {
-					const srcLine = card.createDiv({ cls: "cap-src" });
-					srcLine.createSpan({ text: it.path });
-					srcLine.createEl("em", { text: group.label });
+				card.createEl("small", { text: item.desc || "—" });
+				if (item.path) {
+					const sourceLine = card.createDiv({ cls: "cap-src" });
+					sourceLine.createSpan({ text: item.path });
+					sourceLine.createEl("em", { text: group.label });
 				}
-				card.addEventListener("click", () => void this.copyText(it.invoke));
+				card.addEventListener("click", () =>
+					void this.copyText(item.invoke)
+				);
 			}
-			this.wireModuleSelection(grid, `capability:${this.activeCap}`);
+			this.wireModuleSelection(
+				grid,
+				`capability:${this.activeCap}`
+			);
 		};
+
 		const drawTabs = () => {
 			tabs.empty();
-			for (const g of d.capGroups) {
+			summary.empty();
+			const active = d.capGroups.find(
+				(group) => group.key === this.activeCap
+			);
+			summary.createEl("small", { text: "当前分组" });
+			summary.createEl("strong", {
+				text: active?.label || "未选择",
+			});
+			summary.createEl("span", {
+				text: active
+					? `${active.items.length} 个调用入口`
+					: "暂无可用分组",
+			});
+			for (const group of d.capGroups) {
 				const tab = tabs.createEl("button", {
-					cls: `tab${g.key === this.activeCap ? " active" : ""}`,
+					cls: `tab${group.key === this.activeCap ? " active" : ""}`,
 				});
 				tab.type = "button";
-				this.addActionButtonContent(tab, `${g.label} ${g.items.length}`, "compact");
-				tab.setAttribute("aria-pressed", String(g.key === this.activeCap));
-				tab.addEventListener("click", () => { this.activeCap = g.key; drawTabs(); drawGrid(); });
+				this.addActionButtonContent(
+					tab,
+					`${group.label} ${group.items.length}`,
+					"compact"
+				);
+				tab.setAttribute(
+					"aria-pressed",
+					String(group.key === this.activeCap)
+				);
+				tab.addEventListener("click", () => {
+					this.activeCap = group.key;
+					drawTabs();
+					drawGrid();
+				});
 			}
 		};
+
 		drawTabs();
 		drawGrid();
 	}
+
 
 
 
@@ -2834,6 +3917,311 @@ export class TalosView extends ItemView {
 			span.textContent = daysPart;
 			if (folderPart) span.dataset.folder = folderPart;
 			if (it.path) row.addEventListener("click", () => void openFile(this.app, it.path || ""));
+		}
+	}
+
+	private fillCapabilityDistribution(
+		parent: HTMLElement,
+		groups: CapabilityGroup[]
+	): void {
+		if (groups.length === 0) {
+			renderTalosEmptyState(
+				parent,
+				"暂无能力分组",
+				"扫描到命令、Agent 或工作流后，这里会显示真实数量分布。"
+			);
+			return;
+		}
+		const maxCount = Math.max(
+			...groups.map((group) => group.items.length),
+			1
+		);
+		for (const group of groups) {
+			const row = parent.createDiv({
+				cls: "capability-v2-distribution-row",
+			});
+			const head = row.createDiv({
+				cls: "capability-v2-distribution-row__head",
+			});
+			head.createEl("strong", { text: group.label });
+			head.createEl("span", {
+				text: String(group.items.length),
+			});
+			const track = row.createDiv({
+				cls: "capability-v2-distribution-row__track",
+			});
+			track.setAttribute("role", "img");
+			track.setAttribute(
+				"aria-label",
+				`${group.label}：${group.items.length} 个调用入口`
+			);
+			track.createSpan().style.width =
+				`${(group.items.length / maxCount) * 100}%`;
+		}
+	}
+
+	private fillGateStateChart(
+		parent: HTMLElement,
+		gates: GateItem[]
+	): void {
+		if (gates.length === 0) {
+			renderTalosEmptyState(
+				parent,
+				"暂无闸门数据",
+				"发布闸门出现后，这里会显示完成、就绪、阻塞和待办分布。"
+			);
+			return;
+		}
+
+		const states: Array<{
+			key: GateItem["state"];
+			label: string;
+		}> = [
+			{ key: "done", label: "完成" },
+			{ key: "ready", label: "就绪" },
+			{ key: "blocked", label: "阻塞" },
+			{ key: "todo", label: "待办" },
+		];
+		const counts = states.map((state) => ({
+			...state,
+			count: gates.filter((gate) => gate.state === state.key).length,
+		}));
+		const track = parent.createDiv({
+			cls: "talos-v2-gate-chart__track",
+		});
+		track.setAttribute("role", "img");
+		track.setAttribute(
+			"aria-label",
+			`闸门状态分布：${counts
+				.map((item) => `${item.label} ${item.count}`)
+				.join("，")}`
+		);
+		for (const item of counts) {
+			if (item.count === 0) continue;
+			const segment = track.createSpan({
+				cls: `talos-v2-gate-chart__segment state-${item.key}`,
+			});
+			segment.style.width = `${(item.count / gates.length) * 100}%`;
+		}
+
+		const legend = parent.createDiv({
+			cls: "talos-v2-gate-chart__legend",
+		});
+		for (const item of counts) {
+			const key = legend.createDiv({
+				cls: `talos-v2-gate-chart__key state-${item.key}`,
+			});
+			key.createSpan({ cls: "talos-v2-gate-chart__dot" });
+			key.createEl("strong", { text: String(item.count) });
+			key.createEl("span", { text: item.label });
+		}
+	}
+
+	private fillKnowledgeTreemap(
+		parent: HTMLElement,
+		metrics: MetricTile[]
+	): void {
+		const nodes = metrics
+			.map((metric) => {
+				const value = Number.parseFloat(
+					metric.value.replace(/[^\d.]/g, "")
+				);
+				return {
+					metric,
+					value: Number.isFinite(value) ? Math.max(0, value) : 0,
+				};
+			})
+			.sort((left, right) => right.value - left.value);
+		const total = nodes.reduce((sum, node) => sum + node.value, 0);
+		if (total <= 0) {
+			renderTalosEmptyState(
+				parent,
+				"暂无知识资产统计",
+				"MOC、洞察或素材出现后，这里会按真实数量形成树状占比。"
+			);
+			return;
+		}
+
+		for (const node of nodes) {
+			const share = (node.value / total) * 100;
+			const tile = parent.createEl("button", {
+				cls: `metric-card knowledge-v2-treemap-node tone-${node.metric.tone || "default"}`,
+				attr: {
+					type: "button",
+					"aria-label": `${node.metric.label}：${node.metric.value}，占 ${Math.round(share)}%`,
+				},
+			});
+			tile.style.setProperty("--knowledge-share", `${share}%`);
+			tile.createEl("small", { text: node.metric.label });
+			tile.createEl("strong", { text: node.metric.value });
+			tile.createEl("span", {
+				text: `${Math.round(share)}% · ${node.metric.sub}`,
+			});
+			if (node.metric.path) {
+				tile.addEventListener("click", () =>
+					void openFile(this.app, node.metric.path || "")
+				);
+			} else {
+				tile.disabled = true;
+			}
+		}
+	}
+
+	private fillOutputClosureChart(
+		parent: HTMLElement,
+		platforms: OutputCenter["platforms"]
+	): void {
+		if (platforms.length === 0) {
+			renderTalosEmptyState(
+				parent,
+				"暂无平台稿件",
+				"创建平台内容后，这里会显示发布、待闭环与未分类分布。"
+			);
+			return;
+		}
+
+		const legend = parent.createDiv({ cls: "output-v2-chart-legend" });
+		for (const item of [
+			{ label: "已发布", tone: "published" },
+			{ label: "待闭环", tone: "pending" },
+			{ label: "未分类", tone: "unclassified" },
+		]) {
+			const key = legend.createSpan({
+				cls: `output-v2-chart-key tone-${item.tone}`,
+			});
+			key.createSpan({ cls: "output-v2-chart-key__dot" });
+			key.createSpan({ text: item.label });
+		}
+
+		for (const platform of platforms) {
+			const classified = platform.published + platform.pending;
+			const total = Math.max(platform.count, classified);
+			const unclassified = Math.max(0, total - classified);
+			const row = parent.createDiv({ cls: "output-v2-bar-row" });
+			const head = row.createDiv({ cls: "output-v2-bar-row__head" });
+			head.createEl("strong", { text: platform.name });
+			head.createEl("span", {
+				text: `${platform.published}/${total} 已发布 · ${platform.pending} 待闭环`,
+			});
+
+			const track = row.createDiv({ cls: "output-v2-bar-track" });
+			track.setAttribute("role", "img");
+			track.setAttribute(
+				"aria-label",
+				`${platform.name}：已发布 ${platform.published}，待闭环 ${platform.pending}，未分类 ${unclassified}`
+			);
+			if (total === 0) track.addClass("is-empty");
+			for (const segment of [
+				{ tone: "published", value: platform.published },
+				{ tone: "pending", value: platform.pending },
+				{ tone: "unclassified", value: unclassified },
+			]) {
+				if (segment.value <= 0 || total === 0) continue;
+				const fill = track.createSpan({
+					cls: `output-v2-bar-segment tone-${segment.tone}`,
+				});
+				fill.style.width = `${(segment.value / total) * 100}%`;
+			}
+		}
+	}
+
+	private fillProjectPortfolioChart(
+		parent: HTMLElement,
+		projects: ProjectScene[]
+	): void {
+		if (projects.length === 0) {
+			renderTalosEmptyState(
+				parent,
+				"暂无组合数据",
+				"项目出现后，这里会显示优先级分布和真实任务完成率。"
+			);
+			return;
+		}
+
+		const tracked = projects.filter((project) => project.progress);
+		const totalTasks = tracked.reduce(
+			(sum, project) => sum + (project.progress?.total || 0),
+			0
+		);
+		const doneTasks = tracked.reduce(
+			(sum, project) => sum + (project.progress?.done || 0),
+			0
+		);
+		const completion =
+			totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+		const summary = parent.createDiv({
+			cls: "project-v2-portfolio-summary",
+		});
+		const ring = summary.createDiv({
+			cls: `project-v2-progress-ring${totalTasks === 0 ? " is-empty" : ""}`,
+		});
+		ring.style.setProperty("--project-progress", `${completion}%`);
+		ring.setAttribute("role", "img");
+		ring.setAttribute(
+			"aria-label",
+			totalTasks > 0
+				? `已跟踪任务完成 ${doneTasks}/${totalTasks}，${completion}%`
+				: "暂无可计算的项目任务"
+		);
+		ring.createSpan({ text: totalTasks > 0 ? `${completion}%` : "—" });
+		const copy = summary.createDiv({
+			cls: "project-v2-portfolio-summary__copy",
+		});
+		copy.createEl("strong", { text: "已跟踪任务完成率" });
+		copy.createEl("span", {
+			text:
+				totalTasks > 0
+					? `${doneTasks}/${totalTasks} · ${tracked.length} 个项目有任务清单`
+					: "当前项目尚未提供可汇总的复选框任务",
+		});
+
+		const distribution = [
+			{
+				key: "p0",
+				label: "P0 高频",
+				count: projects.filter((project) => project.priority === "p0")
+					.length,
+			},
+			{
+				key: "p1",
+				label: "P1 活跃",
+				count: projects.filter((project) => project.priority === "p1")
+					.length,
+			},
+			{
+				key: "p2",
+				label: "P2 长尾",
+				count: projects.filter((project) => project.priority === "p2")
+					.length,
+			},
+		];
+		const maxCount = Math.max(
+			...distribution.map((item) => item.count),
+			1
+		);
+		const bars = parent.createDiv({
+			cls: "project-v2-priority-bars",
+		});
+		for (const item of distribution) {
+			const row = bars.createDiv({
+				cls: `project-v2-priority-bar priority-${item.key}`,
+			});
+			const head = row.createDiv({
+				cls: "project-v2-priority-bar__head",
+			});
+			head.createEl("strong", { text: item.label });
+			head.createEl("span", { text: String(item.count) });
+			const track = row.createDiv({
+				cls: "project-v2-priority-bar__track",
+			});
+			track.setAttribute(
+				"aria-label",
+				`${item.label}：${item.count} 个项目`
+			);
+			track.setAttribute("role", "img");
+			track.createSpan().style.width =
+				`${(item.count / maxCount) * 100}%`;
 		}
 	}
 

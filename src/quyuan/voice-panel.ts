@@ -106,6 +106,8 @@ export class QuyuanVoicePanel {
 	private overlayLines: HTMLElement[] = [];
 	// fab 圆环状态文字
 	private fabStatusEl: HTMLElement | null = null;
+	// 舞台左上角统一工作台状态文字
+	private workspaceStatusEl: HTMLElement | null = null;
 	// overlay 回复的 markdown 渲染容器（用于 text 通道完成后重渲染）
 	private overlayReplyMd: HTMLElement | null = null;
 	private sideCollapsed = false;
@@ -196,6 +198,8 @@ export class QuyuanVoicePanel {
 
 		const root = container.createDiv({ cls: "tq-voice" });
 		this.rootEl = root;
+		root.dataset.talosComponent = "voice-workspace";
+		root.setAttribute("aria-label", "屈原语音工作台");
 		root.setAttribute("data-wake-state", "sleep");
 		root.setAttribute("data-session-namespace", "voice");
 		root.setAttribute("data-input-mode", this.voiceMode.snapshot().inputMode);
@@ -209,7 +213,37 @@ export class QuyuanVoicePanel {
 		this.setSideWidth(this.savedSideWidth(), false);
 
 		// 中央动态语音舞台（沉浸式全屏）
-		const stage = body.createDiv({ cls: "tq-stage" });
+		const stage = body.createDiv({
+			cls: "tq-stage",
+			attr: {
+				role: "region",
+				"aria-label": "动态语音舞台",
+				"data-workspace-section": "voice-stage",
+			},
+		});
+		const workspaceBar = stage.createDiv({
+			cls: "tq-workspace-bar",
+			attr: { role: "group", "aria-label": "屈原语音工作台状态" },
+		});
+		const workspaceIdentity = workspaceBar.createDiv({ cls: "tq-workspace-identity" });
+		const workspaceMark = workspaceIdentity.createSpan({ cls: "tq-workspace-mark" });
+		setIcon(workspaceMark, "audio-lines");
+		const workspaceCopy = workspaceIdentity.createSpan({ cls: "tq-workspace-copy" });
+		workspaceCopy.createEl("small", { text: "VOICE WORKSPACE" });
+		workspaceCopy.createEl("strong", { text: "屈原语音" });
+		const workspaceMeta = workspaceBar.createDiv({ cls: "tq-workspace-meta" });
+		const boundary = workspaceMeta.createSpan({ cls: "tq-workspace-boundary" });
+		setIcon(boundary.createSpan(), "shield-check");
+		boundary.createSpan({ text: "语音只读" });
+		const workspaceState = workspaceMeta.createSpan({
+			cls: "tq-workspace-state",
+			attr: { role: "status", "aria-live": "polite", "aria-atomic": "true" },
+		});
+		workspaceState.createSpan({
+			cls: "tq-workspace-state__dot",
+			attr: { "aria-hidden": "true" },
+		});
+		this.workspaceStatusEl = workspaceState.createSpan({ text: STATES.sleep.caption });
 		// 背景效果层（最底层 z-index:0）——LetterGlitch 字符故障 / GridScan 3D 网格扫描
 		const bgCanvas = stage.createEl("canvas", {
 			cls: "tq-bg",
@@ -351,7 +385,13 @@ export class QuyuanVoicePanel {
 			},
 		});
 		this.installSideResizer(resizer);
-		const side = body.createEl("aside", { cls: "tq-side" });
+		const side = body.createEl("aside", {
+			cls: "tq-side",
+			attr: {
+				"aria-label": "会话、上下文与能力",
+				"data-workspace-section": "session-context",
+			},
+		});
 		this.buildFunctionalSidebar(side);
 		void this.restoreVoiceSession().finally(() => {
 			void this.driver?.warmup("voice");
@@ -1200,6 +1240,7 @@ export class QuyuanVoicePanel {
 		// 圆环颜色和呼吸频率由 CSS 变量驱动（--tq-state / --tq-spd）
 		// fab-status 显示状态文字
 		if (this.fabStatusEl) this.fabStatusEl.setText(meta.caption);
+		this.workspaceStatusEl?.setText(meta.caption);
 	}
 
 	// ---------- 语音识别模式：关闭时停止 ASR、唤醒词监听并释放麦克风 ----------
@@ -1589,6 +1630,7 @@ export class QuyuanVoicePanel {
 		this.overlayReply = null;
 		this.overlayLines = [];
 		this.fabStatusEl = null;
+		this.workspaceStatusEl = null;
 		this.overlayReplyMd = null;
 		this.replyBuffer = "";
 	}

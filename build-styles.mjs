@@ -12,6 +12,7 @@ const upstreamRoot = resolve(root, "src/quyuan/claudian/style");
 const upstreamIndex = resolve(upstreamRoot, "index.css");
 const quyuanShellSource = resolve(root, "styles.quyuan-shell.css");
 const layoutOverridesSource = resolve(root, "styles.layout-overrides.css");
+const uiV2Source = resolve(root, "styles.ui-v2.css");
 const output = resolve(root, "styles.css");
 const importPattern = /^\s*@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/gm;
 
@@ -19,13 +20,14 @@ if (!existsSync(talosSource)) throw new Error("Missing styles.talos.css");
 if (!existsSync(upstreamIndex)) throw new Error("Missing Claudian style/index.css");
 if (!existsSync(quyuanShellSource)) throw new Error("Missing styles.quyuan-shell.css");
 if (!existsSync(layoutOverridesSource)) throw new Error("Missing styles.layout-overrides.css");
+if (!existsSync(uiV2Source)) throw new Error("Missing styles.ui-v2.css");
 
 const index = readFileSync(upstreamIndex, "utf8");
 const imports = [...index.matchAll(importPattern)].map((match) => match[1]);
 if (imports.length === 0) throw new Error("Claudian style index has no imports");
 
 const parts = [
-	"/* GENERATED FILE — edit styles.talos.css or src/quyuan/claudian/style/** */",
+	"/* GENERATED FILE — edit source CSS files, including styles.ui-v2.css */",
 	readFileSync(talosSource, "utf8"),
 	"\n/* Quyuan v2 workbench styles · derived from Claudian 2.0.25 */\n",
 ];
@@ -45,7 +47,9 @@ parts.push(
 	"\n/* TALOS Quyuan v1 visual shell over the v2 runtime */\n",
 	readFileSync(quyuanShellSource, "utf8"),
 	"\n/* TALOS 2.0 validated console and chat layout overrides */\n",
-	readFileSync(layoutOverridesSource, "utf8")
+	readFileSync(layoutOverridesSource, "utf8"),
+	"\n/* TALOS unified interface language v2 · D-TLP-019 */\n",
+	readFileSync(uiV2Source, "utf8")
 );
 
 /**

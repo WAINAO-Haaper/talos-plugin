@@ -171,7 +171,10 @@ assert.match(
 	talosMain,
 	/protected shouldRegisterWorkbenchSettingTab\(\): boolean \{\s*return false;/
 );
-assert.match(talosSettingsSource, /id: "workbench", label: "屈原 · 高级"/);
+assert.match(
+	talosSettingsSource,
+	/\{\s*id:\s*"workbench",\s*label:\s*"屈原 · 高级"/
+);
 assert.match(
 	talosSettingsSource,
 	/renderWorkbench[\s\S]*new ClaudianSettingTab\(this\.app, this\.plugin\)/
@@ -198,14 +201,10 @@ assert.match(
 	/item\.setAttribute\("role",\s*"button"\)[\s\S]*item\.setAttribute\("tabindex",\s*"0"\)[\s\S]*event\.key !== "Enter"[\s\S]*event\.key !== " "/
 );
 
-assert.equal(
-	[
-		"src/jarvis/panel.ts",
-		"src/jarvis/engine.ts",
-		"src/jarvis/voiceio.ts",
-	].every((path) => existsSync(path)),
-	true
-);
+// D-TLP-016 · C-3b：旧面板/引擎已移除，复用的 voice I/O 运行时保留。
+assert.equal(existsSync("src/jarvis/panel.ts"), false);
+assert.equal(existsSync("src/jarvis/engine.ts"), false);
+assert.equal(existsSync("src/jarvis/voiceio.ts"), true);
 
 assert.equal(VIEW_TYPE_CLAUDIAN, "talos-quyuan-view");
 assert.equal(

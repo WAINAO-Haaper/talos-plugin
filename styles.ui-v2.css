@@ -1,0 +1,2296 @@
+/* TALOS unified interface language v2 · D-TLP-019
+   This is the cohesive final component layer. Page-specific rules belong in
+   shared archetypes or a documented page contract, not chronological patches. */
+
+.talos-console {
+	--talos-ui-canvas: var(--bg, var(--background-primary));
+	--talos-ui-surface: var(--surface, var(--background-primary));
+	--talos-ui-surface-raised: var(--surface-2, var(--background-secondary));
+	--talos-ui-ink: var(--ink, var(--text-normal));
+	--talos-ui-muted: var(--muted, var(--text-muted));
+	--talos-ui-line-subtle: color-mix(in srgb, var(--line, var(--background-modifier-border)) 58%, transparent);
+	--talos-ui-line: var(--line-strong, var(--line, var(--background-modifier-border)));
+	--talos-ui-accent: var(--blue, var(--interactive-accent));
+	--talos-ui-accent-2: var(--violet, var(--color-purple));
+	--talos-ui-accent-3: var(--amber, var(--color-yellow));
+	--talos-ui-success: var(--green, var(--color-green));
+	--talos-ui-warning: var(--amber, var(--color-yellow));
+	--talos-ui-danger: var(--rose, var(--color-red));
+	--talos-ui-info: var(--blue, var(--color-blue));
+	--talos-ui-on-accent: var(--background-primary, #fff);
+	--talos-ui-focus: var(--interactive-accent);
+	--talos-ui-radius-panel: var(--radius, 12px);
+	--talos-ui-radius-control: max(0px, calc(var(--radius, 10px) - 2px));
+	--talos-ui-shadow-panel: 0 12px 32px color-mix(in srgb, var(--talos-ui-ink) 12%, transparent);
+	--talos-space-1: 4px;
+	--talos-space-2: 8px;
+	--talos-space-3: 12px;
+	--talos-space-4: 16px;
+	--talos-space-6: 24px;
+	--talos-space-8: 32px;
+	--talos-type-meta: 11px;
+	--talos-type-supporting: 12px;
+	--talos-type-body: 14px;
+	--talos-type-module: 15px;
+	--talos-type-page: clamp(24px, 2.2cqw, 32px);
+	--talos-line-structural: 2px;
+	--talos-line-component: 1.5px;
+	--talos-line-detail: 1px;
+	--talos-motion-fast: 160ms;
+	--talos-motion-normal: 240ms;
+	--talos-motion-page: 420ms;
+}
+
+.talos-console.theme-geometric-modern {
+	--talos-ui-canvas: #f1ede3;
+	--talos-ui-surface: #f1ede3;
+	--talos-ui-surface-raised: rgba(255, 255, 255, 0.42);
+	--talos-ui-ink: #101010;
+	--talos-ui-muted: #48443d;
+	--talos-ui-line-subtle: rgba(16, 16, 16, 0.22);
+	--talos-ui-line: #101010;
+	--talos-ui-accent: #d52b32;
+	--talos-ui-accent-2: #2052b8;
+	--talos-ui-accent-3: #f5c518;
+	--talos-ui-success: #158b69;
+	--talos-ui-warning: #d85e2f;
+	--talos-ui-danger: #d52b32;
+	--talos-ui-info: #2052b8;
+	--talos-ui-on-accent: #f1ede3;
+	--talos-ui-focus: #2052b8;
+	--talos-ui-radius-panel: 0;
+	--talos-ui-radius-control: 0;
+	--talos-ui-shadow-panel: 6px 6px 0 #101010;
+}
+
+.talos-console .talos-ui-page {
+	container: talos-ui-page / inline-size;
+}
+
+.talos-console .talos-ui-panel {
+	border-color: var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-panel);
+}
+
+.talos-console .talos-ui-panel-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-3);
+	margin-bottom: var(--talos-space-3);
+}
+
+.talos-console .talos-ui-panel-header h2 {
+	font-size: var(--talos-type-module);
+}
+
+.talos-console .talos-ui-panel-header small {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console .talos-ui-page-header.module-hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+	grid-template-areas:
+		"main metrics"
+		"scene scene"
+		"actions actions";
+	align-items: center;
+	gap: var(--talos-space-3) var(--talos-space-4);
+	min-height: 0;
+	padding: var(--talos-space-4);
+	background: var(--talos-ui-surface);
+	border-color: var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-panel);
+	box-shadow: var(--talos-ui-shadow-panel);
+	overflow: hidden;
+}
+
+.talos-console .talos-ui-page-header__main {
+	grid-area: main;
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr);
+	align-items: center;
+	gap: var(--talos-space-3);
+	min-width: 0;
+}
+
+.talos-console .talos-ui-page-header__icon {
+	width: 44px;
+	height: 44px;
+	display: grid;
+	place-items: center;
+	border: 2px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: color-mix(in srgb, var(--ac, var(--talos-ui-accent)) 16%, var(--talos-ui-surface));
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .talos-ui-page-header__icon svg {
+	width: 22px;
+	height: 22px;
+}
+
+.talos-console .talos-ui-page-header__copy {
+	min-width: 0;
+}
+
+.talos-console .talos-ui-page-header__eyebrow {
+	display: block;
+	margin-bottom: var(--talos-space-1);
+	font-size: var(--talos-type-meta);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console .talos-ui-page-header__title {
+	margin: 0;
+	font-size: var(--talos-type-page);
+	line-height: 1.05;
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .talos-ui-page-header__description {
+	margin: var(--talos-space-2) 0 0;
+	max-width: 64ch;
+	font-size: var(--talos-type-supporting);
+	line-height: 1.5;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console .talos-ui-page-header__metrics {
+	grid-area: metrics;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+	min-width: 0;
+}
+
+.talos-console .talos-ui-page-header__metric,
+.talos-console .talos-ui-kpi {
+	min-width: 0;
+	padding: var(--talos-space-2) var(--talos-space-3);
+	border: 1.5px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+	color: var(--talos-ui-ink);
+	transition:
+		background-color var(--talos-motion-fast) ease,
+		color var(--talos-motion-fast) ease,
+		border-color var(--talos-motion-fast) ease,
+		transform var(--talos-motion-fast) ease;
+}
+
+.talos-console .talos-ui-page-header__metric > span,
+.talos-console .talos-ui-kpi > span {
+	display: block;
+	overflow: hidden;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console .talos-ui-page-header__metric > b,
+.talos-console .talos-ui-kpi > b {
+	display: block;
+	margin-top: 2px;
+	overflow: hidden;
+	font-size: clamp(18px, 1.6cqw, 28px);
+	line-height: 1.1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console .talos-ui-page-header__metric > small,
+.talos-console .talos-ui-kpi > small {
+	display: block;
+	margin-top: var(--talos-space-1);
+	overflow: hidden;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console .talos-ui-page-header__metric.is-interactive,
+.talos-console .talos-ui-kpi.is-interactive {
+	cursor: pointer;
+}
+
+.talos-console .talos-ui-page-header__metric.is-interactive:hover,
+.talos-console .talos-ui-kpi.is-interactive:hover,
+.talos-console .talos-ui-page-header__metric.is-interactive:focus-visible,
+.talos-console .talos-ui-kpi.is-interactive:focus-visible {
+	background: color-mix(in srgb, var(--ac, var(--talos-ui-accent)) 20%, var(--talos-ui-surface));
+	border-color: var(--talos-ui-ink);
+	transform: translateY(-1px);
+	outline: 2px solid var(--talos-ui-focus);
+	outline-offset: 2px;
+}
+
+.talos-console .talos-ui-page-header__actions {
+	grid-area: actions;
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--talos-space-2);
+	margin: 0;
+}
+
+.talos-console .talos-ui-page-header__scene {
+	grid-area: scene;
+	width: 100%;
+	height: 48px;
+	min-height: 48px;
+	margin: 0;
+	border-top: 1px solid var(--talos-ui-line-subtle);
+	border-bottom: 0;
+	overflow: hidden;
+}
+
+.talos-console .talos-ui-kpi-strip {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+	margin-bottom: var(--talos-space-4);
+}
+
+.talos-console .talos-ui-empty-state {
+	display: grid;
+	grid-template-columns: 28px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--talos-space-3);
+	padding: var(--talos-space-4);
+	border: 1.5px dashed var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .talos-ui-empty-state__icon {
+	grid-row: 1 / span 2;
+}
+
+.talos-console .talos-ui-empty-state p {
+	margin: 2px 0 0;
+	font-size: var(--talos-type-supporting);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console .talos-ui-empty-state__action {
+	grid-column: 3;
+	grid-row: 1 / span 2;
+}
+
+@container talos-ui-page (max-width: 900px) {
+	.talos-console .talos-ui-page-header.module-hero {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"main"
+			"metrics"
+			"scene"
+			"actions";
+	}
+
+	.talos-console .talos-ui-kpi-strip {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container talos-ui-page (max-width: 560px) {
+	.talos-console .talos-ui-page-header__main {
+		grid-template-columns: 36px minmax(0, 1fr);
+	}
+
+	.talos-console .talos-ui-page-header__icon {
+		width: 36px;
+		height: 36px;
+	}
+
+	.talos-console .talos-ui-page-header__metrics,
+	.talos-console .talos-ui-kpi-strip {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.talos-console .talos-ui-page-header__actions {
+		justify-content: stretch;
+		flex-wrap: wrap;
+	}
+
+	.talos-console .talos-ui-page-header__action {
+		flex: 1 1 160px;
+	}
+
+	.talos-console .talos-ui-empty-state {
+		grid-template-columns: 24px minmax(0, 1fr);
+	}
+
+	.talos-console .talos-ui-empty-state__action {
+		grid-column: 1 / -1;
+		grid-row: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console .talos-ui-page-header__metric,
+	.talos-console .talos-ui-kpi {
+		transition: none;
+		transform: none;
+	}
+}
+/* Workbench reference page · D-TLP-019
+   Structural reflow only: all theme skins, atmosphere, component styling, and
+   motion remain owned by their existing theme rules. */
+
+.talos-console[data-talos-archetype] .talos-ui-page-header .talos-ui-page-header__main {
+	min-height: 0;
+}
+
+.talos-console[data-talos-archetype] .talos-ui-page-header .talos-ui-page-header__scene {
+	position: relative;
+	left: auto;
+	right: auto;
+	bottom: auto;
+	height: 48px;
+	min-height: 48px;
+	--pixel-scale: 1.25;
+}
+
+/* Pixel scene safe area · 2026-08-24
+   Legacy module-hero rules are intentionally more specific than the primitive
+   defaults above, so this v2 contract must outrank them explicitly. Keep the
+   scene clipped to the header, but reserve enough room for the antenna glow and
+   the vault scene's -7px lift instead of cutting the bot at the top edge. */
+.talos-console[data-talos-archetype]:not([data-talos-page="overview"])
+	.module-hero .talos-pixel-patrol.talos-ui-page-header__scene.in-module-hero {
+	--talos-pixel-safe-stage-height: 86px;
+	--talos-pixel-safe-bot-top: 28px;
+	--talos-pixel-safe-track-bottom: 4px;
+	height: var(--talos-pixel-safe-stage-height);
+	min-height: var(--talos-pixel-safe-stage-height);
+	overflow: hidden;
+	--pixel-scale: 1.25;
+}
+
+.talos-console[data-talos-archetype]:not([data-talos-page="overview"])
+	.module-hero .talos-pixel-patrol.in-module-hero .talos-pixel-bot {
+	top: var(--talos-pixel-safe-bot-top);
+}
+
+.talos-console[data-talos-archetype]:not([data-talos-page="overview"])
+	.module-hero .talos-pixel-patrol.in-module-hero .talos-pixel-track {
+	top: auto;
+	bottom: var(--talos-pixel-safe-track-bottom);
+}
+
+.talos-console[data-talos-page="overview"] .talos-ui-overview-header {
+	min-height: 176px;
+	padding: var(--talos-space-4) var(--talos-space-6) 66px;
+}
+
+.talos-console[data-talos-page="overview"] .talos-ui-overview-header .hero-head {
+	grid-template-columns: minmax(0, 1fr) 88px;
+	gap: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="overview"] .talos-ui-overview-header .logo-module {
+	width: 80px;
+	height: 72px;
+}
+
+.talos-console[data-talos-page="overview"] .talos-ui-page {
+	display: block;
+	container: overview-v2 / inline-size;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-primary,
+.talos-console[data-talos-page="overview"] .overview-v2-utility-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-4);
+	align-items: start;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-primary,
+.talos-console[data-talos-page="overview"] .overview-v2-kanban-panel,
+.talos-console[data-talos-page="overview"] .overview-v2-utility-grid {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-column {
+	display: grid;
+	gap: var(--talos-space-4);
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-data-column > .talos-ui-kpi-strip {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+	margin: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-chart-panel {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-chart-panel .spark {
+	min-height: 150px;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-distribution {
+	display: grid;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority {
+	--priority-ac: var(--blue);
+	display: grid;
+	gap: var(--talos-space-2);
+	padding: var(--talos-space-4);
+	border: 1.5px solid var(--talos-ui-line);
+	border-left: 5px solid var(--priority-ac);
+	border-radius: var(--talos-ui-radius-control);
+	background: color-mix(
+		in srgb,
+		var(--priority-ac) 10%,
+		var(--talos-ui-surface-raised)
+	);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority.tone-hot {
+	--priority-ac: var(--talos-ui-danger);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority.tone-warn {
+	--priority-ac: var(--talos-ui-warning);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__head {
+	display: grid;
+	grid-template-columns: 32px minmax(0, 1fr);
+	align-items: center;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__icon {
+	display: grid;
+	width: 32px;
+	height: 32px;
+	place-items: center;
+	color: var(--priority-ac);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__copy small,
+.talos-console[data-talos-page="overview"] .overview-v2-priority > span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__copy h3,
+.talos-console[data-talos-page="overview"] .overview-v2-priority p {
+	margin: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__copy h3 {
+	font-size: var(--talos-type-module);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority p {
+	font-size: var(--talos-type-supporting);
+	line-height: 1.5;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-priority__action {
+	justify-self: start;
+	margin-top: var(--talos-space-1);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-list {
+	display: grid;
+	gap: var(--talos-space-2);
+	margin-top: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row {
+	--attention-ac: var(--talos-ui-info);
+	display: grid;
+	grid-template-columns: 24px minmax(0, 1fr) 18px;
+	align-items: center;
+	gap: var(--talos-space-2);
+	padding: var(--talos-space-3);
+	border: 1.5px solid var(--talos-ui-line-subtle);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+	cursor: pointer;
+	transition:
+		border-color var(--talos-motion-fast) ease,
+		background-color var(--talos-motion-fast) ease,
+		transform var(--talos-motion-fast) ease;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row.tone-hot {
+	--attention-ac: var(--talos-ui-danger);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row.tone-warn {
+	--attention-ac: var(--talos-ui-warning);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row:hover,
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row:focus-visible {
+	border-color: var(--attention-ac);
+	background: color-mix(
+		in srgb,
+		var(--attention-ac) 12%,
+		var(--talos-ui-surface-raised)
+	);
+	outline: 2px solid var(--talos-ui-focus);
+	outline-offset: 2px;
+	transform: translateY(-1px);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__icon,
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__arrow {
+	display: grid;
+	place-items: center;
+	color: var(--attention-ac);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__copy {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__copy strong,
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__copy span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__copy strong {
+	font-size: var(--talos-type-body);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-attention-row__copy span {
+	margin-top: 2px;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-panel {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-group__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-group__head strong {
+	font-size: var(--talos-type-body);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-group__head span {
+	min-width: 24px;
+	padding: 2px 7px;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: 999px;
+	font-size: var(--talos-type-meta);
+	text-align: center;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-approval-panel .approval-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-kanban-panel {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="overview"] .overview-v2-utility-grid > * {
+	min-width: 0;
+}
+
+.talos-quick-note {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-quick-note__input {
+	width: 100%;
+	min-height: 132px;
+	resize: vertical;
+	padding: var(--talos-space-3);
+	border: 1.5px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+	color: var(--talos-ui-ink);
+	font: inherit;
+	line-height: 1.55;
+}
+
+.talos-quick-note__input:focus {
+	border-color: var(--talos-ui-focus);
+	outline: 2px solid var(--talos-ui-focus);
+	outline-offset: 2px;
+}
+
+.talos-quick-note__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-3);
+}
+
+.talos-quick-note__status {
+	min-width: 0;
+	overflow: hidden;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-quick-note__status[data-state="saved"] {
+	color: var(--talos-ui-success);
+}
+
+.talos-quick-note__status[data-state="error"] {
+	color: var(--talos-ui-danger);
+}
+
+.talos-quick-note__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--talos-space-2);
+}
+
+@container overview-v2 (max-width: 760px) {
+	.talos-console[data-talos-page="overview"] .overview-v2-primary,
+	.talos-console[data-talos-page="overview"] .overview-v2-utility-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.talos-console[data-talos-page="overview"] .overview-v2-attention-column {
+		grid-row: 1;
+	}
+
+	.talos-console[data-talos-page="overview"] .overview-kanban {
+		grid-template-columns: 1fr;
+	}
+}
+
+@container overview-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="overview"] .overview-v2-data-column > .talos-ui-kpi-strip {
+		grid-template-columns: 1fr;
+	}
+
+	.talos-quick-note__footer {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.talos-quick-note__actions {
+		justify-content: stretch;
+	}
+
+	.talos-quick-note__actions > button {
+		flex: 1 1 140px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console[data-talos-page="overview"] .overview-v2-attention-row {
+		transition: none;
+		transform: none;
+	}
+}
+/* Execution archetype and Daily workflow · D-TLP-019
+   Layout only: existing theme skins, component shapes, and motion remain the
+   visual source of truth. */
+.talos-console[data-talos-archetype="execution"] .talos-ui-page {
+	container: workflow-v2 / inline-size;
+}
+
+.talos-console .workflow-v2-primary,
+.talos-console .workflow-v2-secondary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-4);
+	align-items: start;
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console .workflow-v2-primary > .panel,
+.talos-console .workflow-v2-secondary > .panel {
+	min-width: 0;
+}
+
+.talos-console .workflow-v2-subhead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin: var(--talos-space-4) 0 var(--talos-space-2);
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console .workflow-v2-subhead strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .workflow-v2-subhead span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-primary .daily-overview {
+	grid-template-columns: 1fr;
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-primary .daily-route {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-primary .daily-actions {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-guide .daily-protocol,
+.talos-console[data-talos-page="daily"] .daily-v2-guide .daily-map {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	height: auto;
+	grid-auto-rows: auto;
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-guide .daily-map {
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="daily"] .daily-v2-week-panel {
+	margin-top: var(--talos-space-4);
+}
+
+@container workflow-v2 (max-width: 820px) {
+	.talos-console .workflow-v2-primary,
+	.talos-console .workflow-v2-secondary {
+		grid-template-columns: 1fr;
+	}
+}
+
+@container workflow-v2 (max-width: 560px) {
+	.talos-console[data-talos-page="daily"] .daily-v2-primary .daily-route,
+	.talos-console[data-talos-page="daily"] .daily-v2-primary .daily-actions,
+	.talos-console[data-talos-page="daily"] .daily-v2-guide .daily-protocol,
+	.talos-console[data-talos-page="daily"] .daily-v2-guide .daily-map {
+		grid-template-columns: 1fr;
+	}
+
+	.talos-console[data-talos-page="daily"] .daily-week {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+/* Inbox triage page · design-system/talos/pages/inbox.md
+   The hero owns summary numbers; this split answers age and priority without
+   repeating the same metrics. */
+.talos-console[data-talos-page="inbox"] .inbox-v2-primary .age-dist {
+	display: grid;
+	gap: var(--talos-space-3);
+	min-height: 0;
+}
+
+.talos-console[data-talos-page="inbox"] .inbox-v2-primary .cluster-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="inbox"] .inbox-v2-recent-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="inbox"] .inbox-v2-recent-panel .detail-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="inbox"] .inbox-v2-recent-panel .detail-row {
+	min-width: 0;
+	min-height: 0;
+}
+
+@container workflow-v2 (max-width: 560px) {
+	.talos-console[data-talos-page="inbox"] .inbox-v2-primary .cluster-grid,
+	.talos-console[data-talos-page="inbox"] .inbox-v2-recent-panel .detail-list {
+		grid-template-columns: 1fr;
+	}
+}
+/* Output war room · D-TLP-019
+   All bars are computed from OutputPlatform published/pending/count fields. */
+.talos-console[data-talos-page="output"] .output-v2-closure-chart {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-chart-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-2) var(--talos-space-4);
+	padding-bottom: var(--talos-space-2);
+	border-bottom: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-chart-key {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--talos-space-1);
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-chart-key__dot {
+	width: 9px;
+	height: 9px;
+	border: 1px solid var(--talos-ui-line);
+	background: var(--output-segment-color);
+}
+
+.talos-console[data-talos-page="output"] .tone-published {
+	--output-segment-color: var(--talos-ui-success);
+}
+
+.talos-console[data-talos-page="output"] .tone-pending {
+	--output-segment-color: var(--talos-ui-warning);
+}
+
+.talos-console[data-talos-page="output"] .tone-unclassified {
+	--output-segment-color: var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-row {
+	display: grid;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-row__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-row__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-row__head span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-align: right;
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-track {
+	display: flex;
+	width: 100%;
+	height: 14px;
+	overflow: hidden;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-track.is-empty {
+	border-style: dashed;
+}
+
+.talos-console[data-talos-page="output"] .output-v2-bar-segment {
+	display: block;
+	height: 100%;
+	background: var(--output-segment-color);
+	transition: width var(--talos-motion-normal) ease;
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-panel {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-group__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-group__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-attention-group__head span {
+	overflow: hidden;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="output"] .output-v2-platform-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="output"] .output-v2-platform-panel .platform-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+@container workflow-v2 (max-width: 760px) {
+	.talos-console[data-talos-page="output"] .output-v2-platform-panel .platform-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container workflow-v2 (max-width: 480px) {
+	.talos-console[data-talos-page="output"] .output-v2-platform-panel .platform-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console[data-talos-page="output"] .output-v2-bar-segment {
+		transition: none;
+	}
+}
+/* Project portfolio · D-TLP-019
+   Overrides the legacy 2.2/.8 scene split with the accepted 6/6
+   data-and-attention contract. */
+.talos-console[data-talos-page="projects"] .project-scene-layout {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-4);
+	align-items: start;
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-chart {
+	display: grid;
+	gap: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr);
+	align-items: center;
+	gap: var(--talos-space-4);
+	padding-bottom: var(--talos-space-3);
+	border-bottom: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-progress-ring {
+	--project-progress: 0%;
+	position: relative;
+	display: grid;
+	width: 88px;
+	height: 88px;
+	place-items: center;
+	border: 1.5px solid var(--talos-ui-line);
+	border-radius: 50%;
+	background: conic-gradient(
+		var(--talos-ui-success) var(--project-progress),
+		var(--talos-ui-surface-raised) 0
+	);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-progress-ring::before {
+	content: "";
+	position: absolute;
+	inset: 15px;
+	border: 1px solid var(--talos-ui-line-subtle);
+	border-radius: inherit;
+	background: var(--talos-ui-surface);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-progress-ring > span {
+	position: relative;
+	z-index: 1;
+	font-size: var(--talos-type-module);
+	font-weight: 700;
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-progress-ring.is-empty {
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary__copy strong,
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary__copy span {
+	display: block;
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary__copy strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary__copy span {
+	margin-top: var(--talos-space-1);
+	font-size: var(--talos-type-supporting);
+	line-height: 1.5;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bars {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar {
+	--project-priority-color: var(--talos-ui-info);
+	display: grid;
+	gap: var(--talos-space-1);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar.priority-p0 {
+	--project-priority-color: var(--talos-ui-danger);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar.priority-p1 {
+	--project-priority-color: var(--talos-ui-warning);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar__track {
+	height: 12px;
+	overflow: hidden;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-bar__track > span {
+	display: block;
+	height: 100%;
+	background: var(--project-priority-color);
+	transition: width var(--talos-motion-normal) ease;
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-attention-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-row {
+	display: grid;
+	gap: var(--talos-space-2);
+	min-width: 0;
+	min-height: 0;
+	padding: var(--talos-space-3);
+	color: var(--talos-ui-ink);
+	text-align: left;
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-row__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-row__head strong {
+	overflow: hidden;
+	font-size: var(--talos-type-body);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-badge {
+	padding: 2px 6px;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: 999px;
+	font-size: var(--talos-type-meta);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-progress {
+	position: relative;
+	height: 14px;
+	overflow: hidden;
+	border: 1px solid var(--talos-ui-line-subtle);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-progress > span {
+	display: block;
+	height: 100%;
+	background: var(--talos-ui-info);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-priority-progress > small {
+	position: absolute;
+	inset: 0 var(--talos-space-1);
+	font-size: 9px;
+	line-height: 12px;
+	text-align: right;
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-entry-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-2);
+	margin-top: var(--talos-space-3);
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="projects"] .project-v2-entry-actions > button {
+	flex: 1 1 180px;
+}
+
+.talos-console[data-talos-page="projects"] .project-map-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+@container workflow-v2 (max-width: 900px) {
+	.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container workflow-v2 (max-width: 560px) {
+	.talos-console[data-talos-page="projects"] .project-v2-attention-list,
+	.talos-console[data-talos-page="projects"] .project-map-panel .project-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.talos-console[data-talos-page="projects"] .project-v2-portfolio-summary {
+		grid-template-columns: 72px minmax(0, 1fr);
+	}
+
+	.talos-console[data-talos-page="projects"] .project-v2-progress-ring {
+		width: 68px;
+		height: 68px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console[data-talos-page="projects"] .project-v2-priority-bar__track > span {
+		transition: none;
+	}
+}
+/* Knowledge asset archetype · D-TLP-019 */
+.talos-console[data-talos-archetype="knowledge"] .talos-ui-page {
+	container: knowledge-v2 / inline-size;
+}
+
+.talos-console .knowledge-v2-primary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-4);
+	align-items: start;
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console .knowledge-v2-primary > *,
+.talos-console .knowledge-v2-column {
+	min-width: 0;
+}
+
+.talos-console .knowledge-v2-column {
+	display: grid;
+	gap: var(--talos-space-4);
+	align-content: start;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-2);
+	align-items: stretch;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node {
+	flex: 1 1 var(--knowledge-share);
+	min-width: 150px;
+	min-height: 116px;
+	display: grid;
+	align-content: end;
+	gap: var(--talos-space-1);
+	padding: var(--talos-space-4);
+	color: var(--talos-ui-ink);
+	text-align: left;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node small,
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node strong,
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node span {
+	display: block;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node small,
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node strong {
+	font-size: clamp(24px, 3cqw, 42px);
+	line-height: 1;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-treemap-node:disabled {
+	cursor: default;
+	opacity: 1;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-panel {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-group__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-group__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-recent-group__head span {
+	overflow: hidden;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-moc-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="knowledge"] .knowledge-v2-moc-panel .detail-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+}
+
+@container knowledge-v2 (max-width: 820px) {
+	.talos-console .knowledge-v2-primary {
+		grid-template-columns: 1fr;
+	}
+}
+
+@container knowledge-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="knowledge"] .knowledge-v2-moc-panel .detail-list {
+		grid-template-columns: 1fr;
+	}
+}
+/* Shared decision workspace and Identity context · D-TLP-019 */
+.talos-console .talos-decision-workspace {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console .talos-decision-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console .talos-decision-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console .talos-decision-group__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console .talos-decision-group__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .talos-decision-group__head > span {
+	min-width: 24px;
+	padding: 2px 7px;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: 999px;
+	font-size: var(--talos-type-meta);
+	text-align: center;
+}
+
+.talos-console .talos-decision-list .approval-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-foundation {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-context-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-context-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-context-group__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-context-group__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-context-group__head span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-align: right;
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-governance-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="identity"] .identity-v2-governance-panel .detail-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+}
+
+@container knowledge-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="identity"] .identity-v2-governance-panel .detail-list {
+		grid-template-columns: 1fr;
+	}
+}
+/* TALOS release governance · D-TLP-019 */
+.talos-console[data-talos-page="talos"] .talos-v2-release-panel,
+.talos-console[data-talos-page="talos"] .talos-v2-gate-panel {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-release-banner {
+	margin: 0 0 var(--talos-space-4);
+	border-radius: var(--talos-ui-radius-control);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__track {
+	display: flex;
+	width: 100%;
+	height: 18px;
+	overflow: hidden;
+	border: 1.5px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__segment {
+	display: block;
+	height: 100%;
+	background: var(--gate-state-color);
+	transition: width var(--talos-motion-normal) ease;
+}
+
+.talos-console[data-talos-page="talos"] :is(
+	.talos-v2-gate-chart__segment,
+	.talos-v2-gate-chart__key
+).state-done {
+	--gate-state-color: var(--talos-ui-success);
+}
+
+.talos-console[data-talos-page="talos"] :is(
+	.talos-v2-gate-chart__segment,
+	.talos-v2-gate-chart__key
+).state-ready {
+	--gate-state-color: var(--talos-ui-info);
+}
+
+.talos-console[data-talos-page="talos"] :is(
+	.talos-v2-gate-chart__segment,
+	.talos-v2-gate-chart__key
+).state-blocked {
+	--gate-state-color: var(--talos-ui-danger);
+}
+
+.talos-console[data-talos-page="talos"] :is(
+	.talos-v2-gate-chart__segment,
+	.talos-v2-gate-chart__key
+).state-todo {
+	--gate-state-color: var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__legend {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__key {
+	display: grid;
+	grid-template-columns: 10px auto;
+	align-items: center;
+	gap: 0 var(--talos-space-1);
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__dot {
+	grid-row: 1 / span 2;
+	width: 9px;
+	height: 9px;
+	border: 1px solid var(--talos-ui-line);
+	background: var(--gate-state-color);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__key strong {
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-panel {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group {
+	min-width: 0;
+	padding-top: var(--talos-space-3);
+	border-top: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group__head strong {
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group__head span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+	text-align: right;
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-gate-group .gates {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-module-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="talos"] .talos-v2-module-panel .module-grid {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+@container workflow-v2 (max-width: 760px) {
+	.talos-console[data-talos-page="talos"] .talos-v2-module-panel .module-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container workflow-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__legend,
+	.talos-console[data-talos-page="talos"] .talos-v2-gate-group .gates,
+	.talos-console[data-talos-page="talos"] .talos-v2-module-panel .module-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__segment {
+		transition: none;
+	}
+}
+/* System dashboard archetype and Health center · D-TLP-019 */
+.talos-console[data-talos-archetype="dashboard"]:not([data-talos-page="overview"]) .talos-ui-page {
+	container: system-v2 / inline-size;
+}
+
+.talos-console .system-v2-primary,
+.talos-console .system-v2-secondary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-4);
+	align-items: start;
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console .system-v2-primary > *,
+.talos-console .system-v2-secondary > * {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="health"] .health-v2-trend-panel .spark {
+	min-height: 220px;
+}
+
+.talos-console[data-talos-page="health"] .health-v2-diagnostics .detail-list {
+	display: grid;
+	gap: var(--talos-space-2);
+}
+
+@container system-v2 (max-width: 820px) {
+	.talos-console .system-v2-primary,
+	.talos-console .system-v2-secondary {
+		grid-template-columns: 1fr;
+	}
+}
+/* Capability center · D-TLP-019 */
+.talos-console[data-talos-page="capability"] .capability-v2-distribution {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row {
+	--capability-row-color: var(--talos-ui-info);
+	display: grid;
+	gap: var(--talos-space-1);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row:nth-child(2) {
+	--capability-row-color: var(--talos-ui-accent-2);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row:nth-child(3) {
+	--capability-row-color: var(--talos-ui-success);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--talos-space-2);
+	font-size: var(--talos-type-body);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row__track {
+	height: 14px;
+	overflow: hidden;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-distribution-row__track > span {
+	display: block;
+	height: 100%;
+	background: var(--capability-row-color);
+	transition: width var(--talos-motion-normal) ease;
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-controls {
+	display: grid;
+	gap: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-current-summary {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: baseline;
+	gap: var(--talos-space-1) var(--talos-space-3);
+	padding-bottom: var(--talos-space-3);
+	border-bottom: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-current-summary small {
+	grid-column: 1 / -1;
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-current-summary strong {
+	font-size: var(--talos-type-module);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-current-summary span {
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-tabs {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-2);
+	margin: 0;
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-tabs .tab {
+	width: 100%;
+	min-width: 0;
+	text-align: left;
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-browser {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-browser .commands {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+@container knowledge-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="capability"] .capability-v2-tabs,
+	.talos-console[data-talos-page="capability"] .capability-v2-browser .commands {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console[data-talos-page="capability"] .capability-v2-distribution-row__track > span {
+		transition: none;
+	}
+}
+/* Vault analytics · D-TLP-019 */
+.talos-console[data-talos-page="vault"] .vault-v2-health-panel .spark {
+	min-height: 148px;
+}
+
+.talos-console[data-talos-page="vault"] .vault-v2-anomaly-head {
+	margin-top: var(--talos-space-3);
+}
+
+.talos-console[data-talos-page="vault"] .vault-v2-anomaly-list {
+	display: grid;
+	gap: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="vault"] .vault-v2-heat-panel,
+.talos-console[data-talos-page="vault"] .vault-v2-module-panel {
+	margin-top: var(--talos-space-4);
+}
+
+.talos-console[data-talos-page="vault"] .vault-v2-heat-panel .heatmap {
+	overflow-x: auto;
+	padding-bottom: var(--talos-space-2);
+}
+
+.talos-console[data-talos-page="vault"] .vault-v2-module-panel .note-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--talos-space-3);
+}
+
+@container system-v2 (max-width: 760px) {
+	.talos-console[data-talos-page="vault"] .vault-v2-module-panel .note-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container system-v2 (max-width: 520px) {
+	.talos-console[data-talos-page="vault"] .vault-v2-module-panel .note-grid {
+		grid-template-columns: 1fr;
+	}
+}
+/* AI chat workspace chrome · D-TLP-020
+   Conversation content starts directly with the active channel. The only
+   shared control lives at the bottom of the navigation card. */
+.talos-console[data-talos-page="chat"] .talos-ui-page {
+	container: chat-workspace-v2 / inline-size;
+}
+
+.talos-console[data-talos-page="chat"] .talos-harness-switcher {
+	overflow: hidden;
+	border: var(--talos-line-structural) solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-panel);
+	background: var(--talos-ui-surface);
+	box-shadow: var(--talos-ui-shadow-panel);
+}
+
+.talos-console .talos-chat-nav-switch-host {
+	box-sizing: border-box;
+	display: none;
+	width: 100%;
+	min-width: 0;
+	margin-top: var(--talos-space-2);
+	padding-top: var(--talos-space-2);
+	overflow: hidden;
+	border-top: var(--talos-line-detail) solid var(--talos-ui-line);
+	container: chat-nav-switch / inline-size;
+}
+
+.talos-console[data-talos-page="chat"]
+	.talos-chat-nav-switch-host:not(:empty) {
+	display: block;
+}
+
+.talos-console .talos-chat-nav-switch-host .talos-harness-switch {
+	display: grid;
+	grid-template-columns: minmax(0, 1.25fr) 46px minmax(0, 0.75fr);
+	align-items: center;
+	gap: var(--talos-space-1);
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__option {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	max-width: 100%;
+	height: auto;
+	min-height: 0 !important;
+	margin: 0;
+	padding: var(--talos-space-1) 0;
+	overflow: hidden;
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	font-size: var(--talos-type-meta);
+	font-weight: 600;
+	line-height: 1.3;
+	color: var(--talos-ui-muted) !important;
+	-webkit-text-fill-color: currentColor !important;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__option.is-active {
+	font-weight: 700;
+	color: var(--talos-ui-ink) !important;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__track {
+	box-sizing: border-box;
+	width: 46px;
+	min-width: 46px;
+	max-width: 46px;
+	height: 28px;
+	min-height: 28px !important;
+	max-height: 28px;
+	padding: 0 !important;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__thumb {
+	width: 20px;
+	height: 20px;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__track.is-on
+	.talos-harness-switch__thumb {
+	transform: translateX(18px);
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__option:first-child {
+	text-align: right;
+}
+
+.talos-console
+	.talos-chat-nav-switch-host
+	.talos-harness-switch__option:last-child {
+	text-align: left;
+}
+
+.talos-console[data-talos-page="chat"] .talos-harness-switcher__body {
+	background: var(--talos-ui-canvas);
+}
+
+@container chat-nav-switch (max-width: 210px) {
+	.talos-console .talos-chat-nav-switch-host .talos-harness-switch {
+		display: flex;
+		justify-content: center;
+	}
+
+	.talos-console
+		.talos-chat-nav-switch-host
+		.talos-harness-switch__option {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.talos-console .talos-chat-nav-switch-host .talos-harness-switch__option,
+	.talos-console .talos-chat-nav-switch-host .talos-harness-switch__track,
+	.talos-console .talos-chat-nav-switch-host .talos-harness-switch__thumb {
+		transition: none;
+	}
+}
+
+/* Voice focus workspace chrome · D-TLP-019
+   The particle stage, transcript, radial controls, theme mappings, and motion
+   remain owned by styles.quyuan-shell.css. This layer adds hierarchy only. */
+.talos-console[data-talos-page="jarvis"] .tq-workspace-bar {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	right: 16px;
+	z-index: 24;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	pointer-events: none;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-identity,
+.talos-console[data-talos-page="jarvis"] .tq-workspace-meta > span {
+	border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
+	background: color-mix(in srgb, var(--tq-panel-strong) 82%, transparent);
+	box-shadow:
+		0 1px 0 color-mix(in srgb, var(--tq-text) 7%, transparent) inset,
+		0 10px 28px rgba(0, 0, 0, 0.16);
+	backdrop-filter: blur(18px);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-identity {
+	display: grid;
+	grid-template-columns: 36px minmax(0, 1fr);
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	padding: 7px 12px 7px 7px;
+	border-radius: 14px;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-mark {
+	display: grid;
+	width: 36px;
+	height: 36px;
+	place-items: center;
+	border: 1px solid color-mix(in srgb, var(--tq-state) 36%, var(--tq-border));
+	border-radius: 11px;
+	color: var(--tq-state);
+	background: color-mix(in srgb, var(--tq-state) 10%, transparent);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-mark svg {
+	width: 18px;
+	height: 18px;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-copy {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-copy small,
+.talos-console[data-talos-page="jarvis"] .tq-workspace-copy strong {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-copy small {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	color: var(--tq-muted);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-copy strong {
+	margin-top: 2px;
+	font-size: 13px;
+	color: var(--tq-text);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-meta {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-meta > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 30px;
+	padding: 0 10px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 650;
+	color: var(--tq-muted);
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-meta svg {
+	width: 14px;
+	height: 14px;
+	color: var(--tq-state);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-state__dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--tq-state);
+	box-shadow: 0 0 12px color-mix(in srgb, var(--tq-state) 78%, transparent);
+}
+
+@container tq-stage (max-width: 620px) {
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-bar {
+		top: 10px;
+		left: 10px;
+		right: 10px;
+		gap: 8px;
+	}
+
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-boundary {
+		display: none;
+	}
+}
+
+@container tq-stage (max-width: 420px) {
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-identity {
+		grid-template-columns: 30px minmax(0, 1fr);
+		gap: 7px;
+		padding: 5px 9px 5px 5px;
+	}
+
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-mark {
+		width: 30px;
+		height: 30px;
+	}
+
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-copy small {
+		display: none;
+	}
+
+	.talos-console[data-talos-page="jarvis"] .tq-workspace-meta > span {
+		min-height: 28px;
+		padding-inline: 8px;
+		font-size: 10px;
+	}
+}
+
+/* Settings configuration workspace · D-TLP-019
+   Existing Obsidian Setting components and save handlers remain authoritative.
+   This layer improves navigation hierarchy and wide-screen density only. */
+.talos-settings:not(.talos-settings--console) .talos-settab-icon,
+.talos-settings:not(.talos-settings--console) .talos-settab-copy small,
+.talos-settings:not(.talos-settings--console) .talos-settings-section-intro {
+	display: none;
+}
+
+.talos-settings:not(.talos-settings--console) .talos-settab {
+	appearance: none;
+	border-inline: 0;
+	border-top: 0;
+	background: transparent;
+	font: inherit;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab {
+	appearance: none;
+	display: grid;
+	grid-template-columns: 30px minmax(0, 1fr);
+	align-items: center;
+	width: 100%;
+	min-height: 58px;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab::before {
+	display: none;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-icon {
+	display: grid;
+	width: 30px;
+	height: 30px;
+	place-items: center;
+	border: 1px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-control);
+	color: var(--talos-ui-muted);
+	background: var(--talos-ui-surface-raised);
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-icon svg {
+	width: 15px;
+	height: 15px;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-copy {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-copy strong,
+.talos-console[data-talos-page="settings"] .talos-settab-copy small {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-copy strong {
+	font-size: var(--talos-type-supporting);
+	color: currentColor;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab-copy small {
+	font-size: 10px;
+	font-weight: 500;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="settings"] .talos-settab.is-active .talos-settab-icon {
+	border-color: color-mix(
+		in srgb,
+		var(--talos-ui-accent) 54%,
+		var(--talos-ui-line)
+	);
+	color: var(--talos-ui-accent);
+	background: color-mix(
+		in srgb,
+		var(--talos-ui-accent) 12%,
+		var(--talos-ui-surface-raised)
+	);
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro {
+	display: grid;
+	grid-template-columns: 42px minmax(0, 1fr);
+	align-items: center;
+	gap: var(--talos-space-3);
+	min-width: 0;
+	padding: var(--talos-space-3) var(--talos-space-4);
+	border: 1px solid var(--talos-ui-line);
+	border-radius: var(--talos-ui-radius-panel);
+	background:
+		linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--talos-ui-accent) 9%, transparent),
+			transparent 56%
+		),
+		var(--talos-ui-surface);
+	box-shadow: var(--talos-ui-shadow-panel);
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro__mark {
+	display: grid;
+	width: 42px;
+	height: 42px;
+	place-items: center;
+	border: 1px solid color-mix(
+		in srgb,
+		var(--talos-ui-accent) 42%,
+		var(--talos-ui-line)
+	);
+	border-radius: var(--talos-ui-radius-control);
+	color: var(--talos-ui-accent);
+	background: color-mix(
+		in srgb,
+		var(--talos-ui-accent) 10%,
+		var(--talos-ui-surface-raised)
+	);
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro__mark svg {
+	width: 20px;
+	height: 20px;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro__copy {
+	min-width: 0;
+}
+
+.talos-console[data-talos-page="settings"]
+	.talos-settings-section-intro__copy
+	:is(small, .talos-settings-section-intro__title, p) {
+	display: block;
+	margin: 0;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro__copy small {
+	font-size: var(--talos-type-meta);
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console[data-talos-page="settings"]
+	.talos-settings-section-intro__copy
+	.talos-settings-section-intro__title {
+	margin-top: 2px;
+	background: none;
+	color: var(--talos-ui-ink);
+	-webkit-text-fill-color: currentColor;
+	font-size: var(--talos-type-module);
+	line-height: 1.2;
+}
+
+.talos-console[data-talos-page="settings"] .talos-settings-section-intro__copy p {
+	margin-top: 3px;
+	font-size: var(--talos-type-supporting);
+	color: var(--talos-ui-muted);
+}
+
+@container talos-app (min-width: 1240px) {
+	.talos-console[data-talos-page="settings"]
+		.talos-setcontent:not([data-settings-tab="workbench"]) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: stretch;
+	}
+
+	.talos-console[data-talos-page="settings"]
+		.talos-setcontent:not([data-settings-tab="workbench"])
+		> :is(
+			.talos-settings-section-intro,
+			.setting-item-heading,
+			.talos-schema-report,
+			.talos-embedded-workbench-settings
+		) {
+		grid-column: 1 / -1;
+	}
+
+	.talos-console[data-talos-page="settings"]
+		.talos-setcontent:not([data-settings-tab="workbench"])
+		> .setting-item:not(.setting-item-heading) {
+		align-items: stretch;
+		flex-direction: column;
+		gap: var(--talos-space-3);
+		min-width: 0;
+	}
+
+	.talos-console[data-talos-page="settings"]
+		.talos-setcontent:not([data-settings-tab="workbench"])
+		> .setting-item:not(.setting-item-heading)
+		.setting-item-control {
+		justify-content: flex-start;
+		width: 100%;
+	}
+
+	.talos-console[data-talos-page="settings"]
+		.talos-setcontent:not([data-settings-tab="workbench"])
+		> .setting-item:not(.setting-item-heading)
+		.setting-item-control
+		> :is(input, select, textarea) {
+		width: 100%;
+		max-width: 100%;
+	}
+}
+
+@container talos-app (max-width: 720px) {
+	.talos-console[data-talos-page="settings"] .talos-settab {
+		width: auto;
+		min-width: 164px;
+	}
+}
+
+@container talos-app (max-width: 520px) {
+	.talos-console[data-talos-page="settings"] .talos-settab {
+		min-width: 136px;
+		min-height: 46px;
+	}
+
+	.talos-console[data-talos-page="settings"] .talos-settab-copy small {
+		display: none;
+	}
+}

@@ -1,227 +1,433 @@
-# Design System Master File
+# TALOS Unified Interface Language
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+**version:** 2.0
+**status:** accepted direction
+**last_updated:** 2026-08-24
+**classification:** PUBLIC
+**decision:** D-TLP-019
 
----
+This file is the single master specification for TALOS interface work. Page-level files may
+specialize content and data, but must not create a separate color, spacing, component, or
+interaction language. This specification supersedes the generated 2026-07-19 dark
+Cybersecurity template.
 
-**Project:** TALOS
-**Generated:** 2026-07-19 23:53:28
-**Category:** Cybersecurity Platform
-**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 8/10 (Dense / Dashboard)
+## 1. Product outcome
 
----
+TALOS is an Obsidian-native dashboard and workbench. It should let the user understand
+the current situation, identify attention items, approve recoverable work, and make small
+contextual edits without leaving the current page.
 
-## Global Rules
+Unified language does not mean identical page layouts. Every page shares foundations,
+component anatomy, interaction semantics, and responsive behavior; each page uses the
+archetype that best serves its job.
 
-### Color Palette
+## 2. Non-negotiable constraints
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#1E293B` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#334155` | `--color-secondary` |
-| Accent/CTA | `#22C55E` | `--color-accent` |
-| Background | `#0F172A` | `--color-background` |
-| Foreground | `#F8FAFC` | `--color-foreground` |
-| Muted | `#272F42` | `--color-muted` |
-| Border | `#475569` | `--color-border` |
-| Destructive | `#EF4444` | `--color-destructive` |
-| Ring | `#1E293B` | `--color-ring` |
+- Preserve the existing geometric-modern / Bauhaus character and established motion.
+- Keep tasks in the left navigation. Do not restore a permanent right task rail.
+- Share only the outer page canvas. Never force page-content or its last business child to
+  stretch, fill remaining height, or use a page-wide fixed height.
+- Keep the DeepSeek Harness and Codex workbench as two retained AI surfaces.
+- Keep voice operations read-only. A requested write returns to text confirmation.
+- Preserve existing routes, commands, approval handlers, provider behavior, and settings
+  persistence while visual restructuring is underway.
+- Use Obsidian and Lucide-native facilities. Do not load external fonts or add a chart
+  dependency unless a later page proves that native SVG or DOM is insufficient.
+- The vault-theme blanket important rule remains a known cascade constraint. New
+  interaction overrides must be narrowly scoped and documented.
 
-**Color Notes:** Code dark + run green
+## 3. Complete interface map
 
-### Typography
+| Archetype | Pages | Primary job |
+|---|---|---|
+| Data dashboard | Workbench, System Health, Vault View | Situation, trend, anomaly, attention |
+| Execution workbench | Daily Execution, Inbox, Output Room, Project Scenes, TALOS Product | Queue, decision, approval, next action |
+| Knowledge and capability | Knowledge Hub, Identity Context, Capability Center | Structure, coverage, relationship, access |
+| Specialized workspace | AI Chat, Voice Assistant | Sustained conversation and operation |
+| Configuration center | Settings and its six sections | Find, understand, change, verify configuration |
 
-- **Heading Font:** Inter
-- **Body Font:** Inter
-- **Mood:** dark, cinematic, technical, precision, clean, premium, developer, professional, high-end utility
-- **Google Fonts:** [Inter + Inter](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap)
+The seven primary navigation entries and ten secondary business routes remain the
+information architecture. A group entry may lead to its first child; it is not an extra
+business page.
 
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-```
+## 4. Theme contract
 
-### Spacing Variables
+### 4.1 Reference theme
 
-*Density: 8/10 — Dense / Dashboard*
+Geometric Modernism is the reference implementation:
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `2px` / `0.125rem` | Tight gaps |
-| `--space-sm` | `4px` / `0.25rem` | Icon gaps, inline spacing |
-| `--space-md` | `8px` / `0.5rem` | Standard padding |
-| `--space-lg` | `12px` / `0.75rem` | Section padding |
-| `--space-xl` | `16px` / `1rem` | Large gaps |
-| `--space-2xl` | `24px` / `1.5rem` | Section margins |
-| `--space-3xl` | `32px` / `2rem` | Hero padding |
+- canvas: warm paper #f1ede3;
+- ink: #101010;
+- primary geometry: red #d52b32, yellow #f5c518, blue #2052b8;
+- positive accent: green #158b69;
+- panels: paper surfaces with a 2px ink outline;
+- elevation: a 6px hard ink shadow, never a soft glass shadow;
+- geometry: square by default, with circles and triangles used as deliberate accents;
+- motion: clear but restrained translation, color, and opacity changes with no layout shift.
 
-### Shadow Depths
+The reference theme keeps the current visual identity. It is not converted into a generic
+dark SaaS dashboard.
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+### 4.2 All-theme compatibility
 
----
+The structural language applies to aurora, cosmos-dark, animal-island, system-classic,
+data-stream, soft-relief, geometric-modern, executive-brief, paper-ink, and swiss-modern.
+The other nine themes remap semantic tokens; they are not independently redesigned in
+this pass.
 
-## Component Specs
+Canonical semantic tokens:
 
-### Buttons
+| Role | Token |
+|---|---|
+| Canvas | --talos-ui-canvas |
+| Base surface | --talos-ui-surface |
+| Raised surface | --talos-ui-surface-raised |
+| Primary text | --talos-ui-ink |
+| Secondary text | --talos-ui-muted |
+| Hairline / grid | --talos-ui-line-subtle |
+| Structural outline | --talos-ui-line |
+| Primary accent | --talos-ui-accent |
+| Secondary accent | --talos-ui-accent-2 |
+| Tertiary accent | --talos-ui-accent-3 |
+| Success | --talos-ui-success |
+| Warning | --talos-ui-warning |
+| Danger | --talos-ui-danger |
+| Information | --talos-ui-info |
+| Text on accent | --talos-ui-on-accent |
+| Keyboard focus | --talos-ui-focus |
+| Panel radius | --talos-ui-radius-panel |
+| Control radius | --talos-ui-radius-control |
+| Panel shadow | --talos-ui-shadow-panel |
 
-```css
-/* Primary Button */
-.btn-primary {
-  background: #22C55E;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+Existing theme variables remain implementation inputs during migration. Shared components
+consume the semantic tokens; page components must not branch on theme names for ordinary
+color and spacing decisions.
 
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+## 5. Foundation scales
 
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #1E293B;
-  border: 2px solid #1E293B;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
+### 5.1 Spacing
 
-### Cards
+Use a 4px base rhythm.
 
-```css
-.card {
-  background: #0F172A;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+| Token | Value | Typical use |
+|---|---:|---|
+| space-1 | 4px | icon and label gap |
+| space-2 | 8px | compact internal gap |
+| space-3 | 12px | row and control padding |
+| space-4 | 16px | card padding and grid gap |
+| space-6 | 24px | section separation |
+| space-8 | 32px | major page separation |
 
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
+Do not introduce isolated 5px, 7px, 13px, 18px, or 22px spacing to visually repair a
+single page. Choose the nearest shared step or change the component contract.
 
-### Inputs
+### 5.2 Typography
 
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
+| Level | Reference size | Use |
+|---|---:|---|
+| Metadata | 11px | eyebrow, timestamp, source, badge |
+| Supporting | 12px | descriptions, legends, helper text |
+| Body | 14px | list rows, controls, values with labels |
+| Module title | 15px | panel and card headings |
+| Page title | clamp(24px, 2.2cqw, 32px) | compact page heading |
+| Display value | clamp(24px, 2.6cqw, 40px) | one important metric only |
 
-.input:focus {
-  border-color: #1E293B;
-  outline: none;
-  box-shadow: 0 0 0 3px #1E293B20;
-}
-```
+Keep the established 15 / 14 / 12 / 11 hierarchy. Use weight and whitespace before
+inventing extra sizes. Use the existing system font stack and tabular numerals for metrics.
 
-### Modals
+### 5.3 Lines, radius, and elevation
 
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
+- structural modules and controls: 2px;
+- metadata pills and internal rows: 1.5px;
+- chart grid and heatmap cells: 1px;
+- geometric-modern panel radius: 0;
+- geometric-modern panel shadow: 6px 6px 0 current ink;
+- nested cards do not each receive a full hard shadow;
+- hover may change color or shadow offset but must not reflow surrounding content.
 
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
+### 5.4 Motion and state
 
----
+- quick feedback: 160ms;
+- normal transition: 240ms;
+- page or panel entrance: at most 420ms;
+- loading, disabled, success, and error states are visible and text-labelled;
+- focus-visible is always present;
+- prefers-reduced-motion removes decorative movement and preserves state feedback.
 
-## Style Guidelines
+## 6. Layout system
 
-**Style:** Modern Dark (Cinema Mobile)
+### 6.1 Shared shell
 
-**Keywords:** dark mode, cinematic, ambient light, glassmorphism, deep black, indigo, glow, blur, atmospheric, reanimated, haptic, premium, layered, frosted glass, linear gradient
+The existing left navigation, main canvas, secondary tabs, command access, and footer form
+the product shell. Pages own only their content inside the main canvas.
 
-**Best For:** Developer tools, pro productivity apps, fintech/trading dashboards, media/streaming platforms, AI tool interfaces, high-end gaming companion apps
+Every page begins with a compact page header containing:
 
-**Key Effects:** Expo.out Bezier(0.16,1,0.3,1) easing; spring modals (damping:20 stiffness:90); haptic-linked press (Impact Light/Medium); animated ambient light blobs (Reanimated translateX/Y slow oscillation); BlurView glassmorphism headers/nav (intensity 20); scale press 0.97 → 1.0; avoid pure #000000 (OLED smear)
+1. eyebrow or location;
+2. page title and one-line purpose;
+3. freshness or source status;
+4. up to three page-level actions;
+5. filters only when they affect multiple modules.
 
-### Page Pattern
+A decorative hero must not consume the first screen. Pixel-bot scenes may remain as a
+small identity accent or empty-state illustration, not as a full-width repeated module.
+In the unified v2 business-page header, that identity accent owns an 86px clipped safe
+stage at `--pixel-scale: 1.25`; the bot baseline and track must be positioned inside that
+stage rather than relying on visible overflow. The overview scene keeps its established
+dimensions. Page-specific poses, props, theme colors, and `steps()` motion remain
+unchanged.
 
-**Pattern Name:** Bento Grid Showcase
+### 6.2 Business-page first screen
 
-- **Conversion Strategy:** Scannable value props. High information density without clutter. Mobile stack.
-- **CTA Placement:** Floating Action Button or Bottom of Grid
-- **Section Order:** 1. Hero, 2. Bento Grid (Key Features), 3. Detail Cards, 4. Tech Specs, 5. CTA
+At wide widths, dashboard and execution pages use a 12-column grid:
 
----
+- columns 1–6: core data and a maximum of four high-value metrics;
+- columns 7–12: approvals, anomalies, attention items, or executable next actions.
 
-## Motion
+This is a functional 50 / 50 contract. When no real approval exists, the right side shows
+real attention or action items; it must not invent an approval queue.
 
-**Scroll Reveal** (Subtle) — Trigger: scroll (viewport enter) | Duration: 300-400ms | Easing: `power1.out`
+Below the first screen, modules use 4 / 8, 8 / 4, or 4 / 4 / 4 compositions according to
+content. A full-width strip is reserved for a real timeline, hierarchy, or table that
+benefits from the width.
 
-```js
-gsap.from(el, { opacity: 0, y: 12, duration: 0.35, ease: 'power1.out', scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } });
-```
+### 6.3 Responsive behavior
 
-**Framework notes:** Requires the ScrollTrigger plugin registered once via gsap.registerPlugin(ScrollTrigger)
+- wide container, 1180px and above: 12 columns, 24px major gap;
+- medium container, 760–1179px: 8 columns, 16px gap, balanced 4 / 4 first screen;
+- narrow container, below 760px: one column, no horizontal scrolling;
+- use component container queries before viewport-wide patches;
+- approvals and blocking attention move before secondary statistics on narrow layouts;
+- lists show a useful preview and a clear “view all” route instead of arbitrary fixed
+  page heights or nested scroll traps.
 
-- ✅ Keep the y offset small (8-16px) so it reads as a fade, not a slide
-- ❌ Don't reveal below-the-fold content needed for SEO/crawlers as invisible-by-default without a no-JS fallback
-- ⚡ toggleActions 'play none none reverse' avoids re-triggering on every scroll direction change
+## 7. Page archetypes
 
----
+### 7.1 Data dashboard
 
-## Anti-Patterns (Do NOT Use)
+Applies to Workbench, System Health, and Vault View.
 
-- ❌ Light mode
-- ❌ Poor data viz
+Order:
 
-### Additional Forbidden Patterns
+1. compact header;
+2. core metric strip;
+3. 50 / 50 data-and-attention region;
+4. one primary trend or distribution;
+5. detail modules and drill-down.
 
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
+The Workbench is the reference page for shared components. It must not repeat the same
+module as both a navigation launcher and a content card.
 
----
+### 7.2 Execution workbench
 
-## Pre-Delivery Checklist
+Applies to Daily Execution, Inbox, Output Room, Project Scenes, and TALOS Product.
 
-Before delivering any UI code, verify:
+Order:
 
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+1. compact header and current operating context;
+2. throughput, age, progress, or gate metrics;
+3. 50 / 50 status-and-action region;
+4. prioritized queue;
+5. schedule, platform, project, or release detail.
+
+The primary action stays close to the item it affects. Avoid a separate generic action
+card when the action belongs on a queue row.
+
+### 7.3 Knowledge and capability
+
+Applies to Knowledge Hub, Identity Context, and Capability Center.
+
+Order:
+
+1. compact header;
+2. coverage and freshness summary;
+3. hierarchy, relationship, or source map;
+4. gaps and recommended actions;
+5. searchable detail list.
+
+These pages emphasize understanding and navigation. They use approvals only when a real
+change or access decision is pending.
+
+### 7.4 Specialized workspace
+
+AI Chat keeps the DeepSeek and Codex surfaces mounted and switchable. The shared language
+controls outer chrome, surface boundaries, tabs, buttons, status, and empty/error states;
+it does not force conversation content into a dashboard grid.
+
+AI Chat does not repeat an identity/title header inside the conversation surface. The
+shared `chat-channel-switch` is mounted at the bottom of the primary navigation card
+and is present only while the AI Chat route is active. Its labels, switch track, focus
+state, motion, and compact reflow use the same navigation and control tokens. Expanded
+labels receive content-aware asymmetric columns and must never be clipped; collapsed
+navigation keeps only the compact track. Removing the duplicate header must not destroy
+or remount either channel session.
+
+Voice keeps its immersive stage, transcript, radial controls, and three-tab side panel.
+It shares semantic state colors and component anatomy while retaining a local immersive
+palette where needed. Read-only behavior is never weakened for visual convenience.
+
+### 7.5 Configuration center
+
+Settings uses a searchable two-pane workbench:
+
+- persistent section navigation;
+- section title, impact summary, and save state;
+- related controls grouped into bounded sections;
+- credentials and advanced options progressively disclosed;
+- connection tests and validation next to the field they verify.
+
+Settings does not use decorative charts. Dense provider and voice settings are split by
+task, not merely by implementation module.
+
+## 8. Shared component contracts
+
+### Page shell and header
+
+One DOM and class contract across business pages. Header height is content-driven and
+compact; page identity never relies only on accent color.
+
+### Metric card
+
+Shows label, exact value, comparison or delta when real, timeframe, and data source or
+freshness. A metric without a meaningful denominator is not rendered as a percentage.
+
+### Chart panel
+
+Contains title, one-sentence question, timeframe/filter, visualization, legend, source,
+empty state, and drill-down action. Tooltip content is keyboard reachable.
+
+### Approval row
+
+Shows object, proposed effect, source, age, risk class, reversibility, and explicit
+actions. Approval is item-local; a page-wide approve button is forbidden.
+
+### Action queue
+
+Uses clear priority, owner or source, due/age, status, and next action. Status color is
+always paired with text or an icon label.
+
+### Quick note
+
+Provides a small persistent writing surface, visible save state, and a route to the full
+note. Local drafts survive accidental navigation. It is not a decorative sticky note.
+
+### Inline editor
+
+Edits low-risk fields in context, supports cancel, validates before save, and reports the
+result. Protected or high-impact content opens a proposal/diff flow instead.
+
+### Detail drawer
+
+Provides context, history, and advanced actions without expanding every card. It preserves
+the page context and restores focus to the triggering control when closed.
+
+### System states
+
+Loading uses stable skeleton dimensions. Empty states explain why no data exists and
+offer a real next step. Errors identify the failed operation and a safe retry or recovery.
+
+## 9. Data visualization grammar
+
+Use charts only when they answer a named question.
+
+| Visualization | Use | Guardrail |
+|---|---|---|
+| Bar / column | compare categories, queues, throughput | sort intentionally; normally no more than 8 categories |
+| Line / area | change over time | use a real time range and readable axis |
+| Donut / pie | small composition | no more than 5 slices; show total and exact values |
+| Tree / treemap | project, knowledge, or capability hierarchy | preserve labels and provide drill-down |
+| Heatmap | activity, freshness, workload, or incidents over time | include legend and non-color status |
+| Progress / gate | bounded completion with a real denominator | show numerator and denominator |
+| KPI | one current value | include timeframe and context |
+
+Forbidden:
+
+- arbitrary percentages such as item-count divided by a visually convenient constant;
+- charts whose values cannot be traced to collected data;
+- 3D charts, ornamental gauges, unlabeled color blocks, or duplicate views of one metric;
+- rendering zero when the correct state is unknown or unavailable.
+
+Prefer accessible native SVG or DOM for the initial shared primitives. Add a chart library
+only after a page requires interaction or scale that the primitives cannot safely provide.
+
+## 10. Approval and editing behavior
+
+Risk rules remain authoritative:
+
+- A: read-only; execute directly and show the result.
+- B: fixed scope and recoverable; clicking Approve authorizes that exact action. Show
+  progress, result, and Undo when recovery is reliable.
+- C: high impact; show proposal or diff first, then require an independent approval.
+
+Every destructive-looking action states its target and effect. Buttons use explicit verbs,
+not “OK”. Repeated clicks are prevented while an action is running. A failed action returns
+to a retryable state and never displays success optimistically.
+
+Small edits are allowed only for fields whose write contract is known. Project facts,
+protected JSON, credentials, provider changes, and other governed content retain their
+existing validation and confirmation paths.
+
+## 11. Implementation order
+
+0. Foundation: semantic tokens, shared primitives, archetype shells, responsive contract.
+1. Workbench: reference implementation and component proof.
+2. Workflow: Daily Execution, Inbox, Output Room, Project Scenes.
+3. Knowledge Assets: Knowledge Hub, Identity Context, TALOS Product.
+4. System Center: System Health, Capability Center, Vault View.
+5. AI Chat: outer chrome and two-surface consistency.
+6. Voice Assistant: stage, controls, side panel, and theme-state consistency.
+7. Settings: information architecture, disclosure, validation, and save feedback.
+
+For every page:
+
+1. record the page question, real data, pending decisions, and allowed writes;
+2. remove duplicate modules and decorative metrics;
+3. restructure with the matching archetype and shared components;
+4. map the page to semantic tokens without a page-specific theme fork;
+5. run focused tests, typecheck, lint, and production build;
+6. inspect at narrow, medium, and wide Obsidian pane widths;
+7. visually verify geometric-modern and smoke-test the other nine themes;
+8. record evidence before moving to the next page.
+
+## 12. Acceptance checklist
+
+A page is not complete until:
+
+- its first screen has a clear situation and next action;
+- business pages honor the data-and-attention 50 / 50 contract at wide width;
+- no repeated giant hero or duplicate module launcher remains;
+- every chart has a real source, timeframe, legend, empty state, and readable values;
+- every visible approval or edit control calls a real handler and exposes outcome state;
+- keyboard navigation, focus, contrast, and reduced motion work;
+- 375px, 768px, 1024px, and 1440px content widths have no overlap or horizontal scroll;
+- geometric-modern passes full visual review and all themes pass structural smoke review;
+- page-content and business children are not height-forced;
+- new hardcoded colors and broad important declarations are absent or explicitly justified;
+- the production style bundle contains the intended source changes.
+
+## 13. Anti-patterns
+
+- one layout copied onto every page;
+- a full-width hero repeated on every business route;
+- long strips containing unrelated information;
+- more than four equally prominent KPIs;
+- cards nested three levels deep with borders on every level;
+- charts used as decoration or as a substitute for exact values;
+- approval controls separated from their target;
+- hidden save state, optimistic success, or silent failure;
+- hover-only meaning, invisible focus, color-only status, or layout-shifting motion;
+- page-specific CSS appended merely to defeat an earlier page-specific override.
+
+## 14. Professional references
+
+- Carbon dashboards and chart selection:
+  https://carbondesignsystem.com/data-visualization/dashboards/
+- Grafana dashboard hierarchy and maintenance:
+  https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/best-practices/
+- SAP Fiori My Home task and approval workspace:
+  https://experience.sap.com/fiori-design-web/explore_category/sap-s-4hana/
+- Linear dashboard filtering and drill-down:
+  https://linear.app/docs/dashboards
+
+Adopt the information and interaction principles, not the visual skin. TALOS keeps its own
+Bauhaus identity and Obsidian-native behavior.

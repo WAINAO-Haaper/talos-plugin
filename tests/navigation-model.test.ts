@@ -41,7 +41,7 @@ describe("TALOS navigation model", () => {
 		});
 	});
 
-	it("keeps all nine customer modules reachable from the workbench", () => {
+	it("keeps all nine legacy customer-module routes addressable", () => {
 		expect(WORKBENCH_MODULES).toHaveLength(9);
 		expect(new Set(WORKBENCH_MODULES.map((module) => module.key)).size).toBe(9);
 		for (const module of WORKBENCH_MODULES) {
@@ -49,20 +49,14 @@ describe("TALOS navigation model", () => {
 		}
 	});
 
-	it("renders the workbench in action, overview, module order", () => {
-		const actionIndex = viewSource.indexOf(
-			'data-workbench-section", "today-actions"'
+	it("uses the primary navigation instead of duplicating nine launch cards", () => {
+		expect(viewSource).toContain('"data-workbench-section", "core-data"');
+		expect(viewSource).toContain(
+			'"data-workbench-section",\n\t\t\t"attention-and-approvals"'
 		);
-		const overviewIndex = viewSource.indexOf(
-			'data-workbench-section", "system-overview"'
-		);
-		const modulesIndex = viewSource.indexOf(
-			'data-workbench-section", "customer-modules"'
-		);
-		expect(actionIndex).toBeGreaterThan(0);
-		expect(overviewIndex).toBeGreaterThan(actionIndex);
-		expect(modulesIndex).toBeGreaterThan(overviewIndex);
-		expect(viewSource).toContain("for (const module of WORKBENCH_MODULES)");
+		expect(viewSource).toContain('"data-workbench-section", "task-kanban"');
+		expect(viewSource).not.toContain("for (const module of WORKBENCH_MODULES)");
+		expect(viewSource).not.toContain('"data-workbench-section", "customer-modules"');
 		expect(viewSource).not.toContain("const PAGES:");
 	});
 });

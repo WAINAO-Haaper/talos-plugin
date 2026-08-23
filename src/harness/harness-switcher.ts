@@ -18,6 +18,8 @@ export interface HarnessSwitcherDeps {
 	getActiveId(): string;
 	/** 持久化由调用方负责（写设置并保存）。 */
 	setActiveId(id: string): void;
+	/** AI 对话页导航卡底部的切换器挂载点。 */
+	getSwitchHost(): HTMLElement | null;
 }
 
 export const HARNESS_SURFACE_IDS = ["dsh", "codex"] as const;
@@ -29,7 +31,8 @@ export function normalizeHarnessSurface(value: unknown): HarnessSurfaceId {
 
 export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	private root: HTMLElement | null = null;
-	private track: HTMLElement | null = null;
+	private switchBar: HTMLElement | null = null;
+	private track: HTMLButtonElement | null = null;
 	private readonly slots = new Map<string, HTMLElement>();
 	private readonly mountedChannels = new Set<string>();
 	private activeId: string;
@@ -42,12 +45,17 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	}
 
 	private channel(id: string): HarnessChannel {
-		const found = this.deps.channels.find((c) => c.id === id);
+		const found = this.deps.channels.find(
+			(channel) => channel.id === id
+		);
 		if (!found) throw new Error(`未知 Harness 通道：${id}`);
 		return found;
 	}
 
-	async mount(container: HTMLElement, namespace: "chat"): Promise<void> {
+	async mount(
+		container: HTMLElement,
+		namespace: "chat"
+	): Promise<void> {
 		if (namespace !== "chat") {
 			throw new Error("Harness 切换器只允许 chat 会话命名空间");
 		}
@@ -55,6 +63,7 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		if (this.root && this.root.parentElement !== container) {
 			container.appendChild(this.root);
 		}
+		this.attachSwitchControl();
 		await this.ensureChannelMounted(this.activeId, namespace);
 		this.renderActive();
 	}
@@ -62,17 +71,20 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	private buildShell(doc: Document): void {
 		const root = doc.createElement("div");
 		root.className = "talos-harness-switcher";
+		root.dataset.talosComponent = "chat-workspace";
 
-		// iOS UISwitch 风格：文字标签 + 无边框彩色轨道 + 白色圆形滑块。
-		// 左标签 = 通道 0，右标签 = 通道 1；轨道点击在两通道间互切。
 		const bar = doc.createElement("div");
 		bar.className = "talos-harness-switch";
+		bar.dataset.talosComponent = "chat-channel-switch";
+		bar.setAttribute("role", "group");
+		bar.setAttribute("aria-label", "AI 工作区切换");
 		const [first, second] = this.deps.channels;
 		bar.appendChild(this.buildOption(doc, first));
 
 		const track = doc.createElement("button");
 		track.className = "talos-harness-switch__track";
 		track.type = "button";
+		track.setAttribute("role", "switch");
 		track.setAttribute(
 			"aria-label",
 			`切换 ${first.label} / ${second.label}`
@@ -87,9 +99,8 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		);
 		this.track = track;
 		bar.appendChild(track);
-
 		bar.appendChild(this.buildOption(doc, second));
-		root.appendChild(bar);
+		this.switchBar = bar;
 
 		const body = doc.createElement("div");
 		body.className = "talos-harness-switcher__body";
@@ -104,13 +115,29 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		this.root = root;
 	}
 
-	private buildOption(doc: Document, channel: HarnessChannel): HTMLElement {
+	private attachSwitchControl(): void {
+		const host = this.deps.getSwitchHost();
+		if (!host || !this.switchBar) {
+			throw new Error("AI 对话导航切换器挂载点缺失");
+		}
+		if (this.switchBar.parentElement !== host) {
+			host.appendChild(this.switchBar);
+		}
+	}
+
+	private buildOption(
+		doc: Document,
+		channel: HarnessChannel
+	): HTMLButtonElement {
 		const option = doc.createElement("button");
 		option.className = "talos-harness-switch__option";
 		option.dataset.channelId = channel.id;
 		option.type = "button";
 		option.textContent = channel.label;
-		option.addEventListener("click", () => void this.switchTo(channel.id));
+		option.setAttribute("aria-label", `切换到 ${channel.label}`);
+		option.addEventListener("click", () =>
+			void this.switchTo(channel.id)
+		);
 		return option;
 	}
 
@@ -140,20 +167,36 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	private renderActive(): void {
 		const index = Math.max(
 			0,
-			this.deps.channels.findIndex((c) => c.id === this.activeId)
+			this.deps.channels.findIndex(
+				(channel) => channel.id === this.activeId
+			)
 		);
-		// 滑块位移由 CSS 承担（.is-on .__thumb），这里只切状态类。
+		if (this.root) this.root.dataset.activeChannel = this.activeId;
+		if (this.switchBar) {
+			this.switchBar.dataset.activeChannel = this.activeId;
+		}
 		this.track?.classList.toggle("is-on", index === 1);
+		this.track?.setAttribute(
+			"aria-checked",
+			String(index === 1)
+		);
 		for (const channel of this.deps.channels) {
 			const isActive = channel.id === this.activeId;
-			this.slots.get(channel.id)?.classList.toggle("is-active", isActive);
+			this.slots
+				.get(channel.id)
+				?.classList.toggle("is-active", isActive);
 		}
-		this.root
-			?.querySelectorAll<HTMLElement>(".talos-harness-switch__option")
-			.forEach((el) => {
-				el.classList.toggle(
-					"is-active",
-					el.dataset.channelId === this.activeId
+		this.switchBar
+			?.querySelectorAll<HTMLElement>(
+				".talos-harness-switch__option"
+			)
+			.forEach((element) => {
+				const isActive =
+					element.dataset.channelId === this.activeId;
+				element.classList.toggle("is-active", isActive);
+				element.setAttribute(
+					"aria-pressed",
+					String(isActive)
 				);
 			});
 	}
@@ -161,6 +204,7 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	async suspend(): Promise<void> {
 		// 双通道保活：只摘外壳 DOM，两个通道的会话与进程都保留。
 		this.root?.remove();
+		this.switchBar?.remove();
 	}
 
 	focusComposer(): void {
@@ -175,7 +219,9 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		}
 		this.mountedChannels.clear();
 		this.root?.remove();
+		this.switchBar?.remove();
 		this.root = null;
+		this.switchBar = null;
 		this.track = null;
 		this.slots.clear();
 	}
