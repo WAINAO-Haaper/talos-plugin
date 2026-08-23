@@ -125,4 +125,14 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		);
 		expect(css).toContain("box-shadow: inset 4px 0 0 var(--ac)");
 	});
+
+	it("gives secondary page tabs a hard-contrast hover inversion", () => {
+		// 2026-08-23 实机反馈：页签悬停无变色——基规则 12% 淡色在米色底
+		// 不可见；反色为墨底纸字（激活项不反色），并补 transition
+		expect(css).toContain(
+			".talos-console.theme-geometric-modern .talos-page-tab:hover:not(.is-active)"
+		);
+		expect(css).toContain("background-color: var(--gm-ink)");
+		expect(css).toContain("color: var(--gm-paper)");
+	});
 });

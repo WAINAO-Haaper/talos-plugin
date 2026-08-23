@@ -12739,6 +12739,17 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .talos-page-tab {
 	font-size: clamp(14px, 0.98cqw, 17px);
 }
+/* 悬停反馈（2026-08-23 实机反馈）：基规则 hover 仅 12% accent 淡色，
+   铺在米色底上几乎不可见且按钮无 transition。此处给出明确变色：
+   悬停反色为墨底纸字，与 Bauhaus 硬对比签名一致。 */
+.talos-console.theme-geometric-modern .talos-page-tab {
+	transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.talos-console.theme-geometric-modern .talos-page-tab:hover:not(.is-active) {
+	background-color: var(--gm-ink);
+	border-color: var(--gm-ink);
+	color: var(--gm-paper);
+}
 
 /* ============================================================
    设置页顶部模块与左侧导航模块视觉强化（2026-08-23 · 仓库所有者指令）
