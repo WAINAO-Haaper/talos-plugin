@@ -249,4 +249,26 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(blockHas(".tq-side-tab", "min-height: 30px")).toBe(true);
 		expect(blockHas(".talos-console .tq-voice .tq-side-tab", "font-size: 12px")).toBe(true);
 	});
+
+	it("follows Obsidian light/dark theme for the voice page surface", () => {
+		// 2026-08-23 实机反馈：语音页背景随主题——浅色白色系、深色保持
+		// Aurora 锁定。浅色解锁块必须是 body.theme-light .tq-voice
+		// （0,1,1）且全 !important，才能在同为 !important 的 Aurora 锁定块
+		// （0,1,0）之上生效；文字/描边同步翻深保证白底可读。
+		const blockHas = (sel: string, needle: string) => {
+			const re = new RegExp(
+				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			);
+			return re.test(qcss);
+		};
+		expect(blockHas("body.theme-light .tq-voice", "--tq-surface: #ffffff !important")).toBe(true);
+		expect(blockHas("body.theme-light .tq-voice", "--tq-text: #0f172a !important")).toBe(true);
+		expect(blockHas("body.theme-light .tq-voice", "color-scheme: light !important")).toBe(true);
+		// 深色锁定块必须仍在（深色现状不变）
+		expect(blockHas(".tq-voice", "--tq-surface: #050810 !important")).toBe(true);
+		// jarvis 左侧导航栏硬编码深黑 #070d17 须在浅色下翻白
+		expect(
+			blockHas('body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar', "background: #ffffff")
+		).toBe(true);
+	});
 });

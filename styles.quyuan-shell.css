@@ -1271,6 +1271,45 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-ink-dim: #8aa0b8;
 }
 
+/* 浅色模式解锁（2026-08-23 实机反馈）：Obsidian 浅色主题下语音页背景
+   跟随主题为白色系，文字/描边翻深保证可读；深色主题保持上方 Aurora
+   深色锁定不变。body.theme-light .tq-voice（0,1,1）特异性高于上方
+   .tq-voice 锁定块（0,1,0），同为 !important 时特异性高者胜。
+   按钮胶囊维持深色设计（vault 主题 reassert 块管不到变量，且深胶囊
+   在白底上可读性良好），舞台/面板/侧栏全部变量驱动随此翻转。 */
+body.theme-light .tq-voice {
+  --tq-surface: #ffffff !important;
+  --tq-surface-soft: #f5f7fa !important;
+  --tq-panel: rgba(255, 255, 255, 0.72) !important;
+  --tq-panel-strong: rgba(255, 255, 255, 0.92) !important;
+  --tq-border: rgba(15, 23, 42, 0.14) !important;
+  --tq-text: #0f172a !important;
+  --tq-muted: #526074 !important;
+  --tq-faint: #8593a8 !important;
+  --tq-brand: #0284c7 !important;
+  --tq-on-brand: #ffffff !important;
+  --tq-particle-a: #0ea5e9 !important;
+  --tq-particle-b: #8b5cf6 !important;
+  --tq-particle-c: #0284c7 !important;
+  --tq-state-listen: #0284c7 !important;
+  --tq-state-reco: #0ea5e9 !important;
+  --tq-state-think: #7c3aed !important;
+  --tq-state-speak: #0d9488 !important;
+  --tq-copy-shield: rgba(255, 255, 255, 0.5) !important;
+  color-scheme: light !important;
+  /* 极光令牌浅色版：白底上原浅蓝/浅紫渐变对比度不足，整体加深 */
+  --tq-aurora: linear-gradient(120deg, #0284c7 0%, #7c3aed 52%, #db2777 100%) !important;
+  --tq-ink: #0f172a !important;
+  --tq-ink-dim: #526074 !important;
+}
+
+/* 浅色模式：jarvis 左侧导航栏从硬编码深黑翻为白底（与页面同步）；
+   0,2,1+属性 特异性压过 .talos-console[data-talos-page="jarvis"] .sidebar */
+body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar {
+  background: #ffffff;
+  border-right-color: rgba(15, 23, 42, 0.1);
+}
+
 /* 浅色主题：stage 中心微暗角，让粒子在浅底上跳出 */
 .talos-console.theme-soft-relief[data-talos-page="jarvis"] .tq-stage,
 .talos-console.theme-geometric-modern[data-talos-page="jarvis"] .tq-stage {
