@@ -1087,8 +1087,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-body,
-.talos-console[data-talos-page="jarvis"] .tq-stage,
-.talos-console[data-talos-page="jarvis"] .tq-side {
+.talos-console[data-talos-page="jarvis"] .tq-stage {
   min-height: 0 !important;
   max-height: 100% !important;
 }
@@ -1642,20 +1641,13 @@ body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar {
 }
 
 .tq-body {
-  --tq-side-size: 360px;
   display: grid;
-  grid-template-columns:
-    minmax(0, 1fr)
-    8px
-    minmax(280px, var(--tq-side-size));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
-  transition: grid-template-columns 180ms ease;
-}
-
-.tq-body.is-side-collapsed {
-  grid-template-columns: minmax(0, 1fr) 0 0;
+  overflow: hidden;
 }
 
 .tq-stage {
@@ -2583,577 +2575,6 @@ body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar {
   white-space: nowrap;
 }
 
-.tq-side-resizer {
-  position: relative;
-  z-index: 12;
-  width: 8px;
-  min-width: 8px;
-  cursor: col-resize;
-  background: color-mix(in srgb, var(--tq-border) 38%, transparent);
-  box-shadow: 1px 0 0 var(--tq-border) inset;
-  transition: background-color 160ms ease, box-shadow 160ms ease;
-  touch-action: none;
-}
-
-.tq-side-resizer:hover,
-.tq-side-resizer:focus-visible,
-.tq-side-resizer.is-dragging {
-  background: color-mix(in srgb, var(--tq-state) 17%, transparent);
-  box-shadow:
-    2px 0 0 color-mix(in srgb, var(--tq-state) 66%, transparent) inset,
-    0 0 18px color-mix(in srgb, var(--tq-state) 18%, transparent);
-  outline: 0;
-}
-
-.tq-body.is-side-collapsed .tq-side-resizer {
-  width: 0;
-  min-width: 0;
-  overflow: hidden;
-  box-shadow: none;
-  pointer-events: none;
-}
-
-.tq-side {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--tq-panel);
-  backdrop-filter: blur(22px);
-  opacity: 1;
-  transition: opacity 140ms ease;
-}
-
-.tq-body.is-side-collapsed .tq-side {
-  overflow: hidden;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.tq-side-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex: 0 0 auto;
-  min-height: 58px;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--tq-border);
-  background: color-mix(in srgb, var(--tq-panel-strong) 78%, transparent);
-}
-
-.tq-side-identity {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-
-.tq-side-identity-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 38%, var(--tq-border));
-  border-radius: 9px;
-  color: var(--tq-state);
-  background: color-mix(in srgb, var(--tq-state) 9%, transparent);
-}
-
-.tq-side-identity-icon svg {
-  /* C-4 阶段 2：随图标块 30→34px 等比放大 */
-  width: 17px;
-  height: 17px;
-}
-
-.tq-side-identity b,
-.tq-side-identity small {
-  display: block;
-}
-
-.tq-side-identity b {
-  overflow: hidden;
-  color: var(--tq-text);
-  /* C-4 阶段 2（2026-08-23 实机反馈）：标题模块放大，12px → 15px 标题档 */
-  font-size: 15px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tq-side-identity small {
-  margin-top: 2px;
-  color: var(--tq-muted);
-  /* C-4 字号归梯：9px → 11px（元信息档下限） */
-  font-size: 11px;
-}
-
-.tq-side-actions,
-.tq-session-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tq-voice-mode-btn {
-  gap: 5px;
-  min-width: 82px;
-  height: 30px;
-  padding: 0 9px;
-  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-state) 10%, transparent);
-  /* C-4 字号归梯：9px → 12px（辅助档；按钮标签不得低于 12px） */
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.tq-voice-mode-btn svg {
-  width: 12px;
-  height: 12px;
-}
-
-.tq-voice[data-input-mode="push-to-talk"] .tq-voice-mode-btn {
-  border-color: rgba(167, 139, 250, 0.46);
-  background: rgba(167, 139, 250, 0.12);
-  box-shadow: 0 0 16px rgba(167, 139, 250, 0.12);
-}
-
-.tq-mini-btn,
-.tq-send-btn {
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-}
-
-.tq-mini-btn svg,
-.tq-send-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.tq-side-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  flex: 0 0 auto;
-  /* C-4 阶段 2（实机反馈）：次级模块缩小，容器收紧 */
-  margin: 7px 10px;
-  padding: 3px;
-  border: 1px solid var(--tq-border);
-  border-radius: 12px;
-  border-bottom: 1px solid var(--tq-border);
-  background: color-mix(in srgb, var(--tq-surface) 42%, transparent);
-}
-
-.tq-side-tab {
-  gap: 5px;
-  width: 100%;
-  /* C-4 阶段 2（实机反馈）：次级页签缩小，34px → 30px；
-     min-height 必须显式覆盖——.tq-btn 基规则的
-     min-height: var(--tq-btn-height)=36px 会把 30px 的 height 抬回 36px */
-  height: 30px;
-  min-height: 30px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--tq-muted);
-  background: transparent;
-  font-size: 11px;
-  box-shadow: none;
-}
-
-.tq-side-tab svg {
-  width: 12px;
-  height: 12px;
-}
-
-.tq-side-tab.is-active {
-  --tq-btn-accent: var(--tq-state);
-  color: var(--tq-text) !important; /* C-4（D-TLP-018）：越过 vault 主题毯式按钮规则 */
-  border-color: color-mix(in srgb, var(--tq-state) 42%, var(--tq-border)) !important;
-  background: color-mix(in srgb, var(--tq-state) 13%, var(--tq-panel-strong)) !important;
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12);
-}
-
-/* C-4：语音页侧栏页签补悬停反馈（此前只有 is-active，无 hover）；
-   !important 越过 vault 主题毯式按钮规则（D-TLP-018）。 */
-.tq-side-tab:hover:not(.is-active):not(:disabled) {
-  color: var(--tq-text) !important;
-  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border)) !important;
-  background: color-mix(in srgb, var(--tq-state) 9%, var(--tq-panel-strong)) !important;
-}
-
-.tq-side-panels {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.tq-side-panel {
-  display: none;
-  height: 100%;
-  padding: 14px 12px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.tq-side-panel.is-active {
-  display: flex;
-  flex-direction: column;
-}
-
-.tq-side-panel-session {
-  padding: 0;
-  overflow: hidden;
-}
-
-.tq-side-section,
-.tq-session-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 2px 4px 10px;
-}
-
-.tq-side-section b,
-.tq-session-head b {
-  color: var(--tq-text);
-  font-size: 12px;
-  font-weight: 620;
-}
-
-.tq-session-head {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 3px 13px 11px;
-  border-bottom: 1px solid color-mix(in srgb, var(--tq-border) 66%, transparent);
-}
-
-.tq-session-head b,
-.tq-session-head small {
-  display: block;
-}
-
-.tq-session-head small {
-  margin-top: 2px;
-  color: var(--tq-muted);
-  /* C-4 字号归梯：9px → 11px（元信息档下限） */
-  font-size: 11px;
-}
-
-.tq-side-section span {
-  color: var(--tq-faint);
-  /* C-4 字号归梯：10px → 11px（元信息档下限） */
-  font-size: 11px;
-}
-
-.tq-side-row {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 56px;
-  margin-bottom: 7px;
-  padding: 8px 9px;
-  border: 1px solid color-mix(in srgb, var(--tq-border) 76%, transparent);
-  border-radius: 12px;
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-panel-strong) 46%, transparent);
-  text-align: left;
-  font-weight: 400;
-  line-height: normal;
-  white-space: normal;
-}
-
-.tq-side-row:hover,
-.tq-side-row:focus-visible {
-  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
-  color: var(--tq-text) !important;
-  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border)) !important;
-  background: color-mix(in srgb, var(--tq-state) 9%, transparent) !important;
-  outline: none;
-  transform: translateX(2px);
-}
-
-.tq-side-row-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--tq-border);
-  border-radius: 9px;
-  color: var(--tq-state);
-}
-
-.tq-side-row-icon svg,
-.tq-side-row-arrow svg {
-  width: 15px;
-  height: 15px;
-}
-
-.tq-side-row-copy,
-.tq-side-row-copy b,
-.tq-side-row-copy small {
-  display: block;
-  min-width: 0;
-}
-
-.tq-side-row-copy b {
-  overflow: hidden;
-  color: var(--tq-text);
-  font-size: 12px;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tq-side-row-copy small {
-  margin-top: 3px;
-  overflow: hidden;
-  color: var(--tq-muted);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tq-side-row-arrow {
-  color: var(--tq-faint);
-}
-
-.tq-side-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 12px;
-  flex: 0 0 auto;
-  padding: 11px 14px;
-  border-top: 1px solid var(--tq-border);
-  color: var(--tq-muted);
-  font-size: 10px;
-}
-
-.tq-side-footrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.tq-side-footrow svg {
-  width: 13px;
-  height: 13px;
-}
-
-.tq-convo {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 12px 13px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.tq-bub {
-  max-width: 92%;
-  padding: 12px 14px;
-  border: 1px solid var(--tq-border);
-  border-radius: 18px;
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-panel-strong) 84%, transparent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.tq-me {
-  align-self: flex-end;
-  border-bottom-right-radius: 5px;
-  background: color-mix(in srgb, var(--tq-state) 12%, var(--tq-panel-strong));
-}
-
-.tq-qy {
-  align-self: flex-start;
-  border-bottom-left-radius: 5px;
-}
-
-.tq-bub p {
-  margin: 0 0 0.65em;
-}
-
-.tq-bub p:last-child,
-.tq-bub ul:last-child,
-.tq-bub ol:last-child {
-  margin-bottom: 0;
-}
-
-.tq-bub ul,
-.tq-bub ol {
-  margin: 0.35em 0 0.75em;
-  padding-left: 1.4em;
-}
-
-.tq-bub code {
-  border-radius: 4px;
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-surface) 62%, transparent);
-}
-
-.tq-bub-role {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--tq-state);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.tq-exec {
-  display: block;
-  margin-top: 6px;
-  color: var(--tq-muted);
-  font-size: 10px;
-}
-
-.tq-confirm {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.tq-session-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 210px;
-  padding: 20px 10px;
-  color: var(--tq-muted);
-  text-align: center;
-}
-
-.tq-session-empty.is-hidden {
-  display: none;
-}
-
-.tq-session-empty-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 38%, var(--tq-border));
-  border-radius: 14px;
-  color: var(--tq-state);
-  background: color-mix(in srgb, var(--tq-state) 8%, transparent);
-}
-
-.tq-session-empty-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.tq-session-empty b {
-  color: var(--tq-text);
-  font-size: 13px;
-}
-
-.tq-session-empty small {
-  max-width: 220px;
-  color: var(--tq-muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.tq-quick-prompts {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.tq-quick-prompt {
-  /* C-4 字号归梯：9px → 12px（辅助档；按钮标签不得低于 12px） */
-  font-size: 12px;
-}
-
-.tq-quick-prompt:hover,
-.tq-quick-prompt:focus-visible {
-  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
-  border-color: color-mix(in srgb, var(--tq-state) 48%, var(--tq-border)) !important;
-  color: var(--tq-text) !important;
-  outline: 0;
-}
-
-.tq-side-composer {
-  flex: 0 0 auto;
-  margin: 0 11px 10px;
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--tq-panel-strong) 88%, transparent);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.14);
-}
-
-.tq-side-composer:focus-within {
-  border-color: color-mix(in srgb, var(--tq-state) 62%, var(--tq-border));
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--tq-state) 10%, transparent),
-    0 12px 36px rgba(0, 0, 0, 0.15);
-}
-
-.tq-side-composer textarea {
-  display: block;
-  width: 100%;
-  min-height: 50px;
-  max-height: 150px;
-  margin: 0;
-  padding: 2px 3px 7px;
-  resize: vertical;
-  border: 0;
-  color: var(--tq-text);
-  background: transparent;
-  box-shadow: none;
-  font: inherit;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.tq-side-composer textarea:focus {
-  outline: 0;
-  box-shadow: none;
-}
-
-.tq-side-composer textarea::placeholder {
-  color: var(--tq-faint);
-}
-
-.tq-side-composer-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.tq-composer-hint {
-  color: var(--tq-faint);
-  /* C-4 字号归梯：9px → 11px（元信息档下限） */
-  font-size: 11px;
-}
-
-.tq-send-btn {
-  --tq-btn-accent: var(--tq-brand);
-  --tq-btn-fg: var(--tq-on-brand);
-}
-
 /* Uiverse.io / gharsh11032000 interaction language, adapted to TALOS semantics.
    Compact action buttons get the rising color fill + shake. Side tabs share the
    black pill and rising fill, but stay spatially stable because rotating three
@@ -3372,309 +2793,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   }
 }
 
-/* ============================================
-   语音工作区 · 右侧交互面板沉浸式美化（2026-07-19）
-   .tq-voice 变量已在上方锁定为 Aurora 深色套，本节把侧栏做成
-   与左侧深色舞台一体的玻璃区：极光顶边、渐变标题、玻璃气泡/
-   列表行/输入区。选择器均以 .talos-console .tq-voice 起头，
-   只影响语音工作区。按钮的胶囊外形与上升填充交互沿用 Uiverse
-   体系，这里只做加法（玻璃底、发光、上浮），不改交互逻辑。
-   ============================================ */
-
-/* —— 面板整体：深色玻璃 + 发丝边 + 顶部极光渐变细边（呼应 Aurora 卡彩虹顶边） —— */
-.talos-console .tq-voice .tq-side {
-  position: relative;
-  border-left: 1px solid rgba(125, 211, 252, 0.14);
-  background: linear-gradient(180deg, rgba(10, 16, 28, 0.78), rgba(5, 8, 16, 0.7));
-  box-shadow: -18px 0 44px rgba(0, 0, 0, 0.35);
-}
-.talos-console .tq-voice .tq-side::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 2;
-  height: 2px;
-  background: var(--tq-aurora);
-  opacity: 0.85;
-  pointer-events: none;
-}
-
-/* —— 顶栏：玻璃底 + 「TALOS 交互面板」极光渐变标题 —— */
-.talos-console .tq-voice .tq-side-topbar {
-  border-bottom-color: rgba(125, 211, 252, 0.1);
-  background: rgba(10, 16, 28, 0.42);
-}
-.talos-console .tq-voice .tq-side-identity b {
-  background: var(--tq-aurora);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* —— 顶栏/会话圆形小按钮：玻璃质感 + hover 发光（上浮由基础交互提供） —— */
-.talos-console .tq-voice .tq-side .tq-mini-btn {
-  background-color: rgba(125, 211, 252, 0.05);
-  border-color: rgba(125, 211, 252, 0.16);
-}
-.talos-console .tq-voice .tq-side .tq-mini-btn:hover:not(:disabled),
-.talos-console .tq-voice .tq-side .tq-mini-btn:focus-visible {
-  box-shadow:
-    0 0 16px rgba(125, 211, 252, 0.28),
-    0 6px 18px rgba(0, 0, 0, 0.35);
-}
-
-/* —— 三个 tab：玻璃胶囊轨道 + 选中态发光（选中填充沿用状态色 Uiverse 填充） —— */
-.talos-console .tq-voice .tq-side-tabs {
-  border-color: rgba(125, 211, 252, 0.12);
-  background: rgba(5, 8, 16, 0.55);
-  box-shadow: inset 0 1px 0 rgba(224, 242, 254, 0.04);
-}
-.talos-console .tq-voice .tq-side .tq-side-tab.is-active {
-  box-shadow:
-    0 0 18px color-mix(in srgb, var(--tq-state) 32%, transparent),
-    0 4px 14px rgba(0, 0, 0, 0.3);
-}
-
-/* —— 「当前语音会话」头卡玻璃化 —— */
-.talos-console .tq-voice .tq-session-head {
-  border-bottom-color: rgba(125, 211, 252, 0.1);
-  background: rgba(10, 16, 28, 0.3);
-}
-
-.talos-console .tq-voice[data-input-mode="push-to-talk"] .tq-session-head {
-  border-bottom-color: rgba(167, 139, 250, 0.2);
-}
-
-/* —— 会话气泡：深色玻璃 + 进入时轻微上浮淡入 —— */
-.talos-console .tq-voice .tq-bub {
-  border-color: rgba(125, 211, 252, 0.12);
-  background: rgba(15, 23, 42, 0.5);
-  box-shadow: 0 6px 22px rgba(2, 8, 16, 0.35);
-  backdrop-filter: blur(10px);
-  animation: tq-bub-enter 280ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes tq-bub-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-/* 用户气泡（右）：青色渐变玻璃 */
-.talos-console .tq-voice .tq-me {
-  border-color: rgba(125, 211, 252, 0.24);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.08) 55%, rgba(10, 16, 28, 0.55));
-  box-shadow:
-    0 6px 22px rgba(2, 8, 16, 0.4),
-    0 0 20px rgba(56, 189, 248, 0.1);
-}
-/* 屈原气泡（左）：中性玻璃 + 左侧极光强调条 */
-.talos-console .tq-voice .tq-qy {
-  position: relative;
-  border-color: rgba(148, 163, 184, 0.16);
-  background: rgba(13, 20, 34, 0.55);
-}
-.talos-console .tq-voice .tq-qy::before {
-  content: "";
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 0;
-  width: 2px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #7dd3fc, #a78bfa);
-  opacity: 0.9;
-}
-/* 角色小字：极光渐变色 */
-.talos-console .tq-voice .tq-bub-role {
-  background: linear-gradient(100deg, #7dd3fc, #c4b5fd);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* —— 快捷 prompts：玻璃小胶囊，hover 提亮发光 —— */
-.talos-console .tq-voice .tq-quick-prompt {
-  --tq-btn-fill: #7dd3fc;
-  box-shadow: 0 2px 10px rgba(2, 8, 16, 0.3);
-}
-.talos-console .tq-voice .tq-quick-prompt:hover:not(:disabled),
-.talos-console .tq-voice .tq-quick-prompt:focus-visible {
-  box-shadow: 0 0 14px rgba(125, 211, 252, 0.3);
-}
-
-/* —— 空会话图标：加一点状态色光晕 —— */
-.talos-console .tq-voice .tq-session-empty-icon {
-  box-shadow: 0 0 22px color-mix(in srgb, var(--tq-state) 22%, transparent);
-}
-
-/* —— 输入区 composer：玻璃底 + focus 极光描边发光 —— */
-.talos-console .tq-voice .tq-side-composer {
-  border-color: rgba(125, 211, 252, 0.16);
-  background: rgba(8, 12, 22, 0.62);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 34px rgba(2, 8, 16, 0.4);
-  transition:
-    border-color 220ms ease,
-    box-shadow 220ms ease;
-}
-.talos-console .tq-voice .tq-side-composer:focus-within {
-  border-color: rgba(125, 211, 252, 0.55);
-  box-shadow:
-    0 0 0 1px rgba(125, 211, 252, 0.22),
-    0 0 26px rgba(125, 211, 252, 0.18),
-    0 12px 36px rgba(2, 8, 16, 0.45);
-}
-
-/* —— 发送按钮：极光青光晕（填充色见上方 .tq-send-btn 的 --tq-btn-fill） —— */
-.talos-console .tq-voice .tq-side .tq-send-btn:not(:disabled) {
-  box-shadow:
-    0 0 18px rgba(56, 189, 248, 0.35),
-    0 6px 18px rgba(2, 8, 16, 0.4);
-}
-.talos-console .tq-voice .tq-side .tq-send-btn:hover:not(:disabled),
-.talos-console .tq-voice .tq-side .tq-send-btn:focus-visible {
-  box-shadow:
-    0 0 26px rgba(56, 189, 248, 0.5),
-    0 8px 22px rgba(2, 8, 16, 0.45);
-}
-
-/* —— 上下文/能力列表行：玻璃列表项 + 图标小玻璃块，hover 整行提亮微浮 —— */
-.talos-console .tq-voice .tq-side .tq-side-row {
-  border-color: rgba(125, 211, 252, 0.1);
-  background: rgba(15, 23, 42, 0.38);
-  transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 220ms ease,
-    background-color 220ms ease,
-    box-shadow 220ms ease;
-}
-.talos-console .tq-voice .tq-side .tq-side-row:hover,
-.talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
-  /* C-4（D-TLP-018）：!important 越过 vault 主题毯式按钮规则 */
-  border-color: rgba(125, 211, 252, 0.36) !important;
-  background: rgba(125, 211, 252, 0.08) !important;
-  box-shadow:
-    0 8px 22px rgba(2, 8, 16, 0.35),
-    0 0 16px rgba(125, 211, 252, 0.12);
-  transform: translateY(-1px);
-}
-
-/* C-4 阶段 2（2026-08-23 实机反馈）：语音侧栏次级页签在内嵌控制台
-   被 `.talos-console button { font: inherit }`（0,1,1）拍平为 14px，
-   此处以 0,3,0 特异性收敛到 12px 辅助档（独立工作台视图不受此规则
-   影响，仍走 .tq-side-tab 基规则）。 */
-.talos-console .tq-voice .tq-side-tab {
-  font-size: 12px;
-}
-.talos-console .tq-voice .tq-side .tq-side-row-icon {
-  border-color: rgba(125, 211, 252, 0.16);
-  background: rgba(125, 211, 252, 0.06);
-}
-
-/* —— 页脚：低调次要色 —— */
-.talos-console .tq-voice .tq-side-footer {
-  border-top-color: rgba(125, 211, 252, 0.08);
-  color: var(--tq-faint);
-}
-
-/* 窄屏堆叠模式：侧栏移到舞台下方，左边框改为顶部发丝边 */
-@media (max-width: 1080px) {
-  .talos-console .tq-voice .tq-side {
-    border-left: 0;
-    border-top: 1px solid rgba(125, 211, 252, 0.14);
-    box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.35);
-  }
-}
-
-/* 动效降级：系统开启减弱动态效果时，取消气泡进入动画与行 hover 位移 */
-@media (prefers-reduced-motion: reduce) {
-  .talos-console .tq-voice .tq-bub {
-    animation: none;
-  }
-  .talos-console .tq-voice .tq-side-composer,
-  .talos-console .tq-voice .tq-side .tq-side-row {
-    transition: none;
-  }
-  .talos-console .tq-voice .tq-side .tq-side-row:hover,
-  .talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
-    transform: none;
-  }
-}
-
-/* === 浅色模式：右侧对话区硬编码深色逐块翻浅（2026-08-23 实机反馈） ===
-   上方控制台作用域 Aurora 沉浸块的侧栏/顶栏/页签轨道/列表行/输入条
-   都是硬编码深色（rgba(5-16, …)），变量翻转管不到。此处以
-   body.theme-light 前缀（每条 0,4,0 > 原 0,3,0）逐块覆盖为浅色版；
-   深色主题下整块不命中，现状不变。 */
-body.theme-light .talos-console .tq-voice .tq-side {
-  border-left-color: rgba(15, 23, 42, 0.1);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
-  box-shadow: -18px 0 44px rgba(15, 23, 42, 0.08);
-}
-body.theme-light .talos-console .tq-voice .tq-side-topbar {
-  border-bottom-color: rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.6);
-}
-body.theme-light .talos-console .tq-voice .tq-side-tabs {
-  border-color: rgba(15, 23, 42, 0.1);
-  background: rgba(15, 23, 42, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-body.theme-light .talos-console .tq-voice .tq-side .tq-side-row {
-  border-color: rgba(15, 23, 42, 0.09);
-  background: rgba(15, 23, 42, 0.04);
-}
-body.theme-light .talos-console .tq-voice .tq-side .tq-side-row:hover,
-body.theme-light .talos-console .tq-voice .tq-side .tq-side-row:focus-visible {
-  border-color: rgba(2, 132, 199, 0.4) !important;
-  background: rgba(2, 132, 199, 0.07) !important;
-  box-shadow:
-    0 8px 22px rgba(15, 23, 42, 0.1),
-    0 0 16px rgba(2, 132, 199, 0.1);
-}
-body.theme-light .talos-console .tq-voice .tq-side .tq-side-row-icon {
-  border-color: rgba(2, 132, 199, 0.22);
-  background: rgba(2, 132, 199, 0.07);
-}
-body.theme-light .talos-console .tq-voice .tq-side-composer {
-  border-color: rgba(15, 23, 42, 0.14);
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
-}
-body.theme-light .talos-console .tq-voice .tq-side-composer:focus-within {
-  border-color: rgba(2, 132, 199, 0.55);
-  box-shadow:
-    0 0 0 1px rgba(2, 132, 199, 0.22),
-    0 0 26px rgba(2, 132, 199, 0.16),
-    0 12px 36px rgba(15, 23, 42, 0.14);
-}
-body.theme-light .talos-console .tq-voice .tq-side .tq-mini-btn {
-  background-color: rgba(2, 132, 199, 0.06);
-  border-color: rgba(2, 132, 199, 0.2);
-}
-body.theme-light .talos-console .tq-voice .tq-side-footer {
-  border-top-color: rgba(15, 23, 42, 0.08);
-}
-/* 转写覆盖层用户字幕：白字+深影在浅底上不可读，翻深并换浅影；
-   原规则带 vault 属性与 !important，此处特异性 0,6,1 压过 0,5,1 */
-body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user {
-  color: rgba(15, 23, 42, 0.92) !important;
-  caret-color: #0284c7;
-  text-shadow:
-    0 0 20px rgba(2, 132, 199, 0.25),
-    0 1px 4px rgba(255, 255, 255, 0.8) !important;
-}
-@media (max-width: 1080px) {
-  body.theme-light .talos-console .tq-voice .tq-side {
-    border-top-color: rgba(15, 23, 42, 0.1);
-    box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.08);
-  }
-}
-
 @media (max-width: 1080px) {
   .talos-console .app {
     grid-template-columns: 72px minmax(0, 1fr) !important;
@@ -3699,13 +2817,6 @@ body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript
   .tq-foot .tq-tts,
   .tq-dot {
     display: none;
-  }
-
-  .tq-body {
-    grid-template-columns:
-      minmax(0, 1fr)
-      8px
-      minmax(270px, var(--tq-side-size));
   }
 
   .tq-foot .tq-btn {
@@ -3787,34 +2898,6 @@ body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript
   }
 
   .tq-head-actions > .tq-squarebtn:last-child {
-    display: none;
-  }
-
-  .tq-body {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-
-  .tq-side-resizer {
-    display: none;
-  }
-
-  .tq-stage {
-    flex: 0 0 62svh;
-    min-height: 500px;
-  }
-
-  .tq-side {
-    flex: 0 0 420px;
-    min-height: 360px;
-    border-top: 1px solid var(--tq-border);
-    border-left: 0;
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .tq-body.is-side-collapsed .tq-side {
     display: none;
   }
 
@@ -4067,8 +3150,7 @@ body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript
     animation: none;
   }
 
-  .tq-overlay-line,
-  .tq-fab-ring {
+  .tq-overlay-line {
     animation: none;
   }
 
@@ -4344,553 +3426,702 @@ body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript
 }
 
 /* ============================================
-   沉浸式语音界面（2026-07-10 重构）
-   删除顶栏/底栏/大标题/流程指示器，
-   改为右下角圆环 fab + 半透明 overlay 文字层
+   Emotion Ball voice workspace · D-TLP-022
+   Single center stage + compact lower controls. The ball is presentation-only;
+   permission, approval, provider, and execution behavior remain in TypeScript.
    ============================================ */
 
-/* 隐藏已废弃的旧元素 */
-.tq-voice .tq-head,
-.tq-voice .tq-foot,
-.tq-voice .tq-flow,
-.tq-voice .tq-copy {
-  display: none !important;
+.tq-voice,
+.tq-voice * {
+  box-sizing: border-box;
 }
 
-/* 舞台占满整个 body（无顶栏底栏占位） */
-.tq-voice .tq-body {
-  grid-template-columns: minmax(0, 1fr) 8px minmax(280px, var(--tq-side-size));
-}
-.tq-voice .tq-body.is-side-collapsed {
-  grid-template-columns: minmax(0, 1fr) 0 0;
+.tq-stage {
+  --tq-ball-size: clamp(320px, min(40cqi, 62cqh), 420px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 72px clamp(16px, 3vw, 36px) 12px;
 }
 
-/* ---- 电影字幕式文字覆盖层（亮白发光 + 顶部淡出） ---- */
-.tq-overlay-text {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 40px clamp(24px, 5vw, 72px) 110px;
+.tq-emotion-stage {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  overflow: visible;
   pointer-events: none;
+}
+
+.tq-emotion-ball-host {
+  width: var(--tq-ball-size);
+  height: var(--tq-ball-size);
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
+  overflow: visible;
+  filter: drop-shadow(0 22px 48px color-mix(in srgb, var(--tq-state) 22%, transparent));
+  transition:
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 220ms ease;
+}
+
+.tq-emotion-ball,
+.tq-emotion-ball__engine,
+.tq-emotion-ball__fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.tq-emotion-ball {
+  --tq-ball-accent: var(--tq-state);
+  display: grid;
+  overflow: visible;
+  place-items: center;
+}
+
+.tq-emotion-ball__engine,
+.tq-emotion-ball__fallback {
+  grid-area: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tq-emotion-ball__engine {
+  overflow: visible;
+}
+
+.tq-emotion-ball__engine > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tq-emotion-ball[data-emotion-ball-fallback="true"] .tq-emotion-ball__engine {
+  display: none;
+}
+
+.tq-emotion-ball[data-emotion-ball-fallback="false"] .tq-emotion-ball__fallback {
+  display: none;
+}
+
+.tq-emotion-ball[data-emotion-ball-state="receiving"] {
+  --tq-ball-accent: var(--tq-state-listen);
+}
+
+.tq-emotion-ball[data-emotion-ball-state="busy"] {
+  --tq-ball-accent: var(--tq-state-reco);
+}
+
+.tq-emotion-ball[data-emotion-ball-state="thinking"],
+.tq-emotion-ball[data-emotion-ball-state="searching"] {
+  --tq-ball-accent: var(--tq-state-think);
+}
+
+.tq-emotion-ball[data-emotion-ball-state="replying"],
+.tq-emotion-ball[data-emotion-ball-state="done"] {
+  --tq-ball-accent: var(--tq-state-speak);
+}
+
+.tq-emotion-ball[data-emotion-ball-state="error"],
+.tq-emotion-ball[data-emotion-ball-state="stop"] {
+  --tq-ball-accent: #ef4444;
+}
+
+.tq-emotion-ball[data-emotion-ball-state="restricted"] {
+  --tq-ball-accent: #f59e0b;
+}
+
+.tq-emotion-ball__fallback {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 13%;
   overflow: hidden;
-  /* 顶部 mask 渐隐——滚出的旧行自然淡出消失 */
-  -webkit-mask-image: linear-gradient(to top, black 50%, transparent 100%);
-  mask-image: linear-gradient(to top, black 50%, transparent 100%);
+  border: 2px solid color-mix(in srgb, var(--tq-ball-accent) 66%, transparent);
+  border-radius: 46% 54% 52% 48% / 50% 46% 54% 50%;
+  color: var(--tq-text);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.54), transparent 17%),
+    radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--tq-ball-accent) 78%, #1e293b), #101827 72%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--tq-text) 8%, transparent) inset,
+    0 28px 70px color-mix(in srgb, var(--tq-ball-accent) 24%, transparent);
+}
+
+.tq-emotion-ball__fallback-eyes {
+  position: relative;
+  display: block;
+  width: 42%;
+  height: 17%;
+}
+
+.tq-emotion-ball__fallback-eyes::before,
+.tq-emotion-ball__fallback-eyes::after {
+  position: absolute;
+  top: 0;
+  width: 34%;
+  height: 100%;
+  border-radius: 50%;
+  content: "";
+  background: color-mix(in srgb, var(--tq-surface) 90%, #000);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tq-text) 12%, transparent);
+}
+
+.tq-emotion-ball__fallback-eyes::before {
+  left: 0;
+}
+
+.tq-emotion-ball__fallback-eyes::after {
+  right: 0;
+}
+
+.tq-emotion-ball__fallback-copy {
+  max-width: 76%;
+  font-size: clamp(10px, 1.4cqi, 13px);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.tq-voice .tq-pixel-head-scene,
+.tq-voice .tq-pixel-head-scene.is-ready,
+.tq-voice .tq-pixel-head-scene.is-fallback {
+  z-index: 1;
+  opacity: 0.14;
+  filter: saturate(0.7) blur(0.35px);
+}
+
+.tq-voice .tq-bg {
+  z-index: 0;
+  opacity: 0.2;
+  filter: saturate(0.68) contrast(0.92);
+}
+
+body.theme-light .tq-voice .tq-pixel-head-scene,
+body.theme-light .tq-voice .tq-pixel-head-scene.is-ready,
+body.theme-light .tq-voice .tq-pixel-head-scene.is-fallback {
+  opacity: 0.11;
+}
+
+body.theme-light .tq-voice .tq-bg {
+  opacity: 0.12;
+}
+
+.tq-overlay-text {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  width: min(840px, 100%);
+  max-height: min(18cqh, 128px);
+  margin-inline: auto;
+  overflow: auto;
+  pointer-events: auto;
+  scrollbar-width: thin;
 }
 
 .tq-overlay-reply {
-  order: 2;
-  /* 左侧回复阅读区与右侧语音转写编辑卡分栏，永不互相覆盖。 */
-  width: calc(100% - clamp(300px, 32vw, 430px));
-  max-width: 880px;
-  max-height: 48vh;
-  overflow: hidden;
-  /* 亮白色字体 + 青蓝发光 */
-  color: rgba(255, 255, 255, 0.95);
-  font-size: clamp(15px, 1.6vw, 19px);
-  line-height: 1.8;
-  text-align: left;
-  text-shadow:
-    0 0 20px rgba(125, 211, 252, 0.5),
-    0 0 40px rgba(125, 211, 252, 0.2),
-    0 2px 8px rgba(0, 0, 0, 0.85);
-  word-break: break-word;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.tq-overlay-reply:empty {
-  display: none;
+  min-width: 0;
+  color: var(--tq-text);
+  font-size: clamp(13px, 1.4cqi, 17px);
+  line-height: 1.65;
+  text-align: center;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--tq-state) 28%, transparent);
 }
 
-/* 字幕行：从底部淡入 */
-.tq-overlay-line {
-  animation: tq-line-enter 400ms ease-out;
+.tq-overlay-reply > :first-child {
+  margin-top: 0;
 }
+
+.tq-overlay-reply > :last-child {
+  margin-bottom: 0;
+}
+
+.tq-overlay-line {
+  animation: tq-line-enter 280ms ease-out;
+}
+
 @keyframes tq-line-enter {
   from {
     opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: translateY(8px);
   }
 }
 
-/* ---- 圆环右上方：语音识别文字编辑卡（透明悬浮玻璃 + 字幕滚动） ---- */
-/* 识别文字并入输出端阅读栏：叠在回复字幕正上方、左对齐同宽，
-   共享容器顶部 mask——旧行随滚动向上渐隐（滚动隐藏，节省空间）。
-   无底板纯文字悬浮；折叠时 max-height:0 不占位，展开平滑生长。 */
-.tq-transcript-editor {
-  order: 1;
-  width: calc(100% - clamp(300px, 32vw, 430px));
-  max-width: 880px;
-  margin-bottom: 10px;
-  padding: 0;
+.tq-voice-dock {
+  position: relative;
+  z-index: 12;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 8px 12px;
+  width: 100%;
+  max-height: min(46vh, 360px);
+  padding: 12px clamp(12px, 2.4vw, 28px) 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-top: 1px solid color-mix(in srgb, var(--tq-state) 22%, var(--tq-border));
+  background: color-mix(in srgb, var(--tq-panel-strong) 91%, transparent);
+  box-shadow: 0 -16px 44px color-mix(in srgb, #000 22%, transparent);
+  backdrop-filter: blur(22px);
+  scrollbar-width: thin;
+}
+
+.tq-dock-status,
+.tq-readonly-query,
+.tq-voice-safety,
+.tq-confirm-host {
+  grid-column: 1 / -1;
+}
+
+.tq-dock-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tq-dock-live {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+.tq-dock-live > span {
+  color: var(--tq-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tq-dock-live > small {
   overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  visibility: hidden;
-  transform: translate3d(0, 10px, 0);
-  pointer-events: none;
-  transition:
-    max-height 380ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease,
-    visibility 220ms ease,
-    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--tq-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.tq-transcript-editor.is-visible {
-  max-height: 300px;
-  opacity: 1;
-  visibility: visible;
-  transform: translate3d(0, 0, 0);
-  pointer-events: auto;
+
+.tq-dock-badges {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
+
+.tq-dock-badges > span {
+  overflow: hidden;
+  padding: 3px 8px;
+  border: 1px solid var(--tq-border);
+  border-radius: 999px;
+  color: var(--tq-muted);
+  background: color-mix(in srgb, var(--tq-surface) 34%, transparent);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tq-transcript-editor {
+  grid-column: 1;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 0;
+  padding: 9px 11px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tq-surface-soft) 72%, transparent);
+}
+
 .tq-transcript-head {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 7px;
-  color: var(--tq-text);
+  min-width: 0;
 }
-/* 小巧浮动标注：小字 + 状态小圆点（跟随当前语音状态色），无底板靠底光可读 */
-.tq-transcript-head span {
+
+.tq-transcript-head > span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--tq-ink-dim, #8aa0b8);
-  font-size: 10px;
+  color: var(--tq-text);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
 }
-.tq-transcript-head span::before {
-  content: "";
+
+.tq-transcript-head > span::before {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--tq-state, #7dd3fc);
-  box-shadow: 0 0 8px var(--tq-state, #7dd3fc);
-}
-.tq-transcript-head small {
-  color: var(--tq-muted);
-  font-size: 10px;
-  white-space: nowrap;
-  opacity: 0.75;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+  content: "";
+  background: var(--tq-state);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tq-state) 72%, transparent);
 }
 
-/* 字幕行容器：最新行最亮，向上逐渐变淡；超过 5 行由 TS 移除最旧行。
-   限高 72px（约 3 行），旧行顶部 mask 渐隐——滚动隐藏，节省空间。 */
+.tq-transcript-head > small {
+  overflow: hidden;
+  color: var(--tq-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tq-transcript-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 72px;
-  margin-bottom: 8px;
+  gap: 2px;
+  max-height: 34px;
   overflow-y: auto;
   scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 26px);
-  mask-image: linear-gradient(to bottom, transparent 0, black 26px);
 }
+
 .tq-transcript-lines:empty {
   display: none;
 }
+
 .tq-transcript-lines::-webkit-scrollbar {
   display: none;
 }
+
 .tq-transcript-line {
-  opacity: 0.45;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
-  line-height: 1.8;
-  text-shadow:
-    0 0 20px rgba(125, 211, 252, 0.45),
-    0 0 40px rgba(125, 211, 252, 0.18),
-    0 2px 8px rgba(0, 0, 0, 0.85);
-  word-break: break-word;
-  animation: tq-transcript-line-enter 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--tq-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  animation: tq-transcript-line-enter 240ms ease-out;
 }
-.tq-transcript-line:nth-last-child(3) {
-  opacity: 0.62;
-}
-.tq-transcript-line:nth-last-child(2) {
-  opacity: 0.82;
-}
+
 .tq-transcript-line:last-child {
-  opacity: 1;
-  text-shadow:
-    0 0 20px rgba(125, 211, 252, 0.55),
-    0 0 40px rgba(125, 211, 252, 0.25),
-    0 2px 8px rgba(0, 0, 0, 0.85);
+  color: var(--tq-text);
 }
-/* 新行淡入 + 上滑进入（只写 from，终点取各行自身的渐淡透明度） */
+
 @keyframes tq-transcript-line-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
 }
-/* 可编辑原文：纯文字无框无底，与左侧回复字幕同款亮白+青蓝辉光（左右文字效果同步）。
-   第二条选择器专门压 vault 主题同步桥（body[data-talos-vault-theme] 会给所有
-   textarea 强制刷 !important 的主题底色/文字色）：用更高特异性的 !important 赢回透明。 */
+
 .tq-overlay-user,
-body[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user {
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
   display: block;
-  box-sizing: border-box;
   width: 100%;
-  min-height: 46px;
-  max-height: 96px;
+  min-width: 0;
+  min-height: 42px;
+  max-height: 74px;
   margin: 0;
-  padding: 2px 0;
-  resize: none;
+  padding: 7px 9px;
+  resize: vertical;
   overflow: auto;
-  border: none !important;
-  outline: none;
-  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--tq-border) 78%, transparent) !important;
+  border-radius: 10px !important;
+  outline: 0;
+  color: var(--tq-text) !important;
+  background: color-mix(in srgb, var(--tq-panel) 68%, transparent) !important;
   box-shadow: none !important;
-  color: rgba(255, 255, 255, 0.95) !important;
   font: inherit;
-  /* 略小于回复字幕（15-19px），形成「用户轻声、屈原主答」的层级比例 */
-  font-size: clamp(13px, 1.3vw, 16px);
-  line-height: 1.7;
-  text-align: left;
-  caret-color: #7dd3fc;
-  text-shadow:
-    0 0 20px rgba(125, 211, 252, 0.5),
-    0 0 40px rgba(125, 211, 252, 0.2),
-    0 2px 8px rgba(0, 0, 0, 0.85) !important;
+  font-size: 12px;
+  line-height: 1.5;
+  caret-color: var(--tq-state);
 }
+
 .tq-overlay-user:focus {
-  text-shadow:
-    0 0 24px rgba(125, 211, 252, 0.65),
-    0 0 48px rgba(125, 211, 252, 0.28),
-    0 2px 8px rgba(0, 0, 0, 0.9) !important;
+  border-color: color-mix(in srgb, var(--tq-state) 58%, var(--tq-border)) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tq-state) 10%, transparent) !important;
 }
 
-/* 动效降级：系统开启减弱动态效果时，字幕行取消进入动画 */
-@media (prefers-reduced-motion: reduce) {
-  .tq-transcript-line {
-    animation: none;
-  }
+.tq-voice-controls {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
 }
 
-/* ============================================
-   BubbleMenu 风格悬浮控制（移植自 ReactBits）
-   中心大圆按钮 → 点击后 pill 胶囊按钮向上弹出
-   ============================================ */
-
-/* 容器：从右下角向舞台内侧留出完整扇形菜单和状态区空间 */
-.tq-fab {
-  position: absolute;
-  /* 继续向左上内收，为转写文字和径向气泡留出更清晰的分区。 */
-  right: clamp(210px, 12vw, 260px);
-  bottom: clamp(205px, 18vh, 250px);
-  z-index: 20;
-  width: 0;
-  height: 0;
-}
-
-/* 中心大圆——以 .tq-fab 原点为中心居中 */
-.tq-fab-ring {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  /* 向左上偏移半圆，使圆心对齐 .tq-fab 原点 */
-  margin-left: -60px;
-  margin-top: -60px;
-  border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--tq-state) 60%, transparent);
-  background: color-mix(in srgb, var(--tq-surface) 80%, transparent);
-  backdrop-filter: blur(16px);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
+.tq-control-btn {
+  --tq-btn-height: 36px;
+  --tq-btn-accent: var(--tq-state);
   justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-  animation: tq-fab-pulse var(--tq-spd, 2s) ease-in-out infinite;
-  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.tq-fab-ring:hover {
-  transform: scale(1.05);
-}
-.tq-fab.is-open .tq-fab-ring {
-  animation: none;
-  transform: scale(0.88);
-  border-color: color-mix(in srgb, var(--tq-state) 85%, transparent);
-  background: color-mix(in srgb, var(--tq-state) 18%, transparent);
-}
-
-/* 中心汉堡线（闭合时）→ 展开时变 × */
-.tq-fab-core {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.tq-fab-line {
-  width: 36px;
-  height: 3px;
-  border-radius: 3px;
-  background: var(--tq-state);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--tq-state) 50%, transparent);
-  transition: transform 300ms ease, opacity 200ms ease;
-}
-.tq-fab.is-open .tq-fab-line:nth-child(1) {
-  transform: translateY(5.5px) rotate(45deg);
-}
-.tq-fab.is-open .tq-fab-line:nth-child(2) {
-  transform: translateY(-5.5px) rotate(-45deg);
-}
-
-@keyframes tq-fab-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 24px color-mix(in srgb, var(--tq-state) 25%, transparent),
-      0 0 0 0 color-mix(in srgb, var(--tq-state) 15%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 52px color-mix(in srgb, var(--tq-state) 45%, transparent),
-      0 0 0 20px color-mix(in srgb, var(--tq-state) 0%, transparent);
-  }
-}
-
-/* ---- 扇形展开区域（以圆心为原点） ---- */
-.tq-fab-menu {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-/* 单个 pill 胶囊按钮：定位在圆环中心，通过 --tx/--ty 平移到弧线位置 */
-.tq-fab-btn {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--tq-border);
-  background: color-mix(in srgb, var(--tq-panel-strong) 92%, transparent);
-  backdrop-filter: blur(20px);
-  color: var(--tq-text);
+  gap: 6px;
+  min-width: 0;
+  padding-inline: 10px;
   font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
   white-space: nowrap;
-  /* 收拢态：缩小到圆心 */
-  opacity: 0;
-  transform: translate(0, 0) scale(0.2);
-  transition:
-    opacity 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    background 160ms ease,
-    border-color 160ms ease;
-  pointer-events: none;
-  transition-delay: 0ms;
 }
-/* 展开态：平移到弧线坐标（36px 按钮，-18px 使中心对齐弧线点） */
-.tq-fab.is-open .tq-fab-btn {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(calc(var(--tx, 0px) - 18px), calc(var(--ty, 0px) - 18px)) scale(1);
-  transition-delay: calc(var(--idx, 0) * 50ms);
+
+.tq-control-btn > svg,
+.tq-control-btn > span > svg {
+  width: 14px;
+  height: 14px;
 }
-.tq-fab.is-open .tq-fab-btn:is(:hover, :focus-visible) {
-  z-index: 8;
-  background: color-mix(in srgb, var(--tq-state) 22%, transparent);
-  border-color: color-mix(in srgb, var(--tq-state) 55%, transparent);
-  transform: translate(calc(var(--tx, 0px) - 18px), calc(var(--ty, 0px) - 18px)) scale(1.2);
-}
-.tq-fab-btn svg {
-  width: 17px;
-  height: 17px;
-  opacity: 0.9;
-  flex-shrink: 0;
-}
-/* hover 时显示文字标签 */
-.tq-fab-btn::after {
-  content: attr(data-label);
-  position: absolute;
-  z-index: 9;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  right: auto;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--tq-text);
-  background: color-mix(in srgb, var(--tq-panel-strong) 94%, transparent);
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--tq-border);
-  opacity: 0;
-  transform: translate(-50%, 6px);
-  transition: opacity 150ms ease, transform 150ms ease;
-  pointer-events: none;
-}
-.tq-fab.is-open .tq-fab-btn:is(:hover, :focus-visible)::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-/* 扇形两翼的气泡沿径向向外展开，避免压住邻近操作按钮。 */
-.tq-fab-menu .tq-fab-btn:nth-child(-n + 2)::after {
-  top: 50%;
-  bottom: auto;
-  left: calc(100% + 10px);
-  transform: translate(6px, -50%);
-}
-.tq-fab-menu .tq-fab-btn:nth-child(-n + 2):is(:hover, :focus-visible)::after {
-  transform: translate(0, -50%);
-}
-.tq-fab-menu .tq-fab-btn:nth-child(n + 6)::after {
-  top: 50%;
-  bottom: auto;
-  right: calc(100% + 10px);
-  left: auto;
-  transform: translate(-6px, -50%);
-}
-.tq-fab-menu .tq-fab-btn:nth-child(n + 6):is(:hover, :focus-visible)::after {
-  transform: translate(0, -50%);
-}
-/* 文字 span 隐藏（纯图标模式）；图标 span（含 svg）保留显示 */
-.tq-fab-btn span:not(:has(svg)) {
-  display: none;
-}
-.tq-fab-btn span:has(svg) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tq-fab-btn .tq-fab-sr-label {
-  position: absolute;
-  display: block;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+
+.tq-control-btn .tq-control-label {
   overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-.tq-fab-btn--danger:hover {
-  background: color-mix(in srgb, #ef4444 24%, transparent) !important;
-  border-color: color-mix(in srgb, #ef4444 55%, transparent) !important;
+  text-overflow: ellipsis;
 }
 
-/* 音量条 + 状态文字区（圆环正下方） */
-.tq-fab-extra {
-  position: absolute;
-  top: 72px;
-  left: -60px;
-  width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  opacity: 0.4;
-  pointer-events: none;
-  transition: opacity 200ms ease;
+.tq-control-btn--danger {
+  --tq-btn-accent: #ef4444;
+  --tq-btn-fill: #ef4444;
 }
-.tq-fab.is-open .tq-fab-extra {
-  opacity: 0.8;
+
+.tq-go-chat {
+  --tq-btn-accent: var(--tq-state-think);
+  --tq-btn-fill: var(--tq-state-think);
+  gap: 6px;
   pointer-events: auto;
 }
 
-/* 迷你音量条 */
-.tq-fab-meter {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 24px;
-}
-.tq-fab-meter i {
-  width: 3px;
-  height: var(--bar);
-  border-radius: 2px;
-  background: var(--tq-state);
-  transform: scaleY(calc(0.28 + var(--tq-level, 0)));
-  transform-origin: bottom;
-  transition: transform 60ms linear;
-  opacity: 0.7;
+.tq-go-chat svg {
+  width: 14px;
+  height: 14px;
 }
 
-/* 状态文字 */
-.tq-fab-status {
-  font-size: 11px;
-  color: var(--tq-muted);
-  text-align: right;
-  max-width: 160px;
+.tq-readonly-query {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) minmax(180px, 1fr) 38px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--tq-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tq-surface-soft) 62%, transparent);
+}
+
+.tq-readonly-query__copy {
+  min-width: 0;
+}
+
+.tq-readonly-query__copy > b,
+.tq-readonly-query__copy > small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 遮罩：展开时覆盖全舞台，点击关闭 */
-.tq-fab-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 15;
-  background: transparent;
-  pointer-events: none;
-}
-.tq-fab.is-open .tq-fab-backdrop {
-  pointer-events: auto;
+.tq-readonly-query__copy > b {
+  color: var(--tq-text);
+  font-size: 11px;
 }
 
-/* 响应式：窄屏缩小 */
-@media (max-width: 760px) {
-  .tq-overlay-text {
-    padding: 24px 20px 100px;
+.tq-readonly-query__copy > small {
+  margin-top: 2px;
+  color: var(--tq-muted);
+  font-size: 9px;
+}
+
+.tq-readonly-query > textarea,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  max-height: 76px;
+  margin: 0;
+  padding: 7px 10px;
+  resize: vertical;
+  border: 1px solid color-mix(in srgb, var(--tq-border) 82%, transparent) !important;
+  border-radius: 10px !important;
+  color: var(--tq-text) !important;
+  background: color-mix(in srgb, var(--tq-panel) 72%, transparent) !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tq-readonly-query > textarea:focus {
+  border-color: color-mix(in srgb, var(--tq-state) 58%, var(--tq-border)) !important;
+  outline: 0;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tq-state) 10%, transparent) !important;
+}
+
+.tq-send-btn {
+  --tq-btn-accent: var(--tq-brand);
+  --tq-btn-fill: var(--tq-brand);
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+}
+
+.tq-voice-safety {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--tq-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.tq-voice-safety svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--tq-state);
+}
+
+.tq-confirm-host:empty {
+  display: none;
+}
+
+.tq-approval-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #f59e0b 48%, var(--tq-border));
+  border-radius: 13px;
+  color: var(--tq-text);
+  background: color-mix(in srgb, #f59e0b 9%, var(--tq-panel-strong));
+  font-size: 12px;
+}
+
+.tq-approval-card.is-resolved {
+  opacity: 0.7;
+}
+
+.tq-confirm {
+  display: flex;
+  gap: 8px;
+}
+
+@container tq-stage (max-width: 800px) {
+  .tq-stage {
+    --tq-ball-size: clamp(280px, min(43cqi, 62cqh), 340px);
   }
-  .tq-overlay-reply {
-    width: calc(100% - 150px);
+}
+
+@container tq-stage (max-width: 620px) {
+  .tq-stage {
+    padding: 62px 12px 10px;
   }
-  .tq-transcript-editor {
-    width: calc(100% - 150px);
-  }
-  .tq-transcript-head small {
+
+  .talos-console[data-talos-page="jarvis"] .tq-workspace-state {
     display: none;
   }
-  .tq-overlay-user {
-    min-height: 58px;
-    max-height: 112px;
+
+  .tq-overlay-text {
+    max-height: min(16cqh, 94px);
   }
-  .tq-fab {
-    right: clamp(210px, 52vw, 240px);
-    bottom: clamp(175px, 24vh, 215px);
+
+  .tq-overlay-reply {
+    font-size: clamp(12px, 3.1cqi, 15px);
   }
-  .tq-fab-ring {
-    width: 96px;
-    height: 96px;
-    margin-left: -48px;
-    margin-top: -48px;
+}
+
+@container tq-stage (max-width: 520px) {
+  .tq-stage {
+    --tq-ball-size: clamp(180px, min(58cqi, 58cqh), 230px);
+    padding-inline: 10px;
   }
-  .tq-fab-line {
-    width: 28px;
+}
+
+@container tq-stage (max-height: 520px) {
+  .tq-stage {
+    --tq-ball-size: clamp(180px, min(42cqi, 50cqh), 280px);
+    padding-top: 58px;
   }
-  .tq-fab-btn {
-    width: 34px;
-    height: 34px;
-    min-width: 34px;
-    padding: 0;
-    font-size: 11px;
+
+  .tq-overlay-text {
+    max-height: 72px;
+  }
+}
+
+@media (max-width: 800px) {
+  .tq-voice-dock {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: min(48vh, 390px);
+  }
+
+  .tq-transcript-editor,
+  .tq-voice-controls {
+    grid-column: 1;
+  }
+
+  .tq-dock-badges > span:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .tq-voice-dock {
+    gap: 7px;
+    padding: 9px 9px 11px;
+  }
+
+  .tq-dock-status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .tq-dock-badges {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .tq-voice-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tq-control-btn {
+    padding-inline: 6px;
+  }
+
+  .tq-readonly-query {
+    grid-template-columns: minmax(0, 1fr) 38px;
+  }
+
+  .tq-readonly-query__copy {
+    grid-column: 1 / -1;
+  }
+
+  .tq-transcript-head > small {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .tq-control-btn {
+    font-size: 10px;
+  }
+
+  .tq-dock-badges > span:nth-child(n + 3) {
+    display: none;
+  }
+
+  .tq-voice-safety {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tq-emotion-ball-host,
+  .tq-overlay-line,
+  .tq-transcript-line,
+  .tq-control-btn,
+  .tq-approval-card {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .tq-voice .tq-pixel-head-scene,
+  .tq-voice .tq-bg {
+    filter: none;
   }
 }
 

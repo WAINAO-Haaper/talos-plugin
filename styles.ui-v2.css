@@ -1918,9 +1918,9 @@
 	}
 }
 
-/* Voice focus workspace chrome · D-TLP-019
-   The particle stage, transcript, radial controls, theme mappings, and motion
-   remain owned by styles.quyuan-shell.css. This layer adds hierarchy only. */
+/* Voice focus workspace chrome · D-TLP-019 / D-TLP-022
+   The Emotion Ball stage, weak particle atmosphere, lower controls, theme
+   mappings, and motion remain owned by styles.quyuan-shell.css. */
 .talos-console[data-talos-page="jarvis"] .tq-workspace-bar {
 	position: absolute;
 	top: 16px;
@@ -2001,6 +2001,13 @@
 	justify-content: flex-end;
 	gap: 8px;
 	min-width: 0;
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-workspace-meta > .tq-go-chat {
+	min-height: 34px;
+	padding-inline: 12px;
+	pointer-events: auto;
+	white-space: nowrap;
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-workspace-meta > span {

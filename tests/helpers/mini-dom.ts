@@ -108,6 +108,17 @@ export class MiniElement {
 		return this.attributes.get(name) ?? null;
 	}
 
+	removeAttribute(name: string): void {
+		this.attributes.delete(name);
+		if (name === "class") this.className = "";
+		if (name.startsWith("data-")) {
+			const key = name
+				.slice(5)
+				.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+			delete this.dataset[key];
+		}
+	}
+
 	addEventListener(type: string, listener: Listener): void {
 		const listeners = this.listeners.get(type) ?? [];
 		listeners.push(listener);

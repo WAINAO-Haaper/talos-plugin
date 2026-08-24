@@ -188,33 +188,26 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(block).toContain("var(--tq-btn-accent) 16%, var(--tq-panel-strong)) !important");
 	});
 
-	it("gives voice side tabs a hover state and keeps the active state intact", () => {
-		// 此前 .tq-side-tab 只有 is-active 无 hover；补 hover 且两者均
-		// 需 !important 才能不被毯式规则压死
-		expect(qcss).toContain(
-			".tq-side-tab:hover:not(.is-active):not(:disabled)"
-		);
-		const activeStart = qcss.indexOf(".tq-side-tab.is-active {");
-		expect(activeStart).toBeGreaterThan(-1);
-		expect(qcss.slice(activeStart, activeStart + 500)).toContain("!important");
+	it("removes the retired side tabs and keeps direct controls theme-safe", () => {
+		expect(qcss).not.toContain(".tq-side-tab");
+		expect(qcss).not.toContain(".tq-side-composer");
+		expect(qcss).toContain(".tq-control-btn {");
+		expect(qcss).toContain(".tq-control-btn--danger {");
+		expect(qcss).toContain(".tq-go-chat {");
 	});
 
 	it("lifts voice panel off-ladder font sizes into the ladder", () => {
-		// 9px 快捷提示/语音模式按钮 → 12px 辅助档；
-		// 9/10px 元信息（身份副题/会话副题/输入提示/分区标签）→ 11px 档
+		// 新 dock 的直接控制、状态与安全提示保持紧凑但可读。
 		const blockWithSize = (sel: string, size: string) => {
 			const re = new RegExp(
 				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*font-size: " + size
 			);
 			return re.test(qcss);
 		};
-		expect(blockWithSize(".tq-quick-prompt", "12px")).toBe(true);
-		expect(blockWithSize(".tq-voice-mode-btn", "12px")).toBe(true);
-		for (const sel of [".tq-side-identity small", ".tq-session-head small", ".tq-composer-hint", ".tq-side-section span"]) {
-			expect(blockWithSize(sel, "11px")).toBe(true);
-		}
-		// tq 面板不再残留 9px/10px 离梯字号
-		expect(qcss).not.toContain("font-size: 9px;\n}\n\n.tq-quick-prompt:hover");
+		expect(blockWithSize(".tq-control-btn", "11px")).toBe(true);
+		expect(blockWithSize(".tq-dock-live > small", "11px")).toBe(true);
+		expect(blockWithSize(".tq-voice-safety", "10px")).toBe(true);
+		expect(blockWithSize(".tq-readonly-query__copy > b", "11px")).toBe(true);
 	});
 
 	it("documents the console font:inherit flattening on embedded tq buttons", () => {
@@ -229,25 +222,18 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		);
 	});
 
-	it("rebalances the voice side panel proportions (title up, tabs down)", () => {
-		// 2026-08-23 实机反馈：标题模块放大（12px→15px 标题档、图标
-		// 30→34px 等比、字重 700），次级页签模块缩小（高 34→30px、
-		// 容器收紧、图标 13→12px）；内嵌控制台页签经 inherit 拍平为
-		// 14px，须以 0,3,0 控制台作用域规则收到 12px 辅助档。
+	it("locks Emotion Ball geometry to the accepted responsive bands", () => {
 		const blockHas = (sel: string, needle: string) => {
 			const re = new RegExp(
 				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 			);
 			return re.test(qcss);
 		};
-		expect(blockHas(".tq-side-identity b", "font-size: 15px")).toBe(true);
-		expect(blockHas(".tq-side-identity b", "font-weight: 700")).toBe(true);
-		expect(blockHas(".tq-side-identity-icon", "flex: 0 0 34px")).toBe(true);
-		expect(blockHas(".tq-side-tab", "height: 30px")).toBe(true);
-		// min-height 显式覆盖：.tq-btn 基规则的 min-height: var(--tq-btn-height)
-		// =36px 会把 30px 的 height 抬回 36px（无头探针实测回归）
-		expect(blockHas(".tq-side-tab", "min-height: 30px")).toBe(true);
-		expect(blockHas(".talos-console .tq-voice .tq-side-tab", "font-size: 12px")).toBe(true);
+		expect(blockHas(".tq-stage", "min(40cqi, 62cqh)")).toBe(true);
+		expect(qcss).toContain("@container tq-stage (max-width: 800px)");
+		expect(qcss).toContain("clamp(280px, min(43cqi, 62cqh), 340px)");
+		expect(qcss).toContain("@container tq-stage (max-width: 520px)");
+		expect(qcss).toContain("clamp(180px, min(58cqi, 58cqh), 230px)");
 	});
 
 	it("follows Obsidian light/dark theme for the voice page surface", () => {
@@ -270,23 +256,10 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(
 			blockHas('body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar', "background: #ffffff")
 		).toBe(true);
-		// 右侧对话区：控制台 Aurora 沉浸块的硬编码深色（0,3,0）须被
-		// body.theme-light 前缀块（0,4,1）逐块翻浅——侧栏/页签轨道/输入条
-		expect(
-			blockHas("body.theme-light .talos-console .tq-voice .tq-side", "rgba(255, 255, 255, 0.94)")
-		).toBe(true);
-		expect(
-			blockHas("body.theme-light .talos-console .tq-voice .tq-side-tabs", "rgba(15, 23, 42, 0.05)")
-		).toBe(true);
-		expect(
-			blockHas("body.theme-light .talos-console .tq-voice .tq-side-composer", "rgba(255, 255, 255, 0.88)")
-		).toBe(true);
-		// 转写覆盖层用户字幕白字 !important 在浅底不可读，须翻深
-		expect(
-			blockHas(
-				"body.theme-light[data-talos-vault-theme] .talos-console .tq-voice .tq-transcript-editor .tq-overlay-user",
-				"color: rgba(15, 23, 42, 0.92) !important"
-			)
-		).toBe(true);
+		// 新 dock、转写与静态降级都只消费同一组 tq 主题变量。
+		expect(blockHas(".tq-voice-dock", "var(--tq-panel-strong)")).toBe(true);
+		expect(blockHas(".tq-transcript-editor", "var(--tq-surface-soft)")).toBe(true);
+		expect(blockHas(".tq-emotion-ball__fallback", "var(--tq-text)")).toBe(true);
+		expect(qcss).toContain("body.theme-light .tq-voice .tq-bg");
 	});
 });

@@ -297,23 +297,22 @@ assert.match(voiceCharacterSource, /setInputLevel[\s\S]*setOutputLevel[\s\S]*des
 assert.match(voiceCharacterSource.slice(voiceCharacterSource.indexOf("destroy(): void")), /field\?\.destroy\(\)[\s\S]*root\.remove\(\)/);
 assert.doesNotMatch(voiceCharacterSource, /TALOS-Mascot-Character-Transparent-v1\.png/);
 assert.doesNotMatch(voiceCharacterSource, /createImage|getResourcePath/);
-assert.match(voicePanelSource, /buildFunctionalSidebar/);
+assert.match(voicePanelSource, /new EmotionBallView\(createPinnedEmotionBall\)/);
 assert.match(talosSettingsSource, /quyuanVoiceRecognitionEnabled:\s*boolean/);
 assert.match(talosSettingsSource, /quyuanVoiceRecognitionEnabled:\s*true/);
 assert.match(voicePanelSource, /quyuanVoiceRecognitionEnabled === false[\s\S]*renderVoiceRecognitionOff/);
 assert.match(voicePanelSource, /setVoiceRecognitionEnabled[\s\S]*this\.asr\?\.stop\(\)/);
 assert.match(voicePanelSource, /toggleVoiceRecognitionMode[\s\S]*setVoiceRecognitionEnabled/);
 assert.match(voicePanelSource, /语音识别已退出，文字输入仍可使用/);
-assert.match(voicePanelSource, /当前语音会话[\s\S]*当前上下文[\s\S]*已启用能力/);
-assert.match(voicePanelSource, /talos-quyuan-side-width[\s\S]*installSideResizer/);
-assert.match(voicePanelSource, /tq-side-composer[\s\S]*给屈原发送文字消息/);
-assert.match(voicePanelSource, /tq-fab[\s\S]*tq-fab-menu[\s\S]*tq-fab-ring/);
-assert.match(voicePanelSource, /setFabButtonLabel[\s\S]*aria-labelledby/);
-assert.match(voicePanelSource, /button\.removeAttribute\("aria-label"\)/);
-assert.match(voicePanelSource, /tq-fab-sr-label/);
+assert.match(voicePanelSource, /tq-readonly-query[\s\S]*文本只读查询/);
+assert.match(voicePanelSource, /tq-go-chat[\s\S]*转到 AI 对话[\s\S]*goToChat/);
+assert.doesNotMatch(
+	voicePanelSource,
+	/buildFunctionalSidebar|installSideResizer|tq-side-composer|tq-fab/
+);
 assert.match(
 	voicePanelSource,
-	/tq-btn tq-btn--danger tq-btn--sm[\s\S]*确认执行/
+	/tq-approval-card[\s\S]*确认执行/
 );
 assert.match(voicePanelSource, /updateSendState[\s\S]*sendBtn\.disabled/);
 assert.match(voicePanelSource, /MarkdownRenderer\.render/);
@@ -435,7 +434,10 @@ const partialRegion = sourceRegion(
 	"private showTranscriptEditor"
 );
 assert.doesNotMatch(partialRegion, /commitUser|matchWake|activateWake|respond\(/);
-assert.match(partialRegion, /if \(!this\.wakeActive\) return;/);
+assert.match(
+	partialRegion,
+	/!this\.wakeActive[\s\S]*inputMode !== "push-to-talk"[\s\S]*return;/
+);
 assert.match(partialRegion, /this\.setState\("reco"\)/);
 // 忙碌 = 本轮已交给 agent：软结束的立即定案，半句一律丢弃
 assert.match(vadSource, /if \(busy\) this\.turn\.onBusy\(\);/);
@@ -469,9 +471,18 @@ assert.match(
 	voiceIoSource,
 	/export function normalizeForSpeech[\s\S]*const spoken = normalizeForSpeech\(sentence\)/
 );
-assert.match(quyuanShellCss, /--tq-side-size:\s*360px/);
-assert.match(quyuanShellCss, /\.tq-body\.is-side-collapsed/);
-assert.match(quyuanShellCss, /data-input-mode="push-to-talk"[\s\S]*tq-voice-mode-btn/);
+assert.doesNotMatch(
+	quyuanShellCss,
+	/--tq-side-size|\.tq-body\.is-side-collapsed/
+);
+assert.match(
+	quyuanShellCss,
+	/\.tq-body\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+);
+assert.match(
+	voicePanelSource,
+	/setAttribute\("data-input-mode",\s*inputMode\)[\s\S]*renderVoiceModeBtn\(\)/
+);
 assert.match(quyuanShellCss, /\.tq-btn:focus-visible/);
 assert.match(quyuanShellCss, /\.tq-btn:disabled/);
 assert.match(quyuanShellCss, /\.talos-quyuan-open-error/);
@@ -566,26 +577,40 @@ assert.match(particleRenderRegion, /requestAnimationFrame/);
 assert.match(particleDestroyRegion, /this\.disposed = true[\s\S]*cancelAnimationFrame[\s\S]*resizeObserver\.disconnect[\s\S]*removeEventListener/);
 assert.doesNotMatch(voiceParticleSource, /\.png|new Image\(|createElement\("img"\)/i);
 assert.doesNotMatch(voiceParticleSource, /setInterval/);
-// 7/10 沉浸式界面已退役旧 tq-flow / tq-copy；当前契约是字幕 overlay + FAB。
-assert.match(quyuanShellCss, /\.tq-overlay-text[\s\S]*\.tq-overlay-reply[\s\S]*\.tq-transcript-editor[\s\S]*\.tq-overlay-user/);
-// 识别文字并入输出端阅读栏：order:1 叠在回复正上方、同宽左对齐；
-// 折叠 max-height:0 不占位，展开生长；共享容器顶部 mask 滚动渐隐。
+// D-TLP-022：旧右栏与 FAB 已退役；字幕、只读查询和控制集中在中央舞台下方 Dock。
 assert.match(
 	quyuanShellCss,
-	/\.tq-transcript-editor\s*\{[\s\S]*order:\s*1;[\s\S]*width:\s*calc\(100% - clamp\(300px,\s*32vw,\s*430px\)\)[\s\S]*max-height:\s*0;[\s\S]*\.tq-transcript-editor\.is-visible\s*\{[\s\S]*max-height:\s*300px;/
+	/\.tq-overlay-text[\s\S]*\.tq-overlay-reply[\s\S]*\.tq-transcript-editor[\s\S]*\.tq-readonly-query/
 );
-assert.match(quyuanShellCss, /\.tq-overlay-reply\s*\{[\s\S]*width:\s*calc\(100% - clamp\(300px,\s*32vw,\s*430px\)\)/);
-// 识别文字锚定右上角空白带（不遮挡粒子与控件），与右下角扇形菜单无交叠，无需展开避让规则
-assert.doesNotMatch(quyuanShellCss, /\.tq-stage:has\(\.tq-fab\.is-open\) \.tq-transcript-editor\.is-visible/);
-assert.match(quyuanShellCss, /\.tq-fab[\s\S]*\.tq-fab-menu[\s\S]*\.tq-fab-ring/);
 assert.match(
 	quyuanShellCss,
-	/\.tq-fab\s*\{[\s\S]*right:\s*clamp\(210px,\s*12vw,\s*260px\)[\s\S]*bottom:\s*clamp\(205px,\s*18vh,\s*250px\)/
+	/\.tq-stage\s*\{[\s\S]*--tq-ball-size:\s*clamp\(320px,[\s\S]*62cqh[\s\S]*420px\)/
 );
-assert.match(quyuanShellCss, /\.tq-fab\.is-open \.tq-fab-btn:is\(:hover, :focus-visible\)\s*\{[\s\S]*z-index:\s*8/);
-assert.match(quyuanShellCss, /\.tq-fab-btn::after\s*\{[\s\S]*z-index:\s*9[\s\S]*bottom:\s*calc\(100% \+ 10px\)/);
-assert.match(quyuanShellCss, /nth-child\(-n \+ 2\)::after[\s\S]*left:\s*calc\(100% \+ 10px\)/);
-assert.match(quyuanShellCss, /nth-child\(n \+ 6\)::after[\s\S]*right:\s*calc\(100% \+ 10px\)/);
+assert.match(
+	quyuanShellCss,
+	/\.tq-emotion-ball-host\s*\{[\s\S]*max-width:\s*100%;[\s\S]*max-height:\s*100%;[\s\S]*aspect-ratio:\s*1/
+);
+assert.match(
+	quyuanShellCss,
+	/\.tq-voice-dock\s*\{[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*auto;/
+);
+assert.match(
+	quyuanShellCss,
+	/@container tq-stage \(max-width: 800px\)[\s\S]*clamp\(280px,[\s\S]*340px\)/
+);
+assert.match(
+	quyuanShellCss,
+	/@container tq-stage \(max-width: 520px\)[\s\S]*clamp\(180px,[\s\S]*230px\)/
+);
+assert.match(
+	quyuanShellCss,
+	/\.tq-voice \.tq-pixel-head-scene[\s\S]*opacity:\s*0\.14;[\s\S]*\.tq-voice \.tq-bg[\s\S]*opacity:\s*0\.2;/
+);
+assert.match(
+	quyuanShellCss,
+	/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.tq-emotion-ball-host[\s\S]*transition:\s*none !important/
+);
+assert.doesNotMatch(quyuanShellCss, /\.tq-fab(?:\b|[-_])/);
 assert.match(
 	quyuanShellCss,
 	/theme-cosmos-dark[\s\S]*theme-animal-island[\s\S]*theme-system-classic[\s\S]*theme-data-stream[\s\S]*theme-soft-relief[\s\S]*theme-geometric-modern/

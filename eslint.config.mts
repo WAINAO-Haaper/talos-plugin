@@ -8,6 +8,8 @@ export default tseslint.config(
 		'node_modules',
 		'dist',
 		'prototype',
+		// 固定上游版本与哈希的 Emotion Ball 快照；由来源与哈希测试验证，不做本地改写
+		'src/quyuan/vendor/emotion-ball/**',
 		// 修复前的原始文件备份，不是源码，不参与检查
 		'backups',
 		'*.selftest.mjs',
