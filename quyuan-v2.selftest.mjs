@@ -254,6 +254,7 @@ assert.match(quyuanViewSource, /renderOpenError/);
 assert.match(quyuanViewSource, /writeQuyuanDiagnostics/);
 
 const voicePanelSource = readFileSync("src/quyuan/voice-panel.ts", "utf8");
+const emotionBallViewSource = readFileSync("src/quyuan/emotion-ball-view.ts", "utf8");
 const voiceCharacterSource = readFileSync("src/quyuan/voice-character-stage.ts", "utf8");
 const voiceDriverSource = readFileSync("src/quyuan/voice-driver.ts", "utf8");
 const voiceParticleSource = readFileSync("src/quyuan/voice-particle-field.ts", "utf8");
@@ -584,7 +585,7 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/\.tq-stage\s*\{[\s\S]*--tq-ball-size:\s*380px/
+	/\.tq-stage\s*\{[\s\S]*--tq-ball-size:\s*clamp\(500px,\s*min\(60cqi,\s*86cqh\),\s*820px\)/
 );
 assert.match(
 	quyuanShellCss,
@@ -600,19 +601,19 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 1200px\)[\s\S]*\.tq-emotion-ball-host[\s\S]*--tq-ball-size:\s*340px/
+	/@container tq-stage \(max-width: 1200px\)[\s\S]*\.tq-emotion-ball-host[\s\S]*--tq-ball-size:\s*clamp\(380px,\s*min\(58cqi,\s*82cqh\),\s*560px\)/
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 800px\)[\s\S]*--tq-ball-size:\s*310px/
+	/@container tq-stage \(max-width: 800px\)[\s\S]*--tq-ball-size:\s*clamp\(300px,\s*min\(46cqi,\s*78cqh\),\s*340px\)/
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 520px\)[\s\S]*--tq-ball-size:\s*210px/
+	/@container tq-stage \(max-width: 520px\)[\s\S]*--tq-ball-size:\s*clamp\(190px,\s*min\(44cqi,\s*74cqh\),\s*230px\)/
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 520px\) and \(max-height: 520px\)[\s\S]*--tq-ball-size:\s*190px/
+	/@container tq-stage \(max-width: 520px\) and \(max-height: 520px\)[\s\S]*--tq-ball-size:\s*clamp\(180px,\s*min\(44cqi,\s*76cqh\),\s*230px\)/
 );
 assert.match(quyuanShellCss, /\.tq-voice \.tq-pixel-head-scene[\s\S]*opacity:\s*0\.1;/);
 assert.doesNotMatch(quyuanShellCss, /\.tq-voice \.tq-bg/);
@@ -620,6 +621,10 @@ assert.doesNotMatch(
 	voicePanelSource,
 	/QuyuanBackgroundField|QuyuanBackgroundType|toggleBackground|renderBgBtn|cls:\s*"tq-bg"/
 );
+assert.match(voicePanelSource, /sketch:\s*false/);
+assert.doesNotMatch(voicePanelSource, /sketch:\s*key\.includes/);
+assert.match(emotionBallViewSource, /color:\s*"#FFFFFF"[\s\S]*eyeColor:\s*"#1A1A1A"/);
+assert.match(quyuanShellCss, /--tq-ball-surface:\s*#ffffff/);
 assert.match(
 	quyuanShellCss,
 	/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.tq-emotion-ball-host[\s\S]*transition:\s*none !important/

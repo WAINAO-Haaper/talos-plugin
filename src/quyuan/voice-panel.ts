@@ -488,7 +488,8 @@ export class QuyuanVoicePanel {
 		const mode = document?.body.classList.contains("theme-light") ? "light" : "dark";
 		return {
 			id: `${key}:${mode}`,
-			sketch: key.includes("geometric-modern"),
+			// 球体保持白色实体；页面主题只影响状态光晕与外围模块。
+			sketch: false,
 		};
 	}
 

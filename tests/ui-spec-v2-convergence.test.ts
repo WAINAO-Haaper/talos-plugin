@@ -231,15 +231,18 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		};
 		// The mounted host carries both tq-emotion-ball-host and tq-emotion-ball.
 		// A later 100% root rule expanded it to the full stage; selector separation
-		// plus explicit descendant bands keeps the runtime geometry deterministic.
-		expect(blockHas(".tq-stage", "--tq-ball-size: 380px")).toBe(true);
+		// plus height-driven descendant bands keeps the runtime geometry deterministic.
+		expect(blockHas(
+			".tq-stage",
+			"--tq-ball-size: clamp(500px, min(60cqi, 86cqh), 820px)"
+		)).toBe(true);
 		expect(qcss).toContain("@container tq-stage (max-width: 1200px)");
-		expect(qcss).toContain("--tq-ball-size: 340px");
+		expect(qcss).toContain("clamp(380px, min(58cqi, 82cqh), 560px)");
 		expect(qcss).toContain("@container tq-stage (max-width: 800px)");
-		expect(qcss).toContain("--tq-ball-size: 310px");
+		expect(qcss).toContain("clamp(300px, min(46cqi, 78cqh), 340px)");
 		expect(qcss).toContain("@container tq-stage (max-width: 520px)");
-		expect(qcss).toContain("--tq-ball-size: 210px");
-		expect(qcss).toContain("--tq-ball-size: 190px");
+		expect(qcss).toContain("clamp(190px, min(44cqi, 74cqh), 230px)");
+		expect(qcss).toContain("clamp(180px, min(44cqi, 76cqh), 230px)");
 	});
 
 	it("follows Obsidian light/dark theme for the voice page surface", () => {
@@ -271,5 +274,7 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 			"--tq-surface: #f3eedf !important"
 		)).toBe(true);
 		expect(qcss).not.toContain("body.theme-light .tq-voice .tq-bg");
+		expect(qcss).toContain("--tq-ball-surface: #ffffff");
+		expect(qcss).toContain("background: var(--tq-ball-eye)");
 	});
 });

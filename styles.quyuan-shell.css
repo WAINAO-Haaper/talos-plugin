@@ -3443,6 +3443,8 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   --tq-module-red: #e7473e;
   --tq-module-yellow: #f4c63d;
   --tq-module-blue: #3362c7;
+  --tq-ball-surface: #ffffff;
+  --tq-ball-eye: #1a1a1a;
 }
 
 body.theme-light .talos-console.theme-geometric-modern .tq-voice {
@@ -3462,7 +3464,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
 }
 
 .tq-stage {
-  --tq-ball-size: 380px;
+  --tq-ball-size: clamp(500px, min(60cqi, 86cqh), 820px);
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 6px;
@@ -3576,8 +3578,12 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   border-radius: 46% 54% 52% 48% / 50% 46% 54% 50%;
   color: var(--tq-text);
   background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.54), transparent 17%),
-    radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--tq-ball-accent) 78%, #1e293b), #101827 72%);
+    radial-gradient(circle at 34% 28%, #ffffff, transparent 17%),
+    radial-gradient(
+      circle at 50% 58%,
+      var(--tq-ball-surface),
+      color-mix(in srgb, var(--tq-ball-surface) 88%, var(--tq-text)) 72%
+    );
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--tq-text) 8%, transparent) inset,
     0 28px 70px color-mix(in srgb, var(--tq-ball-accent) 24%, transparent);
@@ -3598,7 +3604,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   height: 100%;
   border-radius: 50%;
   content: "";
-  background: color-mix(in srgb, var(--tq-surface) 90%, #000);
+  background: var(--tq-ball-eye);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tq-text) 12%, transparent);
 }
 
@@ -4131,13 +4137,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 
 @container tq-stage (max-width: 1200px) {
   .tq-emotion-ball-host {
-    --tq-ball-size: 340px;
+    --tq-ball-size: clamp(380px, min(58cqi, 82cqh), 560px);
   }
 }
 
 @container tq-stage (max-width: 800px) {
   .tq-emotion-ball-host {
-    --tq-ball-size: 310px;
+    --tq-ball-size: clamp(300px, min(46cqi, 78cqh), 340px);
   }
 }
 
@@ -4157,13 +4163,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 
 @container tq-stage (max-width: 520px) {
   .tq-emotion-ball-host {
-    --tq-ball-size: 210px;
+    --tq-ball-size: clamp(190px, min(44cqi, 74cqh), 230px);
   }
 }
 
 @container tq-stage (max-height: 520px) {
   .tq-emotion-ball-host {
-    --tq-ball-size: 260px;
+    --tq-ball-size: clamp(260px, min(58cqi, 82cqh), 440px);
   }
 
   .tq-overlay-text {
@@ -4173,7 +4179,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 
 @container tq-stage (max-width: 520px) and (max-height: 520px) {
   .tq-emotion-ball-host {
-    --tq-ball-size: 190px;
+    --tq-ball-size: clamp(180px, min(44cqi, 76cqh), 230px);
   }
 }
 

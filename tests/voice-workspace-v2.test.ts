@@ -94,11 +94,11 @@ describe("voice focus workspace v2", () => {
 			'restricted: "38"',
 			'stop: "41"',
 		]) expect(panel + readFileSync(`${root}src/quyuan/emotion-ball-view.ts`, "utf8")).toContain(mapping);
-		expect(shellCss).toContain("--tq-ball-size: 380px");
-		expect(shellCss).toContain("--tq-ball-size: 340px");
-		expect(shellCss).toContain("--tq-ball-size: 310px");
-		expect(shellCss).toContain("--tq-ball-size: 210px");
-		expect(shellCss).toContain("--tq-ball-size: 190px");
+		expect(shellCss).toContain("clamp(500px, min(60cqi, 86cqh), 820px)");
+		expect(shellCss).toContain("clamp(380px, min(58cqi, 82cqh), 560px)");
+		expect(shellCss).toContain("clamp(300px, min(46cqi, 78cqh), 340px)");
+		expect(shellCss).toContain("clamp(190px, min(44cqi, 74cqh), 230px)");
+		expect(shellCss).toContain("clamp(180px, min(44cqi, 76cqh), 230px)");
 		expect(shellCss).not.toMatch(
 			/\.tq-emotion-ball,\s*\.tq-emotion-ball__engine/
 		);
@@ -111,21 +111,34 @@ describe("voice focus workspace v2", () => {
 	});
 
 	it("keeps canonical viewport geometry centered and inside the stage", () => {
+		const clamp = (minimum: number, preferred: number, maximum: number): number =>
+			Math.max(minimum, Math.min(preferred, maximum));
 		const ballDiameter = (width: number, height: number): number => {
-			let diameter = 380;
-			if (width <= 1200) diameter = 340;
-			if (width <= 800) diameter = 310;
-			if (width <= 520) diameter = 210;
-			if (height <= 520) diameter = 260;
-			if (width <= 520 && height <= 520) diameter = 190;
+			let diameter = clamp(500, Math.min(width * 0.6, height * 0.86), 820);
+			if (width <= 1200) {
+				diameter = clamp(380, Math.min(width * 0.58, height * 0.82), 560);
+			}
+			if (width <= 800) {
+				diameter = clamp(300, Math.min(width * 0.46, height * 0.78), 340);
+			}
+			if (width <= 520) {
+				diameter = clamp(190, Math.min(width * 0.44, height * 0.74), 230);
+			}
+			if (height <= 520) {
+				diameter = clamp(260, Math.min(width * 0.58, height * 0.82), 440);
+			}
+			if (width <= 520 && height <= 520) {
+				diameter = clamp(180, Math.min(width * 0.44, height * 0.76), 230);
+			}
 			return diameter;
 		};
 		const cases = [
-			{ width: 1440, height: 700, band: [320, 420] },
-			{ width: 1024, height: 620, band: [320, 420] },
+			{ width: 1440, height: 700, band: [560, 620] },
+			{ width: 1024, height: 620, band: [480, 520] },
 			{ width: 736, height: 600, band: [280, 340] },
 			{ width: 520, height: 600, band: [180, 230] },
 			{ width: 360, height: 600, band: [180, 230] },
+			{ width: 1024, height: 500, band: [380, 440] },
 		] as const;
 		for (const { width, height, band } of cases) {
 			const diameter = ballDiameter(width, height);
@@ -134,6 +147,8 @@ describe("voice focus workspace v2", () => {
 			expect(diameter).toBeLessThanOrEqual(width);
 			expect(diameter).toBeLessThanOrEqual(height);
 		}
+		expect(ballDiameter(1440, 700) / 700).toBeGreaterThanOrEqual(0.8);
+		expect(ballDiameter(1024, 620) / 620).toBeGreaterThanOrEqual(0.8);
 		expect(shellCss).toContain("place-items: center");
 		expect(shellCss).toContain("max-width: 100%");
 		expect(shellCss).toContain("max-height: 100%");
@@ -162,6 +177,16 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain(
 			".tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row)"
 		);
+	});
+
+	it("keeps a solid white ball while themes style the surrounding workspace", () => {
+		const view = readFileSync(`${root}src/quyuan/emotion-ball-view.ts`, "utf8");
+		expect(panel).toContain("sketch: false");
+		expect(panel).not.toContain('sketch: key.includes("geometric-modern")');
+		expect(view).toContain('color: "#FFFFFF"');
+		expect(view).toContain('eyeColor: "#1A1A1A"');
+		expect(shellCss).toContain("--tq-ball-surface: #ffffff");
+		expect(shellCss).toContain("background: var(--tq-ball-eye)");
 	});
 
 	it("reuses the live chat route after stopping capture, playback, and processing", () => {

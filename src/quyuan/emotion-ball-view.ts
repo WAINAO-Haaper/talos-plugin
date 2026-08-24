@@ -38,6 +38,8 @@ export interface EmotionBallEngineOptions {
 	autostart: boolean;
 	lite: boolean;
 	fallbackId: string;
+	color: "#FFFFFF";
+	eyeColor: "#1A1A1A";
 }
 
 export interface EmotionBallEngine {
@@ -167,6 +169,8 @@ export class EmotionBallView {
 				autostart: !this.reducedMotion,
 				lite: this.reducedMotion,
 				fallbackId: EMOTION_BALL_STATE_IDS.waiting,
+				color: "#FFFFFF",
+				eyeColor: "#1A1A1A",
 			});
 			this.setFallback(false);
 			this.applyTheme();

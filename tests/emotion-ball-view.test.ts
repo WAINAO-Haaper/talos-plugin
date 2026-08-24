@@ -54,6 +54,8 @@ describe("EmotionBallView", () => {
 			autostart: true,
 			lite: false,
 			fallbackId: "35",
+			color: "#FFFFFF",
+			eyeColor: "#1A1A1A",
 		});
 		expect(element.classList.contains("tq-emotion-ball")).toBe(true);
 		expect(element.getAttribute("data-emotion-ball-state")).toBe("waiting");
