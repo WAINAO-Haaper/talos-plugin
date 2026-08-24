@@ -1238,73 +1238,68 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   color-scheme: light;
 }
 
-/* === 屈原语音工作区锁定：整个 .tq-voice 自成一体的深色沉浸区 ===
-   左侧粒子舞台永远深色；若面板/气泡/识别卡跟随浅色主题（如几何现代的米色），
-   会与舞台格格不入。故把 .tq-voice 内部所有 --tq-* 变量固定为 Aurora 深色套——
-   只影响语音工作区，控制台其他页面的主题不变。
-   !important 确保覆盖所有 .theme-XXX .tq-voice 规则（特异性相同时靠源顺序，
-   但 !important 是最无歧义的锁定声明，语义也最清晰）。 */
+/* 屈原语音工作区的默认深色回退。已选择的 TALOS 主题选择器特异性更高，
+   因而可以用自己的明暗与色彩令牌覆盖这里；没有明确主题时才使用 Aurora。 */
 .tq-voice {
-  --tq-surface: #050810 !important;
-  --tq-surface-soft: #0a0f1a !important;
-  --tq-panel: rgba(8, 12, 22, 0.72) !important;
-  --tq-panel-strong: rgba(10, 16, 28, 0.92) !important;
-  --tq-border: rgba(125, 211, 252, 0.12) !important;
-  --tq-text: #e0f2fe !important;
-  --tq-muted: #8aa0b8 !important;
-  --tq-faint: #5b7288 !important;
-  --tq-brand: #38bdf8 !important;
-  --tq-on-brand: #050810 !important;
-  --tq-particle-a: #7dd3fc !important;
-  --tq-particle-b: #c4b5fd !important;
-  --tq-particle-c: #38bdf8 !important;
-  --tq-state-listen: #38bdf8 !important;
-  --tq-state-reco: #7dd3fc !important;
-  --tq-state-think: #a78bfa !important;
-  --tq-state-speak: #5eead4 !important;
-  --tq-copy-shield: rgba(4, 8, 16, 0.48) !important;
-  color-scheme: dark !important;
+  --tq-surface: #050810;
+  --tq-surface-soft: #0a0f1a;
+  --tq-panel: rgba(8, 12, 22, 0.72);
+  --tq-panel-strong: rgba(10, 16, 28, 0.92);
+  --tq-border: rgba(125, 211, 252, 0.12);
+  --tq-text: #e0f2fe;
+  --tq-muted: #8aa0b8;
+  --tq-faint: #5b7288;
+  --tq-brand: #38bdf8;
+  --tq-on-brand: #050810;
+  --tq-particle-a: #7dd3fc;
+  --tq-particle-b: #c4b5fd;
+  --tq-particle-c: #38bdf8;
+  --tq-state-listen: #38bdf8;
+  --tq-state-reco: #7dd3fc;
+  --tq-state-think: #a78bfa;
+  --tq-state-speak: #5eead4;
+  --tq-copy-shield: rgba(4, 8, 16, 0.48);
+  color-scheme: dark;
   /* 极光设计令牌（沉浸式美化使用，不随主题/状态变化） */
   --tq-aurora: linear-gradient(120deg, #7dd3fc 0%, #a78bfa 52%, #f0abfc 100%);
   --tq-ink: #e0f2fe;
   --tq-ink-dim: #8aa0b8;
 }
 
-/* 浅色模式解锁（2026-08-23 实机反馈）：Obsidian 浅色主题下语音页背景
-   跟随主题为白色系，文字/描边翻深保证可读；深色主题保持上方 Aurora
-   深色锁定不变。body.theme-light .tq-voice（0,1,1）特异性高于上方
-   .tq-voice 锁定块（0,1,0），同为 !important 时特异性高者胜。
-   按钮胶囊维持深色设计（vault 主题 reassert 块管不到变量，且深胶囊
-   在白底上可读性良好），舞台/面板/侧栏全部变量驱动随此翻转。 */
+/* Obsidian 浅色模式的无主题回退。明确的 TALOS 主题拥有更高特异性：
+   Data Stream／Cosmos／System／Animal 仍使用各自深色面，Soft Relief／
+   Geometric 使用各自浅色面，避免宿主 theme-light 把所有主题强制漂白。 */
 body.theme-light .tq-voice {
-  --tq-surface: #ffffff !important;
-  --tq-surface-soft: #f5f7fa !important;
-  --tq-panel: rgba(255, 255, 255, 0.72) !important;
-  --tq-panel-strong: rgba(255, 255, 255, 0.92) !important;
-  --tq-border: rgba(15, 23, 42, 0.14) !important;
-  --tq-text: #0f172a !important;
-  --tq-muted: #526074 !important;
-  --tq-faint: #8593a8 !important;
-  --tq-brand: #0284c7 !important;
-  --tq-on-brand: #ffffff !important;
-  --tq-particle-a: #0ea5e9 !important;
-  --tq-particle-b: #8b5cf6 !important;
-  --tq-particle-c: #0284c7 !important;
-  --tq-state-listen: #0284c7 !important;
-  --tq-state-reco: #0ea5e9 !important;
-  --tq-state-think: #7c3aed !important;
-  --tq-state-speak: #0d9488 !important;
-  --tq-copy-shield: rgba(255, 255, 255, 0.5) !important;
-  color-scheme: light !important;
+  --tq-surface: #ffffff;
+  --tq-surface-soft: #f5f7fa;
+  --tq-panel: rgba(255, 255, 255, 0.72);
+  --tq-panel-strong: rgba(255, 255, 255, 0.92);
+  --tq-border: rgba(15, 23, 42, 0.14);
+  --tq-text: #0f172a;
+  --tq-muted: #526074;
+  --tq-faint: #8593a8;
+  --tq-brand: #0284c7;
+  --tq-on-brand: #ffffff;
+  --tq-particle-a: #0ea5e9;
+  --tq-particle-b: #8b5cf6;
+  --tq-particle-c: #0284c7;
+  --tq-state-listen: #0284c7;
+  --tq-state-reco: #0ea5e9;
+  --tq-state-think: #7c3aed;
+  --tq-state-speak: #0d9488;
+  --tq-copy-shield: rgba(255, 255, 255, 0.5);
+  color-scheme: light;
   /* 极光令牌浅色版：白底上原浅蓝/浅紫渐变对比度不足，整体加深 */
-  --tq-aurora: linear-gradient(120deg, #0284c7 0%, #7c3aed 52%, #db2777 100%) !important;
-  --tq-ink: #0f172a !important;
-  --tq-ink-dim: #526074 !important;
+  --tq-aurora: linear-gradient(120deg, #0284c7 0%, #7c3aed 52%, #db2777 100%);
+  --tq-ink: #0f172a;
+  --tq-ink-dim: #526074;
 }
 
-/* 浅色模式：jarvis 左侧导航栏从硬编码深黑翻为白底（与页面同步）；
-   0,2,1+属性 特异性压过 .talos-console[data-talos-page="jarvis"] .sidebar */
-body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar {
+/* 浅色且未选择内建深色 TALOS 主题时，jarvis 导航翻为白底；深色 TALOS
+   主题继续使用基础深色导航，避免 Data Stream 舞台旁出现白色孤岛。 */
+body.theme-light
+  .talos-console[data-talos-page="jarvis"]:not(.theme-cosmos-dark):not(.theme-animal-island):not(.theme-system-classic):not(.theme-data-stream)
+  .sidebar {
   background: #ffffff;
   border-right-color: rgba(15, 23, 42, 0.1);
 }

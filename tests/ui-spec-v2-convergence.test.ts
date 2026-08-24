@@ -245,26 +245,26 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(qcss).toContain("clamp(180px, min(44cqi, 76cqh), 230px)");
 	});
 
-	it("follows Obsidian light/dark theme for the voice page surface", () => {
-		// 2026-08-23 实机反馈：语音页背景随主题——浅色白色系、深色保持
-		// Aurora 锁定。浅色解锁块必须是 body.theme-light .tq-voice
-		// （0,1,1）且全 !important，才能在同为 !important 的 Aurora 锁定块
-		// （0,1,0）之上生效；文字/描边同步翻深保证白底可读。
+	it("lets the selected TALOS theme own the voice surface while preserving host fallbacks", () => {
+		// 明确 TALOS 主题（0,3,0）必须高于 Aurora／Obsidian 回退，不再由
+		// body.theme-light + !important 把 Data Stream 等深色主题强制漂白。
 		const blockHas = (sel: string, needle: string) => {
 			const re = new RegExp(
 				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 			);
 			return re.test(qcss);
 		};
-		expect(blockHas("body.theme-light .tq-voice", "--tq-surface: #ffffff !important")).toBe(true);
-		expect(blockHas("body.theme-light .tq-voice", "--tq-text: #0f172a !important")).toBe(true);
-		expect(blockHas("body.theme-light .tq-voice", "color-scheme: light !important")).toBe(true);
-		// 深色锁定块必须仍在（深色现状不变）
-		expect(blockHas(".tq-voice", "--tq-surface: #050810 !important")).toBe(true);
-		// jarvis 左侧导航栏硬编码深黑 #070d17 须在浅色下翻白
-		expect(
-			blockHas('body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar', "background: #ffffff")
-		).toBe(true);
+		expect(blockHas("body.theme-light .tq-voice", "--tq-surface: #ffffff")).toBe(true);
+		expect(blockHas("body.theme-light .tq-voice", "--tq-text: #0f172a")).toBe(true);
+		expect(blockHas("body.theme-light .tq-voice", "color-scheme: light")).toBe(true);
+		expect(blockHas(".tq-voice", "--tq-surface: #050810")).toBe(true);
+		expect(blockHas(".talos-console.theme-data-stream .tq-voice", "--tq-surface: #01090b")).toBe(true);
+		expect(blockHas(".talos-console.theme-soft-relief .tq-voice", "--tq-surface: #dfe2ed")).toBe(true);
+		expect(qcss).not.toContain("--tq-surface: #ffffff !important");
+		expect(qcss).not.toContain("--tq-surface: #050810 !important");
+		// 浅色导航回退排除四个内建深色 TALOS 主题。
+		expect(qcss).toContain(":not(.theme-data-stream)");
+		expect(qcss).toContain(":not(.theme-cosmos-dark)");
 		// 新 dock、转写与静态降级都只消费同一组 tq 主题/模块变量。
 		expect(blockHas(".tq-voice-dock", "var(--tq-surface)")).toBe(true);
 		expect(blockHas(".tq-transcript-editor", "var(--tq-module-surface)")).toBe(true);
