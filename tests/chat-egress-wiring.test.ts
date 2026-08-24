@@ -33,6 +33,25 @@ describe("chat egress wiring", () => {
 		expect(steerSend).toBeGreaterThan(steerAudit);
 	});
 
+	it("fails closed when the TALOS egress audit bridge is missing", () => {
+		// D-WP7 安全合同：审计桥缺失必须抛错阻断，不得静默放行。
+		expect(inputController).not.toContain(
+			"if (!bridge.auditQuyuanChatEgress) return;"
+		);
+		const guard = inputController.indexOf(
+			"if (!bridge.auditQuyuanChatEgress) {"
+		);
+		const thrower = inputController.indexOf(
+			"失败关闭策略阻止发送"
+		);
+		expect(guard).toBeGreaterThan(-1);
+		expect(thrower).toBeGreaterThan(guard);
+		const auditCall = inputController.indexOf(
+			"bridge.auditQuyuanChatEgress({"
+		);
+		expect(auditCall).toBeGreaterThan(thrower);
+	});
+
 	it("persists metadata-only chat audits through the shared audit store", () => {
 		expect(mainSource).toContain("preflightChatProviderEgress");
 		expect(mainSource).toContain("createVaultProviderEgressAuditStore");

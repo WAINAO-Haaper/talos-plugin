@@ -170,7 +170,10 @@ export class InputController {
     history: ChatMessage[];
   }): Promise<void> {
     const bridge = this.deps.plugin as TalosChatEgressBridge;
-    if (!bridge.auditQuyuanChatEgress) return;
+    // D-WP7 安全合同：审计桥缺失时失败关闭，任何模型调用不得绕过外发审计。
+    if (!bridge.auditQuyuanChatEgress) {
+      throw new Error("TALOS 外发审计桥缺失，已按失败关闭策略阻止发送");
+    }
     const result = await bridge.auditQuyuanChatEgress({
       providerId: input.agentService.providerId,
       prompt: input.preparedTurn.prompt,
