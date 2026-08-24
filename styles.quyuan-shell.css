@@ -1141,6 +1141,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-particle-b: #7448ff;
   --tq-particle-c: #ff7451;
   --tq-copy-shield: rgba(3, 7, 17, 0.56);
+  color-scheme: dark;
 }
 
 .talos-console.theme-animal-island .tq-voice {
@@ -1159,6 +1160,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-particle-b: #62a9d7;
   --tq-particle-c: #ff9a70;
   --tq-copy-shield: rgba(16, 33, 30, 0.58);
+  color-scheme: dark;
 }
 
 .talos-console.theme-system-classic .tq-voice {
@@ -1177,6 +1179,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-particle-b: #a8a8a8;
   --tq-particle-c: #606060;
   --tq-copy-shield: rgba(8, 8, 8, 0.62);
+  color-scheme: dark;
 }
 
 .talos-console.theme-data-stream .tq-voice {
@@ -1195,6 +1198,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   --tq-particle-b: #28d78d;
   --tq-particle-c: #a6ff4d;
   --tq-copy-shield: rgba(1, 9, 11, 0.6);
+  color-scheme: dark;
 }
 
 .talos-console.theme-soft-relief .tq-voice {

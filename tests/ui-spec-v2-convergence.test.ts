@@ -259,7 +259,9 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(blockHas("body.theme-light .tq-voice", "color-scheme: light")).toBe(true);
 		expect(blockHas(".tq-voice", "--tq-surface: #050810")).toBe(true);
 		expect(blockHas(".talos-console.theme-data-stream .tq-voice", "--tq-surface: #01090b")).toBe(true);
+		expect(blockHas(".talos-console.theme-data-stream .tq-voice", "color-scheme: dark")).toBe(true);
 		expect(blockHas(".talos-console.theme-soft-relief .tq-voice", "--tq-surface: #dfe2ed")).toBe(true);
+		expect(blockHas(".talos-console.theme-soft-relief .tq-voice", "color-scheme: light")).toBe(true);
 		expect(qcss).not.toContain("--tq-surface: #ffffff !important");
 		expect(qcss).not.toContain("--tq-surface: #050810 !important");
 		// 浅色导航回退排除四个内建深色 TALOS 主题。
