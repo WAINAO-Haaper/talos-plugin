@@ -3480,6 +3480,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   position: relative;
   z-index: 3;
   display: grid;
+  container: tq-emotion / size;
   min-width: 0;
   min-height: 0;
   place-items: center;
@@ -3488,17 +3489,36 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
 }
 
 .tq-emotion-ball-host {
-  width: var(--tq-ball-size);
-  height: var(--tq-ball-size);
+  --tq-ball-render-size: min(var(--tq-ball-size), 100cqi, 100cqh);
+  position: relative;
+  isolation: isolate;
+  width: var(--tq-ball-render-size);
+  height: var(--tq-ball-render-size);
+  min-width: 0;
+  min-height: 0;
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1;
   overflow: visible;
-  filter: drop-shadow(0 22px 48px color-mix(in srgb, var(--tq-state) 22%, transparent));
   transition:
     width 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 220ms ease;
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tq-emotion-ball-host::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 10%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--tq-state) 5%, transparent);
+  box-shadow: 0 22px 48px color-mix(in srgb, var(--tq-state) 20%, transparent);
+}
+
+.tq-emotion-ball-host > * {
+  position: relative;
+  z-index: 1;
 }
 
 .tq-emotion-ball__engine,
@@ -3629,7 +3649,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
 .tq-voice .tq-pixel-head-scene.is-fallback {
   z-index: 1;
   opacity: 0.1;
-  filter: saturate(0.7) blur(0.35px);
+  filter: none;
 }
 
 body.theme-light .tq-voice .tq-pixel-head-scene,
@@ -4269,6 +4289,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 
 @media (prefers-reduced-motion: reduce) {
   .tq-emotion-ball-host,
+  .tq-emotion-ball-host::before,
   .tq-overlay-line,
   .tq-transcript-line,
   .tq-control-btn,
@@ -4277,8 +4298,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
     transition: none !important;
   }
 
-  .tq-voice .tq-pixel-head-scene,
-  .tq-emotion-ball-host {
+  .tq-voice .tq-pixel-head-scene {
     filter: none;
   }
 }

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const panel = readFileSync(`${root}src/quyuan/voice-panel.ts`, "utf8");
+const particleField = readFileSync(`${root}src/quyuan/voice-particle-field.ts`, "utf8");
 const shellCss = readFileSync(`${root}styles.quyuan-shell.css`, "utf8");
 const uiCss = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 
@@ -130,7 +131,7 @@ describe("voice focus workspace v2", () => {
 			if (width <= 520 && height <= 520) {
 				diameter = clamp(180, Math.min(width * 0.44, height * 0.76), 230);
 			}
-			return diameter;
+			return Math.min(diameter, width, height);
 		};
 		const cases = [
 			{ width: 1440, height: 700, band: [560, 620] },
@@ -138,6 +139,7 @@ describe("voice focus workspace v2", () => {
 			{ width: 736, height: 600, band: [280, 340] },
 			{ width: 520, height: 600, band: [180, 230] },
 			{ width: 360, height: 600, band: [180, 230] },
+			{ width: 124, height: 360, band: [120, 124] },
 			{ width: 1024, height: 500, band: [380, 440] },
 		] as const;
 		for (const { width, height, band } of cases) {
@@ -152,6 +154,8 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain("place-items: center");
 		expect(shellCss).toContain("max-width: 100%");
 		expect(shellCss).toContain("max-height: 100%");
+		expect(shellCss).toContain("container: tq-emotion / size");
+		expect(shellCss).toContain("min(var(--tq-ball-size), 100cqi, 100cqh)");
 		expect(shellCss).toContain("overflow-x: hidden");
 		expect(shellCss).toContain("grid-template-columns: minmax(0, 1fr)");
 		expect(shellCss).toContain(
@@ -160,6 +164,21 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toMatch(
 			/@container tq-stage \(max-width: 800px\)[\s\S]*\.tq-emotion-ball-host/
 		);
+	});
+
+	it("keeps the weak particle atmosphere smooth without full-stage animated filters", () => {
+		expect(particleField).toContain("const ACTIVE_FRAME_INTERVAL = 16");
+		expect(particleField).toContain("const SLEEP_FRAME_INTERVAL = 33");
+		expect(particleField).toContain("const PARTICLE_SAMPLE_STRIDE = 2");
+		expect(particleField).toContain("index % PARTICLE_SAMPLE_STRIDE === 0");
+		expect(particleField).toContain("devicePixelRatio || 1, 1)");
+		const particleLayer = shellCss.slice(
+			shellCss.indexOf(".tq-voice .tq-pixel-head-scene,"),
+			shellCss.indexOf("body.theme-light .tq-voice .tq-pixel-head-scene,")
+		);
+		expect(particleLayer).toContain("filter: none");
+		expect(shellCss).not.toContain("filter: drop-shadow(0 22px 48px");
+		expect(shellCss).toMatch(/\.tq-emotion-ball-host::before\s*\{[\s\S]*box-shadow:/);
 	});
 
 	it("uses theme-bound modular controls from the accepted visual direction", () => {

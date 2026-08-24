@@ -30,11 +30,13 @@ interface Rgb {
 	b: number;
 }
 
-const ACTIVE_FRAME_INTERVAL = 26;
-const SLEEP_FRAME_INTERVAL = 42;
+const ACTIVE_FRAME_INTERVAL = 16;
+const SLEEP_FRAME_INTERVAL = 33;
 const REDUCED_MOTION_FRAME_INTERVAL = 180;
 const WHITE: Rgb = { r: 235, g: 245, b: 255 };
-const TALOS_MARK_POINTS = generateTalosRoundedMarkPoints(2);
+const PARTICLE_SAMPLE_STRIDE = 2;
+const TALOS_MARK_POINTS = generateTalosRoundedMarkPoints(2)
+	.filter((_point, index) => index % PARTICLE_SAMPLE_STRIDE === 0);
 const EYE_PARTICLES_PER_SIDE = 240;
 
 function createSeededRandom(seed: number): () => number {
@@ -260,7 +262,7 @@ export class QuyuanVoiceParticleField {
 		const rect = this.host.getBoundingClientRect();
 		const width = Math.max(1, Math.floor(rect.width));
 		const height = Math.max(1, Math.floor(rect.height));
-		const dpr = Math.min(this.activeWindow.devicePixelRatio || 1, 1.25);
+		const dpr = Math.min(this.activeWindow.devicePixelRatio || 1, 1);
 		if (width === this.width && height === this.height && dpr === this.dpr) return;
 		this.width = width;
 		this.height = height;
@@ -370,7 +372,7 @@ export class QuyuanVoiceParticleField {
 			: mix(this.primary, this.secondary, (cycle - 0.5) * 2);
 	}
 
-	/** 圆形粒子主体 + 小范围高光；避免每点创建渐变，保持 6k+ 粒子的实时性能。 */
+	/** 圆形粒子主体 + 小范围高光；确定性半采样在保留轮廓的同时释放球体动画帧预算。 */
 	private drawSphereParticle(
 		context: CanvasRenderingContext2D,
 		x: number,

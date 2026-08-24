@@ -535,6 +535,8 @@ assert.match(vadSource, /this\.h\.onLevel\?\.\(/);
 // 现行人物适配层内部使用 Antigravity 风格 TALOS Logo 粒子磁场；面板不直接依赖渲染器。
 assert.match(voiceParticleSource, /export class QuyuanVoiceParticleField/);
 assert.match(voiceParticleSource, /generateTalosRoundedMarkPoints\(2\)/);
+assert.match(voiceParticleSource, /PARTICLE_SAMPLE_STRIDE = 2/);
+assert.match(voiceParticleSource, /index % PARTICLE_SAMPLE_STRIDE === 0/);
 assert.match(voiceParticleSource, /createSeededRandom/);
 assert.match(particleCreateRegion, /swapIndex/);
 assert.match(particleCreateRegion, /freeRadius:[\s\S]*freeAngle:[\s\S]*freeSpeed:/);
@@ -569,8 +571,12 @@ assert.match(particleRenderRegion, /index % \(this\.awake \? 24 : 14\)/);
 assert.match(voiceParticleSource, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
 const reducedInterval = Number(voiceParticleSource.match(/REDUCED_MOTION_FRAME_INTERVAL = (\d+)/)?.[1]);
 assert.ok(reducedInterval >= 120 && reducedInterval <= 500);
+const activeInterval = Number(voiceParticleSource.match(/ACTIVE_FRAME_INTERVAL = (\d+)/)?.[1]);
+const sleepInterval = Number(voiceParticleSource.match(/SLEEP_FRAME_INTERVAL = (\d+)/)?.[1]);
+assert.ok(activeInterval > 0 && activeInterval <= 17);
+assert.ok(sleepInterval >= activeInterval && sleepInterval <= 34);
 const dprLimit = Number(voiceParticleSource.match(/Math\.min\(this\.activeWindow\.devicePixelRatio \|\| 1,\s*([\d.]+)\)/)?.[1]);
-assert.ok(dprLimit > 0 && dprLimit <= 1.5);
+assert.ok(dprLimit > 0 && dprLimit <= 1);
 assert.match(voiceParticleSource, /"sleep" \| "idle" \| "listen" \| "reco" \| "think" \| "speak"/);
 assert.match(particleColorRegion, /!this\.awake[\s\S]*"listen"[\s\S]*"reco"[\s\S]*"think"[\s\S]*"speak"/);
 assert.doesNotMatch(voiceParticleSource, /drawEyes|eyeWidth/);
@@ -589,8 +595,11 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/\.tq-emotion-ball-host\s*\{[\s\S]*max-width:\s*100%;[\s\S]*max-height:\s*100%;[\s\S]*aspect-ratio:\s*1/
+	/\.tq-emotion-ball-host\s*\{[\s\S]*min\(var\(--tq-ball-size\),\s*100cqi,\s*100cqh\)[\s\S]*max-width:\s*100%;[\s\S]*max-height:\s*100%;[\s\S]*aspect-ratio:\s*1/
 );
+assert.match(quyuanShellCss, /\.tq-emotion-stage\s*\{[\s\S]*container:\s*tq-emotion \/ size/);
+assert.doesNotMatch(quyuanShellCss, /filter:\s*drop-shadow\(0 22px 48px/);
+assert.match(quyuanShellCss, /\.tq-emotion-ball-host::before\s*\{[\s\S]*box-shadow:/);
 assert.doesNotMatch(
 	quyuanShellCss,
 	/\.tq-emotion-ball,\s*\.tq-emotion-ball__engine/
