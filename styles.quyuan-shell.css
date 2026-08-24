@@ -3436,12 +3436,42 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   box-sizing: border-box;
 }
 
+.tq-voice {
+  --tq-module-border: color-mix(in srgb, var(--tq-text) 72%, var(--tq-border));
+  --tq-module-shadow: rgba(0, 0, 0, 0.42);
+  --tq-module-surface: color-mix(in srgb, var(--tq-panel-strong) 92%, var(--tq-surface));
+  --tq-module-red: #e7473e;
+  --tq-module-yellow: #f4c63d;
+  --tq-module-blue: #3362c7;
+}
+
+body.theme-light .talos-console.theme-geometric-modern .tq-voice {
+  --tq-surface: #f3eedf !important;
+  --tq-surface-soft: #fbf7ec !important;
+  --tq-panel: rgba(243, 238, 223, 0.9) !important;
+  --tq-panel-strong: #fffaf0 !important;
+  --tq-border: rgba(25, 23, 19, 0.74) !important;
+  --tq-text: #191713 !important;
+  --tq-muted: #6e685e !important;
+  --tq-faint: #928b7d !important;
+  --tq-brand: #f4c63d !important;
+  --tq-on-brand: #191713 !important;
+  --tq-module-border: #191713;
+  --tq-module-shadow: #191713;
+  --tq-module-surface: #fffaf0;
+}
+
 .tq-stage {
-  --tq-ball-size: clamp(320px, min(40cqi, 62cqh), 420px);
+  --tq-ball-size: 380px;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 6px;
   padding: 72px clamp(16px, 3vw, 36px) 12px;
+  background: var(--tq-surface);
+}
+
+.talos-console[data-talos-page="jarvis"] .tq-voice .tq-stage {
+  background: var(--tq-surface);
 }
 
 .tq-emotion-stage {
@@ -3469,7 +3499,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     filter 220ms ease;
 }
 
-.tq-emotion-ball,
 .tq-emotion-ball__engine,
 .tq-emotion-ball__fallback {
   width: 100%;
@@ -3593,24 +3622,14 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 .tq-voice .tq-pixel-head-scene.is-ready,
 .tq-voice .tq-pixel-head-scene.is-fallback {
   z-index: 1;
-  opacity: 0.14;
+  opacity: 0.1;
   filter: saturate(0.7) blur(0.35px);
-}
-
-.tq-voice .tq-bg {
-  z-index: 0;
-  opacity: 0.2;
-  filter: saturate(0.68) contrast(0.92);
 }
 
 body.theme-light .tq-voice .tq-pixel-head-scene,
 body.theme-light .tq-voice .tq-pixel-head-scene.is-ready,
 body.theme-light .tq-voice .tq-pixel-head-scene.is-fallback {
-  opacity: 0.11;
-}
-
-body.theme-light .tq-voice .tq-bg {
-  opacity: 0.12;
+  opacity: 0.07;
 }
 
 .tq-overlay-text {
@@ -3665,10 +3684,10 @@ body.theme-light .tq-voice .tq-bg {
   padding: 12px clamp(12px, 2.4vw, 28px) 14px;
   overflow-x: hidden;
   overflow-y: auto;
-  border-top: 1px solid color-mix(in srgb, var(--tq-state) 22%, var(--tq-border));
-  background: color-mix(in srgb, var(--tq-panel-strong) 91%, transparent);
-  box-shadow: 0 -16px 44px color-mix(in srgb, #000 22%, transparent);
-  backdrop-filter: blur(22px);
+  border-top: 2px solid var(--tq-module-border);
+  background: var(--tq-surface);
+  box-shadow: none;
+  backdrop-filter: none;
   scrollbar-width: thin;
 }
 
@@ -3738,9 +3757,10 @@ body.theme-light .tq-voice .tq-bg {
   min-height: 0;
   padding: 9px 11px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--tq-surface-soft) 72%, transparent);
+  border: 2px solid var(--tq-module-border);
+  border-radius: 0;
+  background: var(--tq-module-surface);
+  box-shadow: 4px 4px 0 var(--tq-module-shadow);
 }
 
 .tq-transcript-head {
@@ -3852,7 +3872,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
 }
 
 .tq-control-btn {
-  --tq-btn-height: 36px;
+  --tq-btn-height: 42px;
   --tq-btn-accent: var(--tq-state);
   justify-content: center;
   gap: 6px;
@@ -3860,6 +3880,73 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
   padding-inline: 10px;
   font-size: 11px;
   white-space: nowrap;
+}
+
+.tq-voice .tq-btn.tq-control-btn,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  overflow: visible;
+  border: 2px solid var(--tq-module-border) !important;
+  border-radius: 0 !important;
+  color: var(--tq-text) !important;
+  background: var(--tq-module-surface) !important;
+  background-color: var(--tq-module-surface) !important;
+  box-shadow: 5px 5px 0 var(--tq-module-shadow) !important;
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.tq-voice .tq-btn.tq-control-btn::before {
+  display: none;
+  content: none;
+}
+
+.tq-voice .tq-btn.tq-control-btn svg,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row) svg {
+  color: currentColor !important;
+}
+
+.tq-voice .tq-btn.tq-control-btn:hover:not(:disabled),
+.tq-voice .tq-btn.tq-control-btn:focus-visible,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible {
+  border-color: var(--tq-module-border) !important;
+  color: var(--tq-text) !important;
+  background: color-mix(in srgb, var(--tq-module-yellow) 22%, var(--tq-module-surface)) !important;
+  box-shadow: 7px 7px 0 var(--tq-module-shadow) !important;
+  animation: none;
+  transform: translate(-2px, -2px);
+}
+
+.tq-voice .tq-btn.tq-control-btn:active:not(:disabled),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row):active:not(:disabled) {
+  box-shadow: 2px 2px 0 var(--tq-module-shadow) !important;
+  transform: translate(3px, 3px);
+}
+
+.tq-voice .tq-btn.tq-control-btn--mic,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn--mic:not(.tq-btn--tab):not(.tq-btn--row) {
+  color: #fffaf0 !important;
+  background: var(--tq-module-red) !important;
+  background-color: var(--tq-module-red) !important;
+}
+
+.tq-voice .tq-btn.tq-control-btn--mic:hover:not(:disabled),
+.tq-voice .tq-btn.tq-control-btn--mic:focus-visible,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn--mic:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn--mic:not(.tq-btn--tab):not(.tq-btn--row):focus-visible {
+  color: #fffaf0 !important;
+  background: color-mix(in srgb, var(--tq-module-red) 84%, #191713) !important;
+}
+
+.tq-voice .tq-btn.tq-control-btn--danger svg,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn--danger svg {
+  color: var(--tq-module-red) !important;
+}
+
+.tq-voice .tq-btn.tq-control-btn:not(.tq-control-btn--mic)[aria-pressed="true"],
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row):not(.tq-control-btn--mic)[aria-pressed="true"] {
+  color: #191713 !important;
+  background: var(--tq-module-yellow) !important;
+  background-color: var(--tq-module-yellow) !important;
 }
 
 .tq-control-btn > svg,
@@ -3885,6 +3972,27 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
   pointer-events: auto;
 }
 
+.tq-voice .tq-btn.tq-go-chat,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-go-chat:not(.tq-btn--tab):not(.tq-btn--row) {
+  overflow: visible;
+  border: 2px solid var(--tq-module-border) !important;
+  border-radius: 0 !important;
+  color: #ffffff !important;
+  background: var(--tq-module-blue) !important;
+  background-color: var(--tq-module-blue) !important;
+  box-shadow: 5px 5px 0 var(--tq-module-shadow) !important;
+}
+
+.tq-voice .tq-btn.tq-go-chat::before {
+  display: none;
+  content: none;
+}
+
+.tq-voice .tq-btn.tq-go-chat svg,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-go-chat:not(.tq-btn--tab):not(.tq-btn--row) svg {
+  color: currentColor !important;
+}
+
 .tq-go-chat svg {
   width: 14px;
   height: 14px;
@@ -3897,9 +4005,10 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
   gap: 8px;
   min-width: 0;
   padding: 7px 9px;
-  border: 1px solid var(--tq-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--tq-surface-soft) 62%, transparent);
+  border: 2px solid var(--tq-module-border);
+  border-radius: 0;
+  background: var(--tq-module-surface);
+  box-shadow: 4px 4px 0 var(--tq-module-shadow);
 }
 
 .tq-readonly-query__copy {
@@ -3958,6 +4067,27 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
   height: 36px;
 }
 
+.tq-voice .tq-btn.tq-send-btn,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) {
+  overflow: visible;
+  border: 2px solid var(--tq-module-border) !important;
+  border-radius: 0 !important;
+  color: var(--tq-surface) !important;
+  background: var(--tq-text) !important;
+  background-color: var(--tq-text) !important;
+  box-shadow: 4px 4px 0 var(--tq-module-shadow) !important;
+}
+
+.tq-voice .tq-btn.tq-send-btn::before {
+  display: none;
+  content: none;
+}
+
+.tq-voice .tq-btn.tq-send-btn svg,
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) svg {
+  color: currentColor !important;
+}
+
 .tq-voice-safety {
   display: flex;
   align-items: center;
@@ -3999,17 +4129,19 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
   gap: 8px;
 }
 
+@container tq-stage (max-width: 1200px) {
+  .tq-emotion-ball-host {
+    --tq-ball-size: 340px;
+  }
+}
+
 @container tq-stage (max-width: 800px) {
-  .tq-stage {
-    --tq-ball-size: clamp(280px, min(43cqi, 62cqh), 340px);
+  .tq-emotion-ball-host {
+    --tq-ball-size: 310px;
   }
 }
 
 @container tq-stage (max-width: 620px) {
-  .tq-stage {
-    padding: 62px 12px 10px;
-  }
-
   .talos-console[data-talos-page="jarvis"] .tq-workspace-state {
     display: none;
   }
@@ -4024,20 +4156,24 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
 }
 
 @container tq-stage (max-width: 520px) {
-  .tq-stage {
-    --tq-ball-size: clamp(180px, min(58cqi, 58cqh), 230px);
-    padding-inline: 10px;
+  .tq-emotion-ball-host {
+    --tq-ball-size: 210px;
   }
 }
 
 @container tq-stage (max-height: 520px) {
-  .tq-stage {
-    --tq-ball-size: clamp(180px, min(42cqi, 50cqh), 280px);
-    padding-top: 58px;
+  .tq-emotion-ball-host {
+    --tq-ball-size: 260px;
   }
 
   .tq-overlay-text {
     max-height: 72px;
+  }
+}
+
+@container tq-stage (max-width: 520px) and (max-height: 520px) {
+  .tq-emotion-ball-host {
+    --tq-ball-size: 190px;
   }
 }
 
@@ -4058,6 +4194,10 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
 }
 
 @media (max-width: 520px) {
+  .tq-stage {
+    padding: 62px 10px 10px;
+  }
+
   .tq-voice-dock {
     gap: 7px;
     padding: 9px 9px 11px;
@@ -4095,6 +4235,18 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
   }
 }
 
+@media (min-width: 521px) and (max-width: 620px) {
+  .tq-stage {
+    padding: 62px 12px 10px;
+  }
+}
+
+@media (max-height: 520px) {
+  .tq-stage {
+    padding-top: 58px;
+  }
+}
+
 @media (max-width: 380px) {
   .tq-control-btn {
     font-size: 10px;
@@ -4120,7 +4272,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-readonly-query > texta
   }
 
   .tq-voice .tq-pixel-head-scene,
-  .tq-voice .tq-bg {
+  .tq-emotion-ball-host {
     filter: none;
   }
 }

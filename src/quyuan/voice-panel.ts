@@ -8,8 +8,6 @@ import type ClaudianPlugin from "./claudian/main";
 import { QuyuanVoiceDriver } from "./voice-driver";
 import type { InteractionChannel } from "./voice-driver";
 import { buildTalosDataMap } from "./voice-data-map";
-import { QuyuanBackgroundField } from "./background-field";
-import type { QuyuanBackgroundType } from "./background-field";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
 import {
 	EmotionBallView,
@@ -89,9 +87,6 @@ export class QuyuanVoicePanel {
 	private emotionBall: EmotionBallView | null = null;
 	private emotionThemeObserver: MutationObserver | null = null;
 	private ballStateTimer: number | null = null;
-	private bgField: QuyuanBackgroundField | null = null;
-	private bgResizeObs: ResizeObserver | null = null;
-	private bgBtn: HTMLButtonElement | null = null;
 	private markdownComponent: Component | null = null;
 	private replyBuffer = "";
 	private overlayTranscriptEl: HTMLElement | null = null;
@@ -257,20 +252,6 @@ export class QuyuanVoicePanel {
 		chatButton.createSpan({ text: "转到 AI 对话" });
 		chatButton.addEventListener("click", () => this.goToChat());
 
-		const bgCanvas = stage.createEl("canvas", {
-			cls: "tq-bg",
-			attr: { "aria-hidden": "true" },
-		});
-		try {
-			this.bgField = new QuyuanBackgroundField(bgCanvas);
-			this.bgField.start(this.settings.quyuanBackground);
-			this.bgResizeObs = new ResizeObserver(() => this.bgField?.onResize());
-			this.bgResizeObs.observe(stage);
-		} catch (error) {
-			console.error("TALOS Quyuan background layer failed to start", error);
-			this.bgField = null;
-		}
-
 		// 既有粒子人物保留为弱氛围层；Emotion Ball 是唯一中心主视觉。
 		this.characterStage = new QuyuanVoiceCharacterStage(stage);
 		const visual = stage.createDiv({
@@ -354,7 +335,7 @@ export class QuyuanVoicePanel {
 			return button;
 		};
 
-		this.micBtn = controlButton("", "mic-off", "开启语音");
+		this.micBtn = controlButton("tq-control-btn--mic", "mic-off", "开启语音");
 		this.renderMicBtn(false);
 		this.micBtn.addEventListener("click", () => void this.toggleVoiceRecognitionMode());
 
@@ -378,10 +359,6 @@ export class QuyuanVoicePanel {
 		this.engBtn = controlButton("", "cloud", "千问引擎");
 		this.engBtn.addEventListener("click", () => void this.switchEngine());
 		this.renderEngineBtn();
-
-		this.bgBtn = controlButton("", "type", "切换背景");
-		this.bgBtn.addEventListener("click", () => this.toggleBackground());
-		this.renderBgBtn();
 
 		const settingsButton = controlButton("", "settings", "设置");
 		settingsButton.addEventListener("click", () => this.openSettings());
@@ -703,30 +680,6 @@ export class QuyuanVoicePanel {
 			local ? "当前本地 Whisper，点击切换识别引擎" : "当前千问云端，点击切换识别引擎"
 		);
 		this.engBtn.setAttribute("aria-pressed", String(local));
-	}
-
-	// 背景效果按钮渲染
-	private renderBgBtn(): void {
-		if (!this.bgBtn) return;
-		const isGlitch = this.settings.quyuanBackground === "letter-glitch";
-		this.bgBtn.empty();
-		setIcon(this.bgBtn.createSpan(), isGlitch ? "type" : "grid-3x3");
-		this.setControlButtonLabel(
-			this.bgBtn,
-			isGlitch ? "字符流背景" : "网格扫描背景",
-			"切换背景效果"
-		);
-	}
-
-	// 切换背景效果：LetterGlitch ⇄ GridScan，持久化 + 即时切换
-	private toggleBackground(): void {
-		const next: QuyuanBackgroundType =
-			this.settings.quyuanBackground === "letter-glitch" ? "grid-scan" : "letter-glitch";
-		this.settings.quyuanBackground = next;
-		void this.save?.();
-		this.bgField?.switchTo(next, this.state === "sleep" ? "idle" : this.state);
-		this.renderBgBtn();
-		this.controlStatusEl?.setText(next === "letter-glitch" ? "背景 · 字符流" : "背景 · 网格扫描");
 	}
 
 	// 识别引擎回调（云端/本地共用）
@@ -1060,7 +1013,6 @@ export class QuyuanVoicePanel {
 		this.rootEl?.style.setProperty("--tq-state", meta.color);
 		this.rootEl?.style.setProperty("--tq-spd", meta.speed);
 		this.characterStage?.setState(state, this.wakeActive);
-		this.bgField?.setState(state);
 		this.setEmotionBallState(this.voiceStateToEmotionState(state));
 		this.controlStatusEl?.setText(meta.caption);
 		this.workspaceStatusEl?.setText(meta.caption);
@@ -1395,14 +1347,6 @@ export class QuyuanVoicePanel {
 		this.emotionThemeObserver = null;
 		this.emotionBall?.destroy();
 		this.emotionBall = null;
-		try {
-			this.bgResizeObs?.disconnect();
-		} catch (error) {
-			console.error("TALOS Quyuan background resize observer disconnect failed", error);
-		}
-		this.bgResizeObs = null;
-		this.bgField?.destroy();
-		this.bgField = null;
 		this.markdownComponent?.unload();
 		this.markdownComponent = null;
 		this.rootEl = null;
@@ -1414,7 +1358,6 @@ export class QuyuanVoicePanel {
 		this.engBtn = null;
 		this.voiceModeBtn = null;
 		this.ttsBtn = null;
-		this.bgBtn = null;
 		this.overlayTranscriptEl = null;
 		this.overlayTranscriptLinesEl = null;
 		this.overlayUser = null;

@@ -40,7 +40,6 @@ describe("voice focus workspace v2", () => {
 
 	it("preserves voice capabilities, isolated session state, and security copy", () => {
 		for (const contract of [
-			"QuyuanBackgroundField",
 			"QuyuanVoiceCharacterStage",
 			"EmotionBallView",
 			"tq-overlay-text",
@@ -48,7 +47,6 @@ describe("voice focus workspace v2", () => {
 			"tq-readonly-query",
 			"播报已开",
 			"stopCurrentWork",
-			"toggleBackground",
 			"setOutputLevel",
 			"VoiceSessionStore",
 			'data-session-namespace", "voice"',
@@ -70,6 +68,19 @@ describe("voice focus workspace v2", () => {
 		}
 	});
 
+	it("removes the perspective background while retaining the weak particle atmosphere", () => {
+		for (const retired of [
+			"QuyuanBackgroundField",
+			"QuyuanBackgroundType",
+			"tq-bg",
+			"toggleBackground",
+			"renderBgBtn",
+		]) expect(panel).not.toContain(retired);
+		expect(panel).toContain("QuyuanVoiceCharacterStage");
+		expect(shellCss).toContain("opacity: 0.1");
+		expect(shellCss).toContain("background: var(--tq-surface)");
+	});
+
 	it("uses the accepted state mapping and responsive geometry bands", () => {
 		for (const mapping of [
 			'waiting: "35"',
@@ -83,31 +94,30 @@ describe("voice focus workspace v2", () => {
 			'restricted: "38"',
 			'stop: "41"',
 		]) expect(panel + readFileSync(`${root}src/quyuan/emotion-ball-view.ts`, "utf8")).toContain(mapping);
-		expect(shellCss).toContain("min(40cqi, 62cqh)");
-		expect(shellCss).toContain("clamp(280px, min(43cqi, 62cqh), 340px)");
-		expect(shellCss).toContain("clamp(180px, min(58cqi, 58cqh), 230px)");
+		expect(shellCss).toContain("--tq-ball-size: 380px");
+		expect(shellCss).toContain("--tq-ball-size: 340px");
+		expect(shellCss).toContain("--tq-ball-size: 310px");
+		expect(shellCss).toContain("--tq-ball-size: 210px");
+		expect(shellCss).toContain("--tq-ball-size: 190px");
+		expect(shellCss).not.toMatch(
+			/\.tq-emotion-ball,\s*\.tq-emotion-ball__engine/
+		);
 		const chrome = uiCss.slice(
 			uiCss.indexOf("/* Voice focus workspace chrome · D-TLP-019 / D-TLP-022")
 		);
 		expect(chrome).toContain("var(--tq-state)");
-		expect(chrome).toContain("var(--tq-panel-strong)");
+		expect(chrome).toContain("var(--tq-module-surface)");
 		expect(chrome).toContain("@container tq-stage (max-width: 620px)");
 	});
 
 	it("keeps canonical viewport geometry centered and inside the stage", () => {
-		const clamp = (minimum: number, preferred: number, maximum: number): number =>
-			Math.max(minimum, Math.min(preferred, maximum));
 		const ballDiameter = (width: number, height: number): number => {
-			let diameter = clamp(320, Math.min(width * 0.4, height * 0.62), 420);
-			if (width <= 800) {
-				diameter = clamp(280, Math.min(width * 0.43, height * 0.62), 340);
-			}
-			if (width <= 520) {
-				diameter = clamp(180, Math.min(width * 0.58, height * 0.58), 230);
-			}
-			if (height <= 520) {
-				diameter = clamp(180, Math.min(width * 0.42, height * 0.5), 280);
-			}
+			let diameter = 380;
+			if (width <= 1200) diameter = 340;
+			if (width <= 800) diameter = 310;
+			if (width <= 520) diameter = 210;
+			if (height <= 520) diameter = 260;
+			if (width <= 520 && height <= 520) diameter = 190;
 			return diameter;
 		};
 		const cases = [
@@ -129,6 +139,29 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain("max-height: 100%");
 		expect(shellCss).toContain("overflow-x: hidden");
 		expect(shellCss).toContain("grid-template-columns: minmax(0, 1fr)");
+		expect(shellCss).toContain(
+			"@container tq-stage (max-width: 1200px)"
+		);
+		expect(shellCss).toMatch(
+			/@container tq-stage \(max-width: 800px\)[\s\S]*\.tq-emotion-ball-host/
+		);
+	});
+
+	it("uses theme-bound modular controls from the accepted visual direction", () => {
+		for (const contract of [
+			"--tq-module-border",
+			"--tq-module-yellow: #f4c63d",
+			"--tq-module-red: #e7473e",
+			"--tq-module-blue: #3362c7",
+			".tq-btn.tq-control-btn--mic",
+			"box-shadow: 5px 5px 0 var(--tq-module-shadow)",
+			"border-radius: 0 !important",
+		]) expect(shellCss).toContain(contract);
+		expect(uiCss).toContain("background: var(--tq-module-surface)");
+		expect(panel).toContain("tq-control-btn--mic");
+		expect(shellCss).toContain(
+			".tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row)"
+		);
 	});
 
 	it("reuses the live chat route after stopping capture, playback, and processing", () => {

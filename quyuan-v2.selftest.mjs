@@ -584,11 +584,15 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/\.tq-stage\s*\{[\s\S]*--tq-ball-size:\s*clamp\(320px,[\s\S]*62cqh[\s\S]*420px\)/
+	/\.tq-stage\s*\{[\s\S]*--tq-ball-size:\s*380px/
 );
 assert.match(
 	quyuanShellCss,
 	/\.tq-emotion-ball-host\s*\{[\s\S]*max-width:\s*100%;[\s\S]*max-height:\s*100%;[\s\S]*aspect-ratio:\s*1/
+);
+assert.doesNotMatch(
+	quyuanShellCss,
+	/\.tq-emotion-ball,\s*\.tq-emotion-ball__engine/
 );
 assert.match(
 	quyuanShellCss,
@@ -596,15 +600,25 @@ assert.match(
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 800px\)[\s\S]*clamp\(280px,[\s\S]*340px\)/
+	/@container tq-stage \(max-width: 1200px\)[\s\S]*\.tq-emotion-ball-host[\s\S]*--tq-ball-size:\s*340px/
 );
 assert.match(
 	quyuanShellCss,
-	/@container tq-stage \(max-width: 520px\)[\s\S]*clamp\(180px,[\s\S]*230px\)/
+	/@container tq-stage \(max-width: 800px\)[\s\S]*--tq-ball-size:\s*310px/
 );
 assert.match(
 	quyuanShellCss,
-	/\.tq-voice \.tq-pixel-head-scene[\s\S]*opacity:\s*0\.14;[\s\S]*\.tq-voice \.tq-bg[\s\S]*opacity:\s*0\.2;/
+	/@container tq-stage \(max-width: 520px\)[\s\S]*--tq-ball-size:\s*210px/
+);
+assert.match(
+	quyuanShellCss,
+	/@container tq-stage \(max-width: 520px\) and \(max-height: 520px\)[\s\S]*--tq-ball-size:\s*190px/
+);
+assert.match(quyuanShellCss, /\.tq-voice \.tq-pixel-head-scene[\s\S]*opacity:\s*0\.1;/);
+assert.doesNotMatch(quyuanShellCss, /\.tq-voice \.tq-bg/);
+assert.doesNotMatch(
+	voicePanelSource,
+	/QuyuanBackgroundField|QuyuanBackgroundType|toggleBackground|renderBgBtn|cls:\s*"tq-bg"/
 );
 assert.match(
 	quyuanShellCss,

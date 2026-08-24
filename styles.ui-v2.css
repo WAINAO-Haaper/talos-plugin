@@ -1936,12 +1936,10 @@
 
 .talos-console[data-talos-page="jarvis"] .tq-workspace-identity,
 .talos-console[data-talos-page="jarvis"] .tq-workspace-meta > span {
-	border: 1px solid color-mix(in srgb, var(--tq-state) 24%, var(--tq-border));
-	background: color-mix(in srgb, var(--tq-panel-strong) 82%, transparent);
-	box-shadow:
-		0 1px 0 color-mix(in srgb, var(--tq-text) 7%, transparent) inset,
-		0 10px 28px rgba(0, 0, 0, 0.16);
-	backdrop-filter: blur(18px);
+	border: 2px solid var(--tq-module-border);
+	background: var(--tq-module-surface);
+	box-shadow: 4px 4px 0 var(--tq-module-shadow);
+	backdrop-filter: none;
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-workspace-identity {
@@ -1951,7 +1949,7 @@
 	gap: 10px;
 	min-width: 0;
 	padding: 7px 12px 7px 7px;
-	border-radius: 14px;
+	border-radius: 0;
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-workspace-mark {
@@ -1959,10 +1957,10 @@
 	width: 36px;
 	height: 36px;
 	place-items: center;
-	border: 1px solid color-mix(in srgb, var(--tq-state) 36%, var(--tq-border));
-	border-radius: 11px;
-	color: var(--tq-state);
-	background: color-mix(in srgb, var(--tq-state) 10%, transparent);
+	border: 2px solid var(--tq-module-border);
+	border-radius: 0;
+	color: #191713;
+	background: var(--tq-module-yellow);
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-workspace-mark svg {
@@ -2016,7 +2014,7 @@
 	gap: 6px;
 	min-height: 30px;
 	padding: 0 10px;
-	border-radius: 999px;
+	border-radius: 0;
 	font-size: 11px;
 	font-weight: 650;
 	color: var(--tq-muted);

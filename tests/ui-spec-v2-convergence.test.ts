@@ -229,11 +229,17 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 			);
 			return re.test(qcss);
 		};
-		expect(blockHas(".tq-stage", "min(40cqi, 62cqh)")).toBe(true);
+		// The mounted host carries both tq-emotion-ball-host and tq-emotion-ball.
+		// A later 100% root rule expanded it to the full stage; selector separation
+		// plus explicit descendant bands keeps the runtime geometry deterministic.
+		expect(blockHas(".tq-stage", "--tq-ball-size: 380px")).toBe(true);
+		expect(qcss).toContain("@container tq-stage (max-width: 1200px)");
+		expect(qcss).toContain("--tq-ball-size: 340px");
 		expect(qcss).toContain("@container tq-stage (max-width: 800px)");
-		expect(qcss).toContain("clamp(280px, min(43cqi, 62cqh), 340px)");
+		expect(qcss).toContain("--tq-ball-size: 310px");
 		expect(qcss).toContain("@container tq-stage (max-width: 520px)");
-		expect(qcss).toContain("clamp(180px, min(58cqi, 58cqh), 230px)");
+		expect(qcss).toContain("--tq-ball-size: 210px");
+		expect(qcss).toContain("--tq-ball-size: 190px");
 	});
 
 	it("follows Obsidian light/dark theme for the voice page surface", () => {
@@ -256,10 +262,14 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(
 			blockHas('body.theme-light .talos-console[data-talos-page="jarvis"] .sidebar', "background: #ffffff")
 		).toBe(true);
-		// 新 dock、转写与静态降级都只消费同一组 tq 主题变量。
-		expect(blockHas(".tq-voice-dock", "var(--tq-panel-strong)")).toBe(true);
-		expect(blockHas(".tq-transcript-editor", "var(--tq-surface-soft)")).toBe(true);
+		// 新 dock、转写与静态降级都只消费同一组 tq 主题/模块变量。
+		expect(blockHas(".tq-voice-dock", "var(--tq-surface)")).toBe(true);
+		expect(blockHas(".tq-transcript-editor", "var(--tq-module-surface)")).toBe(true);
 		expect(blockHas(".tq-emotion-ball__fallback", "var(--tq-text)")).toBe(true);
-		expect(qcss).toContain("body.theme-light .tq-voice .tq-bg");
+		expect(blockHas(
+			"body.theme-light .talos-console.theme-geometric-modern .tq-voice",
+			"--tq-surface: #f3eedf !important"
+		)).toBe(true);
+		expect(qcss).not.toContain("body.theme-light .tq-voice .tq-bg");
 	});
 });
