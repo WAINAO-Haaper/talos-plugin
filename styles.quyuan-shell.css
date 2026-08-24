@@ -1301,8 +1301,8 @@ body.theme-light .tq-voice {
 
 /* 浅色且未选择内建深色 TALOS 主题时，jarvis 导航翻为白底；深色 TALOS
    主题继续使用基础深色导航，避免 Data Stream 舞台旁出现白色孤岛。 */
-body.theme-light
-  .talos-console[data-talos-page="jarvis"]:not(.theme-cosmos-dark):not(.theme-animal-island):not(.theme-system-classic):not(.theme-data-stream)
+:where(body.theme-light)
+  .talos-console[data-talos-page="jarvis"]:where(:not(.theme-cosmos-dark):not(.theme-animal-island):not(.theme-system-classic):not(.theme-data-stream))
   .sidebar {
   background: #ffffff;
   border-right-color: rgba(15, 23, 42, 0.1);

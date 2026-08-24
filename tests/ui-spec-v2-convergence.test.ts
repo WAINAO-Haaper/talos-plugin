@@ -267,6 +267,7 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		// 浅色导航回退排除四个内建深色 TALOS 主题。
 		expect(qcss).toContain(":not(.theme-data-stream)");
 		expect(qcss).toContain(":not(.theme-cosmos-dark)");
+		expect(qcss).toContain(":where(body.theme-light)");
 		// 新 dock、转写与静态降级都只消费同一组 tq 主题/模块变量。
 		expect(blockHas(".tq-voice-dock", "var(--tq-surface)")).toBe(true);
 		expect(blockHas(".tq-transcript-editor", "var(--tq-module-surface)")).toBe(true);
