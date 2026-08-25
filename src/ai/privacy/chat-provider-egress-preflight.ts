@@ -12,8 +12,10 @@ export interface ChatProviderEgressPreflightInput
 	historyText?: string;
 	contextPaths?: string[];
 	externalContextPaths?: string[];
+	sourcePaths?: string[];
 	hasImages?: boolean;
 	hasMcpMentions?: boolean;
+	hasBrowserContext?: boolean;
 	readContext(path: string): Promise<string>;
 }
 
@@ -54,6 +56,8 @@ export async function preflightChatProviderEgress(
 	input: ChatProviderEgressPreflightInput
 ): Promise<ProviderEgressResult> {
 	const contextPaths = uniqueVaultPaths(input.contextPaths);
+	const sourcePaths = uniqueVaultPaths(input.sourcePaths);
+	const auditedPaths = uniqueVaultPaths([...contextPaths, ...sourcePaths]);
 	const extraReasons: ProviderEgressAudit["blockedReasons"] = [];
 
 	if ((input.externalContextPaths?.length ?? 0) > 0) {
@@ -62,9 +66,18 @@ export async function preflightChatProviderEgress(
 	if (input.hasImages) extraReasons.push("image-egress-not-audited");
 	if (input.hasMcpMentions) extraReasons.push("mcp-egress-not-audited");
 
+	if (input.hasBrowserContext) extraReasons.push("browser-context-not-audited");
+	if (
+		(input.sourceKinds ?? []).some((kind) =>
+			["current-note", "editor-selection", "canvas-selection", "inline-edit"].includes(kind)
+		) &&
+		auditedPaths.length === 0
+	) {
+		extraReasons.push("unclassified-path");
+	}
 	const blockedPathReasons = [
 		...new Set(
-			contextPaths.flatMap(
+			auditedPaths.flatMap(
 				(path) =>
 					inspectVaultPath(path, {
 						configDir: input.configDir,
@@ -79,7 +92,8 @@ export async function preflightChatProviderEgress(
 			moduleAccess: input.moduleAccess,
 			vaultSchema: input.vaultSchema,
 			configDir: input.configDir,
-			paths: contextPaths,
+			paths: auditedPaths,
+			sourceKinds: input.sourceKinds,
 			text: input.prompt,
 		});
 		return withBlockedReasons(blocked, extraReasons);
@@ -109,7 +123,8 @@ export async function preflightChatProviderEgress(
 		moduleAccess: input.moduleAccess,
 		vaultSchema: input.vaultSchema,
 		configDir: input.configDir,
-		paths: contextPaths,
+		paths: auditedPaths,
+		sourceKinds: input.sourceKinds,
 		text: payload,
 	});
 

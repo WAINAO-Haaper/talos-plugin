@@ -66,10 +66,24 @@ describe("secret policy", () => {
 		["", "30 洞察", "absolute.md"].join("/"),
 		["C:", "Vault", "30 洞察", "absolute.md"].join("\\"),
 		"30 洞察//empty-segment.md",
+		"safe/%2e%2e/.talos/private/provider.json",
 	])("fails closed for unsafe Vault path %s", (path) => {
 		expect(inspectVaultPath(path)).toEqual({
 			blocked: true,
 			reasons: ["unsafe-path"],
+		});
+	});
+
+	it.each([
+		[".TALOS/PRIVATE/provider.json", "talos-private"],
+		["．talos/private/provider.json", "talos-private"],
+		[".CONFIG/plugins/talos/other.json", "config-directory"],
+		[".codex/config.toml", "config-directory"],
+		[".claudian/settings.json", "config-directory"],
+	])("blocks normalized or case-variant protected path %s", (path, reason) => {
+		expect(inspectVaultPath(path, { configDir: ".config" })).toEqual({
+			blocked: true,
+			reasons: [reason],
 		});
 	});
 });

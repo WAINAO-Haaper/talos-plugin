@@ -1,5 +1,13 @@
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
+import type {
+  AuxQueryConfig,
+  AuxQueryRunner,
+} from '../../../core/auxiliary/AuxQueryRunner';
 import type ClaudianPlugin from '../../../main';
+import {
+  assertTalosCodexPermissionProfile,
+  TALOS_CODEX_PERMISSION_PROFILE_ID,
+} from '../../../../codex-permission-profile';
 import { toCodexRuntimeModelId } from '../modelSelection';
 import { DEFAULT_CODEX_PRIMARY_MODEL } from '../types/models';
 import { CodexAppServerProcess } from './CodexAppServerProcess';
@@ -16,28 +24,23 @@ import type { CodexLaunchSpec } from './codexLaunchTypes';
 import { CodexRpcTransport } from './CodexRpcTransport';
 import { createCodexRuntimeContext } from './CodexRuntimeContext';
 
-export interface CodexAuxQueryConfig {
-  systemPrompt: string;
-  model?: string;
-  abortController?: AbortController;
-  onTextChunk?: (accumulatedText: string) => void;
-}
-
 /**
  * Runs ephemeral Codex app-server queries for auxiliary tasks
  * (title generation, instruction refinement, inline edit).
  * Manages its own process lifecycle, separate from the main chat runtime.
  * Supports multi-turn conversations within a single thread.
  */
-export class CodexAuxQueryRunner {
+export class CodexAuxQueryRunner implements AuxQueryRunner {
   private process: CodexAppServerProcess | null = null;
   private transport: CodexRpcTransport | null = null;
   private threadId: string | null = null;
   private launchSpec: CodexLaunchSpec | null = null;
+  private scopedPlugin: ClaudianPlugin | null = null;
 
   constructor(private readonly plugin: ClaudianPlugin) {}
 
-  async query(config: CodexAuxQueryConfig, prompt: string): Promise<string> {
+  async query(config: AuxQueryConfig, prompt: string): Promise<string> {
+    await this.auditEgress(config, prompt);
     if (!this.process || !this.transport) {
       await this.startProcess();
     }
@@ -48,11 +51,15 @@ export class CodexAuxQueryRunner {
         model,
         cwd: this.launchSpec?.targetCwd ?? process.cwd(),
         approvalPolicy: 'never',
-        sandbox: 'read-only',
+        permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+        runtimeWorkspaceRoots: this.launchSpec?.targetCwd
+          ? [this.launchSpec.targetCwd]
+          : undefined,
         baseInstructions: config.systemPrompt,
         experimentalRawEvents: true,
         persistExtendedHistory: false,
       });
+      assertTalosCodexPermissionProfile(result);
       this.threadId = result.thread.id;
     }
 
@@ -118,6 +125,10 @@ export class CodexAuxQueryRunner {
       threadId: this.threadId,
       input: [{ type: 'text', text: prompt }],
       model: config.model ? toCodexRuntimeModelId(config.model) : undefined,
+      permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+      runtimeWorkspaceRoots: this.launchSpec?.targetCwd
+        ? [this.launchSpec.targetCwd]
+        : undefined,
     });
     turnId = turnResult.turn.id;
 
@@ -161,8 +172,58 @@ export class CodexAuxQueryRunner {
     return typeof model === 'string' ? toCodexRuntimeModelId(model) : DEFAULT_CODEX_PRIMARY_MODEL;
   }
 
+  private async auditEgress(config: AuxQueryConfig, prompt: string): Promise<void> {
+    const bridge = this.plugin as ClaudianPlugin & {
+      auditQuyuanProviderEgress?: (input: {
+        namespace: 'auxiliary';
+        kind: typeof config.auditKind;
+        providerId: string;
+        prompt: string;
+        sourcePaths?: string[];
+        sourceKinds: Array<'prompt' | typeof config.auditKind>;
+        sessionId?: string;
+      }) => Promise<{ allowed: boolean; message?: string }>;
+    };
+    if (!bridge.auditQuyuanProviderEgress) {
+      throw new Error('TALOS 外发审计桥缺失，已按失败关闭策略阻止辅助模型调用');
+    }
+    const result = await bridge.auditQuyuanProviderEgress({
+      namespace: 'auxiliary',
+      kind: config.auditKind,
+      providerId: 'codex',
+      prompt: `${config.systemPrompt}\n\n${prompt}`,
+      sourcePaths: config.sourcePaths,
+      sourceKinds: ['prompt', config.auditKind],
+      sessionId: this.threadId ?? config.auditKind,
+    });
+    if (!result.allowed) {
+      throw new Error(result.message ?? 'Provider 出库隐私审计未通过');
+    }
+  }
+
+  private auxiliaryPlugin(): ClaudianPlugin {
+    if (this.scopedPlugin) return this.scopedPlugin;
+    const baseSettings = this.plugin.settings;
+    const scopedSettings = {
+      ...baseSettings,
+      talosRuntimeChannel: 'auxiliary',
+      permissionMode: 'normal',
+      savedProviderPermissionMode: {
+        ...baseSettings.savedProviderPermissionMode,
+        codex: 'normal',
+      },
+    };
+    this.scopedPlugin = new Proxy(this.plugin, {
+      get(target, property, receiver) {
+        if (property === 'settings') return scopedSettings;
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+    });
+    return this.scopedPlugin;
+  }
+
   private async startProcess(): Promise<void> {
-    this.launchSpec = resolveCodexAppServerLaunchSpec(this.plugin, 'codex');
+    this.launchSpec = resolveCodexAppServerLaunchSpec(this.auxiliaryPlugin(), 'codex');
     this.process = new CodexAppServerProcess(this.launchSpec);
     this.process.start();
 

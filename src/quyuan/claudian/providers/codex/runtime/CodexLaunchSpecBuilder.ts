@@ -1,4 +1,12 @@
 import {
+  resolveEffectiveRuntimePolicy,
+  runtimeChannelFromSettings,
+} from '../../../../runtime-policy';
+import {
+  buildTalosCodexPermissionProfileArgs,
+} from '../../../../codex-permission-profile';
+import { getCodexProviderSettings } from '../settings';
+import {
   inferWslDistroFromWindowsPath,
   resolveCodexExecutionTarget,
 } from './CodexExecutionTargetResolver';
@@ -10,11 +18,36 @@ export interface BuildCodexLaunchSpecOptions {
   resolvedCliCommand: string | null;
   hostVaultPath: string | null;
   env: Record<string, string>;
+  configDir: string;
   hostPlatform?: NodeJS.Platform;
   resolveDefaultWslDistro?: () => string | undefined;
 }
 
-const CODEX_APP_SERVER_ARGS = Object.freeze(['app-server', '--listen', 'stdio://']);
+export function buildCodexAppServerArgs(
+  settings: Record<string, unknown>,
+  configDir: string,
+): string[] {
+  const channel = runtimeChannelFromSettings(settings);
+  const policy = resolveEffectiveRuntimePolicy({
+    channel,
+    permissionMode: settings.permissionMode,
+    sandboxMode: channel === 'chat'
+      ? getCodexProviderSettings(settings).safeMode
+      : 'read-only',
+  });
+  const args = [
+    'app-server',
+    ...buildTalosCodexPermissionProfileArgs(policy, configDir),
+  ];
+  if (!policy.allowShell) {
+    args.push('--disable', 'shell_tool', '--disable', 'unified_exec');
+  }
+  if (!policy.networkAccess) {
+    args.push('-c', 'web_search="disabled"');
+  }
+  args.push('--listen', 'stdio://');
+  return args;
+}
 
 export function buildCodexLaunchSpec(
   options: BuildCodexLaunchSpecOptions,
@@ -53,13 +86,17 @@ export function buildCodexLaunchSpec(
   }
 
   const resolvedCliCommand = options.resolvedCliCommand?.trim() || 'codex';
+  const appServerArgs = buildCodexAppServerArgs(
+    options.settings,
+    options.configDir,
+  );
   if (target.method === 'wsl') {
     const args = [
       ...(target.distroName ? ['--distribution', target.distroName] : []),
       '--cd',
       targetCwd,
       resolvedCliCommand,
-      ...CODEX_APP_SERVER_ARGS,
+      ...appServerArgs,
     ];
 
     return {
@@ -76,7 +113,7 @@ export function buildCodexLaunchSpec(
   return {
     target,
     command: resolvedCliCommand,
-    args: [...CODEX_APP_SERVER_ARGS],
+    args: [...appServerArgs],
     spawnCwd,
     targetCwd,
     env: options.env,

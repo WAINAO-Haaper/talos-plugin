@@ -1,3 +1,4 @@
+import { inspectVaultPath } from "../ai/context/secret-policy";
 import type { TalosSettings } from "../settings";
 
 // ============================================================
@@ -6,7 +7,23 @@ import type { TalosSettings } from "../settings";
 //   voice-driver 的审批回调里前置拦截非读类工具。
 // ============================================================
 
-export function buildTalosDataMap(settings: TalosSettings): string {
+export function buildTalosDataMap(
+	settings: TalosSettings,
+	configDir?: string
+): string {
+	const paths = [
+		settings.tasksPath,
+		settings.talosTasksPath,
+		settings.healthLogPath,
+		settings.reportsFolder,
+		settings.pendingApprovalsPath,
+		settings.candidatesPath,
+		settings.inboxFolder,
+		settings.dailyFolder,
+	];
+	if (paths.some((path) => inspectVaultPath(path, { configDir }).blocked)) {
+		throw new Error("TALOS 数据地图包含永久禁区或不安全路径");
+	}
 	return `<talos_data_map>
 以下是 TALOS 仓库数据的读取位置，回答时用读类工具（read/grep/glob/search）查看后再作答；路径不存在就如实说没读到。
 - 今日任务与进度：${settings.tasksPath}；全部任务清单：${settings.talosTasksPath}

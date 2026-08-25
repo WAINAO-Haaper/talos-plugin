@@ -310,10 +310,16 @@ export default class ClaudianPlugin extends Plugin {
       ...claudian,
     };
 
-    // Plan mode is ephemeral — normalize back to normal on load so the app
-    // doesn't start stuck in plan mode after a restart (prePlanPermissionMode is lost)
-    if (this.settings.permissionMode === 'plan') {
+    let didNormalizePermissionMode = false;
+    // Plan mode is ephemeral. Legacy YOLO remains readable but is migrated to
+    // the governed Safe mode so old installations cannot retain a bypass after
+    // restart.
+    if (
+      this.settings.permissionMode === 'plan'
+      || this.settings.permissionMode === 'yolo'
+    ) {
       this.settings.permissionMode = 'normal';
+      didNormalizePermissionMode = true;
     }
     if (
       this.settings.savedProviderPermissionMode
@@ -321,8 +327,9 @@ export default class ClaudianPlugin extends Plugin {
       && !Array.isArray(this.settings.savedProviderPermissionMode)
     ) {
       for (const [providerId, mode] of Object.entries(this.settings.savedProviderPermissionMode)) {
-        if (mode === 'plan') {
+        if (mode === 'plan' || mode === 'yolo') {
           this.settings.savedProviderPermissionMode[providerId] = 'normal';
+          didNormalizePermissionMode = true;
         }
       }
     }
@@ -378,7 +385,7 @@ export default class ClaudianPlugin extends Plugin {
       this.settings,
     );
 
-    if (changed || didNormalizeModelVariants || didNormalizeProviderSelection || didEnableSoleHarness) {
+    if (changed || didNormalizePermissionMode || didNormalizeModelVariants || didNormalizeProviderSelection || didEnableSoleHarness) {
       await this.saveSettings();
     }
 

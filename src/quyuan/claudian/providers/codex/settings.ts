@@ -39,7 +39,7 @@ export interface CodexProviderSettings {
 
 export const DEFAULT_CODEX_PROVIDER_SETTINGS: Readonly<CodexProviderSettings> = Object.freeze({
   enabled: false,
-  safeMode: 'workspace-write',
+  safeMode: 'read-only',
   cliPath: '',
   cliPathsByHost: {},
   customModels: '',

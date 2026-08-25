@@ -30,7 +30,13 @@ export class QueryBackedInlineEditService implements InlineEditService {
 
   async editText(request: InlineEditRequest): Promise<InlineEditResult> {
     this.resetConversation();
-    return this.sendMessage(buildInlineEditPrompt(request));
+    if (!request.notePath.trim()) {
+      return { success: false, error: 'Inline edit source path is required' };
+    }
+    return this.sendMessage(
+      buildInlineEditPrompt(request),
+      [request.notePath, ...(request.contextFiles ?? [])],
+    );
   }
 
   async continueConversation(message: string, contextFiles?: string[]): Promise<InlineEditResult> {
@@ -42,7 +48,7 @@ export class QueryBackedInlineEditService implements InlineEditService {
     if (contextFiles && contextFiles.length > 0) {
       prompt = appendContextFiles(message, contextFiles);
     }
-    return this.sendMessage(prompt);
+    return this.sendMessage(prompt, contextFiles);
   }
 
   cancel(): void {
@@ -50,11 +56,16 @@ export class QueryBackedInlineEditService implements InlineEditService {
     this.abortController = null;
   }
 
-  private async sendMessage(prompt: string): Promise<InlineEditResult> {
+  private async sendMessage(
+    prompt: string,
+    sourcePaths?: string[],
+  ): Promise<InlineEditResult> {
     this.abortController = new AbortController();
 
     try {
       const text = await this.runner.query({
+        auditKind: 'inline-edit',
+        sourcePaths,
         abortController: this.abortController,
         model: this.modelOverride,
         systemPrompt: getInlineEditSystemPrompt(),

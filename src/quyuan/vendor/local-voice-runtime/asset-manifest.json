@@ -1,0 +1,51 @@
+{
+  "protocolVersion": 1,
+  "installationDirectory": "voice-runtime",
+  "runtime": {
+    "id": "sherpa-onnx-browser-wasm",
+    "version": "1.13.6",
+    "revision": "7c59b5225b857366f0a8c0cc1783ace8e9f193ac"
+  },
+  "model": {
+    "id": "csukuangfj/k2fsa-zipformer-bilingual-zh-en-t",
+    "revision": "e2382758de9a0219b4efe682b95af30b399db3b8",
+    "variant": "exp/32 int8"
+  },
+  "files": [
+    {
+      "role": "runtime",
+      "fileName": "sherpa-onnx-wasm-main-asr.wasm",
+      "bytes": 13148431,
+      "sha256": "49d1a11fb0c582b93e2b5bcd4fdfacb9b50614c1d4f3edc8648b20bcebb99cd0",
+      "source": "https://www.modelscope.cn/studios/k2-fsa/web-assembly-asr-sherpa-onnx-zh-en/files"
+    },
+    {
+      "role": "encoder",
+      "fileName": "encoder-epoch-99-avg-1.int8.onnx",
+      "bytes": 42980793,
+      "sha256": "db6f51551762e40e549166fe041ea3e45464370b595e9ad23f06478ec3794fbb",
+      "source": "https://huggingface.co/csukuangfj/k2fsa-zipformer-bilingual-zh-en-t/blob/e2382758de9a0219b4efe682b95af30b399db3b8/exp/32/encoder-epoch-99-avg-1.int8.onnx"
+    },
+    {
+      "role": "decoder",
+      "fileName": "decoder-epoch-99-avg-1.onnx",
+      "bytes": 13877276,
+      "sha256": "89be509a83175261695bdef5fd1c7b9ab1129a663d1284e7ba9f8507b21e0906",
+      "source": "https://huggingface.co/csukuangfj/k2fsa-zipformer-bilingual-zh-en-t/blob/e2382758de9a0219b4efe682b95af30b399db3b8/exp/32/decoder-epoch-99-avg-1.onnx"
+    },
+    {
+      "role": "joiner",
+      "fileName": "joiner-epoch-99-avg-1.int8.onnx",
+      "bytes": 3228485,
+      "sha256": "bdda356d6f9b8c2d7cee9ee0e26075fa537490f7fd06520be408d287073667b9",
+      "source": "https://huggingface.co/csukuangfj/k2fsa-zipformer-bilingual-zh-en-t/blob/e2382758de9a0219b4efe682b95af30b399db3b8/exp/32/joiner-epoch-99-avg-1.int8.onnx"
+    },
+    {
+      "role": "tokens",
+      "fileName": "tokens.txt",
+      "bytes": 56317,
+      "sha256": "a8e0e4ec53810e433789b54a5c0134a7eaa2ffca595a6334d54c00da858841d3",
+      "source": "https://huggingface.co/csukuangfj/k2fsa-zipformer-bilingual-zh-en-t/blob/e2382758de9a0219b4efe682b95af30b399db3b8/data/lang_char_bpe/tokens.txt"
+    }
+  ]
+}

@@ -1805,6 +1805,9 @@ export function setupServiceCallbacks(tab: TabData, plugin: ClaudianPlugin): voi
           new Notice(`TALOS 治理拦截：${policy.reason}`);
           return 'deny';
         }
+        if (policy?.decision === 'allow') {
+          return 'allow';
+        }
         return await tab.controllers.inputController?.handleApprovalRequest(
           toolName,
           input,
@@ -1847,11 +1850,7 @@ export function setupServiceCallbacks(tab: TabData, plugin: ClaudianPlugin): voi
     );
     tab.service.setAutoTurnCallback((result: AutoTurnResult) => renderAutoTriggeredTurn(tab, result));
     tab.service.setPermissionModeSyncCallback((sdkMode) => {
-      const mode = sdkMode === 'bypassPermissions' || sdkMode === 'yolo'
-        ? 'yolo'
-        : sdkMode === 'plan'
-        ? 'plan'
-        : 'normal';
+      const mode = sdkMode === 'plan' ? 'plan' : 'normal';
       const currentMode = getTabPermissionMode(tab, plugin);
 
       if (currentMode !== mode) {

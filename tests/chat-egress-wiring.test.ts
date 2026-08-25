@@ -56,5 +56,9 @@ describe("chat egress wiring", () => {
 		expect(mainSource).toContain("preflightChatProviderEgress");
 		expect(mainSource).toContain("createVaultProviderEgressAuditStore");
 		expect(mainSource).toContain('namespace: "chat"');
+		expect(mainSource).toContain("auditQuyuanProviderEgress");
+		expect(inputController).toContain("editorSourcePath:");
+		expect(inputController).toContain("canvasSourcePath:");
+		expect(inputController).toContain("hasBrowserContext:");
 	});
 });

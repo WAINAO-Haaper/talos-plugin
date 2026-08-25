@@ -41,6 +41,7 @@ export function resolveCodexAppServerLaunchSpec(
     settings: plugin.settings,
     resolvedCliCommand: plugin.getResolvedProviderCliPath(providerId),
     hostVaultPath: getCodexAppServerWorkingDirectory(plugin),
+    configDir: plugin.app.vault.configDir,
     env: buildCodexAppServerEnvironment(plugin, providerId),
   });
 }

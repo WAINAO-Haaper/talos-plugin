@@ -43,6 +43,7 @@ export class QueryBackedTitleGenerationService implements TitleGenerationService
 
     try {
       const text = await runner.query({
+        auditKind: 'title-generation',
         abortController,
         model: this.options.resolveModel?.(),
         systemPrompt: TITLE_GENERATION_SYSTEM_PROMPT,

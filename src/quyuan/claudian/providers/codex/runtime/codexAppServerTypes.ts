@@ -156,6 +156,9 @@ export interface CommandExecutionItem {
 export interface CommandAction {
   type: string;
   command: string;
+  name?: string;
+  path?: string | null;
+  query?: string | null;
 }
 
 export interface FileChangeItem {
@@ -310,7 +313,8 @@ export interface ThreadStartParams {
   model: string;
   cwd: string;
   approvalPolicy: string;
-  sandbox: string;
+  permissions?: string;
+  runtimeWorkspaceRoots?: string[];
   serviceTier?: string | null;
   baseInstructions?: string;
   experimentalRawEvents?: boolean;
@@ -326,6 +330,7 @@ export interface ThreadStartResult {
   cwd: string;
   approvalPolicy: string;
   approvalsReviewer: string;
+  activePermissionProfile?: { id: string; extends?: string | null } | null;
   sandbox: SandboxPolicy;
   reasoningEffort: string;
 }
@@ -358,7 +363,8 @@ export interface ThreadResumeParams {
   threadId: string;
   model?: string;
   approvalPolicy?: string;
-  sandbox?: string;
+  permissions?: string;
+  runtimeWorkspaceRoots?: string[];
   serviceTier?: string | null;
   baseInstructions?: string;
   experimentalRawEvents?: boolean;
@@ -425,6 +431,8 @@ export interface TurnStartParams {
   serviceTier?: string | null;
   effort?: string;
   summary?: 'auto' | 'concise' | 'detailed' | 'none';
+  permissions?: string;
+  runtimeWorkspaceRoots?: string[];
   sandboxPolicy?: SandboxPolicy | null;
   personality?: string;
   outputSchema?: unknown;

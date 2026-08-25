@@ -19,14 +19,36 @@ function request(overrides: Partial<QuyuanToolRequest> = {}): QuyuanToolRequest 
 
 describe("evaluateQuyuanGovernance — 只读操作", () => {
   it("Read 放行", () => {
-    const result = evaluateQuyuanGovernance(request({ toolName: "Read", input: {} }));
+    const result = evaluateQuyuanGovernance(
+      request({ toolName: "Read", input: { file_path: "02-洞察/安全.md" } })
+    );
     expect(result.decision).toBe("allow");
     expect(result.reason).toBe("只读操作");
   });
 
   it("Glob 放行", () => {
-    const result = evaluateQuyuanGovernance(request({ toolName: "Glob", input: {} }));
+    const result = evaluateQuyuanGovernance(
+      request({ toolName: "Glob", input: { path: "02-洞察" } })
+    );
     expect(result.decision).toBe("allow");
+  });
+
+  it("未分类工具不能伪装成 A 类只读并自动放行", () => {
+    const result = evaluateQuyuanGovernance(
+      request({ toolName: "ExecuteUnknown", input: {} })
+    );
+    expect(result.decision).toBe("ask");
+    expect(result.reason).toMatch(/未分类工具/);
+  });
+
+  it.each([
+    ["Read", { file_path: ".TALOS/PRIVATE/provider.json" }],
+    ["Glob", { pattern: ".talos/private/**" }],
+    ["Grep", { path: "safe/../.talos/private" }],
+    ["Search", {}],
+  ])("%s 对永久禁区或未分类目标失败关闭", (toolName, input) => {
+    const result = evaluateQuyuanGovernance(request({ toolName, input }));
+    expect(result.decision).toBe("deny");
   });
 });
 
@@ -63,6 +85,49 @@ describe("evaluateQuyuanGovernance — 写操作必须先读 _README.md", () => 
     );
     expect(result.decision).toBe("ask");
   });
+
+  it("多文件变更逐目录要求 README，且全部读过后才进入审批", () => {
+    const input = {
+      changes: [
+        { path: "02-洞察/a.md" },
+        { path: "03-项目/b.md" },
+      ],
+    };
+    const missing = evaluateQuyuanGovernance(request({
+      toolName: "apply_patch",
+      input,
+      readPaths: new Set(["02-洞察/_README.md"]),
+    }));
+    expect(missing).toMatchObject({
+      decision: "deny",
+      requiredReads: ["03-项目/_README.md"],
+    });
+
+    const ready = evaluateQuyuanGovernance(request({
+      toolName: "apply_patch",
+      input,
+      readPaths: new Set([
+        "02-洞察/_README.md",
+        "03-项目/_README.md",
+      ]),
+    }));
+    expect(ready.decision).toBe("ask");
+  });
+
+  it("结构化 fileChange 中任一永久禁区目标都会拒绝整批变更", () => {
+    const result = evaluateQuyuanGovernance(request({
+      toolName: "apply_patch",
+      input: {
+        changes: [
+          { path: "02-洞察/a.md" },
+          { path: ".TALOS/PRIVATE/provider.json" },
+        ],
+      },
+      readPaths: new Set(["02-洞察/_README.md"]),
+    }));
+    expect(result.decision).toBe("deny");
+    expect(result.reason).toMatch(/永久禁区/);
+  });
 });
 
 describe("evaluateQuyuanGovernance — 危险操作", () => {
@@ -86,6 +151,16 @@ describe("evaluateQuyuanGovernance — 危险操作", () => {
     );
     expect(result.decision).toBe("deny");
     expect(result.reason).toMatch(/缺少可验证的目标路径/);
+  });
+
+  it("小写 mutation 工具名不能伪装成只读操作", () => {
+    const result = evaluateQuyuanGovernance(
+      request({
+        toolName: "write",
+        readPaths: new Set(["02-洞察/_README.md"]),
+      })
+    );
+    expect(result.decision).toBe("ask");
   });
 });
 

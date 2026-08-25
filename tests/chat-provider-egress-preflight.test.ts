@@ -99,4 +99,45 @@ describe("chat provider egress preflight", () => {
 			])
 		);
 	});
+
+	it("inspects editor and canvas source paths even when their content is already encoded", async () => {
+		const result = await preflightChatProviderEgress({
+			providerId: "codex",
+			vaultAccess: "full",
+			prompt: "encoded selection",
+			sourceKinds: ["prompt", "editor-selection", "canvas-selection"],
+			sourcePaths: [
+				"30 洞察/safe.md",
+				".TALOS/PRIVATE/injected.canvas",
+			],
+			readContext: async () => "",
+		});
+
+		expect(result.allowed).toBe(false);
+		expect(result.audit.sourceKinds).toEqual([
+			"prompt",
+			"editor-selection",
+			"canvas-selection",
+		]);
+		expect(result.audit.blockedReasons).toContain("talos-private");
+	});
+
+	it("fails closed for browser context and unclassified path-backed sources", async () => {
+		const result = await preflightChatProviderEgress({
+			providerId: "codex",
+			vaultAccess: "full",
+			prompt: "browser or anonymous editor selection",
+			sourceKinds: ["prompt", "editor-selection", "browser-selection"],
+			hasBrowserContext: true,
+			readContext: async () => "",
+		});
+
+		expect(result.allowed).toBe(false);
+		expect(result.audit.blockedReasons).toEqual(
+			expect.arrayContaining([
+				"browser-context-not-audited",
+				"unclassified-path",
+			])
+		);
+	});
 });

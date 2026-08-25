@@ -12,11 +12,13 @@ const readSrc = (rel: string): string =>
 // 不弹确认；③ 每轮语音回合注入 TALOS 数据地图与只读口语契约。
 describe("voice read-only policy (D-TLP-016)", () => {
 	it("classifies read tools as voice-safe and everything else as blocked", () => {
-		for (const ok of ["read", "glob", "grep", "search", "websearch", "webfetch"]) {
+		for (const ok of ["read", "glob", "grep", "search"]) {
 			expect(isVoiceReadOnlyTool(ok)).toBe(true);
 			expect(isVoiceReadOnlyTool(ok.toUpperCase())).toBe(true);
 		}
 		for (const blocked of [
+			"websearch",
+			"webfetch",
 			"write",
 			"edit",
 			"delete",
@@ -77,7 +79,27 @@ describe("voice read-only policy (D-TLP-016)", () => {
 
 	it("wires the panel to pass the data map and to show the read-only hint", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
-		expect(panel).toContain("getDataContext: () => buildTalosDataMap(this.settings)");
+		expect(panel).toContain(
+			"getDataContext: () => buildTalosDataMap(this.settings, this.app.vault.configDir)"
+		);
 		expect(panel).toContain("语音只读：可查状态、读统计、报进度");
+	});
+
+	it("keeps legacy cloud ASR, WebSpeech, and online TTS unreachable", () => {
+		const panel = readSrc("src/quyuan/voice-panel.ts");
+		const main = readSrc("src/main.ts");
+		const cloudAsr = readSrc("src/quyuan/cloud-asr.ts");
+		const voiceIo = readSrc("src/jarvis/voiceio.ts");
+		const settings = readSrc("src/settings.ts");
+		expect(panel).not.toContain("new CloudAsr");
+		expect(main).not.toContain("new MicStt");
+		expect(cloudAsr).not.toContain("requestUrl");
+		expect(cloudAsr).not.toContain("dashscope.aliyuncs.com");
+		expect(voiceIo).not.toContain("requestUrl");
+		expect(voiceIo).not.toContain("WebSocket");
+		expect(voiceIo).not.toContain("https://");
+		expect(settings).not.toContain('.addOption("edgetts"');
+		expect(settings).not.toContain('.addOption("aliyun", "阿里云千问');
+		expect(settings).not.toContain('.addOption("webspeech"');
 	});
 });

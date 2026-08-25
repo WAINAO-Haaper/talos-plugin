@@ -1,5 +1,7 @@
 export type SecretBlockReason =
 	| "unsafe-path"
+	| "unclassified-path"
+	| "config-directory"
 	| "environment-file"
 	| "plugin-data"
 	| "talos-private"
@@ -30,12 +32,27 @@ export function inspectVaultPath(
 	path: string,
 	options: SecretPolicyOptions = {}
 ): SecretInspection {
-	const normalized = path.trim().replace(/\\/g, "/");
+	let normalized = path.trim().normalize("NFKC").replace(/\\/g, "/");
+	while (normalized.startsWith("./")) normalized = normalized.slice(2);
+	try {
+		normalized = decodeURIComponent(normalized).replace(/\\/g, "/");
+	} catch {
+		return blocked("unsafe-path");
+	}
 	const pathSegments = normalized.split("/");
+	const hasUnsafeCharacter = Array.from(normalized).some((character) => {
+		const code = character.charCodeAt(0);
+		return (
+			code <= 0x1f ||
+			code === 0x7f ||
+			"<>*?[]{}|".includes(character)
+		);
+	});
 	if (
 		normalized.startsWith("/") ||
-		/^[a-zA-Z]:\//.test(normalized) ||
-		normalized.includes("\0") ||
+		normalized.startsWith("~") ||
+		/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalized) ||
+		hasUnsafeCharacter ||
 		pathSegments.some(
 			(segment, index) =>
 				segment === "." ||
@@ -65,6 +82,19 @@ export function inspectVaultPath(
 	}
 	if (lower === ".talos/private" || lower.startsWith(".talos/private/")) {
 		return blocked("talos-private");
+	}
+	if (
+		(configDir && (lower === configDir || lower.startsWith(`${configDir}/`))) ||
+		lower === ".claudian" ||
+		lower.startsWith(".claudian/") ||
+		lower === ".codex" ||
+		lower.startsWith(".codex/") ||
+		lower === ".talos/secrets" ||
+		lower.startsWith(".talos/secrets/") ||
+		lower === ".talos/credentials" ||
+		lower.startsWith(".talos/credentials/")
+	) {
+		return blocked("config-directory");
 	}
 	if (segments.some((segment) => segment === "secretstorage")) {
 		return blocked("secret-storage");

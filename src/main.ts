@@ -16,7 +16,8 @@ import {
 	evaluateQuyuanGovernance,
 	type QuyuanGovernanceResult,
 } from "./quyuan/governance";
-import { MicStt, StreamTts } from "./jarvis/voiceio";
+import { StreamTts } from "./jarvis/voiceio";
+import { enforceOfflineVoiceIoSettings } from "./quyuan/runtime-policy";
 import { TALOS_ICON_SVG } from "./talos-mark";
 import {
 	VaultPaths,
@@ -40,9 +41,11 @@ import { createClaudianProviderAdapters } from "./ai/provider/claudian-provider-
 import { AnthropicApiProvider } from "./ai/provider/anthropic-api-provider";
 import { OpenAiCompatibleProvider } from "./ai/provider/openai-compatible-provider";
 import { VaultRetriever } from "./ai/context/vault-retrieval";
+import { inspectToolTargetPaths } from "./ai/context/tool-path-policy";
 import { TalosAskService } from "./ai/ask-service";
 import { createVaultProviderEgressAuditStore } from "./ai/privacy/provider-egress-audit-store";
 import { preflightChatProviderEgress } from "./ai/privacy/chat-provider-egress-preflight";
+import type { ProviderEgressSourceKind } from "./ai/privacy/provider-egress-gate";
 import {
 	createConsoleActionRuntime,
 	type ConsoleActionRuntime,
@@ -183,7 +186,6 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	private readonly quyuanRuntimeErrors: QuyuanRuntimeErrorRecord[] = [];
 	private readonly quyuanReadPaths = new Set<string>();
 	private quyuanTts: StreamTts | null = null;
-	private quyuanStt: MicStt | null = null;
 	private quyuanWorkbenchReady = false;
 	private talosAskService: TalosAskService | null = null;
 	private talosAskCommand: TalosAskCommand | null = null;
@@ -215,9 +217,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		);
 		this.quyuanTts = new StreamTts(
 			this.talosSettings,
-			() => {},
-			undefined,
-			(field) => this.readProviderSecret(field)
+			() => {}
 		);
 		this.applyVaultTheme();
 
@@ -531,14 +531,12 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	onunload(): void {
 		unregisterApprovalTaskRuntime(this.app);
 		this.talosActionRuntime = null;
-		super.onunload();
-		void this.harnessManager?.stop();
+		void this.harnessManager?.dispose();
 		this.harnessManager = null;
-		this.quyuanStt?.dispose();
-		this.quyuanStt = null;
 		this.quyuanTts?.stop();
 		this.quyuanTts = null;
 		activeDocument.body.removeAttribute("data-talos-vault-theme");
+		super.onunload();
 	}
 
 	// 旧版右侧栏 JarvisView 已随 C-3b 移除；语音统一走控制台内屈原语音页。
@@ -635,9 +633,12 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		if (settings.engineProvider === "claude-cli") {
 			settings.engineProvider = "codex-cli";
 		}
-		// 旧 primary 曾默认启用网络 VAD，但没有独立的联网同意位。升级时必须
-		// 保持离线，只有用户在新版设置中重新开启后才允许下载运行时与模型。
-		if (!settings.quyuanVadNetworkConsent) settings.quyuanVadEnabled = false;
+		// 远程 JavaScript 和自定义模型 URL 已停用。字段只为兼容旧 data.json，
+		// 运行时不再消费其值；归一化为空避免后续保存继续传播不安全配置。
+		settings.quyuanLocalAsrCdn = "";
+		settings.quyuanLocalAsrModel = "";
+		settings.quyuanVadCdn = "";
+		settings.quyuanVadModel = "";
 		settings.visualTheme = normalizeVisualTheme(settings.visualTheme);
 		// 屈原背景效果容错：只接受合法值，否则回退默认
 		if (settings.quyuanBackground !== "letter-glitch" && settings.quyuanBackground !== "grid-scan") {
@@ -664,7 +665,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				"WP7 设置或密钥迁移中断，云端 API Provider 已禁用；已完成步骤将在下次启动继续，原设置不会提前删除。"
 			);
 		}
-		this.talosSettings = settings;
+		this.talosSettings = enforceOfflineVoiceIoSettings(settings);
 		if (
 			!secretStore &&
 			this.talosSettings.engineProvider !== "codex-cli"
@@ -686,6 +687,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}
 
 	async saveTalosSettings(): Promise<void> {
+		enforceOfflineVoiceIoSettings(this.talosSettings);
 		const loaded: unknown = await this.loadData();
 		const stored = isRecord(loaded) ? loaded : {};
 		await this.saveData({ ...stored, talos: this.talosSettings });
@@ -1301,24 +1303,27 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}
 
 	recordQuyuanToolUse(toolName: string, input: Record<string, unknown>): void {
-		if (toolName !== "Read") return;
-		const path =
-			typeof input.file_path === "string"
-				? input.file_path
-				: typeof input.path === "string"
-					? input.path
-					: "";
-		if (path) this.quyuanReadPaths.add(path);
+		if (!["Read", "Glob", "Grep", "Search"].includes(toolName)) return;
+		const inspection = inspectToolTargetPaths(toolName, input, {
+			configDir: this.app.vault.configDir,
+		});
+		if (inspection.blocked) return;
+		for (const path of inspection.paths) this.quyuanReadPaths.add(path);
 	}
 
-	async auditQuyuanChatEgress(input: {
+	async auditQuyuanProviderEgress(input: {
+		namespace: "chat" | "voice" | "auxiliary";
+		kind: ProviderEgressSourceKind;
 		providerId: string;
 		prompt: string;
 		historyText?: string;
-		currentNotePath?: string;
+		contextPaths?: string[];
+		sourcePaths?: string[];
+		sourceKinds?: ProviderEgressSourceKind[];
 		externalContextPaths?: string[];
 		hasImages?: boolean;
 		hasMcpMentions?: boolean;
+		hasBrowserContext?: boolean;
 		sessionId?: string;
 	}): Promise<{ allowed: boolean; message?: string }> {
 		const result = await preflightChatProviderEgress({
@@ -1332,12 +1337,13 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			configDir: this.app.vault.configDir,
 			prompt: input.prompt,
 			historyText: input.historyText,
-			contextPaths: input.currentNotePath
-				? [input.currentNotePath]
-				: [],
+			contextPaths: input.contextPaths,
+			sourcePaths: input.sourcePaths,
+			sourceKinds: input.sourceKinds,
 			externalContextPaths: input.externalContextPaths,
 			hasImages: input.hasImages,
 			hasMcpMentions: input.hasMcpMentions,
+			hasBrowserContext: input.hasBrowserContext,
 			readContext: (path) => this.app.vault.adapter.read(path),
 		});
 
@@ -1348,10 +1354,10 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			.replace(/[^a-zA-Z0-9._:-]/g, "-")
 			.slice(0, 140);
 		await createVaultProviderEgressAuditStore(this.app).append({
-			runId: `chat-run-${suffix}`,
-			turnId: `chat-turn-${suffix}`,
-			sessionId: `chat:${session || "new"}`,
-			namespace: "chat",
+			runId: `${input.namespace}-${input.kind}-run-${suffix}`,
+			turnId: `${input.namespace}-${input.kind}-turn-${suffix}`,
+			sessionId: `${input.namespace}:${session || "new"}`,
+			namespace: input.namespace,
 			audit: result.audit,
 		});
 
@@ -1364,6 +1370,51 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		};
 	}
 
+	async auditQuyuanChatEgress(input: {
+		providerId: string;
+		prompt: string;
+		historyText?: string;
+		currentNotePath?: string;
+		editorSourcePath?: string;
+		canvasSourcePath?: string;
+		externalContextPaths?: string[];
+		hasImages?: boolean;
+		hasMcpMentions?: boolean;
+		hasBrowserContext?: boolean;
+		sessionId?: string;
+	}): Promise<{ allowed: boolean; message?: string }> {
+		const sourceKinds: ProviderEgressSourceKind[] = ["prompt"];
+		if (input.historyText) sourceKinds.push("history");
+		if (input.currentNotePath) sourceKinds.push("current-note");
+		if (input.editorSourcePath) sourceKinds.push("editor-selection");
+		if (input.canvasSourcePath) sourceKinds.push("canvas-selection");
+		if (input.hasBrowserContext) sourceKinds.push("browser-selection");
+		if (input.hasImages) sourceKinds.push("attachment");
+		if ((input.externalContextPaths?.length ?? 0) > 0) {
+			sourceKinds.push("external-context");
+		}
+		return this.auditQuyuanProviderEgress({
+			namespace: "chat",
+			kind: "prompt",
+			providerId: input.providerId,
+			prompt: input.prompt,
+			historyText: input.historyText,
+			contextPaths: input.currentNotePath
+				? [input.currentNotePath]
+				: [],
+			sourcePaths: [
+				input.editorSourcePath,
+				input.canvasSourcePath,
+			].filter((path): path is string => Boolean(path)),
+			sourceKinds,
+			externalContextPaths: input.externalContextPaths,
+			hasImages: input.hasImages,
+			hasMcpMentions: input.hasMcpMentions,
+			hasBrowserContext: input.hasBrowserContext,
+			sessionId: input.sessionId,
+		});
+	}
+
 	evaluateQuyuanToolPolicy(
 		toolName: string,
 		input: Record<string, unknown>
@@ -1372,6 +1423,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 			toolName,
 			input,
 			readPaths: this.quyuanReadPaths,
+				configDir: this.app.vault.configDir,
 		});
 	}
 
@@ -1440,23 +1492,13 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		onFinal: (text: string) => void;
 		onStateChange: (listening: boolean, error?: string) => void;
 	}): void {
-		if (!this.talosSettings.jarvisVoiceEnabled) {
-			handlers.onStateChange(false, "请先开启底栏语音总开关");
-			return;
-		}
-		if (this.quyuanStt?.isListening()) {
-			this.quyuanStt.stop();
-			return;
-		}
-
-		this.quyuanStt?.dispose();
-		this.quyuanStt = new MicStt(this.talosSettings, handlers);
-		this.quyuanStt.start();
+		handlers.onStateChange(
+			false,
+			"安全策略已禁用 WebSpeech 网络识别；请在语音页使用本地 ASR"
+		);
 	}
 
-	stopQuyuanVoiceInput(): void {
-		this.quyuanStt?.stop();
-	}
+	stopQuyuanVoiceInput(): void {}
 
 	stopQuyuanSpeech(): void {
 		this.quyuanTts?.stop();

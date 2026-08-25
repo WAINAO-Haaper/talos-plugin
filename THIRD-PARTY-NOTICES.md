@@ -12,6 +12,26 @@
 
 `THIRD-PARTY-LICENSES.txt` 由 `npm run licenses:generate` 根据生产依赖自动生成；`npm run build` 会拒绝使用过期清单构建。
 
+## 可选本地语音运行时与模型
+
+本地 ASR 使用构建时静态嵌入的 Sherpa-ONNX 浏览器封装、独立 Web Worker、固定 WASM
+与中英双语流式 Zipformer int8 模型。运行时不联网；插件只读取安装目录的固定资产，并在
+申请麦克风前逐文件校验字节数与 SHA-256。缺件或校验失败时失败关闭。
+
+- Runtime: sherpa-onnx 1.13.6
+- Runtime snapshot: `7c59b5225b857366f0a8c0cc1783ace8e9f193ac`
+- Runtime license: Apache-2.0
+- Embedded inference engine: ONNX Runtime 1.27.1, MIT
+- Model: `csukuangfj/k2fsa-zipformer-bilingual-zh-en-t`
+- Model revision: `e2382758de9a0219b4efe682b95af30b399db3b8`
+- Model repository license declaration: Apache-2.0
+- Complete asset hashes, attribution and bundled license texts:
+  `src/quyuan/vendor/local-voice-runtime/NOTICE.md`
+
+模型卡只把训练集描述为数万小时内部数据；因此当前集成可用于本地技术验收，但在商业发布
+前仍须对训练数据来源披露与适用风险做独立复核。Silero VAD 仍维持独立失败关闭边界，未因
+ASR 集成而自动引入第三方运行时或模型。
+
 ## Claudian
 
 TALOS 的屈原 Agent 工作台包含 Claudian 的 provider-neutral runtime、会话、聊天、行内编辑、上下文、MCP、Skills 与 Subagents 技术实现，并在外层增加 TALOS 品牌、屈原人格、知识治理与语音适配。

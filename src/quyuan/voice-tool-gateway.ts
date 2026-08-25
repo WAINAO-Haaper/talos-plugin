@@ -20,6 +20,12 @@ const READ_TOOLS = new Set([
 	"websearch",
 	"webfetch",
 ]);
+const VOICE_LOCAL_READ_TOOLS = new Set([
+	"read",
+	"glob",
+	"grep",
+	"search",
+]);
 const WRITE_TOOLS = new Set([
 	"write",
 	"edit",
@@ -92,11 +98,11 @@ export function evaluateVoiceToolRisk(
 
 /**
  * C-3 语音硬只读门：判断工具是否属于语音通道允许的读类集合。
- * 读类（read/glob/grep/search/websearch/webfetch）放行；其余一律由
- * voice-driver 按通道在审批回调前置拦截为 deny，不再弹确认。
+ * 仅 Vault 本地读类（read/glob/grep/search）放行；网络读取和其余工具
+ * 一律由 voice-driver 按通道在审批回调前置拦截为 deny，不再弹确认。
  */
 export function isVoiceReadOnlyTool(toolName: string): boolean {
-	return READ_TOOLS.has(toolName.toLowerCase());
+	return VOICE_LOCAL_READ_TOOLS.has(toolName.toLowerCase());
 }
 
 export async function resolveVoiceToolApproval(

@@ -10,11 +10,27 @@ import {
 	type TalosVaultSchema,
 } from "../../data/schema";
 
+export type ProviderEgressSourceKind =
+	| "prompt"
+	| "history"
+	| "current-note"
+	| "editor-selection"
+	| "canvas-selection"
+	| "browser-selection"
+	| "attachment"
+	| "external-context"
+	| "voice-data-map"
+	| "title-generation"
+	| "instruction-refine"
+	| "inline-edit"
+	| "tool-result";
+
 export interface ProviderEgressInput {
 	providerId: string;
 	vaultAccess: "full" | "denied";
 	paths: string[];
 	text: string;
+	sourceKinds?: ProviderEgressSourceKind[];
 	moduleAccess?: Partial<Record<TalosSchemaKey, boolean>>;
 	vaultSchema?: Partial<TalosVaultSchema>;
 	configDir?: string;
@@ -23,6 +39,7 @@ export interface ProviderEgressInput {
 export interface ProviderEgressAudit {
 	providerId: string;
 	modules: string[];
+	sourceKinds: ProviderEgressSourceKind[];
 	redactions: {
 		email: number;
 		phone: number;
@@ -38,6 +55,7 @@ export interface ProviderEgressAudit {
 		| "image-egress-not-audited"
 		| "mcp-egress-not-audited"
 		| "external-context-not-audited"
+		| "browser-context-not-audited"
 	>;
 	deniedModules: TalosSchemaKey[];
 	contentDigest: string;
@@ -115,6 +133,11 @@ export async function auditProviderEgress(
 	const baseAudit: ProviderEgressAudit = {
 		providerId: input.providerId,
 		modules: modules(input.paths),
+		sourceKinds: [
+			...new Set<ProviderEgressSourceKind>(
+				input.sourceKinds ?? ["prompt"]
+			),
+		],
 		redactions: {
 			email: 0,
 			phone: 0,

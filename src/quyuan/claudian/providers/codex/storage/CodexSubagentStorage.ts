@@ -3,6 +3,7 @@ import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 import type { VaultFileAdapter } from '../../../core/storage/VaultFileAdapter';
 import {
   CODEX_SUBAGENT_KNOWN_KEYS,
+  normalizeCodexSubagentSandboxMode,
   type CodexSubagentDefinition,
 } from '../types/subagent';
 
@@ -159,9 +160,8 @@ export function parseSubagentToml(
   if (typeof parsed.model_reasoning_effort === 'string') {
     result.modelReasoningEffort = parsed.model_reasoning_effort;
   }
-  if (typeof parsed.sandbox_mode === 'string') {
-    result.sandboxMode = parsed.sandbox_mode;
-  }
+  const sandboxMode = normalizeCodexSubagentSandboxMode(parsed.sandbox_mode);
+  if (sandboxMode) result.sandboxMode = sandboxMode;
   if (Array.isArray(parsed.nickname_candidates)) {
     const candidates = parsed.nickname_candidates.filter(
       (v): v is string => typeof v === 'string',
@@ -198,9 +198,8 @@ export function serializeSubagentToml(agent: CodexSubagentDefinition): string {
   if (agent.modelReasoningEffort) {
     doc.model_reasoning_effort = agent.modelReasoningEffort;
   }
-  if (agent.sandboxMode) {
-    doc.sandbox_mode = agent.sandboxMode;
-  }
+  const sandboxMode = normalizeCodexSubagentSandboxMode(agent.sandboxMode);
+  if (sandboxMode) doc.sandbox_mode = sandboxMode;
 
   if (agent.extraFields) {
     for (const [key, value] of Object.entries(agent.extraFields)) {

@@ -10,6 +10,7 @@ import {
 	dshHomeRoot,
 	normalizeDshPort,
 } from "../src/harness/dsh-runtime";
+import { HARNESS_IFRAME_SANDBOX } from "../src/harness/harness-workbench";
 import { normalizeHarnessSurface } from "../src/harness/harness-switcher";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -48,8 +49,8 @@ describe("harness embed contract (D-TLP-014)", () => {
 	});
 
 	it("keeps DSH_HOME in the user home, outside any vault", () => {
-		expect(dshHomeRoot("/Users/alice")).toBe("/Users/alice/.talos/dsh-home");
-		expect(dshHomeRoot("/Users/alice/")).toBe("/Users/alice/.talos/dsh-home");
+		expect(dshHomeRoot("/synthetic-home/alice")).toBe("/synthetic-home/alice/.talos/dsh-home");
+		expect(dshHomeRoot("/synthetic-home/alice/")).toBe("/synthetic-home/alice/.talos/dsh-home");
 		expect(() => dshHomeRoot("   ")).toThrow();
 	});
 
@@ -57,11 +58,11 @@ describe("harness embed contract (D-TLP-014)", () => {
 		const plan = buildDshLaunchPlan({
 			executable: "/usr/local/bin/dsh",
 			port: 3180,
-			dshHome: "/Users/alice/.talos/dsh-home",
-			vaultRoot: "/Users/alice/vault",
+			dshHome: "/synthetic-home/alice/.talos/dsh-home",
+			vaultRoot: "/synthetic-home/alice/vault",
 		});
-		expect(plan.cwd).toBe("/Users/alice/vault");
-		expect(plan.env.DSH_HOME).toBe("/Users/alice/.talos/dsh-home");
+		expect(plan.cwd).toBe("/synthetic-home/alice/vault");
+		expect(plan.env.DSH_HOME).toBe("/synthetic-home/alice/.talos/dsh-home");
 		expect(plan.args).toContain("--no-open");
 		expect(() =>
 			buildDshLaunchPlan({
@@ -107,8 +108,22 @@ describe("harness embed contract (D-TLP-014)", () => {
 	it("stops the harness process on plugin unload", () => {
 		const main = readSrc("src/main.ts");
 		expect(main).toContain("getHarnessManager(): DshProcessManager");
-		expect(main).toContain("this.harnessManager?.stop()");
+		expect(main).toContain("this.harnessManager?.dispose()");
 		expect(main).toContain("adapter instanceof FileSystemAdapter");
+	});
+
+	it("sandboxes the embedded UI without clipboard capabilities", () => {
+		expect(HARNESS_IFRAME_SANDBOX.split(" ").sort()).toEqual([
+		"allow-downloads",
+		"allow-forms",
+		"allow-same-origin",
+		"allow-scripts",
+	]);
+		const workbench = readSrc("src/harness/harness-workbench.ts");
+		expect(workbench).toContain('frame.setAttribute("sandbox"');
+		expect(workbench).toContain('this.frame.setAttribute("src", baseUrl)');
+		expect(workbench).not.toContain("clipboard-read");
+		expect(workbench).not.toContain("clipboard-write");
 	});
 
 	it("exposes harness executable and port in settings", () => {
@@ -119,7 +134,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(settings).toContain("AI 对话 Harness（内嵌界面）");
 	});
 
-	it("persists the selected channel with a safe fallback (D-TLP-015)", () => {
+	it("persists either selected channel without replacing it (D-TLP-015)", () => {
 		const settings = readSrc("src/settings.ts");
 		expect(settings).toContain("harnessSurface: string");
 		expect(settings).toContain('harnessSurface: "dsh"');
@@ -127,5 +142,8 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(normalizeHarnessSurface("dsh")).toBe("dsh");
 		expect(normalizeHarnessSurface("nope")).toBe("dsh");
 		expect(normalizeHarnessSurface(undefined)).toBe("dsh");
+		const view = readSrc("src/view.ts");
+		expect(view).not.toContain("resolveInitialHarnessSurface");
+		expect(view).not.toContain("已自动切换到 Codex 工作台");
 	});
 });

@@ -36,6 +36,7 @@ describe("ProviderEgressAuditStore", () => {
 			audit: {
 				providerId: "claude-api",
 				modules: ["10 身份", "40 项目"],
+				sourceKinds: ["prompt", "current-note"],
 				redactions: {
 					email: 1,
 					phone: 0,
@@ -57,7 +58,7 @@ describe("ProviderEgressAuditStore", () => {
 		const line = persistence.appends[0]?.value ?? "";
 		expect(line.endsWith("\n")).toBe(true);
 		expect(JSON.parse(line)).toEqual({
-			version: 1,
+			version: 2,
 			at: "2026-07-24T10:00:00.000Z",
 			runId: "run-1",
 			turnId: "turn-1",
@@ -65,6 +66,7 @@ describe("ProviderEgressAuditStore", () => {
 			namespace: "chat",
 			providerId: "claude-api",
 			modules: ["10 身份", "40 项目"],
+			sourceKinds: ["prompt", "current-note"],
 			redactions: {
 				email: 1,
 				phone: 0,
@@ -91,6 +93,7 @@ describe("ProviderEgressAuditStore", () => {
 				audit: {
 					providerId: "claude-api",
 					modules: [],
+					sourceKinds: ["prompt"],
 					redactions: {
 						email: 0,
 						phone: 0,

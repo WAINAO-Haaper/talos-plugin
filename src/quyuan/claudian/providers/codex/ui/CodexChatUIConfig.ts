@@ -26,10 +26,8 @@ const EFFORT_LEVELS: ProviderReasoningOption[] = [
 const CODEX_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
   inactiveValue: 'normal',
   inactiveLabel: 'Safe',
-  activeValue: 'yolo',
-  activeLabel: 'YOLO',
-  planValue: 'plan',
-  planLabel: 'Plan',
+  activeValue: 'plan',
+  activeLabel: 'Plan',
 };
 
 const CODEX_SERVICE_TIER_TOGGLE: ProviderServiceTierToggleConfig = {
@@ -112,6 +110,10 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       ids.add(envVars.OPENAI_MODEL);
     }
     return ids;
+  },
+
+  resolvePermissionMode(settings: Record<string, unknown>): string {
+    return settings.permissionMode === 'plan' ? 'plan' : 'normal';
   },
 
   getPermissionModeToggle(): ProviderPermissionModeToggleConfig {

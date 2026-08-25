@@ -7,6 +7,9 @@
 import type { ChatSurfaceWorkbench } from "../quyuan/chat-surface";
 import type { DshProcessManager } from "./dsh-process-manager";
 
+export const HARNESS_IFRAME_SANDBOX =
+	"allow-scripts allow-forms allow-same-origin allow-downloads";
+
 export interface HarnessWorkbenchDeps {
 	manager: DshProcessManager;
 }
@@ -44,7 +47,8 @@ export class HarnessWorkbench implements ChatSurfaceWorkbench {
 
 		const frame = doc.createElement("iframe");
 		frame.className = "talos-harness__frame";
-		frame.setAttribute("allow", "clipboard-read; clipboard-write");
+		frame.setAttribute("sandbox", HARNESS_IFRAME_SANDBOX);
+		frame.setAttribute("referrerpolicy", "no-referrer");
 		root.appendChild(frame);
 		this.frame = frame;
 
@@ -91,8 +95,9 @@ export class HarnessWorkbench implements ChatSurfaceWorkbench {
 			this.renderStatus();
 			return;
 		}
-		if (this.frame && this.frame.src !== manager.getBaseUrl()) {
-			this.frame.src = manager.getBaseUrl();
+		const baseUrl = manager.getBaseUrl();
+		if (this.frame && this.frame.getAttribute("src") !== baseUrl) {
+			this.frame.setAttribute("src", baseUrl);
 		}
 		this.renderStatus();
 	}

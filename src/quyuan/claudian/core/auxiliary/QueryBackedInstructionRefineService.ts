@@ -57,6 +57,7 @@ export class QueryBackedInstructionRefineService implements InstructionRefineSer
 
     try {
       const text = await this.runner.query({
+        auditKind: 'instruction-refine',
         abortController: this.abortController,
         model: this.modelOverride,
         onTextChunk: onProgress

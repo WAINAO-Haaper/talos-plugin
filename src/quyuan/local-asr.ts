@@ -1,43 +1,26 @@
-import { VadMic } from "./vad-mic";
+import type { TalosSettings } from "../settings";
+import {
+	LOCAL_VOICE_ASSET_PROTOCOL_VERSION,
+	loadVerifiedVoiceModelAsset,
+	type LocalAsrModelPackage,
+	type LocalAsrTranscriber,
+} from "./local-voice-supply-chain";
+import {
+	VadMic,
+	type VadMicHandlers,
+	type VadTranscriptionContext,
+} from "./vad-mic";
 
 // ============================================================
-// 屈原 · 本地语音识别（transformers.js · Whisper · 永久免费/离线）
-//   继承 VadMic，仅实现转写：运行时从 CDN 动态加载 transformers.js（不进包），
-//   首次调用建立 ASR pipeline（优先 WebGPU，失败回退 WASM），对 16k 单声道
-//   Float32 直接转写。模型/CDN 可在设置覆盖；首次需联网下模型，之后缓存离线。
-//   CDN 由设置拼出（运行时字符串）→ esbuild 不静态打包该动态 import。
-//
-//   健壮性：本地链路（拉库→下模型→WASM 初始化）任一环挂起都会让面板无声
-//   停在 transcribing。故：CDN 加载与单段转写各加超时；模型下载走进度日志；
-//   加载失败不缓存 rejected promise（否则一次失败永久失败）；失败给明确中文
-//   报错（经 VadMic 的 onError 弹出），而非干转圈。
+// 屈原 · 本地语音识别
+//   JavaScript/WASM 运行时必须随构建静态提供；禁止从 CDN 动态 import。
+//   WASM 与每个模型文件都在交给 Worker 前通过固定 SHA-256；缺件即失败关闭。
 // ============================================================
 
-const DEFAULT_CDN = "https://esm.sh/@huggingface/transformers@3.0.2";
-const DEFAULT_MODEL = "Xenova/whisper-base";
-const CDN_LOAD_TIMEOUT_MS = 30000; // 拉 transformers.js（不含下模型）
-const TRANSCRIBE_TIMEOUT_MS = 60000; // 单段转写兜底（不含首次下模型）
+const TRANSCRIBE_TIMEOUT_MS = 60000;
+export const LOCAL_ASR_RUNTIME_MISSING =
+	"当前构建未包含经审计的本地 ASR 运行时和固定模型；请切回云端识别，或离线提供带版本、SHA-256 与 NOTICE 的运行时资产包";
 
-type Transcriber = (
-	audio: Float32Array,
-	options?: Record<string, unknown>
-) => Promise<{ text?: string }>;
-
-interface ModelProgress {
-	status?: string;
-	file?: string;
-	progress?: number;
-}
-
-interface TransformersModule {
-	pipeline: (
-		task: string,
-		model: string,
-		options?: Record<string, unknown>
-	) => Promise<Transcriber>;
-}
-
-// 给任意 promise 套超时：超时按“无响应”reject，避免 UI 无声挂起
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
 		const timer = window.setTimeout(
@@ -57,110 +40,147 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 	});
 }
 
-export class LocalAsr extends VadMic {
-	private transcriber: Transcriber | null = null;
-	private loading: Promise<Transcriber> | null = null;
-	// 同一个 ONNX session 不能并发跑：中途转写与最终转写在这里排队
-	private queue: Promise<unknown> = Promise.resolve();
+export class SerializedInferenceQueue {
+	private tail: Promise<unknown> = Promise.resolve();
 
-	protected preflight(): string | null {
-		return null; // 无需 key；模型首次转写时按需加载
+	run<T>(task: () => Promise<T>, timeoutMs: number, label: string): Promise<T> {
+		const operation = this.tail.then(task, task);
+		// 调用方超时只结束等待；队列仍跟随底层推理，直到它真正结束后才放行下一项。
+		this.tail = operation.catch(() => undefined);
+		return withTimeout(operation, timeoutMs, label);
+	}
+}
+
+export class LocalAsr extends VadMic {
+	private transcriber: LocalAsrTranscriber | null = null;
+	private loading: Promise<LocalAsrTranscriber> | null = null;
+	private readonly inferenceQueue = new SerializedInferenceQueue();
+	private readonly modelPackage: LocalAsrModelPackage | null;
+	private runtimeGeneration = 0;
+
+	constructor(
+		settings: TalosSettings,
+		handlers: VadMicHandlers,
+		modelPackage: LocalAsrModelPackage | null = null
+	) {
+		super(settings, handlers);
+		this.modelPackage = modelPackage;
 	}
 
-	// 本地推理不计费、不外传录音，可以边说边转；云端引擎保持默认 false
+	protected async preflight(): Promise<string | null> {
+		if (!this.modelPackage) return LOCAL_ASR_RUNTIME_MISSING;
+		try {
+			await this.ensureTranscriber();
+			return null;
+		} catch (error) {
+			return `本地语音初始化失败：${
+				error instanceof Error ? error.message : String(error)
+			}`;
+		}
+	}
+
+	// 本地推理不计费、不外传录音，可以边说边转；云端引擎保持默认 false。
 	protected override supportsPartial(): boolean {
 		return true;
 	}
 
-	private async ensureTranscriber(): Promise<Transcriber> {
+	// 流式 Worker 的 final 调用会补尾静音并 inputFinished，不能复用 partial。
+	protected override requiresFinalTranscription(): boolean {
+		return true;
+	}
+
+	private async ensureTranscriber(): Promise<LocalAsrTranscriber> {
 		if (this.transcriber) return this.transcriber;
+		const generation = this.runtimeGeneration;
 		if (!this.loading) this.loading = this.load();
 		try {
-			this.transcriber = await this.loading;
-			return this.transcriber;
+			const loaded = await this.loading;
+			if (generation !== this.runtimeGeneration) {
+				await loaded.dispose?.();
+				throw new Error("本地 ASR 初始化已取消");
+			}
+			this.transcriber = loaded;
+			this.loading = null;
+			return loaded;
 		} catch (error) {
-			// 别把 rejected promise 缓存住，否则第一次失败后即使网络恢复也永久失败
 			this.loading = null;
 			throw error;
 		}
 	}
 
-	private async load(): Promise<Transcriber> {
-		const cdn = this.settings.quyuanLocalAsrCdn?.trim() || DEFAULT_CDN;
-		const model = this.settings.quyuanLocalAsrModel?.trim() || DEFAULT_MODEL;
-
-		// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：本地识别库加载起点，排查「无声挂起」必需，保留
-		console.info(`[TALOS 屈原] 本地 Whisper：从 ${cdn} 加载 transformers.js…`);
-		let mod: TransformersModule;
-		try {
-			// eslint-disable-next-line no-unsanitized/method -- 运行时从可信 CDN（默认 esm.sh，可设置覆盖）动态加载 transformers.js，不打进 bundle
-			mod = (await withTimeout(import(cdn), CDN_LOAD_TIMEOUT_MS, "加载语音识别库失败")) as TransformersModule;
-		} catch (error) {
-			throw new Error(
-				`本地 Whisper 加载失败：无法从 CDN 拉取识别库（${cdn}）。` +
-					`多为网络无法访问该 CDN。可在「设置 → 语音」改用国内可访问的镜像 CDN，或切回千问云端识别。` +
-					`原始错误：${error instanceof Error ? error.message : String(error)}`
-			);
+	private async load(): Promise<LocalAsrTranscriber> {
+		const modelPackage = this.modelPackage;
+		if (!modelPackage) throw new Error(LOCAL_ASR_RUNTIME_MISSING);
+		if (
+			modelPackage.runtime.protocolVersion !== LOCAL_VOICE_ASSET_PROTOCOL_VERSION ||
+			!modelPackage.runtime.runtimeId.trim() ||
+			!modelPackage.runtime.runtimeVersion.trim() ||
+			/^(latest|main|master|head)$/i.test(modelPackage.runtime.runtimeVersion.trim())
+		) {
+			throw new Error("本地 ASR 运行时未使用受支持的固定版本");
 		}
-
-		// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：提示首次需联网下载模型，保留
-		console.info(
-			`[TALOS 屈原] 本地 Whisper：识别库就绪，准备模型 ${model}（首次需联网下载，可能较慢，进度见控制台）…`
+		if (modelPackage.manifests.length === 0) {
+			throw new Error("本地 ASR 固定模型清单为空");
+		}
+		const assets = await Promise.all(modelPackage.manifests.map(async (manifest) => {
+			const bundledBytes = modelPackage.readBundledModelBytes
+				? await modelPackage.readBundledModelBytes(manifest)
+				: null;
+			return loadVerifiedVoiceModelAsset(manifest, {
+				bundledBytes,
+				readCachedBytes: modelPackage.readCachedModelBytes
+					? () => modelPackage.readCachedModelBytes!(manifest)
+					: null,
+				fetchNetworkBytes: modelPackage.fetchNetworkModelBytes
+					? (url) => {
+						if (url !== manifest.downloadUrl) {
+							throw new Error("本地 ASR 拒绝非清单下载地址");
+						}
+						return modelPackage.fetchNetworkModelBytes!(manifest);
+					}
+					: null,
+				networkConsent: this.settings.quyuanLocalAsrNetworkConsent === true,
+			});
+		}));
+		const modelBytes = new Map(
+			assets.map((asset) => [asset.manifest.fileName, asset.bytes] as const)
 		);
-		const options: Record<string, unknown> = {
-			dtype: "q8", // 量化权重：显著减小首次下载体积
-			progress_callback: (p: ModelProgress): void => {
-				if (p?.status === "progress" && typeof p.progress === "number") {
-					// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：模型下载进度，排查下载卡死必需，保留
-					console.info(`[TALOS 屈原] 模型下载 ${p.file ?? ""} ${p.progress.toFixed(1)}%`);
-				} else if (p?.status === "done" && p.file) {
-					// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：模型分片就绪，保留
-					console.info(`[TALOS 屈原] 模型分片就绪 ${p.file}`);
-				}
-			},
-		};
-
-		// 关键：Whisper 在本机 WebGPU(onnxruntime-web) 后端上，推理期会 "Session mismatch"
-		// 崩溃（pipeline 创建时不报错，崩在真正转写时，故无法靠 try/catch 回退）。稳定优先，
-		// 直接用 WASM/CPU 后端；虽比 WebGPU 慢，但能稳定转写，不再唤不醒。
-		try {
-			const pipe = await mod.pipeline("automatic-speech-recognition", model, {
-				...options,
-				device: "wasm",
-			});
-			// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：WASM 后端就绪标记，排查「唤不醒」必需，保留
-			console.info("[TALOS 屈原] 本地 Whisper 就绪（WASM）");
-			return pipe;
-		} catch (q8Error) {
-			// 个别环境不支持 q8 量化 → 退回默认精度重试
-			console.warn("[TALOS 屈原] q8 量化加载失败，退回默认精度", q8Error);
-			const pipe = await mod.pipeline("automatic-speech-recognition", model, {
-				progress_callback: options.progress_callback,
-				device: "wasm",
-			});
-			// eslint-disable-next-line obsidianmd/rule-custom-message -- 诊断日志：默认精度回退就绪标记，保留
-			console.info("[TALOS 屈原] 本地 Whisper 就绪（WASM·默认精度）");
-			return pipe;
-		}
+		const transcriber = await modelPackage.runtime.createTranscriber(modelBytes, {
+			device: "wasm",
+		});
+		// eslint-disable-next-line obsidianmd/rule-custom-message -- 只记录固定版本与校验后来源，不记录语音内容
+		console.info(
+			`[TALOS 屈原] 本地 ASR 就绪（${modelPackage.runtime.runtimeId}@${modelPackage.runtime.runtimeVersion}，模型 revision ${assets[0]?.manifest.version}，${assets.length} 个文件，来源 ${[...new Set(assets.map((asset) => asset.source))].join("+")}）`
+		);
+		return transcriber;
 	}
 
-	// 串行闸：前一次成功或失败都放行下一次，不让一次异常卡死整条队列
-	private enqueue<T>(task: () => Promise<T>): Promise<T> {
-		const next = this.queue.then(task, task);
-		this.queue = next.catch(() => undefined);
-		return next;
-	}
-
-	protected async transcribe(samples: Float32Array): Promise<string> {
+	protected async transcribe(
+		samples: Float32Array,
+		sampleRate: number,
+		context: VadTranscriptionContext
+	): Promise<string> {
 		const transcriber = await this.ensureTranscriber();
-		const options: Record<string, unknown> = { task: "transcribe", chunk_length_s: 30 };
-		if ((this.settings.jarvisSttLang || "zh-CN").toLowerCase().startsWith("zh")) {
-			options.language = "chinese";
-		}
-		// 只给转写调用套超时；首次下模型在 ensureTranscriber 内完成，不受此超时约束
-		const out = await this.enqueue(() =>
-			withTimeout(transcriber(samples, options), TRANSCRIBE_TIMEOUT_MS, "语音转写超时")
+		const out = await this.inferenceQueue.run(
+			() => transcriber(samples, {
+				sampleRate,
+				streamId: context.streamId,
+				phase: context.phase,
+			}),
+			TRANSCRIBE_TIMEOUT_MS,
+			"语音转写超时"
 		);
 		return (out?.text ?? "").trim();
+	}
+
+	override dispose(): void {
+		++this.runtimeGeneration;
+		const transcriber = this.transcriber;
+		this.transcriber = null;
+		this.loading = null;
+		super.dispose();
+		void Promise.resolve(transcriber?.dispose?.()).catch((error: unknown) => {
+			console.warn("[TALOS 屈原] 释放本地 ASR Worker 失败", error);
+		});
 	}
 }

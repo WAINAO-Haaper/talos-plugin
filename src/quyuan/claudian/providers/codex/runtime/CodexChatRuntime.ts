@@ -28,18 +28,26 @@ import type {
 } from '../../../core/runtime/types';
 import type { ChatMessage, Conversation, ForkSource, SlashCommand, StreamChunk } from '../../../core/types';
 import type ClaudianPlugin from '../../../main';
+import { relativizeVaultToolPath } from '../../../../../ai/context/tool-path-policy';
+import {
+  assertTalosCodexPermissionProfile,
+  TALOS_CODEX_PERMISSION_PROFILE_ID,
+} from '../../../../codex-permission-profile';
+import {
+  type EffectiveRuntimePolicy,
+  resolveEffectiveRuntimePolicy,
+  runtimeChannelFromSettings,
+} from '../../../../runtime-policy';
 import { getVaultPath } from '../../../utils/path';
 import { buildContextFromHistory } from '../../../utils/session';
 import { CODEX_PROVIDER_CAPABILITIES } from '../capabilities';
 import {
-  deriveCodexMemoriesDirFromSessionsRoot,
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFile,
 } from '../history/CodexHistoryStore';
 import { toCodexRuntimeModelId } from '../modelSelection';
 import { encodeCodexTurn } from '../prompt/encodeCodexTurn';
 import {
-  type CodexSafeMode,
   getCodexProviderSettings,
   getEffectiveCodexReasoningSummary,
 } from '../settings';
@@ -55,7 +63,6 @@ import {
   resolveCodexAppServerLaunchSpec,
 } from './codexAppServerSupport';
 import type {
-  SandboxPolicy,
   ServerRequestResolvedNotification,
   SkillInput,
   SkillsListResult,
@@ -76,18 +83,17 @@ import { type CodexRuntimeContext, createCodexRuntimeContext } from './CodexRunt
 import { CodexServerRequestRouter } from './CodexServerRequestRouter';
 import { CodexSessionManager } from './CodexSessionManager';
 
-function resolveCodexSandboxConfig(
-  permissionMode: string,
-  codexSafeMode: CodexSafeMode = 'workspace-write',
-): { approvalPolicy: string; sandbox: string } {
-  if (permissionMode === 'yolo') {
-    return { approvalPolicy: 'never', sandbox: 'danger-full-access' };
-  }
-  if (permissionMode === 'plan') {
-    return { approvalPolicy: 'on-request', sandbox: 'workspace-write' };
-  }
-  // normal — resolve through the user's configured safe mode
-  return { approvalPolicy: 'on-request', sandbox: codexSafeMode };
+export function resolveCodexSandboxConfig(
+  settings: Record<string, unknown>,
+): EffectiveRuntimePolicy {
+  const channel = runtimeChannelFromSettings(settings);
+  return resolveEffectiveRuntimePolicy({
+    channel,
+    permissionMode: settings.permissionMode,
+    sandboxMode: channel === 'chat'
+      ? getCodexProviderSettings(settings).safeMode
+      : 'read-only',
+  });
 }
 
 function resolveCodexServiceTier(serviceTier: unknown, model: string | undefined): string | null {
@@ -272,6 +278,10 @@ export class CodexChatRuntime implements ChatRuntime {
     this.notificationRouter = new CodexNotificationRouter(
       (chunk) => enqueueChunk(chunk),
       (update) => this.recordTurnMetadata(update),
+      (itemId, input) => this.serverRequestRouter.rememberFileChangeInput(
+        itemId,
+        this.normalizeFileChangeInputForGovernance(input),
+      ),
     );
 
     this.wireTransportHandlers();
@@ -312,16 +322,18 @@ export class CodexChatRuntime implements ChatRuntime {
 
         // Resume the forked thread (required before rollback and turn/start)
         const permissionMode = this.resolveSandboxConfig();
-        await this.transport!.request<ThreadResumeResult>('thread/resume', {
+        const resumeResult = await this.transport!.request<ThreadResumeResult>('thread/resume', {
           threadId,
           model: model ?? DEFAULT_CODEX_PRIMARY_MODEL,
           approvalPolicy: permissionMode.approvalPolicy,
-          sandbox: permissionMode.sandbox,
+          permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+          runtimeWorkspaceRoots: this.getRuntimeWorkspaceRoots(),
           serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
           baseInstructions: promptText,
           experimentalRawEvents: true,
           persistExtendedHistory: true,
         });
+        assertTalosCodexPermissionProfile(resumeResult);
 
         if (numTurnsToRollback > 0) {
           await this.transport!.request<ThreadRollbackResult>('thread/rollback', {
@@ -356,12 +368,14 @@ export class CodexChatRuntime implements ChatRuntime {
           threadId: existingThreadId,
           model: model ?? DEFAULT_CODEX_PRIMARY_MODEL,
           approvalPolicy: permissionMode.approvalPolicy,
-          sandbox: permissionMode.sandbox,
+          permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+          runtimeWorkspaceRoots: this.getRuntimeWorkspaceRoots(),
           serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
           baseInstructions: promptText,
           experimentalRawEvents: true,
           persistExtendedHistory: true,
         });
+        assertTalosCodexPermissionProfile(resumeResult);
         threadId = resumeResult.thread.id;
         threadTargetPath = resumeResult.thread.path ?? null;
         threadPath = this.toHostSessionPath(threadTargetPath);
@@ -376,12 +390,14 @@ export class CodexChatRuntime implements ChatRuntime {
           model: model ?? DEFAULT_CODEX_PRIMARY_MODEL,
           cwd: this.launchSpec?.targetCwd ?? getVaultPath(this.plugin.app) ?? undefined,
           approvalPolicy: permissionMode.approvalPolicy,
-          sandbox: permissionMode.sandbox,
+          permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+          runtimeWorkspaceRoots: this.getRuntimeWorkspaceRoots(),
           serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
           baseInstructions: promptText,
           experimentalRawEvents: true,
           persistExtendedHistory: true,
         });
+        assertTalosCodexPermissionProfile(startResult);
         threadId = startResult.thread.id;
         threadTargetPath = startResult.thread.path ?? null;
         threadPath = this.toHostSessionPath(threadTargetPath);
@@ -408,8 +424,6 @@ export class CodexChatRuntime implements ChatRuntime {
         // currentTurnId will be set by turn/started notification
       } else {
         // --- Normal turn path ---
-        const sessionFilePathHint = threadPath ?? this.session.getSessionFilePath() ?? null;
-
         // Build input
         const skillInputs = await this.resolveSkillInputs(turn.request.text);
         const turnInputBundle = this.buildInput(turn.prompt, turn.request.images, skillInputs);
@@ -419,18 +433,8 @@ export class CodexChatRuntime implements ChatRuntime {
         const providerSettings = this.getProviderSettings();
         const effort = EFFORT_MAP[providerSettings.effortLevel as string] ?? 'medium';
         const resolvedModel = model ?? DEFAULT_CODEX_PRIMARY_MODEL;
-        const isPlanMode = providerSettings.permissionMode === 'plan';
-        const externalContextPaths = this.resolveExternalContextPaths(turn, queryOptions);
         const permissionMode = this.resolveSandboxConfig();
-        const transcriptRootTarget = this.runtimeContext?.sessionsDirTarget
-          ?? deriveCodexSessionsRootFromSessionPath(threadTargetPath)
-          ?? this.resolveTranscriptRootTarget(sessionFilePathHint);
-        const sandboxPolicy = this.buildTurnSandboxPolicy(
-          externalContextPaths,
-          permissionMode.sandbox,
-          transcriptRootTarget,
-          sessionFilePathHint,
-        );
+        const isPlanMode = permissionMode.effectivePermissionMode === 'plan';
 
         const collaborationMode = {
           mode: isPlanMode ? 'plan' as const : 'default' as const,
@@ -456,7 +460,8 @@ export class CodexChatRuntime implements ChatRuntime {
           serviceTier,
           effort,
           summary,
-          sandboxPolicy,
+          permissions: TALOS_CODEX_PERMISSION_PROFILE_ID,
+          runtimeWorkspaceRoots: this.getRuntimeWorkspaceRoots(),
           collaborationMode,
         });
         this.currentTurnId = turnResult.turn.id;
@@ -803,12 +808,11 @@ export class CodexChatRuntime implements ChatRuntime {
     return model ? toCodexRuntimeModelId(model) : undefined;
   }
 
-  private resolveSandboxConfig(): { approvalPolicy: string; sandbox: string } {
+  private resolveSandboxConfig(): EffectiveRuntimePolicy {
     const providerSettings = this.getProviderSettings();
-    return resolveCodexSandboxConfig(
-      providerSettings.permissionMode as string,
-      getCodexProviderSettings(providerSettings).safeMode,
-    );
+    const policy = resolveCodexSandboxConfig(providerSettings);
+    this.serverRequestRouter.setRuntimePolicy(policy);
+    return policy;
   }
 
   private async startAppServer(launchSpec: CodexLaunchSpec, clientConfigKey: string): Promise<void> {
@@ -897,67 +901,6 @@ export class CodexChatRuntime implements ChatRuntime {
     this.loadedThreadId = null;
   }
 
-  private resolveExternalContextPaths(
-    turn: PreparedChatTurn,
-    queryOptions?: ChatRuntimeQueryOptions,
-  ): string[] {
-    const externalContextPaths = turn.request.externalContextPaths ?? queryOptions?.externalContextPaths ?? [];
-    return [...new Set(externalContextPaths.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))];
-  }
-
-  private buildTurnSandboxPolicy(
-    externalContextPaths: string[],
-    sandboxMode: string,
-    transcriptRootTargetHint?: string | null,
-    sessionFilePathHint?: string | null,
-  ): SandboxPolicy | undefined {
-    if (sandboxMode === 'danger-full-access') {
-      return { type: 'dangerFullAccess' };
-    }
-
-    if (sandboxMode === 'read-only') {
-      return {
-        type: 'readOnly',
-        access: { type: 'fullAccess' },
-        networkAccess: false,
-      };
-    }
-
-    if (sandboxMode !== 'workspace-write') {
-      return undefined;
-    }
-
-    const mappedExternalContextPaths = this.mapRequiredHostPathsToTarget(
-      externalContextPaths,
-      'external context path',
-    );
-    const memoriesDirTarget = deriveCodexMemoriesDirFromSessionsRoot(transcriptRootTargetHint)
-      ?? this.resolveMemoriesDirTarget(sessionFilePathHint)
-      ?? (
-        this.launchSpec?.target.method === 'wsl'
-          ? null
-          : path.join(os.homedir(), '.codex', 'memories')
-      );
-
-    const writableRoots = [
-      this.launchSpec?.targetCwd ?? getVaultPath(this.plugin.app),
-      ...mappedExternalContextPaths,
-      memoriesDirTarget,
-      this.mapHostPathToTarget(os.tmpdir()),
-      this.launchSpec?.target.platformFamily === 'unix' ? '/tmp' : null,
-      this.mapHostPathToTarget(process.env.TMPDIR),
-    ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
-
-    return {
-      type: 'workspaceWrite',
-      writableRoots: [...new Set(writableRoots)],
-      readOnlyAccess: { type: 'fullAccess' },
-      networkAccess: false,
-      excludeTmpdirEnvVar: false,
-      excludeSlashTmp: false,
-    };
-  }
-
   private handleServerRequestResolved(params: ServerRequestResolvedNotification): void {
     if (this.serverRequestRouter.hasPendingApprovalRequest(params.requestId, params.threadId)) {
       this.dismissApprovalUI();
@@ -987,16 +930,51 @@ export class CodexChatRuntime implements ChatRuntime {
       return false;
     }
 
+    if (this.currentTurnId && scope.turnId !== this.currentTurnId) {
+      return false;
+    }
+
+    this.observeFileChangeInputForApproval(method, params);
+
     if (!this.currentTurnId) {
       this.pendingTurnNotifications.push({ method, params });
       return false;
     }
 
-    if (scope.turnId !== this.currentTurnId) {
-      return false;
+    return true;
+  }
+
+  private observeFileChangeInputForApproval(method: string, params: unknown): void {
+    const payload = params && typeof params === 'object'
+      ? params as Record<string, unknown>
+      : null;
+    if (!payload) return;
+
+    if (method === 'item/fileChange/patchUpdated') {
+      const itemId = typeof payload.itemId === 'string' ? payload.itemId : '';
+      if (itemId && Array.isArray(payload.changes)) {
+        this.serverRequestRouter.rememberFileChangeInput(
+          itemId,
+          this.normalizeFileChangeInputForGovernance({ changes: payload.changes }),
+        );
+      }
+      return;
     }
 
-    return true;
+    if (method !== 'item/started') return;
+    const item = payload.item && typeof payload.item === 'object'
+      ? payload.item as Record<string, unknown>
+      : null;
+    if (
+      item?.type === 'fileChange'
+      && typeof item.id === 'string'
+      && Array.isArray(item.changes)
+    ) {
+      this.serverRequestRouter.rememberFileChangeInput(
+        item.id,
+        this.normalizeFileChangeInputForGovernance({ changes: item.changes }),
+      );
+    }
   }
 
   private handleTurnStartedNotification(params: unknown): void {
@@ -1204,17 +1182,44 @@ export class CodexChatRuntime implements ChatRuntime {
     return this.launchSpec?.pathMapper.toTargetPath(hostPath) ?? hostPath;
   }
 
-  private mapRequiredHostPathsToTarget(hostPaths: string[], label: string): string[] {
-    if (!this.launchSpec) {
-      return hostPaths;
-    }
+  private getRuntimeWorkspaceRoots(): string[] | undefined {
+    const targetRoot = this.launchSpec?.targetCwd;
+    return targetRoot ? [targetRoot] : undefined;
+  }
 
-    return hostPaths.map((hostPath) => {
-      const targetPath = this.launchSpec!.pathMapper.toTargetPath(hostPath);
-      if (!targetPath) {
-        throw new Error(`Codex cannot access ${label} from the selected target: ${hostPath}`);
-      }
-      return targetPath;
+  private normalizeFileChangeInputForGovernance(
+    input: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const changes = Array.isArray(input.changes)
+      ? input.changes.map((entry: unknown) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+        const change = entry as Record<string, unknown>;
+        const normalizedChange = { ...change };
+        for (const key of [
+          'path',
+          'movePath',
+          'move_path',
+          'target_path',
+          'destinationPath',
+        ] as const) {
+          if (typeof change[key] === 'string') {
+            normalizedChange[key] = this.toVaultRelativeToolPath(change[key]);
+          }
+        }
+        return normalizedChange;
+      })
+      : input.changes;
+    return { ...input, ...(changes ? { changes } : {}) };
+  }
+
+  private toVaultRelativeToolPath(value: string): string {
+    const mappedHostPath = this.launchSpec?.pathMapper.toHostPath(value) ?? value;
+    const vaultRoot = getVaultPath(this.plugin.app);
+    if (!vaultRoot) return value.trim().replace(/\\/g, '/');
+    return relativizeVaultToolPath(value, {
+      mappedPath: mappedHostPath,
+      vaultRoot,
+      caseInsensitive: this.launchSpec?.target.platformFamily === 'windows',
     });
   }
 
@@ -1223,27 +1228,6 @@ export class CodexChatRuntime implements ChatRuntime {
       ?? deriveCodexSessionsRootFromSessionPath(
         sessionFilePath ?? this.session.getSessionFilePath() ?? this.currentThreadPath,
       );
-  }
-
-  private resolveTranscriptRootTarget(sessionFilePath?: string | null): string | null {
-    if (this.runtimeContext?.sessionsDirTarget) {
-      return this.runtimeContext.sessionsDirTarget;
-    }
-
-    const targetSessionPath = this.toTargetSessionPath(
-      sessionFilePath ?? this.session.getSessionFilePath() ?? this.currentThreadPath,
-    );
-    return deriveCodexSessionsRootFromSessionPath(targetSessionPath);
-  }
-
-  private resolveMemoriesDirTarget(sessionFilePath?: string | null): string | null {
-    if (this.runtimeContext?.memoriesDirTarget) {
-      return this.runtimeContext.memoriesDirTarget;
-    }
-
-    return deriveCodexMemoriesDirFromSessionsRoot(
-      this.resolveTranscriptRootTarget(sessionFilePath),
-    );
   }
 }
 

@@ -10,7 +10,7 @@ export interface ProviderEgressAuditAppendInput {
 	runId: string;
 	turnId: string;
 	sessionId: string;
-	namespace: "chat" | "voice" | "command";
+	namespace: "chat" | "voice" | "auxiliary" | "command";
 	audit: ProviderEgressAudit;
 }
 
@@ -47,6 +47,9 @@ function assertAudit(audit: ProviderEgressAudit): void {
 			throw new Error("Invalid provider egress audit module");
 		}
 	}
+	for (const sourceKind of audit.sourceKinds) {
+		assertSafeId("sourceKind", sourceKind);
+	}
 }
 
 export class ProviderEgressAuditStore {
@@ -61,7 +64,7 @@ export class ProviderEgressAuditStore {
 		assertSafeId("sessionId", input.sessionId);
 		assertAudit(input.audit);
 		const record = {
-			version: 1,
+			version: 2,
 			at: this.now(),
 			runId: input.runId,
 			turnId: input.turnId,
@@ -69,6 +72,7 @@ export class ProviderEgressAuditStore {
 			namespace: input.namespace,
 			providerId: input.audit.providerId,
 			modules: [...input.audit.modules],
+			sourceKinds: [...input.audit.sourceKinds],
 			redactions: { ...input.audit.redactions },
 			blockedReasons: [...input.audit.blockedReasons],
 			deniedModules: [...input.audit.deniedModules],

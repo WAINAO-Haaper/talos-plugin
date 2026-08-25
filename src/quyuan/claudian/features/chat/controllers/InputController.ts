@@ -116,9 +116,12 @@ type TalosChatEgressBridge = ClaudianPlugin & {
     prompt: string;
     historyText?: string;
     currentNotePath?: string;
+    editorSourcePath?: string;
+    canvasSourcePath?: string;
     externalContextPaths?: string[];
     hasImages?: boolean;
     hasMcpMentions?: boolean;
+    hasBrowserContext?: boolean;
     sessionId?: string;
   }) => Promise<{ allowed: boolean; message?: string }>;
 };
@@ -170,6 +173,18 @@ export class InputController {
     history: ChatMessage[];
   }): Promise<void> {
     const bridge = this.deps.plugin as TalosChatEgressBridge;
+    if (
+      input.preparedTurn.request.editorSelection?.selectedText
+      && !input.preparedTurn.request.editorSelection.notePath
+    ) {
+      throw new Error("编辑器选区缺少可审计来源路径，已阻止发送");
+    }
+    if (
+      input.preparedTurn.request.canvasSelection
+      && !input.preparedTurn.request.canvasSelection.canvasPath
+    ) {
+      throw new Error("Canvas 选区缺少可审计来源路径，已阻止发送");
+    }
     // D-WP7 安全合同：审计桥缺失时失败关闭，任何模型调用不得绕过外发审计。
     if (!bridge.auditQuyuanChatEgress) {
       throw new Error("TALOS 外发审计桥缺失，已按失败关闭策略阻止发送");
@@ -181,11 +196,16 @@ export class InputController {
         ? JSON.stringify(input.history)
         : undefined,
       currentNotePath: input.preparedTurn.request.currentNotePath,
+      editorSourcePath: input.preparedTurn.request.editorSelection?.notePath,
+      canvasSourcePath: input.preparedTurn.request.canvasSelection?.canvasPath,
       externalContextPaths: input.preparedTurn.request.externalContextPaths,
       hasImages:
         (input.preparedTurn.request.images?.length ?? 0) > 0
         || input.history.some(message => (message.images?.length ?? 0) > 0),
       hasMcpMentions: input.preparedTurn.mcpMentions.size > 0,
+      hasBrowserContext: Boolean(
+        input.preparedTurn.request.browserSelection?.selectedText,
+      ),
       sessionId:
         this.deps.state.currentConversationId
         ?? input.agentService.getSessionId()

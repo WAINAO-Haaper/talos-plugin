@@ -1,12 +1,13 @@
-import { App, Component, MarkdownRenderer, Notice, setIcon } from "obsidian";
+import { App, Component, MarkdownRenderer, normalizePath, Notice, setIcon } from "obsidian";
 import type { TalosSettings } from "../settings";
 import { StreamTts } from "../jarvis/voiceio";
 import type { VadMic, VadMicHandlers } from "./vad-mic";
-import { CloudAsr } from "./cloud-asr";
 import { LocalAsr } from "./local-asr";
+import { createBundledLocalAsrPackage } from "./bundled-local-voice-runtime";
 import type ClaudianPlugin from "./claudian/main";
 import { QuyuanVoiceDriver } from "./voice-driver";
 import type { InteractionChannel } from "./voice-driver";
+import { resolveEffectiveRuntimePolicy } from "./runtime-policy";
 import { buildTalosDataMap } from "./voice-data-map";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
 import {
@@ -21,10 +22,7 @@ import {
 	VoiceModeController,
 	type VoiceInputMode,
 } from "./voice-mode-controller";
-import {
-	providerSecretStoreFromApp,
-	readProviderSecret,
-} from "../ai/provider/secret-storage-runtime";
+import { evaluateVoiceTurnAdmission } from "./voice-turn-admission";
 
 interface TalosQuyuanPlugin extends ClaudianPlugin {
 	activateQuyuanV2View(): Promise<void>;
@@ -35,7 +33,7 @@ interface TalosQuyuanPlugin extends ClaudianPlugin {
 // ============================================================
 // 屈原 · 语音对话面板（主页屈原模块）
 //   主页语音工作区；与文字对话保持独立会话命名空间。
-//   STT：CloudAsr（千问云端，WebSpeech 在 Electron 不可用故弃用）。
+//   STT：仅使用经审计的本地 ASR；缺少资产时在申请麦克风前失败关闭。
 //   引擎：QuyuanVoiceDriver 复用 v2 运行时。TTS：StreamTts（现有）。
 //   状态机：idle / listen / reco / think / speak，经 setState 解耦。
 //   不修改、不引用文字对话会话状态。
@@ -102,8 +100,11 @@ export class QuyuanVoicePanel {
 	private responseActive = false;
 	private ttsPending = false;
 	private ttsSpeaking = false;
+	private ttsWasCancelled = false;
 	private ttsEnabled = true;
 	private navigatingToChat = false;
+	private lifecycleGeneration = 0;
+	private responseGeneration = 0;
 
 	private state: VoiceState = "sleep";
 	private mounted = false;
@@ -133,6 +134,8 @@ export class QuyuanVoicePanel {
 
 	// ---------- 挂载 ----------
 	mount(container: HTMLElement): void {
+		const lifecycleGeneration = ++this.lifecycleGeneration;
+		++this.responseGeneration;
 		container.empty();
 		this.mounted = true;
 		this.navigatingToChat = false;
@@ -142,7 +145,7 @@ export class QuyuanVoicePanel {
 		this.driver = new QuyuanVoiceDriver(this.plugin, {
 			model: this.settings.quyuanVoiceModel || "haiku",
 			effortLevel: this.settings.quyuanVoiceEffort || "low",
-			getDataContext: () => buildTalosDataMap(this.settings),
+			getDataContext: () => buildTalosDataMap(this.settings, this.app.vault.configDir),
 		});
 		this.driver.setConfirmHandler((tool, desc) => this.askConfirm(tool, desc));
 		this.voiceMode = new VoiceModeController();
@@ -160,8 +163,11 @@ export class QuyuanVoicePanel {
 				await this.save?.();
 			},
 		});
-		const secretStore = providerSecretStoreFromApp(this.app);
 		this.tts = new StreamTts(this.settings, (s) => {
+			if (
+				lifecycleGeneration !== this.lifecycleGeneration ||
+				!this.mounted
+			) return;
 			if (s === "speaking") {
 				if (!this.ttsEnabled) {
 					this.tts?.stop();
@@ -173,13 +179,17 @@ export class QuyuanVoicePanel {
 				this.syncAsrBusy();
 				this.setState("speak");
 			} else if (s === "idle") {
-				const completedPlayback = this.ttsSpeaking && !this.responseActive;
+				const completedPlayback =
+					this.ttsSpeaking &&
+					!this.responseActive &&
+					!this.ttsWasCancelled;
 				this.ttsPending = false;
 				this.ttsSpeaking = false;
 				this.characterStage?.setOutputLevel(0);
 				this.syncAsrBusy();
 				this.setState(this.responseActive ? "speak" : this.restingState());
 				if (completedPlayback) this.setEmotionBallState("done", 1800);
+				this.ttsWasCancelled = false;
 			} else if (s === "error") {
 				this.voiceMode.onTtsFailure("朗读服务不可用，文字回复已保留");
 				this.ttsPending = false;
@@ -191,12 +201,14 @@ export class QuyuanVoicePanel {
 				this.controlStatusEl?.setText("播报服务错误 · 文字回复仍可用");
 			}
 		}, (level) => {
+			if (
+				lifecycleGeneration !== this.lifecycleGeneration ||
+				!this.mounted
+			) return;
 			// TTS 输出音量直接驱动人物回答态的呼吸、位移与光晕。
 			this.characterStage?.setOutputLevel(level);
-		}, (field) =>
-			readProviderSecret(this.settings, field, secretStore)
-		);
-		this.asr = this.buildAsr();
+		});
+		this.asr = this.buildAsr(lifecycleGeneration);
 
 		const root = container.createDiv({ cls: "tq-voice" });
 		this.rootEl = root;
@@ -291,7 +303,7 @@ export class QuyuanVoicePanel {
 		const badges = statusRow.createDiv({ cls: "tq-dock-badges" });
 		badges.createSpan({ text: `文字审批 · ${this.permissionLabel()}` });
 		badges.createSpan({
-			text: this.settings.quyuanAsrEngine === "local" ? "本地 Whisper" : "千问 ASR",
+			text: this.settings.quyuanAsrEngine === "local" ? "本地 Sherpa" : "千问 ASR",
 		});
 		badges.createSpan({ text: `模型 · ${this.modelLabel()}` });
 
@@ -356,8 +368,9 @@ export class QuyuanVoicePanel {
 		});
 		this.renderVoiceModeBtn();
 
-		this.engBtn = controlButton("", "cloud", "千问引擎");
-		this.engBtn.addEventListener("click", () => void this.switchEngine());
+		this.engBtn = controlButton("", "cpu", "本地引擎");
+		this.engBtn.disabled = true;
+		this.engBtn.setAttribute("aria-disabled", "true");
 		this.renderEngineBtn();
 
 		const settingsButton = controlButton("", "settings", "设置");
@@ -409,18 +422,23 @@ export class QuyuanVoicePanel {
 			attr: { "aria-live": "assertive" },
 		});
 
-		void this.restoreVoiceSession().finally(() => {
-			void this.driver?.warmup("voice");
+		const driver = this.driver;
+		void this.restoreVoiceSession(lifecycleGeneration).finally(() => {
+			if (
+				lifecycleGeneration === this.lifecycleGeneration &&
+				this.mounted &&
+				this.driver === driver
+			) void driver?.warmup("voice");
 		});
 
 		const recognitionEnabled = this.settings.quyuanVoiceRecognitionEnabled !== false;
 		const continuous =
 			this.voiceMode.snapshot().inputMode === "continuous";
-		this.setState(recognitionEnabled && continuous ? "sleep" : "idle");
-		if (recognitionEnabled && continuous) {
-			void this.setVoiceRecognitionEnabled(true, false);
-		} else if (recognitionEnabled) {
+		this.setState("idle");
+		if (recognitionEnabled && !continuous) {
 			this.renderPushToTalkReady();
+		} else if (recognitionEnabled) {
+			this.renderMicActivationRequired();
 		} else {
 			this.renderVoiceRecognitionOff();
 		}
@@ -436,12 +454,10 @@ export class QuyuanVoicePanel {
 	}
 
 	private permissionLabel(): string {
-		switch (this.settings.jarvisPermissionMode) {
-			case "acceptEdits": return "接受编辑";
-			case "plan": return "计划模式";
-			case "bypassPermissions": return "全权限";
-			default: return "每次询问";
-		}
+		return resolveEffectiveRuntimePolicy({
+			channel: "voice",
+			permissionMode: this.settings.jarvisPermissionMode,
+		}).uiLabel;
 	}
 
 	private openSettings(): void {
@@ -522,9 +538,11 @@ export class QuyuanVoicePanel {
 		}
 		// 先封住可能由 stop() 产生的最终转写，绝不把缓冲自动发送或注入文字会话。
 		this.navigatingToChat = true;
-		this.asr?.stop();
+		++this.responseGeneration;
+		void this.asr?.stop();
 		this.driver?.cancel();
 		this.responseActive = false;
+		this.ttsWasCancelled = true;
 		this.tts?.stop();
 		this.ttsPending = false;
 		this.ttsSpeaking = false;
@@ -534,9 +552,11 @@ export class QuyuanVoicePanel {
 	}
 
 	private stopCurrentWork(): void {
+		++this.responseGeneration;
 		this.voiceMode.bargeIn();
 		this.driver?.cancel();
 		this.responseActive = false;
+		this.ttsWasCancelled = true;
 		this.tts?.stop();
 		this.ttsPending = false;
 		this.ttsSpeaking = false;
@@ -550,6 +570,7 @@ export class QuyuanVoicePanel {
 	private toggleTts(): void {
 		this.ttsEnabled = !this.ttsEnabled;
 		if (!this.ttsEnabled) {
+			this.ttsWasCancelled = true;
 			this.tts?.stop();
 			this.ttsPending = false;
 			this.ttsSpeaking = false;
@@ -575,11 +596,16 @@ export class QuyuanVoicePanel {
 		this.ttsBtn.toggleClass("is-active", this.ttsEnabled);
 	}
 
-	private async restoreVoiceSession(): Promise<void> {
+	private async restoreVoiceSession(
+		lifecycleGeneration: number
+	): Promise<void> {
 		const store = this.voiceSessionStore;
 		if (!store) return;
 		const snapshot = await store.load();
-		if (!this.mounted) return;
+		if (
+			!this.mounted ||
+			lifecycleGeneration !== this.lifecycleGeneration
+		) return;
 		// 历史仅恢复给 voice namespace 的 driver；界面不再创建任何历史 DOM，
 		// 更不会把语音历史注入文字对话。
 		this.driver?.restoreVoiceHistory(store.contextMessages());
@@ -627,7 +653,7 @@ export class QuyuanVoicePanel {
 		this.renderVoiceModeBtn();
 		if (persist) await this.save?.();
 		if (inputMode === "push-to-talk") {
-			this.asr?.stop();
+			void this.asr?.stop();
 			this.renderPushToTalkReady();
 			return;
 		}
@@ -650,10 +676,21 @@ export class QuyuanVoicePanel {
 		if (this.mounted) this.setState(this.asr?.isOn() ? "listen" : "idle");
 	}
 
+	private renderMicActivationRequired(): void {
+		this.rootEl?.setAttribute("data-voice-recognition", "off");
+		this.renderMicBtn(false);
+		this.wakeStatusEl?.setText("点击开启持续监听");
+		this.controlStatusEl?.setText("麦克风等待明确用户操作");
+		if (this.overlayReply) {
+			this.setOverlayMessage("点击「开启语音」后才会申请麦克风权限。");
+		}
+		if (this.mounted) this.setState("idle");
+	}
+
 	private fallbackToPushToTalk(reason: string): void {
 		this.voiceMode.onAsrFailure(reason);
 		this.settings.quyuanVoiceInputMode = "push-to-talk";
-		this.asr?.stop();
+		void this.asr?.stop();
 		this.rootEl?.setAttribute("data-input-mode", "push-to-talk");
 		this.renderVoiceModeBtn();
 		this.renderPushToTalkReady();
@@ -662,31 +699,29 @@ export class QuyuanVoicePanel {
 	}
 
 	private ttsLabel(): string {
-		switch (this.settings.ttsEngine) {
-			case "edgetts": return "Edge TTS";
-			case "aliyun": return "千问 TTS";
-			case "elevenlabs": return "ElevenLabs";
-			default: return "系统语音";
-		}
+		return "系统离线语音";
 	}
 
 	private renderEngineBtn(): void {
 		if (!this.engBtn) return;
-		const local = this.settings.quyuanAsrEngine === "local";
 		this.engBtn.empty();
-		setIcon(this.engBtn.createSpan(), local ? "cpu" : "cloud");
+		setIcon(this.engBtn.createSpan(), "cpu");
 		this.setControlButtonLabel(
 			this.engBtn,
-			local ? "本地引擎" : "千问引擎",
-			local ? "当前本地 Whisper，点击切换识别引擎" : "当前千问云端，点击切换识别引擎"
+			"本地引擎",
+			"当前固定为经审计的本地 ASR；网络识别已禁用"
 		);
-		this.engBtn.setAttribute("aria-pressed", String(local));
+		this.engBtn.setAttribute("aria-pressed", "true");
 	}
 
 	// 识别引擎回调（云端/本地共用）
-	private asrHandlers(): VadMicHandlers {
+	private asrHandlers(lifecycleGeneration: number): VadMicHandlers {
+		const current = (): boolean =>
+			this.mounted &&
+			lifecycleGeneration === this.lifecycleGeneration;
 		return {
 			onListeningChange: (on) => {
+				if (!current()) return;
 				if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
 					this.renderMicBtn(on);
 					this.setState(on ? "listen" : "idle");
@@ -703,11 +738,13 @@ export class QuyuanVoicePanel {
 				}
 			},
 			onLevel: (level) => {
+				if (!current()) return;
 				const visualLevel = this.wakeActive ? level : level * 0.24;
 				this.characterStage?.setInputLevel(visualLevel);
 				this.rootEl?.style.setProperty("--tq-level", visualLevel.toFixed(3));
 			},
 			onState: (s) => {
+				if (!current()) return;
 				if (this.settings.quyuanVoiceRecognitionEnabled === false) return;
 				if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
 					if (s === "transcribing") this.setState("reco");
@@ -722,21 +759,26 @@ export class QuyuanVoicePanel {
 				}
 			},
 			onSpeechStart: () => {
+				if (!current()) return;
 				if (
 					this.wakeActive
 					|| this.voiceMode.snapshot().inputMode === "push-to-talk"
 				) this.onBargeIn();
 			},
 			onText: (text) => {
+				if (!current()) return;
 				if (this.navigatingToChat) return;
 				this.handleVoiceTranscript(text);
 				if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
-					this.asr?.stop();
+					void this.asr?.stop();
 					this.renderPushToTalkReady();
 				}
 			},
-			onPartial: (text) => this.showPartialTranscript(text),
+			onPartial: (text) => {
+				if (current()) this.showPartialTranscript(text);
+			},
 			onError: (msg) => {
+				if (!current()) return;
 				const line = `语音输入：${msg}`;
 				this.controlStatusEl?.setText(line);
 				this.setEmotionBallState("error", 2400);
@@ -749,36 +791,22 @@ export class QuyuanVoicePanel {
 		};
 	}
 
-	private buildAsr(): VadMic {
-		const h = this.asrHandlers();
-		const secretStore = providerSecretStoreFromApp(this.app);
-		return this.settings.quyuanAsrEngine === "local"
-			? new LocalAsr(this.settings, h)
-			: new CloudAsr(
-				this.settings,
-				h,
-				() =>
-					readProviderSecret(
-						this.settings,
-						"aliyunApiKey",
-						secretStore
-					)
-			);
-	}
-
-	// 切换识别引擎（千问云端 ⇄ 本地 Whisper）：持久化 + 重建 + 续听
-	private async switchEngine(): Promise<void> {
-		this.settings.quyuanAsrEngine =
-			this.settings.quyuanAsrEngine === "local" ? "cloud" : "local";
-		await this.save?.();
-		this.renderEngineBtn();
-		const wasOn = this.asr?.isOn() ?? false;
-		this.asr?.dispose();
-		this.asr = this.buildAsr();
-		this.controlStatusEl?.setText(
-			this.settings.quyuanAsrEngine === "local" ? "已切到本地 Whisper（首次需下模型）" : "已切到千问云端"
-		);
-		if (wasOn) void this.asr.start();
+	private buildAsr(
+		lifecycleGeneration = this.lifecycleGeneration
+	): VadMic {
+		const h = this.asrHandlers(lifecycleGeneration);
+		const pluginDir = this.plugin.manifest.dir;
+		const modelPackage = pluginDir
+			? createBundledLocalAsrPackage(async (fileName) => {
+				const assetPath = normalizePath(
+					`${pluginDir}/voice-runtime/${fileName}`
+				);
+				const adapter = this.app.vault.adapter;
+				if (!await adapter.exists(assetPath)) return null;
+				return new Uint8Array(await adapter.readBinary(assetPath));
+			})
+			: null;
+		return new LocalAsr(this.settings, h, modelPackage);
 	}
 
 	private renderMicBtn(listening: boolean): void {
@@ -864,13 +892,20 @@ export class QuyuanVoicePanel {
 	}
 
 	private async setVoiceRecognitionEnabled(enabled: boolean, persist = true): Promise<void> {
+		const lifecycleGeneration = this.lifecycleGeneration;
+		const asr = this.asr;
 		this.settings.quyuanVoiceRecognitionEnabled = enabled;
 		this.rootEl?.setAttribute("data-voice-recognition", enabled ? "on" : "off");
 		if (persist) await this.save?.();
+		if (
+			!this.mounted ||
+			lifecycleGeneration !== this.lifecycleGeneration ||
+			asr !== this.asr
+		) return;
 
 		if (!enabled) {
 			this.deactivateWake();
-			this.asr?.stop();
+			await asr?.stop();
 			this.setState("idle");
 			this.renderVoiceRecognitionOff();
 			return;
@@ -879,8 +914,16 @@ export class QuyuanVoicePanel {
 		this.wakeStatusEl?.setText("正在开启语音识别…");
 		this.controlStatusEl?.setText("正在申请麦克风权限…");
 		try {
-			await this.asr?.start();
-			if (!(this.asr?.isOn() ?? false)) {
+			await asr?.start();
+			if (
+				!this.mounted ||
+				lifecycleGeneration !== this.lifecycleGeneration ||
+				asr !== this.asr
+			) {
+				await asr?.stop();
+				return;
+			}
+			if (!(asr?.isOn() ?? false)) {
 				this.fallbackToPushToTalk("持续监听未能启动");
 			}
 		} catch (error) {
@@ -983,9 +1026,11 @@ export class QuyuanVoicePanel {
 	// 打断（barge-in）：用户在屈原思考/朗读时开口 → 取消在途回复并停朗读
 	private onBargeIn(): void {
 		if (this.state === "think" || this.state === "speak" || this.driver?.isBusy()) {
+			++this.responseGeneration;
 			this.voiceMode.bargeIn();
 			this.responseActive = false;
 			this.driver?.cancel();
+			this.ttsWasCancelled = true;
 			this.tts?.stop();
 			this.ttsPending = false;
 			this.ttsSpeaking = false;
@@ -1023,7 +1068,7 @@ export class QuyuanVoicePanel {
 	private async toggleVoiceRecognitionMode(): Promise<void> {
 		if (this.voiceMode.snapshot().inputMode === "push-to-talk") {
 			if (this.asr?.isOn()) {
-				this.asr.stop();
+				await this.asr.stop();
 				this.renderPushToTalkReady();
 				return;
 			}
@@ -1043,8 +1088,18 @@ export class QuyuanVoicePanel {
 	}
 
 	private commitUser(text: string, channel: InteractionChannel): void {
-		const trimmed = text.trim();
-		if (!trimmed || !this.mounted || this.navigatingToChat) return;
+		const admission = evaluateVoiceTurnAdmission({
+			text,
+			mounted: this.mounted,
+			navigatingToChat: this.navigatingToChat,
+			driverBusy: this.driver?.isBusy() ?? false,
+		});
+		if (!admission.accepted) {
+			if (admission.reason !== "busy") return;
+			this.controlStatusEl?.setText("上一轮仍在处理，当前消息未发送");
+			return;
+		}
+		const trimmed = admission.text;
 		void this.voiceSessionStore?.appendMessage({
 			id: `voice-user-${Date.now()}`,
 			role: "user",
@@ -1170,14 +1225,22 @@ export class QuyuanVoicePanel {
 			this.controlStatusEl?.setText("上一轮仍在处理，可先点击停止");
 			return;
 		}
+		const lifecycleGeneration = this.lifecycleGeneration;
+		const responseGeneration = ++this.responseGeneration;
+		const current = (): boolean =>
+			this.mounted &&
+			!this.navigatingToChat &&
+			lifecycleGeneration === this.lifecycleGeneration &&
+			responseGeneration === this.responseGeneration;
 		this.setState("think");
 		this.responseActive = true;
 		this.syncAsrBusy();
 		this.replyBuffer = "";
 		let started = false;
+		let terminal = false;
 		await this.driver.send({ text: userText, channel }, {
 			onText: (delta) => {
-				if (!this.mounted || this.navigatingToChat) return;
+				if (!current() || terminal) return;
 				if (!started) {
 					started = true;
 					this.setState("speak");
@@ -1185,6 +1248,7 @@ export class QuyuanVoicePanel {
 				this.replyBuffer += delta;
 				this.feedOverlayLine(delta);
 				if (channel === "voice" && this.ttsEnabled) {
+					this.ttsWasCancelled = false;
 					const wasPending = this.ttsPending;
 					this.ttsPending = true;
 					if (!wasPending) this.syncAsrBusy();
@@ -1192,6 +1256,7 @@ export class QuyuanVoicePanel {
 				}
 			},
 			onTool: (event) => {
+				if (!current() || terminal) return;
 				if (event.status === "running" && this.mounted) {
 					this.setEmotionBallState("searching");
 					this.controlStatusEl?.setText(`只读检索 · ${event.name}`);
@@ -1213,6 +1278,8 @@ export class QuyuanVoicePanel {
 				}
 			},
 			onDone: (fullText) => {
+				if (!current() || terminal) return;
+				terminal = true;
 				this.voiceMode.setReplyText(fullText);
 				void this.voiceSessionStore?.appendMessage({
 					id: `voice-assistant-${Date.now()}`,
@@ -1244,8 +1311,10 @@ export class QuyuanVoicePanel {
 				this.controlStatusEl?.setText("查询已完成");
 			},
 			onError: (message) => {
-				if (!this.mounted || this.navigatingToChat) return;
+				if (!current() || terminal) return;
+				terminal = true;
 				this.responseActive = false;
+				this.ttsWasCancelled = true;
 				this.tts?.stop();
 				this.ttsPending = false;
 				this.ttsSpeaking = false;
@@ -1312,6 +1381,8 @@ export class QuyuanVoicePanel {
 
 	// ---------- 卸载 ----------
 	unmount(): void {
+		++this.lifecycleGeneration;
+		++this.responseGeneration;
 		this.mounted = false;
 		if (this.wakeTimer != null) window.clearTimeout(this.wakeTimer);
 		this.wakeTimer = null;
@@ -1319,6 +1390,7 @@ export class QuyuanVoicePanel {
 		this.responseActive = false;
 		this.ttsPending = false;
 		this.ttsSpeaking = false;
+		this.ttsWasCancelled = true;
 		try {
 			this.asr?.dispose();
 		} catch (error) {

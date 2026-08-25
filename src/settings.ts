@@ -89,7 +89,7 @@ export interface TalosSettings {
 	ttsVoice: string; // 指定 speechSynthesis 嗓音名，留空自动
 	ttsRate: number; // 朗读语速 0.5–2
 	ttsPitch: number; // 朗读音调 0–2
-	ttsEngine: string; // system | elevenlabs
+	ttsEngine: string; // 固定 system；旧在线值仅用于迁移后收紧
 	elevenLabsApiKey: string;
 	elevenLabsVoiceId: string; // 默认 Daniel（英音男声，屈原气质）
 	elevenLabsModel: string; // eleven_turbo_v2_5 | eleven_multilingual_v2
@@ -115,16 +115,17 @@ export interface TalosSettings {
 	harnessPort: number; // dsh web 仅监听 127.0.0.1，默认 3180
 	harnessSurface: string; // D-TLP-015 对话页通道：dsh（默认）| codex，由切换块写入
 	jarvisPermissionMode: string; // default | acceptEdits | plan | bypassPermissions
-	jarvisSttEngine: string; // webspeech | aliyun | off（语音转写）
+	jarvisSttEngine: string; // 固定 off；旧 WebSpeech 入口失败关闭
 	jarvisSttApiKey: string; // STT API key（阿里云 Paraformer 等）
 	jarvisSttLang: string; // 识别语言，如 zh-CN
-	quyuanAsrEngine: string; // 屈原语音页识别引擎：cloud（千问）| local（本地 Whisper）
-	quyuanLocalAsrModel: string; // 本地 Whisper 模型（transformers.js），留空用默认
-	quyuanLocalAsrCdn: string; // transformers.js CDN ESM 地址，留空用默认
+	quyuanAsrEngine: string; // 固定 local；缺少经审计资产时失败关闭
+	quyuanLocalAsrNetworkConsent: boolean; // 首次获取固定、校验后 ASR 模型的明确联网同意
+	quyuanLocalAsrModel: string; // 遗留字段：自定义模型已禁用，仅兼容旧 data.json
+	quyuanLocalAsrCdn: string; // 遗留字段：远程 JavaScript 已禁用，仅兼容旧 data.json
 	quyuanVadEnabled: boolean; // 用 Silero VAD 判断人声；关闭或加载失败则回退响度阈值
-	quyuanVadNetworkConsent: boolean; // 仅由新版设置显式开启；旧数据不得自动触发外部运行时/模型下载
-	quyuanVadCdn: string; // onnxruntime-web dist 目录地址，留空用默认
-	quyuanVadModel: string; // Silero VAD ONNX 权重地址，留空用默认
+	quyuanVadNetworkConsent: boolean; // 首次获取固定、校验后 VAD 模型的明确联网同意
+	quyuanVadCdn: string; // 遗留字段：远程 JavaScript 已禁用，仅兼容旧 data.json
+	quyuanVadModel: string; // 遗留字段：自定义模型已禁用，仅兼容旧 data.json
 	quyuanVoiceModel: string; // Claude 语音通道独立模型，不影响文字工作台
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
@@ -175,7 +176,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	agentCommand: "",
 	openOnStartup: true,
 	claudianCommandId: "claudian:open-view",
-	voiceAgentCommand: "claude -p",
+	voiceAgentCommand: "",
 	voicePermission: "off",
 	voicePersona: "",
 	voiceLang: "zh-CN",
@@ -206,10 +207,11 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	harnessPort: DEFAULT_DSH_PORT,
 	harnessSurface: "dsh",
 	jarvisPermissionMode: "default",
-	jarvisSttEngine: "webspeech",
+	jarvisSttEngine: "off",
 	jarvisSttApiKey: "",
 	jarvisSttLang: "zh-CN",
-	quyuanAsrEngine: "cloud",
+	quyuanAsrEngine: "local",
+	quyuanLocalAsrNetworkConsent: false,
 	quyuanLocalAsrModel: "",
 	quyuanLocalAsrCdn: "",
 	quyuanVadEnabled: false,
@@ -958,19 +960,9 @@ export class TalosSettingTab extends PluginSettingTab {
 					})
 			);
 		new Setting(c)
-			.setName("默认权限模式")
-			.setDesc("default=每次工具调用都弹卡片审批（最稳）；acceptEdits=自动接受文件编辑；plan=只读规划不落地；bypass=全放开（危险）。面板内可随时切换。")
-			.addDropdown((d) =>
-				d
-					.addOption("default", "每次询问（推荐）")
-					.addOption("acceptEdits", "自动接受编辑")
-					.addOption("plan", "计划模式（只读）")
-					.addOption("bypassPermissions", "全放开（危险）")
-					.setValue(this.plugin.talosSettings.jarvisPermissionMode)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.jarvisPermissionMode = v;
-						await this.plugin.saveTalosSettings();
-					})
+			.setName("实际权限策略")
+			.setDesc(
+				"AI 对话只提供 Safe 与 Plan：写入和命令仍经过 A/B/C 治理；语音固定只读、禁命令、禁网络。旧权限值仅为数据兼容保留，不能放宽实际运行策略。"
 			);
 		new Setting(c)
 			.setName("Deep Research 命令")
@@ -1088,102 +1080,59 @@ export class TalosSettingTab extends PluginSettingTab {
 		new Setting(c).setName("TTS 引擎").setHeading();
 		new Setting(c)
 			.setName("语音引擎")
-			.setDesc("系统语音离线免费；Edge 微软为免费中文神经语音（晓晓等，需联网、无 key）；阿里云千问中文最佳（需 key·有免费额度）；ElevenLabs 英音需付费。")
-			.addDropdown((d) =>
-				d
-					.addOption("system", "系统语音（免费·离线）")
-					.addOption("edgetts", "Edge 微软·中文免费（联网·无 key）")
-					.addOption("aliyun", "阿里云千问·中文最佳（需 key·有免费额度）")
-					.addOption("elevenlabs", "ElevenLabs（英音·需付费）")
-					.setValue(this.plugin.talosSettings.ttsEngine)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.ttsEngine = v;
-						await this.plugin.saveTalosSettings();
-					})
-			);
-		this.textIn(c, "Edge 朗读音色", "免费中文音色，默认 zh-CN-XiaoxiaoNeural（晓晓·女声）。可填 zh-CN-YunxiNeural（云希·男声）、zh-CN-YunyangNeural（云扬·播报）、zh-HK-HiuMaanNeural（粤语）等。", "edgeTtsVoice");
-		this.secretIn(
-			c,
-			"ElevenLabs API Key",
-			"elevenlabs.io 注册后在 Profile 获取。",
-			"elevenLabsApiKey"
-		);
-		this.textIn(c, "ElevenLabs 嗓音 ID", "默认 Daniel（英音男声）。换音色去 ElevenLabs Voices 复制 Voice ID。", "elevenLabsVoiceId");
-		new Setting(c)
-			.setName("ElevenLabs 模型")
-			.setDesc("turbo 更快更省额度；multilingual 质量更高。两者都支持中英文。")
-			.addDropdown((d) =>
-				d
-					.addOption("eleven_turbo_v2_5", "Turbo v2.5（快·省）")
-					.addOption("eleven_multilingual_v2", "Multilingual v2（质量高）")
-					.setValue(this.plugin.talosSettings.elevenLabsModel)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.elevenLabsModel = v;
-						await this.plugin.saveTalosSettings();
-					})
-			);
-		this.secretIn(
-			c,
-			"阿里云 API Key",
-			"阿里云百炼（DashScope）API Key。",
-			"aliyunApiKey"
-		);
-		this.textIn(c, "阿里云音色", "默认 Andre（磁性沉稳男声·屈原感）。备选：Neil(新闻主播)、Eldric Sage(睿智老者)、Cherry(女)。", "aliyunVoice");
-		this.textIn(c, "阿里云模型", "默认 qwen3-tts-flash（快·省·支持中英）。", "aliyunModel");
+			.setDesc("安全策略固定使用系统离线语音；历史 Edge、阿里云和 ElevenLabs 设置不会发起网络请求。")
+			.addDropdown((d) => {
+				d.addOption("system", "系统语音（离线·固定）").setValue("system");
+				d.selectEl.disabled = true;
+			});
 		this.textIn(c, "Live2D 模型路径", "库内 *.model3.json 路径，留空用 SVG 角色（详见插件 _README）。", "live2dModelPath");
 
 		new Setting(c).setName("语音识别（STT）").setHeading();
 		new Setting(c)
 			.setName("语音识别引擎")
-			.setDesc("WebSpeech 为 Obsidian 内置 Chromium 原生识别，免 key（联网走 Google）。关闭则只打字。")
-			.addDropdown((d) =>
-				d
-					.addOption("webspeech", "WebSpeech（免费·推荐）")
-					.addOption("off", "关闭（只打字）")
-					.setValue(this.plugin.talosSettings.jarvisSttEngine)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.jarvisSttEngine = v;
-						await this.plugin.saveTalosSettings();
-					})
-			);
+			.setDesc("旧 WebSpeech 网络识别已禁用；语音页只使用经审计的本地 ASR。")
+			.addDropdown((d) => {
+				d.addOption("off", "WebSpeech 已禁用").setValue("off");
+				d.selectEl.disabled = true;
+			});
 		this.textIn(c, "识别语言", "麦克风识别语言，如 zh-CN / en-US。", "jarvisSttLang", "zh-CN");
+		new Setting(c)
+			.setName("允许首次获取固定本地 ASR 模型")
+			.setDesc(
+				"当前安全构建禁用运行时下载。只接受构建期静态提供且已核对版本、SHA-256 与 NOTICE 的离线资产。"
+			)
+			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
 
 		new Setting(c).setName("屈原 · 语音断句（VAD）").setHeading();
 		new Setting(c)
 			.setName("用 Silero VAD 判断人声")
 			.setDesc(
-				"默认关闭。启用后会在首次使用时从所配置 CDN 下载并执行 onnxruntime-web 与约 2.3 MB 模型；仅在允许联网并信任来源时启用。失败会自动回退响度判定。"
+				"默认关闭。只使用随构建静态提供的本地运行时；模型缺失、校验失败或未获联网同意时回退响度判定。"
 			)
 			.addToggle((t) =>
-				t.setValue(
-					this.plugin.talosSettings.quyuanVadEnabled &&
-						this.plugin.talosSettings.quyuanVadNetworkConsent
-				).onChange(async (v) => {
+				t.setValue(this.plugin.talosSettings.quyuanVadEnabled).onChange(async (v) => {
 					this.plugin.talosSettings.quyuanVadEnabled = v;
-					this.plugin.talosSettings.quyuanVadNetworkConsent = v;
 					await this.plugin.saveTalosSettings();
 				})
 			);
-		this.textIn(c, "VAD 运行时 CDN", "onnxruntime-web dist 目录（结尾带斜杠），留空用默认。", "quyuanVadCdn");
-		this.textIn(c, "VAD 模型地址", "Silero VAD v5 的 .onnx 地址，留空用默认。", "quyuanVadModel");
+		new Setting(c)
+			.setName("允许首次获取固定 VAD 模型")
+			.setDesc(
+				"当前安全构建禁用运行时下载；缺少静态 VAD 资产时自动使用本地 RMS 判定。"
+			)
+			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
 
 		new Setting(c).setName("旧·语音助手（存档）").setHeading();
-		this.textIn(c, "语音大脑命令", "旧 voice.ts 用，已被 Agentic 取代。对话调用的 CLI，cwd 为库根。", "voiceAgentCommand", "claude -p");
+		new Setting(c)
+			.setName("旧语音命令")
+			.setDesc("已停用并清空；语音通道不会启动 shell 或旧 CLI。");
 		new Setting(c)
 			.setName("工具权限（旧）")
-			.setDesc("旧 voice.ts 用。默认「不加」：用你库自己的 .claude/settings.json 权限。")
-			.addDropdown((d) =>
-				d
-					.addOption("off", "不加·用库自己的配置（推荐）")
-					.addOption("readonly", "只读+搜索（注入标志）")
-					.addOption("acceptEdits", "接受编辑（可改文件）")
-					.addOption("all", "完全放开（含 bash，危险）")
-					.setValue(this.plugin.talosSettings.voicePermission)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.voicePermission = v;
-						await this.plugin.saveTalosSettings();
-					})
-			);
+			.setDesc("旧入口已停用；语音通道固定只读、无 shell、无网络。")
+			.addDropdown((d) => {
+				d.addOption("off", "已停用（固定）").setValue("off");
+				d.selectEl.disabled = true;
+			});
 	}
 
 	private populateVoices(d: DropdownComponent): void {

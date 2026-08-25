@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
 	VoiceSessionStore,
 	type VoiceSessionPersistence,
+	type VoiceSessionSnapshot,
 } from "../src/quyuan/voice-session-store";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -134,6 +135,52 @@ describe("VoiceSessionStore", () => {
 			transcriptDraft: "尚未发送的字幕",
 			messages: [{ id: "voice-1", text: "继续上一次语音任务" }],
 		});
+	});
+
+	it("serializes snapshot writes so an older slow write cannot overwrite a newer state", async () => {
+		const writes: string[] = [];
+		let activeWrites = 0;
+		let maxActiveWrites = 0;
+		let releaseFirst: (() => void) | null = null;
+		const firstBlocked = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const store = new VoiceSessionStore({
+			read: () => "",
+			write: async (value) => {
+				activeWrites += 1;
+				maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+				writes.push(value);
+				if (writes.length === 1) await firstBlocked;
+				activeWrites -= 1;
+			},
+		});
+
+		const first = store.appendMessage({
+			id: "first",
+			role: "user",
+			text: "first",
+			modality: "speech",
+			createdAt: 1,
+		});
+		await Promise.resolve();
+		const second = store.appendMessage({
+			id: "second",
+			role: "assistant",
+			text: "second",
+			modality: "speech",
+			createdAt: 2,
+		});
+		await Promise.resolve();
+
+		expect(writes).toHaveLength(1);
+		expect(maxActiveWrites).toBe(1);
+		releaseFirst?.();
+		await Promise.all([first, second]);
+		expect(writes).toHaveLength(2);
+		expect(maxActiveWrites).toBe(1);
+		const persisted = JSON.parse(writes[1] ?? "{}") as VoiceSessionSnapshot;
+		expect(persisted.messages.map((message) => message.id)).toEqual(["first", "second"]);
 	});
 
 	it("migrates only explicitly namespaced legacy voice data", async () => {

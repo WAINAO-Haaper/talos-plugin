@@ -151,6 +151,7 @@ function isVoiceEnvelope(raw: string): boolean {
 export class VoiceSessionStore {
 	readonly namespace = VOICE_SESSION_NAMESPACE;
 	private state: VoiceSessionSnapshot;
+	private writeTail: Promise<void> = Promise.resolve();
 
 	constructor(
 		private readonly persistence: VoiceSessionPersistence,
@@ -160,6 +161,7 @@ export class VoiceSessionStore {
 	}
 
 	async load(): Promise<VoiceSessionSnapshot> {
+		await this.writeTail;
 		const current = await this.persistence.read();
 		if (current.trim()) {
 			this.state = parseSnapshot(current, this.now());
@@ -225,6 +227,12 @@ export class VoiceSessionStore {
 
 	private async persist(): Promise<void> {
 		this.state.updatedAt = this.now();
-		await this.persistence.write(JSON.stringify(this.state));
+		const payload = JSON.stringify(this.state);
+		const write = async (): Promise<void> => {
+			await this.persistence.write(payload);
+		};
+		const task = this.writeTail.then(write, write);
+		this.writeTail = task.catch(() => {});
+		await task;
 	}
 }

@@ -5,6 +5,11 @@ import type {
 } from '../../../core/runtime/types';
 import type { ApprovalDecision } from '../../../core/types';
 import { normalizeCodexToolName } from '../normalization/codexToolNormalization';
+import {
+  type EffectiveRuntimePolicy,
+  evaluateRuntimeToolBoundary,
+  resolveEffectiveRuntimePolicy,
+} from '../../../../runtime-policy';
 import type {
   CommandApprovalRequest,
   CommandExecutionApprovalDecision,
@@ -21,14 +26,28 @@ import type {
 
 export class CodexServerRequestRouter {
   private approvalCallback: ApprovalCallback | null = null;
+  private runtimePolicy = resolveEffectiveRuntimePolicy({
+    channel: 'chat',
+    permissionMode: 'normal',
+  });
   private askUserCallback: AskUserQuestionCallback | null = null;
   private pendingApprovalRequests = new Map<RequestId, string>();
+  private fileChangeInputs = new Map<string, Record<string, unknown>>();
   private askUserAbortController: AbortController | null = null;
   private pendingAskUserRequestId: RequestId | null = null;
   private pendingAskUserThreadId: string | null = null;
 
   setApprovalCallback(callback: ApprovalCallback | null): void {
     this.approvalCallback = callback;
+  }
+
+  setRuntimePolicy(policy: EffectiveRuntimePolicy): void {
+    this.runtimePolicy = policy;
+    this.fileChangeInputs.clear();
+  }
+
+  rememberFileChangeInput(itemId: string, input: Record<string, unknown>): void {
+    this.fileChangeInputs.set(itemId, input);
   }
 
   setAskUserCallback(callback: AskUserQuestionCallback | null): void {
@@ -73,6 +92,16 @@ export class CodexServerRequestRouter {
   ): Promise<CommandExecutionApprovalResponse> {
     if (!this.approvalCallback) return { decision: 'decline' };
 
+    if (evaluateRuntimeToolBoundary(this.runtimePolicy, 'Bash') === 'deny') {
+      return { decision: 'decline' };
+    }
+    if (
+      params.additionalPermissions
+      || params.networkApprovalContext
+      || (params.proposedNetworkPolicyAmendments?.length ?? 0) > 0
+    ) {
+      return { decision: 'decline' };
+    }
     const command = params.command ?? '';
     const toolName = normalizeCodexToolName('command_execution');
     const input = {
@@ -114,9 +143,16 @@ export class CodexServerRequestRouter {
   ): Promise<FileChangeApprovalResponse> {
     if (!this.approvalCallback) return { decision: 'decline' };
 
+    if (evaluateRuntimeToolBoundary(this.runtimePolicy, 'apply_patch') === 'deny') {
+      return { decision: 'decline' };
+    }
     const reason = params.reason ?? undefined;
     const toolName = normalizeCodexToolName('file_change');
-    const input: Record<string, unknown> = { reason: reason ?? null };
+    const observedInput = this.fileChangeInputs.get(params.itemId);
+    const input: Record<string, unknown> = {
+      ...observedInput,
+      reason: reason ?? null,
+    };
     const description = reason ? `File change: ${reason}` : 'File change';
 
     if (requestId !== undefined) {
@@ -127,6 +163,7 @@ export class CodexServerRequestRouter {
       const decision = await this.approvalCallback(toolName, input, description, {});
       return { decision: mapFileChangeApprovalDecision(decision) };
     } finally {
+      this.fileChangeInputs.delete(params.itemId);
       if (requestId !== undefined) {
         this.pendingApprovalRequests.delete(requestId);
       }
@@ -139,6 +176,9 @@ export class CodexServerRequestRouter {
   ): Promise<PermissionsApprovalResponse> {
     if (!this.approvalCallback) return { permissions: {}, scope: 'turn' };
 
+    if (evaluateRuntimeToolBoundary(this.runtimePolicy, 'permissions') === 'deny') {
+      return { permissions: {}, scope: 'turn' };
+    }
     const requestedPermissions = params.permissions as Record<string, unknown> | undefined ?? {};
     const reason = params.reason ?? undefined;
     const toolName = 'permissions';
@@ -235,7 +275,13 @@ function buildCommandApprovalDecisionOptions(
 ): ApprovalDecisionOption[] {
   const availableDecisions = params.availableDecisions ?? ['accept', 'acceptForSession', 'decline'];
 
-  return availableDecisions.map((decision) => mapDecisionOption(decision, params));
+  return availableDecisions
+    .filter((decision) => (
+      decision === 'accept'
+      || decision === 'decline'
+      || decision === 'cancel'
+    ))
+    .map((decision) => mapDecisionOption(decision, params));
 }
 
 function mapDecisionOption(
@@ -287,18 +333,12 @@ function mapCommandApprovalDecision(decision: ApprovalDecision): CommandExecutio
     case 'allow':
       return 'accept';
     case 'allow-always':
-      return 'acceptForSession';
+      return 'accept';
     case 'deny':
       return 'decline';
     case 'cancel':
       return 'cancel';
     default:
-      if (typeof decision === 'object' && decision !== null && decision.type === 'select-option') {
-        const decoded = decodeCommandApprovalDecision(decision.value);
-        if (decoded) {
-          return decoded;
-        }
-      }
       return 'decline';
   }
 }
@@ -308,7 +348,7 @@ function mapFileChangeApprovalDecision(decision: ApprovalDecision): FileChangeAp
     case 'allow':
       return 'accept';
     case 'allow-always':
-      return 'acceptForSession';
+      return 'accept';
     case 'deny':
       return 'decline';
     case 'cancel':
@@ -320,12 +360,4 @@ function mapFileChangeApprovalDecision(decision: ApprovalDecision): FileChangeAp
 
 function encodeCommandApprovalDecision(decision: CommandExecutionApprovalDecision): string {
   return JSON.stringify(decision);
-}
-
-function decodeCommandApprovalDecision(value: string): CommandExecutionApprovalDecision | null {
-  try {
-    return JSON.parse(value) as CommandExecutionApprovalDecision;
-  } catch {
-    return null;
-  }
 }

@@ -33,6 +33,10 @@ import type {
 
 type ChunkEmitter = (chunk: StreamChunk) => void;
 type TurnMetadataListener = (update: Partial<ChatTurnMetadata>) => void;
+type FileChangeInputListener = (
+  itemId: string,
+  input: Record<string, unknown>,
+) => void;
 
 interface RawToolResult {
   content: string;
@@ -68,6 +72,7 @@ export class CodexNotificationRouter {
   constructor(
     private readonly emit: ChunkEmitter,
     private readonly onTurnMetadata?: TurnMetadataListener,
+    private readonly onFileChangeInput?: FileChangeInputListener,
   ) {}
 
   private resetAssistantTextTracking(): void {
@@ -510,12 +515,10 @@ export class CodexNotificationRouter {
   // -- commandExecution -------------------------------------------------------
 
   private emitToolUseFromCommand(item: CommandExecutionItem): void {
-    const rawAction = item.commandActions?.[0]?.command ?? item.command;
-    const normalizedName = normalizeCodexToolName('command_execution');
-    const input = normalizeCodexToolInput('command_execution', { command: rawAction });
+    const { name, input } = normalizeCommandToolUse(item);
 
     this.resetAssistantSegmentText();
-    this.emit({ type: 'tool_use', id: item.id, name: normalizedName, input });
+    this.emit({ type: 'tool_use', id: item.id, name, input });
   }
 
   private emitToolResultFromCommand(item: CommandExecutionItem, rawResult?: RawToolResult): void {
@@ -591,6 +594,7 @@ export class CodexNotificationRouter {
     const previous = this.fileChangeInputsById.get(itemId);
     const merged = mergeApplyPatchInputs(previous, input);
     this.fileChangeInputsById.set(itemId, merged);
+    this.onFileChangeInput?.(itemId, merged);
     return merged;
   }
 
@@ -816,6 +820,49 @@ export class CodexNotificationRouter {
     if (params.willRetry) return;
     this.emit({ type: 'error', content: params.error.message });
   }
+}
+
+function normalizeCommandToolUse(item: CommandExecutionItem): {
+  name: string;
+  input: Record<string, unknown>;
+} {
+  const actions = item.commandActions ?? [];
+  const readTypes = new Set(['read', 'listFiles', 'search']);
+  const paths = actions
+    .map((action) => typeof action.path === 'string' ? action.path.trim() : '')
+    .filter(Boolean);
+  if (
+    actions.length === 0
+    || actions.some((action) => !readTypes.has(action.type))
+    || paths.length !== actions.length
+  ) {
+    const rawAction = actions[0]?.command ?? item.command;
+    return {
+      name: normalizeCodexToolName('command_execution'),
+      input: normalizeCodexToolInput('command_execution', { command: rawAction }),
+    };
+  }
+
+  const uniquePaths = [...new Set(paths)];
+  const type = actions.every((action) => action.type === actions[0]?.type)
+    ? actions[0]?.type
+    : 'mixed';
+  const name = type === 'read'
+    ? 'Read'
+    : type === 'listFiles'
+      ? 'Glob'
+      : type === 'search'
+        ? 'Grep'
+        : 'Search';
+  const input: Record<string, unknown> = {
+    command: item.command,
+    ...(uniquePaths.length === 1
+      ? { [name === 'Read' ? 'file_path' : 'path']: uniquePaths[0] }
+      : { paths: uniquePaths }),
+  };
+  const query = actions.find((action) => action.query)?.query;
+  if (query) input.query = query;
+  return { name, input };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

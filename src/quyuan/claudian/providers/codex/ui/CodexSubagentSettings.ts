@@ -4,7 +4,10 @@ import { Modal, Notice, setIcon, Setting } from 'obsidian';
 import { confirmDelete } from '../../../shared/modals/ConfirmModal';
 import type { CodexSubagentStorage } from '../storage/CodexSubagentStorage';
 import { DEFAULT_CODEX_PRIMARY_MODEL } from '../types/models';
-import type { CodexSubagentDefinition } from '../types/subagent';
+import {
+  normalizeCodexSubagentSandboxMode,
+  type CodexSubagentDefinition,
+} from '../types/subagent';
 
 const REASONING_EFFORT_OPTIONS = [
   { value: '', label: 'Inherit' },
@@ -17,8 +20,6 @@ const REASONING_EFFORT_OPTIONS = [
 const SANDBOX_MODE_OPTIONS = [
   { value: '', label: 'Inherit' },
   { value: 'read-only', label: 'Read only' },
-  { value: 'danger-full-access', label: 'Danger full access' },
-  { value: 'workspace-write', label: 'Workspace write' },
 ] as const;
 
 const MAX_NAME_LENGTH = 64;
@@ -77,7 +78,7 @@ class CodexSubagentModal extends Modal {
     this.allAgents = allAgents;
     this.onSave = onSave;
     this._reasoningEffort = existing?.modelReasoningEffort ?? '';
-    this._sandboxMode = existing?.sandboxMode ?? '';
+    this._sandboxMode = normalizeCodexSubagentSandboxMode(existing?.sandboxMode) ?? '';
   }
 
   getTestInputs() {
@@ -88,7 +89,9 @@ class CodexSubagentModal extends Modal {
       nicknamesInput: this._nicknamesInput,
       modelInput: this._modelInput,
       setReasoningEffort: (v: string) => { this._reasoningEffort = v; },
-      setSandboxMode: (v: string) => { this._sandboxMode = v; },
+      setSandboxMode: (v: string) => {
+        this._sandboxMode = normalizeCodexSubagentSandboxMode(v) ?? '';
+      },
       triggerSave: this._triggerSave,
     };
   }
@@ -154,7 +157,7 @@ class CodexSubagentModal extends Modal {
 
     new Setting(details)
       .setName('Sandbox mode')
-      .setDesc('Sandbox restriction for this agent')
+      .setDesc('Inherit the active TALOS profile or tighten this agent to read only')
       .addDropdown(dropdown => {
         for (const opt of SANDBOX_MODE_OPTIONS) {
           dropdown.addOption(opt.value, opt.label);
@@ -233,7 +236,7 @@ class CodexSubagentModal extends Modal {
         nicknameCandidates: nicknameCandidates.length > 0 ? nicknameCandidates : undefined,
         model: this._modelInput.value.trim() || undefined,
         modelReasoningEffort: this._reasoningEffort || undefined,
-        sandboxMode: this._sandboxMode || undefined,
+        sandboxMode: normalizeCodexSubagentSandboxMode(this._sandboxMode),
         persistenceKey: this.existing?.persistenceKey,
         extraFields: this.existing?.extraFields,
       };

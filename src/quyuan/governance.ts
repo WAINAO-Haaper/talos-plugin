@@ -1,3 +1,4 @@
+import { inspectToolTargetPaths } from "../ai/context/tool-path-policy";
 export type QuyuanGovernanceDecision = "allow" | "ask" | "deny";
 
 export interface QuyuanToolRequest {
@@ -6,6 +7,7 @@ export interface QuyuanToolRequest {
 	readPaths: ReadonlySet<string>;
 	approvalGranted?: boolean;
 	approvedWorkflow?: "digest" | "identity-change" | "persona-change";
+	configDir?: string;
 }
 
 export interface QuyuanGovernanceResult {
@@ -15,35 +17,23 @@ export interface QuyuanGovernanceResult {
 }
 
 const MUTATION_TOOLS = new Set([
-	"Write",
-	"Edit",
-	"MultiEdit",
-	"NotebookEdit",
-	"ApplyPatch",
+	"write",
+	"edit",
+	"multiedit",
+	"notebookedit",
+	"applypatch",
 	"apply_patch",
-	"Delete",
-	"Move",
-	"Bash",
+	"delete",
+	"move",
+	"bash",
 	"inline-edit",
 ]);
 
-const DESTRUCTIVE_TOOLS = new Set(["Delete", "Move", "Bash"]);
-
-function stringValue(value: unknown): string {
-	return typeof value === "string" ? value : "";
-}
+const DESTRUCTIVE_TOOLS = new Set(["delete", "move", "bash"]);
+const READ_ONLY_TOOLS = new Set(["read", "glob", "grep", "search"]);
 
 function normalizeVaultPath(value: string): string {
 	return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
-}
-
-function targetPath(input: Record<string, unknown>): string {
-	const raw =
-		stringValue(input.file_path) ||
-		stringValue(input.path) ||
-		stringValue(input.target_path) ||
-		stringValue(input.notebook_path);
-	return normalizeVaultPath(raw);
 }
 
 function nearestReadme(path: string): string {
@@ -63,11 +53,33 @@ function hasRead(readPaths: ReadonlySet<string>, path: string): boolean {
 export function evaluateQuyuanGovernance(
 	request: QuyuanToolRequest
 ): QuyuanGovernanceResult {
-	if (!MUTATION_TOOLS.has(request.toolName)) {
-		return { decision: "allow", reason: "只读操作", requiredReads: [] };
+	const normalizedTool = request.toolName.trim().toLowerCase();
+	const pathInspection = inspectToolTargetPaths(
+		request.toolName,
+		request.input,
+		{ configDir: request.configDir }
+	);
+	if (pathInspection.blocked) {
+		return {
+			decision: "deny",
+			reason: pathInspection.reasons.includes("unclassified-path")
+				? "操作缺少可验证的目标路径"
+				: "目标路径属于永久禁区",
+			requiredReads: [],
+		};
 	}
 
-	if (DESTRUCTIVE_TOOLS.has(request.toolName) && !request.approvalGranted) {
+	if (!MUTATION_TOOLS.has(normalizedTool)) {
+		return READ_ONLY_TOOLS.has(normalizedTool)
+			? { decision: "allow", reason: "只读操作", requiredReads: [] }
+			: {
+				decision: "ask",
+				reason: "未分类工具必须显式审批",
+				requiredReads: [],
+			};
+	}
+
+	if (DESTRUCTIVE_TOOLS.has(normalizedTool) && !request.approvalGranted) {
 		return {
 			decision: "ask",
 			reason: "删除、移动或 Bash 属于高风险操作，必须显式审批",
@@ -75,8 +87,8 @@ export function evaluateQuyuanGovernance(
 		};
 	}
 
-	const path = targetPath(request.input);
-	if (!path && request.toolName !== "Bash") {
+	const paths = pathInspection.paths.map(normalizeVaultPath);
+	if (paths.length === 0 && normalizedTool !== "bash") {
 		return {
 			decision: "deny",
 			reason: "写操作缺少可验证的目标路径",
@@ -84,7 +96,8 @@ export function evaluateQuyuanGovernance(
 		};
 	}
 
-	if (path === "Identity/PROFILE.md") {
+	const lowerPaths = paths.map((path) => path.toLowerCase());
+	if (lowerPaths.includes("identity/profile.md")) {
 		const digestApproved =
 			request.approvedWorkflow === "digest" && request.approvalGranted === true;
 		if (!digestApproved) {
@@ -99,7 +112,10 @@ export function evaluateQuyuanGovernance(
 		}
 	}
 
-	if (path.startsWith("Identity/") && request.approvedWorkflow !== "identity-change") {
+	if (
+		lowerPaths.some((path) => path.startsWith("identity/")) &&
+		request.approvedWorkflow !== "identity-change"
+	) {
 		return {
 			decision: "deny",
 			reason: "Identity 变更必须先进入 B 类审批流程",
@@ -107,7 +123,10 @@ export function evaluateQuyuanGovernance(
 		};
 	}
 
-	if (path.startsWith("灵魂/") && request.approvedWorkflow !== "persona-change") {
+	if (
+		lowerPaths.some((path) => path.startsWith("灵魂/")) &&
+		request.approvedWorkflow !== "persona-change"
+	) {
 		return {
 			decision: "deny",
 			reason: "PERSONA/persona-memory 变更必须先进入 B 类审批流程",
@@ -115,15 +134,20 @@ export function evaluateQuyuanGovernance(
 		};
 	}
 
-	if (path.endsWith(".md")) {
-		const readme = nearestReadme(path);
-		if (!hasRead(request.readPaths, readme)) {
+	const requiredReads = [
+		...new Set(
+			paths
+				.filter((path) => path.toLowerCase().endsWith(".md"))
+				.map(nearestReadme)
+				.filter((readme) => !hasRead(request.readPaths, readme))
+		),
+	];
+	if (requiredReads.length > 0) {
 			return {
 				decision: "deny",
-				reason: `改内容前必须读取目标目录 ${readme}`,
-				requiredReads: [readme],
+				reason: `改内容前必须读取目标目录 ${requiredReads.join("、")}`,
+				requiredReads,
 			};
-		}
 	}
 
 	return {

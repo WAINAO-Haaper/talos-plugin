@@ -31,6 +31,13 @@ const VAD_QUEUE_MAX = 12;
 // 流式转写：短于此不值得跑；两次之间至少要新增这么多音频
 const PARTIAL_MIN_MS = 1200;
 const PARTIAL_INTERVAL_MS = 700;
+const MEDIA_ACQUIRE_TIMEOUT_MS = 15000;
+
+export type VadMicLifecycleState =
+	| "idle"
+	| "starting"
+	| "listening"
+	| "stopping";
 
 export interface VadMicHandlers {
 	onListeningChange: (on: boolean) => void;
@@ -41,6 +48,11 @@ export interface VadMicHandlers {
 	/** 流式转写的中途结果，仅供字幕展示：不定案、不唤醒、不发送 */
 	onPartial?: (text: string) => void;
 	onError: (message: string) => void;
+}
+
+export interface VadTranscriptionContext {
+	streamId: string;
+	phase: "partial" | "final";
 }
 
 const PCM_WORKLET_SRC = `
@@ -63,6 +75,10 @@ export abstract class VadMic {
 	private node: AudioWorkletNode | null = null;
 	private source: MediaStreamAudioSourceNode | null = null;
 	private on = false;
+	private lifecycleState: VadMicLifecycleState = "idle";
+	private lifecycleGeneration = 0;
+	private startPromise: Promise<void> | null = null;
+	private stopPromise: Promise<void> | null = null;
 	protected sampleRate = 16000;
 
 	private frameMs = 8;
@@ -75,6 +91,7 @@ export abstract class VadMic {
 	private turn: VadTurnMachine;
 	// Silero VAD：就绪前与失败后一律走原响度判定，链路永不中断
 	private silero: SileroVad | null = null;
+	private sileroLoading: Promise<void> | null = null;
 	private sileroReady = false;
 	private sileroFailed = false;
 	private sileroNotified = false;
@@ -85,6 +102,7 @@ export abstract class VadMic {
 	private speechProb = 0;
 	// 流式转写（仅本地引擎）：中途结果只喂字幕，定案仍以最终整段结果为准
 	private partialInFlight = false;
+	private partialRequestGeneration = 0;
 	private partialTurn = -1;
 	private partialMarkMs = 0;
 	private lastPartial: { turnId: number; samples: number; text: string } | null = null;
@@ -99,9 +117,13 @@ export abstract class VadMic {
 	}
 
 	// 子类：开始前的就绪检查（返回错误文案或 null）
-	protected abstract preflight(): string | null;
+	protected abstract preflight(): string | null | Promise<string | null>;
 	// 子类：把一段 16k 单声道 Float32 转成文字
-	protected abstract transcribe(samples: Float32Array, sampleRate: number): Promise<string>;
+	protected abstract transcribe(
+		samples: Float32Array,
+		sampleRate: number,
+		context: VadTranscriptionContext
+	): Promise<string>;
 	/**
 	 * 子类：是否支持边说边转写。默认 false。
 	 * 云端引擎必须保持 false——按次计费 + 每次都要上传一段真实环境录音，
@@ -111,32 +133,69 @@ export abstract class VadMic {
 		return false;
 	}
 
+	/** 流式引擎需要 final flush；非流式引擎可复用完全相同的 partial。 */
+	protected requiresFinalTranscription(): boolean {
+		return false;
+	}
+
 	isOn(): boolean {
-		return this.on;
+		return this.on && this.lifecycleState === "listening";
+	}
+
+	getLifecycleState(): VadMicLifecycleState {
+		return this.lifecycleState;
 	}
 
 	async toggle(): Promise<void> {
-		if (this.on) this.stop();
+		if (this.lifecycleState === "listening" || this.lifecycleState === "starting") {
+			await this.stop();
+		}
 		else await this.start();
 	}
 
 	async start(): Promise<void> {
-		if (this.on) return;
-		const err = this.preflight();
+		if (this.lifecycleState === "listening") return;
+		if (this.lifecycleState === "starting" && this.startPromise) {
+			return this.startPromise;
+		}
+		if (this.lifecycleState === "stopping" && this.stopPromise) {
+			await this.stopPromise;
+		}
+		const generation = ++this.lifecycleGeneration;
+		this.lifecycleState = "starting";
+		const task = this.startGeneration(generation);
+		this.startPromise = task;
+		const clear = (): void => {
+			if (this.startPromise === task) this.startPromise = null;
+		};
+		void task.then(clear, clear);
+		return task;
+	}
+
+	private async startGeneration(generation: number): Promise<void> {
+		const err = await this.preflight();
+		if (generation !== this.lifecycleGeneration) return;
 		if (err) {
-			this.h.onError(err);
+			if (generation === this.lifecycleGeneration) {
+				this.lifecycleState = "idle";
+				this.h.onError(err);
+			}
 			return;
 		}
+		let acquired: MediaStream;
 		try {
-			this.stream = await navigator.mediaDevices.getUserMedia({
-				audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-			});
+			acquired = await this.acquireMediaStream(generation);
+			if (generation !== this.lifecycleGeneration) {
+				this.stopStream(acquired);
+				return;
+			}
+			this.stream = acquired;
 		} catch (error) {
+			if (generation !== this.lifecycleGeneration) return;
+			this.lifecycleState = "idle";
 			this.h.onError(`麦克风不可用：${error instanceof Error ? error.message : String(error)}`);
 			return;
 		}
-		// getUserMedia 成功后任何一步失败（AudioContext / addModule / 接线）都必须
-		// 释放已占用的麦克风与音频上下文，否则指示灯常亮、设备被占用。
 		try {
 			const Ctor =
 				window.AudioContext ||
@@ -150,47 +209,107 @@ export abstract class VadMic {
 			} finally {
 				URL.revokeObjectURL(url);
 			}
+			if (generation !== this.lifecycleGeneration) {
+				this.teardownNodes();
+				this.cleanupAudio();
+				return;
+			}
 			this.resetVad();
 			this.source = this.ctx.createMediaStreamSource(this.stream);
 			this.node = new AudioWorkletNode(this.ctx, "tq-pcm");
 			this.node.port.onmessage = (ev: MessageEvent<ArrayBuffer>): void => {
-				this.onFrame(new Float32Array(ev.data));
+				if (
+					generation === this.lifecycleGeneration &&
+					this.lifecycleState === "listening"
+				) {
+					this.onFrame(new Float32Array(ev.data));
+				}
 			};
 			this.source.connect(this.node);
 			this.node.connect(this.ctx.destination);
 		} catch (error) {
 			this.teardownNodes();
 			this.cleanupAudio();
+			if (generation !== this.lifecycleGeneration) return;
+			this.lifecycleState = "idle";
 			this.h.onError(
 				`语音链路初始化失败：${error instanceof Error ? error.message : String(error)}`
 			);
 			return;
 		}
+		if (generation !== this.lifecycleGeneration) {
+			this.teardownNodes();
+			this.cleanupAudio();
+			return;
+		}
 		this.on = true;
-		// 后台加载：模型没就绪的这段时间照常用响度判定收音，不阻塞开麦
-		this.initSilero();
+		this.lifecycleState = "listening";
+		this.initSilero(generation);
 		this.h.onListeningChange(true);
 		this.h.onState("listening");
 	}
 
-	private initSilero(): void {
-		if (this.silero || this.sileroFailed) return;
-		if (
-			this.settings.quyuanVadEnabled === false ||
-			this.settings.quyuanVadNetworkConsent !== true
-		) return;
+	private acquireMediaStream(generation: number): Promise<MediaStream> {
+		const pending = navigator.mediaDevices.getUserMedia({
+				audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+			});
+		let expired = false;
+		pending.then((stream) => {
+			if (expired || generation !== this.lifecycleGeneration) {
+				this.stopStream(stream);
+			}
+		}).catch(() => {});
+		return new Promise<MediaStream>((resolve, reject) => {
+			const timer = window.setTimeout(() => {
+				expired = true;
+				reject(new Error("申请麦克风权限超时"));
+			}, MEDIA_ACQUIRE_TIMEOUT_MS);
+			pending.then(
+				(stream) => {
+					window.clearTimeout(timer);
+					resolve(stream);
+				},
+				(error: unknown) => {
+					window.clearTimeout(timer);
+					reject(error instanceof Error ? error : new Error(String(error)));
+				}
+			);
+		});
+	}
+
+	private initSilero(generation: number): void {
+		if (this.sileroFailed) return;
+		if (this.settings.quyuanVadEnabled === false) return;
 		if (this.sampleRate !== SILERO_SAMPLE_RATE) {
 			console.warn(
 				`[TALOS 屈原] 采样率 ${this.sampleRate} 非 16k，Silero VAD 不启用，继续用响度判定`
 			);
 			return;
 		}
-		const vad = new SileroVad(this.settings);
+		const vad = this.silero ?? new SileroVad(this.settings);
 		this.silero = vad;
-		vad.load().then(
+		if (this.sileroReady) {
+			vad.resetState();
+			this.turn.setPeakGate(false);
+			return;
+		}
+		const loading = this.sileroLoading ?? vad.load();
+		if (!this.sileroLoading) {
+			this.sileroLoading = loading;
+			const clear = (): void => {
+				if (this.sileroLoading === loading) this.sileroLoading = null;
+			};
+			void loading.then(clear, clear);
+		}
+		loading.then(
 			() => {
-				if (this.silero !== vad) return;
+				if (
+					this.silero !== vad ||
+					generation !== this.lifecycleGeneration ||
+					this.lifecycleState !== "listening"
+				) return;
 				this.sileroReady = true;
+				this.sileroFailed = false;
 				this.vadQueue = [];
 				this.vadFilled = 0;
 				this.speechProb = 0;
@@ -198,13 +317,22 @@ export abstract class VadMic {
 				this.turn.setPeakGate(false);
 			},
 			(error: unknown) => {
-				this.fallbackToRms(error instanceof Error ? error.message : String(error));
+				if (
+					this.silero !== vad ||
+					generation !== this.lifecycleGeneration ||
+					this.lifecycleState !== "listening"
+				) return;
+				this.fallbackToRms(
+					error instanceof Error ? error.message : String(error),
+					generation
+				);
 			}
 		);
 	}
 
 	// 任何一环挂了都回到响度判定，并给一次性中文提示，绝不静默失效
-	private fallbackToRms(reason: string): void {
+	private fallbackToRms(reason: string, generation = this.lifecycleGeneration): void {
+		if (generation !== this.lifecycleGeneration) return;
 		this.sileroReady = false;
 		this.sileroFailed = true;
 		this.silero?.dispose();
@@ -237,27 +365,68 @@ export abstract class VadMic {
 
 	private async pumpSilero(): Promise<void> {
 		if (this.vadRunning) return;
+		const generation = this.lifecycleGeneration;
+		const activeVad = this.silero;
 		this.vadRunning = true;
 		try {
 			for (;;) {
-				const vad = this.silero;
 				const win = this.vadQueue.shift();
-				if (!vad || !this.sileroReady || !win) break;
-				this.speechProb = await vad.process(win);
+				if (!activeVad || !this.sileroReady || !win) break;
+				const probability = await activeVad.process(win);
+				if (
+					generation !== this.lifecycleGeneration ||
+					activeVad !== this.silero ||
+					this.lifecycleState !== "listening"
+				) return;
+				this.speechProb = probability;
 			}
 		} catch (error) {
-			this.fallbackToRms(error instanceof Error ? error.message : String(error));
+			if (
+				generation === this.lifecycleGeneration &&
+				activeVad === this.silero &&
+				this.lifecycleState === "listening"
+			) {
+				this.fallbackToRms(
+					error instanceof Error ? error.message : String(error),
+					generation
+				);
+			}
 		} finally {
 			this.vadRunning = false;
 		}
 	}
 
-	stop(): void {
+	async stop(): Promise<void> {
+		if (this.lifecycleState === "idle" && !this.startPromise) return;
+		if (this.lifecycleState === "stopping" && this.stopPromise) {
+			return this.stopPromise;
+		}
+		const generation = ++this.lifecycleGeneration;
+		this.lifecycleState = "stopping";
 		this.on = false;
 		this.teardownNodes();
 		this.cleanupAudio();
 		this.resetVad();
 		this.h.onListeningChange(false);
+		const pendingStart = this.startPromise;
+		const task = (async (): Promise<void> => {
+			try {
+				await pendingStart;
+			} catch {
+				/* start error has already been reported for its own generation */
+			}
+			this.teardownNodes();
+			this.cleanupAudio();
+			if (generation === this.lifecycleGeneration) {
+				this.lifecycleState = "idle";
+			}
+		})();
+		this.stopPromise = task;
+		const clear = (): void => {
+			if (this.stopPromise === task) this.stopPromise = null;
+		};
+		void task.then(clear, clear);
+		return task;
 	}
 
 	setBusy(busy: boolean, allowBargeIn = busy): void {
@@ -280,6 +449,8 @@ export abstract class VadMic {
 	}
 
 	private resetPartial(): void {
+		++this.partialRequestGeneration;
+		this.partialInFlight = false;
 		this.partialTurn = -1;
 		this.partialMarkMs = 0;
 		this.lastPartial = null;
@@ -364,9 +535,15 @@ export abstract class VadMic {
 		this.partialTurn = snap.turnId;
 		this.partialMarkMs = ms;
 		this.partialInFlight = true;
+		const requestGeneration = ++this.partialRequestGeneration;
+		const lifecycleGeneration = this.lifecycleGeneration;
 		const samples = this.mergeFrames(snap.frames, total);
-		this.transcribe(samples, this.sampleRate)
+		this.transcribe(samples, this.sampleRate, {
+			streamId: `${lifecycleGeneration}:${snap.turnId}`,
+			phase: "partial",
+		})
 			.then((text) => {
+				if (lifecycleGeneration !== this.lifecycleGeneration) return;
 				this.lastPartial = { turnId: snap.turnId, samples: total, text };
 				const live = this.turn.peekCaptured();
 				// 轮次已定案/被丢弃就别再刷字幕了，那是上一句的残影
@@ -377,21 +554,30 @@ export abstract class VadMic {
 				console.warn("[TALOS 屈原] 流式转写失败（不影响最终结果）", error);
 			})
 			.finally(() => {
-				this.partialInFlight = false;
+				if (requestGeneration === this.partialRequestGeneration) {
+					this.partialInFlight = false;
+				}
 			});
 	}
 
 	private commitUtterance(frames: Float32Array[], turnId: number): void {
+		const lifecycleGeneration = this.lifecycleGeneration;
 		const total = frames.reduce((n, c) => n + c.length, 0);
 		if (total === 0) return;
 		// 软结束窗口里已把这段音频原样转写过（样本数完全一致）→ 直接用，
 		// 省掉一次重复推理。只在完全相同的音频上复用，不做任何近似。
 		const cached = this.lastPartial;
 		this.lastPartial = null;
-		if (cached && cached.turnId === turnId && cached.samples === total && cached.text) {
+		if (
+			!this.requiresFinalTranscription() &&
+			cached && cached.turnId === turnId && cached.samples === total && cached.text
+		) {
 			this.h.onState("transcribing");
 			window.setTimeout(() => {
-				if (!this.on) return;
+				if (
+					!this.on ||
+					lifecycleGeneration !== this.lifecycleGeneration
+				) return;
 				this.h.onText(cached.text);
 				this.h.onState("listening");
 			}, 0);
@@ -399,15 +585,26 @@ export abstract class VadMic {
 		}
 		this.h.onState("transcribing");
 		const samples = this.mergeFrames(frames, total);
-		this.transcribe(samples, this.sampleRate)
+		this.transcribe(samples, this.sampleRate, {
+			streamId: `${lifecycleGeneration}:${turnId}`,
+			phase: "final",
+		})
 			.then((text) => {
-				if (this.on && text) this.h.onText(text);
+				if (
+					this.on &&
+					text &&
+					lifecycleGeneration === this.lifecycleGeneration
+				) this.h.onText(text);
 			})
 			.catch((error: unknown) => {
-				this.h.onError(error instanceof Error ? error.message : String(error));
+				if (lifecycleGeneration === this.lifecycleGeneration) {
+					this.h.onError(error instanceof Error ? error.message : String(error));
+				}
 			})
 			.finally(() => {
-				if (this.on) this.h.onState("listening");
+				if (this.on && lifecycleGeneration === this.lifecycleGeneration) {
+					this.h.onState("listening");
+				}
 			});
 	}
 
@@ -437,6 +634,14 @@ export abstract class VadMic {
 		try { this.stream?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
 	}
 
+	private stopStream(stream: MediaStream): void {
+		try {
+			stream.getTracks().forEach((track) => track.stop());
+		} catch {
+			/* noop */
+		}
+	}
+
 	private cleanupAudio(): void {
 		try { void this.ctx?.close(); } catch { /* noop */ }
 		this.ctx = null;
@@ -446,10 +651,11 @@ export abstract class VadMic {
 	}
 
 	dispose(): void {
-		this.stop();
+		void this.stop();
 		// 会话内 stop/start 保留已加载的模型（避免重复下载），彻底销毁才释放
 		this.silero?.dispose();
 		this.silero = null;
+		this.sileroLoading = null;
 		this.sileroReady = false;
 	}
 }

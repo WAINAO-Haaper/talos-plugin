@@ -1,3 +1,11 @@
+export type CodexSubagentSandboxMode = 'read-only';
+
+export function normalizeCodexSubagentSandboxMode(
+  value: unknown,
+): CodexSubagentSandboxMode | undefined {
+  return value === 'read-only' ? value : undefined;
+}
+
 export interface CodexSubagentDefinition {
   name: string;
   description: string;
@@ -5,7 +13,7 @@ export interface CodexSubagentDefinition {
   nicknameCandidates?: string[];
   model?: string;
   modelReasoningEffort?: string;
-  sandboxMode?: string;
+  sandboxMode?: CodexSubagentSandboxMode;
   /** Opaque storage token preserved across edits/deletes. */
   persistenceKey?: string;
   /** Preserves unrecognized TOML keys for round-trip fidelity. */

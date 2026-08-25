@@ -70,6 +70,18 @@ export interface QuyuanVoiceRuntimeConfig {
 	getDataContext?: () => string;
 }
 
+type TalosProviderEgressBridge = ClaudianPlugin & {
+	auditQuyuanProviderEgress?: (input: {
+		namespace: "chat" | "voice";
+		kind: "prompt" | "voice-data-map";
+		providerId: string;
+		prompt: string;
+		historyText?: string;
+		sourceKinds: Array<"prompt" | "history" | "voice-data-map">;
+		sessionId?: string;
+	}) => Promise<{ allowed: boolean; message?: string }>;
+};
+
 export class QuyuanVoiceDriver {
 	private runtimes: Partial<Record<InteractionChannel, ChatRuntime>> = {};
 	/**
@@ -79,6 +91,7 @@ export class QuyuanVoiceDriver {
 	private history: ChatMessage[] = [];
 	private voicePlugin: ClaudianPlugin | null = null;
 	private busy = false;
+	private generation = 0;
 	private confirm?: (toolName: string, description: string) => Promise<boolean>;
 
 	constructor(
@@ -162,6 +175,12 @@ export class QuyuanVoiceDriver {
 		const baseSettings = this.plugin.settings;
 		const scopedSettings = {
 			...baseSettings,
+			talosRuntimeChannel: "voice",
+			permissionMode: "normal",
+			savedProviderPermissionMode: {
+				...baseSettings.savedProviderPermissionMode,
+				codex: "normal",
+			},
 			model: this.voiceRuntime.model || "haiku",
 			effortLevel: this.voiceRuntime.effortLevel || "low",
 			savedProviderModel: {
@@ -209,12 +228,19 @@ export class QuyuanVoiceDriver {
 	// 发一轮：按输入通道选择独立契约、运行时和历史，再映射流式事件。
 	async send(turnInput: QuyuanTurn, cb: VoiceTurnCallbacks): Promise<void> {
 		const trimmed = turnInput.text.trim();
-		if (!trimmed || this.busy) return;
+		if (!trimmed) return;
+		if (this.busy) {
+			cb.onError("上一轮仍在处理，当前消息未发送");
+			return;
+		}
+		const generation = ++this.generation;
 		this.busy = true;
 		let full = "";
 		let sawText = false;
 		let sawError = false;
+		let sawDone = false;
 		let sawTool = false;
+		let toolFailed = false;
 		const toolNames = new Map<string, string>();
 		try {
 			const channel = turnInput.channel;
@@ -227,7 +253,35 @@ export class QuyuanVoiceDriver {
 			const turn = runtime.prepareTurn({
 				text: `${policy}${dataContext ? `\n\n${dataContext}` : ""}\n\n<user_message>\n${trimmed}\n</user_message>`,
 			});
+			const bridge = this.plugin as TalosProviderEgressBridge;
+			if (!bridge.auditQuyuanProviderEgress) {
+				throw new Error(
+					"TALOS 外发审计桥缺失，已按失败关闭策略阻止语音模型调用"
+				);
+			}
+			const sourceKinds: Array<"prompt" | "history" | "voice-data-map"> = [
+				"prompt",
+			];
+			if (this.history.length > 0) sourceKinds.push("history");
+			if (dataContext) sourceKinds.push("voice-data-map");
+			const audit = await bridge.auditQuyuanProviderEgress({
+				namespace: channel === "voice" ? "voice" : "chat",
+				kind: channel === "voice" ? "voice-data-map" : "prompt",
+				providerId: runtime.providerId,
+				prompt: turn.prompt,
+				historyText:
+					this.history.length > 0
+						? JSON.stringify(this.history)
+						: undefined,
+				sourceKinds,
+				sessionId: runtime.getSessionId() ?? "new",
+			});
+			if (!audit.allowed) {
+				throw new Error(audit.message ?? "Provider 出库隐私审计未通过");
+			}
+			if (generation !== this.generation) return;
 			for await (const chunk of runtime.query(turn, this.history)) {
+				if (generation !== this.generation) return;
 				switch (chunk.type) {
 					case "text":
 						full += chunk.content;
@@ -247,6 +301,7 @@ export class QuyuanVoiceDriver {
 					case "tool_result": {
 						const name = toolNames.get(chunk.id) ?? "tool";
 						const status = chunk.isError ? "failed" : "succeeded";
+						if (chunk.isError) toolFailed = true;
 						cb.onTool?.({
 							taskId: chunk.id,
 							name,
@@ -258,25 +313,29 @@ export class QuyuanVoiceDriver {
 					case "error":
 						sawError = true;
 						cb.onError(chunk.content);
+						return;
+					case "done":
+						sawDone = true;
 						break;
 					default:
 						break;
 				}
 			}
-			if (!sawText && !sawError) {
-				if (sawTool) {
-					// 执行了工具但没给口头结尾：优雅兜底，给一句确认而非报错
-					full = "好的，已处理。";
-					sawText = true;
-					cb.onText(full);
-				} else {
-					cb.onError(
-						"引擎已就绪但没有产出——可能是会话未初始化或需要工具审批。请打开控制台(Ctrl+Shift+I)把红色报错贴出。"
-					);
-					return;
-				}
+			if (!sawDone) {
+				cb.onError("引擎流在确认完成前中断");
+				return;
 			}
-			if (sawText) {
+			if (!sawText && !sawError) {
+				cb.onError(
+					toolFailed
+						? "只读工具调用被拒绝或失败，未生成回答"
+						: sawTool
+							? "只读工具调用结束，但未返回可确认的回答"
+							: "引擎已就绪但没有产出"
+				);
+				return;
+			}
+			if (sawText && generation === this.generation) {
 				const now = Date.now();
 				this.history.push({
 					id: `${channel}-u-${now}`,
@@ -301,13 +360,17 @@ export class QuyuanVoiceDriver {
 				cb.onDone(full);
 			}
 		} catch (error) {
-			cb.onError(error instanceof Error ? error.message : String(error));
+			if (generation === this.generation) {
+				cb.onError(error instanceof Error ? error.message : String(error));
+			}
 		} finally {
-			this.busy = false;
+			if (generation === this.generation) this.busy = false;
 		}
 	}
 
 	cancel(): void {
+		++this.generation;
+		this.busy = false;
 		for (const runtime of Object.values(this.runtimes)) {
 			try {
 				runtime?.cancel();
@@ -318,7 +381,14 @@ export class QuyuanVoiceDriver {
 	}
 
 	dispose(): void {
+		++this.generation;
+		this.busy = false;
 		for (const runtime of Object.values(this.runtimes)) {
+			try {
+				runtime?.cancel();
+			} catch {
+				/* noop */
+			}
 			try {
 				runtime?.cleanup();
 			} catch {
