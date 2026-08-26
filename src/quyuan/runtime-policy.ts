@@ -8,7 +8,7 @@ export interface EffectiveRuntimePolicy {
 	effectivePermissionMode: "normal" | "plan";
 	approvalPolicy: TalosApprovalPolicy;
 	sandbox: "read-only" | "workspace-write";
-	networkAccess: false;
+	networkAccess: boolean;
 	allowShell: boolean;
 	allowMutations: boolean;
 	uiLabel: string;
@@ -16,11 +16,14 @@ export interface EffectiveRuntimePolicy {
 
 export const TALOS_RUNTIME_CHANNEL_SETTING = "talosRuntimeChannel";
 
-// Voice I/O is a separate egress surface from Provider/tool execution. Keep it
-// pinned offline even when legacy data.json values still name cloud engines.
-export const VOICE_NETWORK_IO_ALLOWED = false as const;
+// Explicit 2026-08-26 user authorization: voice media may use the configured
+// Realtime provider. A later bounded authorization allows only current-turn
+// Qwen search queries after an explicit spoken command. The agent/tool process
+// remains independently network-isolated below.
+export const VOICE_NETWORK_IO_ALLOWED = true as const;
+export const VOICE_QWEN_WEB_SEARCH_ALLOWED: boolean = true;
 
-export interface OfflineVoiceIoSettings {
+export interface RealtimeVoiceIoSettings {
 	voiceAgentCommand: string;
 	voicePermission: string;
 	ttsEngine: string;
@@ -30,14 +33,14 @@ export interface OfflineVoiceIoSettings {
 	quyuanVadNetworkConsent: boolean;
 }
 
-export function enforceOfflineVoiceIoSettings<T extends OfflineVoiceIoSettings>(
+export function enforceRealtimeVoiceIoSettings<T extends RealtimeVoiceIoSettings>(
 	settings: T
 ): T {
 	settings.voiceAgentCommand = "";
-	settings.voicePermission = "off";
-	settings.ttsEngine = "system";
-	settings.jarvisSttEngine = "off";
-	settings.quyuanAsrEngine = "local";
+	settings.voicePermission = "readonly";
+	settings.ttsEngine = "realtime";
+	settings.jarvisSttEngine = "realtime";
+	settings.quyuanAsrEngine = "qwen-realtime";
 	settings.quyuanLocalAsrNetworkConsent = false;
 	settings.quyuanVadNetworkConsent = false;
 	return settings;
@@ -97,10 +100,12 @@ export function resolveEffectiveRuntimePolicy(input: {
 			effectivePermissionMode: "normal",
 			approvalPolicy: "never",
 			sandbox: "read-only",
+			// Provider media egress is governed by VOICE_NETWORK_IO_ALLOWED.
+			// The Codex/tool process itself remains network-isolated.
 			networkAccess: false,
 			allowShell: false,
 			allowMutations: false,
-			uiLabel: "语音只读 · 禁写/命令/网络",
+			uiLabel: "语音只读 · 音频/明确检索联网 · 禁写/命令",
 		};
 	}
 

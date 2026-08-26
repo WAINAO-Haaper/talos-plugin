@@ -89,7 +89,7 @@ export interface TalosSettings {
 	ttsVoice: string; // 指定 speechSynthesis 嗓音名，留空自动
 	ttsRate: number; // 朗读语速 0.5–2
 	ttsPitch: number; // 朗读音调 0–2
-	ttsEngine: string; // 固定 system；旧在线值仅用于迁移后收紧
+	ttsEngine: string; // realtime；旧串行 TTS 值仅用于迁移兼容
 	elevenLabsApiKey: string;
 	elevenLabsVoiceId: string; // 默认 Daniel（英音男声，屈原气质）
 	elevenLabsModel: string; // eleven_turbo_v2_5 | eleven_multilingual_v2
@@ -118,7 +118,7 @@ export interface TalosSettings {
 	jarvisSttEngine: string; // 固定 off；旧 WebSpeech 入口失败关闭
 	jarvisSttApiKey: string; // STT API key（阿里云 Paraformer 等）
 	jarvisSttLang: string; // 识别语言，如 zh-CN
-	quyuanAsrEngine: string; // 固定 local；缺少经审计资产时失败关闭
+	quyuanAsrEngine: string; // qwen-realtime；旧本地/云端 ASR 值仅用于迁移兼容
 	quyuanLocalAsrNetworkConsent: boolean; // 首次获取固定、校验后 ASR 模型的明确联网同意
 	quyuanLocalAsrModel: string; // 遗留字段：自定义模型已禁用，仅兼容旧 data.json
 	quyuanLocalAsrCdn: string; // 遗留字段：远程 JavaScript 已禁用，仅兼容旧 data.json
@@ -128,6 +128,10 @@ export interface TalosSettings {
 	quyuanVadModel: string; // 遗留字段：自定义模型已禁用，仅兼容旧 data.json
 	quyuanVoiceModel: string; // Claude 语音通道独立模型，不影响文字工作台
 	quyuanVoiceEffort: string; // Claude 语音通道独立思考强度
+	quyuanRealtimeWorkspaceId: string; // 百炼业务空间 ID；用于可信侧 WebRTC SDP 交换
+	quyuanRealtimeRegion: string; // cn-beijing | ap-southeast-1
+	quyuanRealtimeModel: string; // Qwen Omni Realtime 模型
+	quyuanRealtimeVoice: string; // Qwen Omni Realtime 音色
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
 	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
 	quyuanVoiceInputMode: "continuous" | "push-to-talk"; // 默认持续监听；失败时降级为点击说话
@@ -220,6 +224,10 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanVadModel: "",
 	quyuanVoiceModel: "haiku",
 	quyuanVoiceEffort: "low",
+	quyuanRealtimeWorkspaceId: "",
+	quyuanRealtimeRegion: "cn-beijing",
+	quyuanRealtimeModel: "qwen3.5-omni-flash-realtime",
+	quyuanRealtimeVoice: "Tina",
 	quyuanBackground: "letter-glitch",
 	quyuanVoiceRecognitionEnabled: true,
 	quyuanVoiceInputMode: "continuous",
@@ -962,7 +970,7 @@ export class TalosSettingTab extends PluginSettingTab {
 		new Setting(c)
 			.setName("实际权限策略")
 			.setDesc(
-				"AI 对话只提供 Safe 与 Plan：写入和命令仍经过 A/B/C 治理；语音固定只读、禁命令、禁网络。旧权限值仅为数据兼容保留，不能放宽实际运行策略。"
+				"AI 对话只提供 Safe 与 Plan：写入和命令仍经过 A/B/C 治理；语音工具固定只读、禁命令和通用网络。仅百炼实时音频及用户当前轮明确说“联网搜索”或“上网查”触发的 Qwen 检索可以联网，旧权限值不能放宽实际运行策略。"
 			);
 		new Setting(c)
 			.setName("Deep Research 命令")
@@ -980,10 +988,77 @@ export class TalosSettingTab extends PluginSettingTab {
 
 	// ---------- Tab：屈原 · 语音 ----------
 	private renderVoice(c: HTMLElement): void {
-		new Setting(c).setName("实时对话模型").setHeading();
+		new Setting(c).setName("千问原生实时语音").setHeading();
+		new Setting(c).setDesc(
+			"语音页使用百炼 Qwen Omni Realtime 的端到端 WebRTC：持续监听、语义断句、实时字幕和随时打断均由同一云端会话完成，不下载或运行本地语音模型。"
+		);
+		this.secretIn(
+			c,
+			"百炼 API Key",
+			"仅由插件可信侧用于 WebRTC SDP 交换及明确口令触发的 Qwen 联网检索，保存到 Obsidian SecretStorage；语音页面和 data.json 均拿不到长期密钥。",
+			"aliyunApiKey"
+		);
+		this.textIn(
+			c,
+			"百炼业务空间 ID",
+			"WebRTC 必填。请填写业务空间的 Workspace ID，不要填写名称或完整 URL。",
+			"quyuanRealtimeWorkspaceId",
+			"ws-..."
+		);
 		new Setting(c)
-			.setName("Claude 语音模型")
-			.setDesc("只影响屈原语音通道，不改变完整文字工作台。Haiku 首字最快。")
+			.setName("接入地域")
+			.setDesc("中国大陆使用华北 2（北京）；Key 与业务空间必须属于同一地域。")
+			.addDropdown((d) =>
+				d
+					.addOption("cn-beijing", "华北 2（北京·推荐）")
+					.addOption("ap-southeast-1", "新加坡")
+					.setValue(this.plugin.talosSettings.quyuanRealtimeRegion || "cn-beijing")
+					.onChange(async (value) => {
+						this.plugin.talosSettings.quyuanRealtimeRegion = value;
+						await this.plugin.saveTalosSettings();
+					})
+			);
+		new Setting(c)
+			.setName("实时语音模型")
+			.setDesc("Flash 延迟与成本更低；Plus 理解和指令遵循更强。均为原生端到端语音模型。")
+			.addDropdown((d) =>
+				d
+					.addOption("qwen3.5-omni-flash-realtime", "Qwen3.5 Omni Flash Realtime（推荐）")
+					.addOption("qwen3.5-omni-plus-realtime", "Qwen3.5 Omni Plus Realtime（质量档）")
+					.setValue(
+						this.plugin.talosSettings.quyuanRealtimeModel
+						|| "qwen3.5-omni-flash-realtime"
+					)
+					.onChange(async (value) => {
+						this.plugin.talosSettings.quyuanRealtimeModel = value;
+						await this.plugin.saveTalosSettings();
+					})
+			);
+		new Setting(c)
+			.setName("实时音色")
+			.setDesc("Tina 为 Qwen3.5 Omni 默认中文音色；修改后重开语音会话生效。")
+			.addDropdown((d) =>
+				d
+					.addOption("Tina", "Tina（中文·推荐）")
+					.addOption("Ethan", "Ethan")
+					.addOption("Raymond", "Raymond")
+					.addOption("Cindy", "Cindy")
+					.addOption("Liora Mira", "Liora Mira")
+					.addOption("Sunnybobi", "Sunnybobi")
+					.setValue(this.plugin.talosSettings.quyuanRealtimeVoice || "Tina")
+					.onChange(async (value) => {
+						this.plugin.talosSettings.quyuanRealtimeVoice = value;
+						await this.plugin.saveTalosSettings();
+					})
+			);
+		new Setting(c).setDesc(
+			"隐私与计费：点击开启语音后，麦克风音频会持续发送到所选百炼地域，直至点击退出语音或离开页面；费用由百炼按实际输入/输出 Token 计收。只有当前轮明确说“联网搜索”或“上网查”才会把该轮问题发送给同地域 qwen-flash；不发送 Vault 片段，每轮最多一次，搜索策略与模型 Token 另计。"
+		);
+
+		new Setting(c).setName("文字查询后备模型").setHeading();
+		new Setting(c)
+			.setName("文字查询模型")
+			.setDesc("只用于语音页底部的文字只读查询；麦克风对话不经过此串行模型。")
 			.addDropdown((d) =>
 				d
 					.addOption("haiku", "Haiku（最快·推荐）")
@@ -1010,7 +1085,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(c).setName("人格与朗读").setHeading();
+		new Setting(c).setName("人格与语言").setHeading();
 		new Setting(c)
 			.setName("人格前缀")
 			.setDesc("注入到每次提问前的角色设定。留空用内置屈原人格（简洁、口语、便于朗读）。")
@@ -1077,10 +1152,10 @@ export class TalosSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(c).setName("TTS 引擎").setHeading();
+		new Setting(c).setName("旧串行语音设置（存档）").setHeading();
 		new Setting(c)
 			.setName("语音引擎")
-			.setDesc("安全策略固定使用系统离线语音；历史 Edge、阿里云和 ElevenLabs 设置不会发起网络请求。")
+			.setDesc("系统朗读不参与实时麦克风对话，仅保留旧设置兼容。")
 			.addDropdown((d) => {
 				d.addOption("system", "系统语音（离线·固定）").setValue("system");
 				d.selectEl.disabled = true;
@@ -1089,26 +1164,24 @@ export class TalosSettingTab extends PluginSettingTab {
 
 		new Setting(c).setName("语音识别（STT）").setHeading();
 		new Setting(c)
-			.setName("语音识别引擎")
-			.setDesc("旧 WebSpeech 网络识别已禁用；语音页只使用经审计的本地 ASR。")
+			.setName("旧语音识别引擎")
+			.setDesc("旧 WebSpeech 与本地 ASR 不参与实时语音；字幕由 Qwen Realtime 会话返回。")
 			.addDropdown((d) => {
 				d.addOption("off", "WebSpeech 已禁用").setValue("off");
 				d.selectEl.disabled = true;
 			});
 		this.textIn(c, "识别语言", "麦克风识别语言，如 zh-CN / en-US。", "jarvisSttLang", "zh-CN");
 		new Setting(c)
-			.setName("允许首次获取固定本地 ASR 模型")
+			.setName("本地 ASR 模型")
 			.setDesc(
-				"当前安全构建禁用运行时下载。只接受构建期静态提供且已核对版本、SHA-256 与 NOTICE 的离线资产。"
+				"已停用；本方案不会下载或部署本地模型。"
 			)
 			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
 
-		new Setting(c).setName("屈原 · 语音断句（VAD）").setHeading();
+		new Setting(c).setName("旧本地断句（存档）").setHeading();
 		new Setting(c)
 			.setName("用 Silero VAD 判断人声")
-			.setDesc(
-				"默认关闭。只使用随构建静态提供的本地运行时；模型缺失、校验失败或未获联网同意时回退响度判定。"
-			)
+			.setDesc("不参与实时语音；断句固定由 Qwen semantic_vad 处理。")
 			.addToggle((t) =>
 				t.setValue(this.plugin.talosSettings.quyuanVadEnabled).onChange(async (v) => {
 					this.plugin.talosSettings.quyuanVadEnabled = v;
@@ -1118,7 +1191,7 @@ export class TalosSettingTab extends PluginSettingTab {
 		new Setting(c)
 			.setName("允许首次获取固定 VAD 模型")
 			.setDesc(
-				"当前安全构建禁用运行时下载；缺少静态 VAD 资产时自动使用本地 RMS 判定。"
+				"已停用；本方案不会下载或部署本地模型。"
 			)
 			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
 
@@ -1128,7 +1201,7 @@ export class TalosSettingTab extends PluginSettingTab {
 			.setDesc("已停用并清空；语音通道不会启动 shell 或旧 CLI。");
 		new Setting(c)
 			.setName("工具权限（旧）")
-			.setDesc("旧入口已停用；语音通道固定只读、无 shell、无网络。")
+			.setDesc("旧入口已停用；语音工具仍固定只读、无 shell、无通用网络，只有已授权的实时音频与明确口令触发的 Qwen 检索可联网。")
 			.addDropdown((d) => {
 				d.addOption("off", "已停用（固定）").setValue("off");
 				d.selectEl.disabled = true;

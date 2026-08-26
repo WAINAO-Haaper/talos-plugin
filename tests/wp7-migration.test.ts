@@ -279,4 +279,71 @@ describe("WP7 migration", () => {
 		expect(mainSource).not.toContain("jarvis-view");
 		expect(mainSource).toContain("VIEW_TYPE_CLAUDIAN");
 	});
+
+	it("scrubs a stale flat Aliyun key after schema v1 without replacing the verified secret", async () => {
+		const adapter = new MemorySecrets();
+		adapter.values.set("talos-aliyun-api-key", "current-secret");
+		const secretStore = new ProviderSecretStore(adapter);
+		const completedSettings = settings({
+			providerSecretRefs: {
+				aliyunApiKey: "talos-aliyun-api-key",
+			},
+		});
+		const completed = {
+			aliyunApiKey: "stale-flat-secret",
+			talos: completedSettings,
+			wp7Migration: {
+				schemaVersion: 1,
+				completedSteps: ["settings-and-sessions", "provider-secrets"],
+			},
+		};
+		const snapshots: Record<string, unknown>[] = [];
+
+		const result = await migrateWp7Data({
+			stored: completed,
+			settings: completedSettings,
+			secretStore,
+			persist(data) {
+				snapshots.push(structuredClone(data));
+			},
+		});
+
+		expect(result.status).toBe("complete");
+		expect(result.data).not.toHaveProperty("aliyunApiKey");
+		expect(JSON.stringify(snapshots.at(-1))).not.toContain(
+			"stale-flat-secret"
+		);
+		expect(adapter.values.get("talos-aliyun-api-key")).toBe(
+			"current-secret"
+		);
+		expect(
+			adapter.operations.filter((operation) => operation.startsWith("set:"))
+		).toHaveLength(0);
+	});
+
+	it("retains a flat key and blocks cleanup when schema v1 cannot verify SecretStorage", async () => {
+		const completedSettings = settings();
+		const completed = {
+			aliyunApiKey: "must-survive",
+			talos: completedSettings,
+			wp7Migration: {
+				schemaVersion: 1,
+				completedSteps: ["settings-and-sessions", "provider-secrets"],
+			},
+		};
+		let persistCalls = 0;
+
+		const result = await migrateWp7Data({
+			stored: completed,
+			settings: completedSettings,
+			secretStore: null,
+			persist() {
+				persistCalls += 1;
+			},
+		});
+
+		expect(result.status).toBe("blocked");
+		expect(result.data.aliyunApiKey).toBe("must-survive");
+		expect(persistCalls).toBe(0);
+	});
 });

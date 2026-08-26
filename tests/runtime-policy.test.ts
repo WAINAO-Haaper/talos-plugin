@@ -15,15 +15,16 @@ import {
 } from "../src/quyuan/codex-permission-profile";
 import { evaluateQuyuanGovernance } from "../src/quyuan/governance";
 import {
-	enforceOfflineVoiceIoSettings,
+	enforceRealtimeVoiceIoSettings,
 	evaluateRuntimeToolBoundary,
 	resolveEffectiveRuntimePolicy,
 	VOICE_NETWORK_IO_ALLOWED,
+	VOICE_QWEN_WEB_SEARCH_ALLOWED,
 } from "../src/quyuan/runtime-policy";
 
 describe("effective TALOS runtime policy", () => {
-	it("clamps every legacy voice I/O setting to the offline boundary", () => {
-		const settings = enforceOfflineVoiceIoSettings({
+	it("routes legacy voice I/O to the authorized Realtime boundary", () => {
+		const settings = enforceRealtimeVoiceIoSettings({
 			voiceAgentCommand: "claude -p --dangerously-skip-permissions",
 			voicePermission: "all",
 			ttsEngine: "edgetts",
@@ -32,13 +33,14 @@ describe("effective TALOS runtime policy", () => {
 			quyuanLocalAsrNetworkConsent: true,
 			quyuanVadNetworkConsent: true,
 		});
-		expect(VOICE_NETWORK_IO_ALLOWED).toBe(false);
+		expect(VOICE_NETWORK_IO_ALLOWED).toBe(true);
+		expect(VOICE_QWEN_WEB_SEARCH_ALLOWED).toBe(true);
 		expect(settings).toEqual({
 			voiceAgentCommand: "",
-			voicePermission: "off",
-			ttsEngine: "system",
-			jarvisSttEngine: "off",
-			quyuanAsrEngine: "local",
+			voicePermission: "readonly",
+			ttsEngine: "realtime",
+			jarvisSttEngine: "realtime",
+			quyuanAsrEngine: "qwen-realtime",
 			quyuanLocalAsrNetworkConsent: false,
 			quyuanVadNetworkConsent: false,
 		});

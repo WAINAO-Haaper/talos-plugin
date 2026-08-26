@@ -13,6 +13,7 @@ const SECRET_FIELDS: LegacySecretField[] = [
 	"aliyunApiKey",
 	"anthropicApiKey",
 	"openaiApiKey",
+	"codexApiKey",
 	"jarvisSttApiKey",
 ];
 
@@ -88,7 +89,64 @@ export async function migrateWp7Data<T extends LegacySecretSettings>(
 	const data = structuredClone(options.stored);
 	let settings = structuredClone(options.settings);
 	const record = readRecord(data.wp7Migration);
+	const persist = async (): Promise<void> => {
+		data.talos = structuredClone(settings);
+		data.wp7Migration = structuredClone(record);
+		await options.persist(structuredClone(data));
+	};
+
 	if (record.schemaVersion === WP7_MIGRATION_SCHEMA_VERSION) {
+		// Some WP6/WP7 transition builds left a second, flat copy of settings
+		// beside the namespaced `talos` object. A completed schema marker must not
+		// make those plaintext secrets permanent. Prefer a verified existing
+		// SecretStorage value; only use the flat value to recover a missing secret.
+		const rootSecretFields = SECRET_FIELDS.filter((field) =>
+			Object.prototype.hasOwnProperty.call(data, field)
+		);
+		const rootPlaintextFields = rootSecretFields.filter((field) =>
+			typeof data[field] === "string" && data[field].trim() !== ""
+		);
+		const hasNamespacedPlaintext = hasPlaintextSecrets(settings);
+		if (
+			(rootPlaintextFields.length > 0 || hasNamespacedPlaintext) &&
+			!options.secretStore
+		) {
+			return {
+				data,
+				settings,
+				record,
+				status: "blocked",
+			};
+		}
+
+		if (
+			options.secretStore &&
+			(rootPlaintextFields.length > 0 || hasNamespacedPlaintext)
+		) {
+			const migrated = structuredClone(settings);
+			for (const field of rootPlaintextFields) {
+				const reference = migrated.providerSecretRefs[field];
+				const existing = reference
+					? options.secretStore.get(reference)
+					: null;
+				if (!existing && !migrated[field].trim()) {
+					migrated[field] = String(data[field]).trim();
+				}
+			}
+			migrateLegacyProviderSecrets(migrated, options.secretStore);
+			for (const field of rootPlaintextFields) {
+				const reference = migrated.providerSecretRefs[field];
+				if (!reference || !options.secretStore.get(reference)) {
+					throw new Error(`SecretStorage verification failed: ${field}`);
+				}
+			}
+			settings = migrated;
+		}
+
+		if (rootSecretFields.length > 0 || hasNamespacedPlaintext) {
+			for (const field of rootSecretFields) delete data[field];
+			await persist();
+		}
 		return {
 			data,
 			settings,
@@ -99,12 +157,6 @@ export async function migrateWp7Data<T extends LegacySecretSettings>(
 	if (!isRecord(options.stored.talos)) {
 		for (const key of Object.keys(settings)) delete data[key];
 	}
-
-	const persist = async (): Promise<void> => {
-		data.talos = structuredClone(settings);
-		data.wp7Migration = structuredClone(record);
-		await options.persist(structuredClone(data));
-	};
 
 	if (!record.completedSteps.includes(SETTINGS_STEP)) {
 		addStep(record, SETTINGS_STEP);

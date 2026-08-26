@@ -134,7 +134,7 @@ afterEach(() => {
 });
 
 describe("voice microphone lifecycle", () => {
-	it("does not acquire media on panel mount and requires the mic click path", () => {
+	it("only auto-starts on mount when microphone permission was already granted", () => {
 		const source = readFileSync(
 			`${projectRoot}src/quyuan/voice-panel.ts`,
 			"utf8"
@@ -146,9 +146,27 @@ describe("voice microphone lifecycle", () => {
 		expect(mount).not.toContain("setVoiceRecognitionEnabled(true");
 		expect(mount).not.toContain(".asr?.start()");
 		expect(mount).toContain("renderMicActivationRequired");
+		expect(mount).toContain("autoStartRealtimeIfPermitted");
+		expect(source).toContain('result?.state === "granted"');
 		expect(source).toContain(
 			'this.micBtn.addEventListener("click", () => void this.toggleVoiceRecognitionMode())'
 		);
+	});
+
+	it("keeps a realtime wake session active until explicit sleep, exit, or unmount", () => {
+		const panel = readFileSync(
+			`${projectRoot}src/quyuan/voice-panel.ts`,
+			"utf8"
+		);
+		const realtime = readFileSync(
+			`${projectRoot}src/quyuan/qwen-realtime-voice.ts`,
+			"utf8"
+		);
+		expect(panel).not.toContain("wakeWindowMs");
+		expect(panel).not.toContain("wakeTimer");
+		expect(panel).toContain("There is intentionally no legacy 30-second timer");
+		expect(realtime).toContain("this.setAwake(false)");
+		expect(realtime).not.toContain("wakeWindowMs");
 	});
 
 	it("never acquires media after stop cancels an asynchronous preflight", async () => {

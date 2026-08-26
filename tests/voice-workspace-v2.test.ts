@@ -52,7 +52,8 @@ describe("voice focus workspace v2", () => {
 			"VoiceSessionStore",
 			'data-session-namespace", "voice"',
 			"SecretStorage 隔离",
-			"A/B/C 审批与永久禁区保持生效",
+			"仅明确说“联网搜索”或“上网查”才发送当前问题",
+			"QwenRealtimeVoiceSession",
 		]) {
 			expect(panel).toContain(contract);
 		}
@@ -67,6 +68,16 @@ describe("voice focus workspace v2", () => {
 		]) {
 			expect(shellCss).toContain(contract);
 		}
+	});
+
+	it("shows each realtime transcript once without a bordered editor", () => {
+		expect(panel).toContain("仅显示转写 · 不自动注入 AI 对话");
+		expect(panel).toContain("tq-transcript-line--partial");
+		expect(panel).toContain("this.clearPartialTranscript()");
+		expect(panel).toContain("this.pushTranscriptLine(text)");
+		expect(panel).not.toContain("tq-overlay-user");
+		expect(panel).not.toContain("最终文本可编辑");
+		expect(shellCss).not.toContain(".tq-overlay-user");
 	});
 
 	it("removes the perspective background while retaining the weak particle atmosphere", () => {
@@ -196,6 +207,33 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain(
 			".tq-btn.tq-control-btn:not(.tq-btn--tab):not(.tq-btn--row)"
 		);
+	});
+
+	it("keeps all six lower control labels visible at the accepted desktop width", () => {
+		const dock = shellCss.slice(
+			shellCss.indexOf(".tq-voice-dock {"),
+			shellCss.indexOf(".tq-dock-status,")
+		);
+		const controls = shellCss.slice(
+			shellCss.indexOf(".tq-voice-controls {"),
+			shellCss.indexOf(".tq-control-btn {")
+		);
+		const label = shellCss.slice(
+			shellCss.indexOf(".tq-control-btn .tq-control-label {"),
+			shellCss.indexOf(".tq-control-btn--danger {")
+		);
+		const minimumControlGridWidth = 6 * 104 + 5 * 7;
+
+		expect(minimumControlGridWidth).toBe(659);
+		expect(dock).toContain("minmax(660px, 0.95fr)");
+		expect(controls).toContain(
+			"repeat(auto-fit, minmax(104px, 1fr))"
+		);
+		expect(label).toContain("min-width: max-content");
+		expect(label).toContain("overflow: visible");
+		expect(label).toContain("text-overflow: clip");
+		expect(label).not.toContain("text-overflow: ellipsis");
+		expect(shellCss).toContain("@media (max-width: 1200px)");
 	});
 
 	it("keeps a solid white ball while themes style the surrounding workspace", () => {

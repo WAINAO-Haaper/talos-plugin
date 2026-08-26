@@ -3702,7 +3702,7 @@ body.theme-light .tq-voice .tq-pixel-head-scene.is-fallback {
   position: relative;
   z-index: 12;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(660px, 0.95fr);
   gap: 8px 12px;
   width: 100%;
   max-height: min(46vh, 360px);
@@ -3859,38 +3859,10 @@ body.theme-light .tq-voice .tq-pixel-head-scene.is-fallback {
   }
 }
 
-.tq-overlay-user,
-body[data-talos-vault-theme] .talos-console .tq-voice .tq-overlay-user {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: 42px;
-  max-height: 74px;
-  margin: 0;
-  padding: 7px 9px;
-  resize: vertical;
-  overflow: auto;
-  border: 1px solid color-mix(in srgb, var(--tq-border) 78%, transparent) !important;
-  border-radius: 10px !important;
-  outline: 0;
-  color: var(--tq-text) !important;
-  background: color-mix(in srgb, var(--tq-panel) 68%, transparent) !important;
-  box-shadow: none !important;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.5;
-  caret-color: var(--tq-state);
-}
-
-.tq-overlay-user:focus {
-  border-color: color-mix(in srgb, var(--tq-state) 58%, var(--tq-border)) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tq-state) 10%, transparent) !important;
-}
-
 .tq-voice-controls {
   grid-column: 2;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   align-content: start;
   gap: 7px;
   min-width: 0;
@@ -3981,8 +3953,10 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-control-btn:not
 }
 
 .tq-control-btn .tq-control-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .tq-control-btn--danger {
@@ -4202,7 +4176,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1200px) {
   .tq-voice-dock {
     grid-template-columns: minmax(0, 1fr);
     max-height: min(48vh, 390px);

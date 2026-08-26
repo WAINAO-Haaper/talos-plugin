@@ -1,4 +1,4 @@
-import { FileSystemAdapter, Modal, Notice, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath } from "obsidian";
+import { FileSystemAdapter, Modal, Notice, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath, requestUrl } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeVisualTheme } from "./settings";
 import { TalosView, VIEW_TYPE_TALOS } from "./view";
 import ClaudianWorkbenchPlugin from "./quyuan/claudian/main";
@@ -17,9 +17,13 @@ import {
 	type QuyuanGovernanceResult,
 } from "./quyuan/governance";
 import { StreamTts } from "./jarvis/voiceio";
-import { enforceOfflineVoiceIoSettings } from "./quyuan/runtime-policy";
+import {
+	enforceRealtimeVoiceIoSettings,
+	VOICE_QWEN_WEB_SEARCH_ALLOWED,
+} from "./quyuan/runtime-policy";
 import { TALOS_ICON_SVG } from "./talos-mark";
 import {
+	MODULE_KEYS,
 	VaultPaths,
 	detectSchemaDetailed,
 	resolveSchema,
@@ -44,6 +48,10 @@ import { VaultRetriever } from "./ai/context/vault-retrieval";
 import { inspectToolTargetPaths } from "./ai/context/tool-path-policy";
 import { TalosAskService } from "./ai/ask-service";
 import { createVaultProviderEgressAuditStore } from "./ai/privacy/provider-egress-audit-store";
+import {
+	createVaultProviderUsageAuditStore,
+	type ProviderUsageMetrics,
+} from "./ai/privacy/provider-usage-audit-store";
 import { preflightChatProviderEgress } from "./ai/privacy/chat-provider-egress-preflight";
 import type { ProviderEgressSourceKind } from "./ai/privacy/provider-egress-gate";
 import {
@@ -75,6 +83,17 @@ import {
 } from "./ui/provider-center";
 import { DshProcessManager } from "./harness/dsh-process-manager";
 import { normalizeDshPort } from "./harness/dsh-runtime";
+import {
+	executeVoiceVaultTool,
+	type VoiceVaultToolName,
+} from "./quyuan/voice-vault-tools";
+import {
+	buildQwenWebSearchRequest,
+	parseQwenWebSearchResponse,
+	qwenWebSearchEndpoint,
+	QWEN_VOICE_WEB_SEARCH_MODEL,
+	type QwenVoiceWebSearchRegion,
+} from "./quyuan/qwen-web-search";
 
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
@@ -665,7 +684,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				"WP7 设置或密钥迁移中断，云端 API Provider 已禁用；已完成步骤将在下次启动继续，原设置不会提前删除。"
 			);
 		}
-		this.talosSettings = enforceOfflineVoiceIoSettings(settings);
+		this.talosSettings = enforceRealtimeVoiceIoSettings(settings);
 		if (
 			!secretStore &&
 			this.talosSettings.engineProvider !== "codex-cli"
@@ -687,7 +706,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}
 
 	async saveTalosSettings(): Promise<void> {
-		enforceOfflineVoiceIoSettings(this.talosSettings);
+		enforceRealtimeVoiceIoSettings(this.talosSettings);
 		const loaded: unknown = await this.loadData();
 		const stored = isRecord(loaded) ? loaded : {};
 		await this.saveData({ ...stored, talos: this.talosSettings });
@@ -1326,9 +1345,22 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 		hasBrowserContext?: boolean;
 		sessionId?: string;
 	}): Promise<{ allowed: boolean; message?: string }> {
+		// Microphone media and the explicitly granted voice-only Vault snippet
+		// channel are independently authorized. Neither grant changes the global
+		// text-provider switch, and Vault egress still has to name exact source
+		// paths and pass the provider/module/secret gate below.
+		const isAuthorizedVoiceAudio =
+			input.namespace === "voice" && input.kind === "voice-audio";
+		const isAuthorizedVoiceVaultSnippet =
+			input.namespace === "voice" && input.kind === "vault-snippet";
+		const isAuthorizedVoiceWebSearchQuery =
+			input.namespace === "voice" && input.kind === "web-search-query";
 		const result = await preflightChatProviderEgress({
 			providerId: input.providerId,
-			vaultAccess: this.talosSettings.providerVaultAccess
+			vaultAccess: isAuthorizedVoiceAudio
+				|| isAuthorizedVoiceVaultSnippet
+				|| isAuthorizedVoiceWebSearchQuery
+				|| this.talosSettings.providerVaultAccess
 				? "full"
 				: "denied",
 			moduleAccess:
@@ -1368,6 +1400,205 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 				result.audit.blockedReasons.join("、") || "安全策略拒绝"
 			}`,
 		};
+	}
+
+	async recordQuyuanProviderUsage(input: {
+		namespace: "voice";
+		providerId: string;
+		operation: string;
+		model: string;
+		usage: ProviderUsageMetrics;
+		sessionId?: string;
+	}): Promise<void> {
+		this.quyuanChatAuditSequence += 1;
+		const stamp = Date.now();
+		const suffix = String(stamp) + "-" + this.quyuanChatAuditSequence;
+		const session = (input.sessionId || "new")
+			.replace(/[^a-zA-Z0-9._:-]/g, "-")
+			.slice(0, 140);
+		await createVaultProviderUsageAuditStore(this.app).append({
+			runId: input.namespace + "-" + input.operation + "-" + suffix,
+			sessionId: input.namespace + ":" + (session || "new"),
+			namespace: input.namespace,
+			providerId: input.providerId,
+			operation: input.operation,
+			model: input.model,
+			usage: input.usage,
+		});
+	}
+
+	async executeQuyuanVoiceVaultTool(input: {
+		name: VoiceVaultToolName;
+		args: Record<string, unknown>;
+		sessionId?: string;
+	}): Promise<string> {
+		const result = await executeVoiceVaultTool({
+			listPaths: async () =>
+				this.app.vault.getMarkdownFiles().map((file) => file.path),
+			read: async (path) => {
+				const file = this.app.vault.getAbstractFileByPath(path);
+				if (!(file instanceof TFile)) throw new Error("Vault 文档不存在");
+				return this.app.vault.cachedRead(file);
+			},
+		}, input.name, input.args, {
+			configDir: this.app.vault.configDir,
+			modulePaths: Object.fromEntries(
+				MODULE_KEYS.map((key) => [key, this.paths.dir(key)])
+			),
+			maxHits: 4,
+			maxExcerptChars: 900,
+			maxFiles: 3000,
+			maxFileChars: 400_000,
+			maxConcurrency: 12,
+			maxListResults: 100,
+			maxReadLines: 200,
+			maxGrepHits: 40,
+			maxOutputChars: 6000,
+		});
+		const audit = await this.auditQuyuanProviderEgress({
+			namespace: "voice",
+			kind: "vault-snippet",
+			providerId: "aliyun-qwen-realtime",
+			prompt: result.output,
+			sourcePaths: result.sourcePaths,
+			sourceKinds: ["vault-snippet"],
+			sessionId: input.sessionId,
+		});
+		if (!audit.allowed) {
+			throw new Error(audit.message || "库内片段出库审计未通过");
+		}
+		for (const path of result.sourcePaths) {
+			this.recordQuyuanToolUse(result.operation, {
+				...input.args,
+				path,
+			});
+		}
+		return result.output;
+	}
+
+	async executeQuyuanVoiceWebSearch(input: {
+		query: string;
+		callId: string;
+		sessionId?: string;
+	}): Promise<string> {
+		if (!VOICE_QWEN_WEB_SEARCH_ALLOWED) {
+			throw new Error("语音 Qwen 联网搜索未获运行策略授权");
+		}
+		const query = input.query.trim();
+		const requestBody = buildQwenWebSearchRequest(query);
+		const workspaceId = this.talosSettings.quyuanRealtimeWorkspaceId.trim();
+		const region: QwenVoiceWebSearchRegion =
+			this.talosSettings.quyuanRealtimeRegion === "ap-southeast-1"
+				? "ap-southeast-1"
+				: "cn-beijing";
+		const endpoint = qwenWebSearchEndpoint(workspaceId, region);
+		const apiKey = this.readProviderSecret("aliyunApiKey")?.trim();
+		if (!apiKey) {
+			throw new Error("请先在设置中安全保存百炼 API Key");
+		}
+		const sessionId = input.sessionId || "qwen-web-search:" + input.callId;
+		const audit = await this.auditQuyuanProviderEgress({
+			namespace: "voice",
+			kind: "web-search-query",
+			providerId: "aliyun-qwen-search",
+			prompt: query,
+			sourceKinds: ["web-search-query"],
+			sessionId,
+		});
+		if (!audit.allowed) {
+			throw new Error(audit.message || "联网搜索问题出库审计未通过");
+		}
+		const response = await requestUrl({
+			url: endpoint,
+			method: "POST",
+			headers: {
+				Authorization: "Bearer " + apiKey,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(requestBody),
+			throw: false,
+		});
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error("百炼联网搜索失败（HTTP " + response.status + "）");
+		}
+		let payload: unknown;
+		try {
+			payload = JSON.parse(response.text);
+		} catch {
+			throw new Error("百炼联网搜索返回无法解析的响应");
+		}
+		const result = parseQwenWebSearchResponse(payload);
+		await this.recordQuyuanProviderUsage({
+			namespace: "voice",
+			providerId: "aliyun-qwen-search",
+			operation: "web-search",
+			model: QWEN_VOICE_WEB_SEARCH_MODEL,
+			usage: result.usage,
+			sessionId,
+		});
+		return result.output;
+	}
+
+	async exchangeQuyuanRealtimeSdp(input: {
+		model: string;
+		instructions: string;
+		offerSdp: string;
+	}): Promise<{ answerSdp: string }> {
+		const allowedModels = new Set([
+			"qwen3.5-omni-flash-realtime",
+			"qwen3.5-omni-plus-realtime",
+		]);
+		if (!allowedModels.has(input.model)) {
+			throw new Error("不支持的千问 Realtime 模型");
+		}
+		if (!input.offerSdp.startsWith("v=0")) {
+			throw new Error("无效的 WebRTC Offer SDP");
+		}
+		const workspaceId = this.talosSettings.quyuanRealtimeWorkspaceId.trim();
+		if (!/^[A-Za-z0-9][A-Za-z0-9-]{2,127}$/.test(workspaceId)) {
+			throw new Error("请先在设置中填写有效的百炼业务空间 ID");
+		}
+		const region = this.talosSettings.quyuanRealtimeRegion === "ap-southeast-1"
+			? "ap-southeast-1"
+			: "cn-beijing";
+		const apiKey = this.readProviderSecret("aliyunApiKey")?.trim();
+		if (!apiKey) {
+			throw new Error("请先在设置中安全保存百炼 API Key");
+		}
+		const audit = await this.auditQuyuanProviderEgress({
+			namespace: "voice",
+			kind: "voice-audio",
+			providerId: "aliyun-qwen-realtime",
+			prompt: input.instructions,
+			sourceKinds: ["prompt", "voice-audio"],
+			sessionId: `qwen-realtime-${Date.now()}`,
+		});
+		if (!audit.allowed) {
+			throw new Error(audit.message || "实时语音出库审计未通过");
+		}
+		const endpoint = new URL(
+			`https://${workspaceId}.${region}.maas.aliyuncs.com/api/v1/webrtc/realtime`
+		);
+		endpoint.searchParams.set("model", input.model);
+		const response = await requestUrl({
+			url: endpoint.toString(),
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"Content-Type": "application/sdp",
+			},
+			body: input.offerSdp,
+			throw: false,
+		});
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error(
+				`百炼 WebRTC SDP 交换失败（HTTP ${response.status}）：${response.text.slice(0, 240)}`
+			);
+		}
+		if (!response.text.trim()) {
+			throw new Error("百炼 WebRTC SDP 交换返回空响应");
+		}
+		return { answerSdp: response.text };
 	}
 
 	async auditQuyuanChatEgress(input: {
@@ -1494,7 +1725,7 @@ export default class TalosPlugin extends ClaudianWorkbenchPlugin {
 	}): void {
 		handlers.onStateChange(
 			false,
-			"安全策略已禁用 WebSpeech 网络识别；请在语音页使用本地 ASR"
+			"旧 WebSpeech 入口已停用；请使用屈原语音页的千问 Realtime"
 		);
 	}
 
