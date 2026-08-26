@@ -36,11 +36,22 @@ describe("TALOS agent workbench compatibility UI", () => {
 	});
 
 	it("exposes runtime/provider/model, dual permission dimensions, status/install, handoff and accessible live regions", () => {
-		for (const contract of ["talos-agent-runtime-switcher", "talos-agent-runtime-button", "talos-agent-provider-picker", "talos-agent-model-picker", "talos-agent-workflow", "talos-agent-permission-picker", "talos-agent-runtime-status", "talos-agent-install-link", "talos-agent-handoff-marker", "talos-agent-approval-region"]) expect(view).toContain(contract);
+		for (const contract of ["talos-agent-runtime-switcher", "talos-agent-runtime-button", "talos-agent-provider-picker", "talos-agent-model-control", "talos-agent-model-trigger", "talos-agent-model-menu", "talos-agent-model-picker", "talos-agent-workflow", "talos-agent-permission-picker", "talos-agent-runtime-status", "talos-agent-install-link", "talos-agent-handoff-marker", "talos-agent-approval-region"]) expect(view).toContain(contract);
 		expect(view).toContain('setAttribute("aria-live", "polite")');
 		expect(view).toContain('setAttribute("aria-live", "assertive")');
+		expect(view).toContain('setAttribute("role", "listbox")');
+		expect(view).toContain('setAttribute("aria-selected"');
 		expect(css).toContain("@media (prefers-reduced-motion: reduce)");
 		expect(css).toContain("@container talos-main (max-width: 720px)");
+	});
+
+	it("uses a dynamic in-conversation model switcher with visible purpose and switching feedback", () => {
+		for (const contract of ["automaticModelPresentation", "presentRuntimeModel", "正在切换到", "从下一回合生效", "handleModelMenuKeydown"]) {
+			expect(view).toContain(contract);
+		}
+		for (const contract of [".talos-agent-model-option", ".talos-agent-model-option-badge", "talos-agent-model-menu-in", "talos-agent-model-progress"]) {
+			expect(css).toContain(contract);
+		}
 	});
 
 	it("uses the registered standard provider SVG prototypes and plain-language dynamic modes", () => {

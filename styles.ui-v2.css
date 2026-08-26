@@ -2387,7 +2387,6 @@ body[data-talos-vault-theme] .talos-console .talos-agent-runtime-button.is-activ
 
 .talos-agent-controls :is(
   .talos-agent-provider-picker,
-  .talos-agent-model-picker,
   .talos-agent-permission-picker
 ) {
   min-height: 32px;
@@ -2405,14 +2404,298 @@ body[data-talos-vault-theme] .talos-console .talos-agent-runtime-button.is-activ
   max-width: min(220px, 30vw);
 }
 
-.talos-agent-model-picker {
-  max-width: min(260px, 34vw);
-}
-
 body[data-talos-vault-theme] .talos-console .talos-agent-controls select:hover,
 body[data-talos-vault-theme] .talos-console .talos-agent-controls select:focus-visible {
   color: var(--text-normal);
   background-color: color-mix(in srgb, var(--interactive-accent) 8%, transparent) !important;
+}
+
+.talos-agent-model-control {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 156px;
+  max-width: min(260px, 36vw);
+}
+
+.talos-agent-model-trigger {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  gap: 7px;
+  padding: 3px 5px !important;
+  border-radius: 10px !important;
+  color: var(--text-normal);
+  cursor: pointer;
+  text-align: start;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.talos-agent-model-trigger::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  bottom: 0;
+  left: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+body[data-talos-vault-theme] .talos-console .talos-agent-model-trigger:hover,
+body[data-talos-vault-theme] .talos-console .talos-agent-model-trigger:focus-visible,
+body[data-talos-vault-theme] .talos-console .talos-agent-model-control.is-open .talos-agent-model-trigger {
+  background-color: color-mix(in srgb, var(--interactive-accent) 9%, transparent) !important;
+}
+
+.talos-agent-model-control.is-open .talos-agent-model-trigger::after,
+.talos-agent-model-control[data-state="selected"] .talos-agent-model-trigger::after {
+  opacity: 0.75;
+  transform: scaleX(1);
+}
+
+.talos-agent-model-control[data-state="switching"] .talos-agent-model-trigger::after {
+  opacity: 1;
+  transform-origin: left center;
+  animation: talos-agent-model-progress 850ms ease-in-out infinite alternate;
+}
+
+.talos-agent-model-trigger:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.talos-agent-model-trigger-icon {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  color: var(--interactive-accent);
+}
+
+.talos-agent-model-provider-logo {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.talos-agent-model-trigger-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.08;
+}
+
+.talos-agent-model-trigger-copy strong,
+.talos-agent-model-trigger-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talos-agent-model-trigger-copy strong {
+  font-size: var(--font-ui-small);
+  font-weight: 680;
+}
+
+.talos-agent-model-trigger-copy small {
+  margin-top: 3px;
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.talos-agent-model-trigger-chevron {
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+  transform: translateY(-1px);
+  transition: transform 160ms ease;
+}
+
+.talos-agent-model-control.is-open .talos-agent-model-trigger-chevron {
+  transform: rotate(180deg) translateY(1px);
+}
+
+.talos-agent-model-menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(380px, calc(100vw - 44px));
+  max-height: min(470px, 68vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 78%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--background-primary) 96%, var(--interactive-accent) 4%);
+  box-shadow:
+    0 16px 42px color-mix(in srgb, black 18%, transparent),
+    0 2px 8px color-mix(in srgb, black 9%, transparent);
+  transform-origin: 28px top;
+  animation: talos-agent-model-menu-in 150ms ease-out both;
+}
+
+.talos-agent-model-menu[hidden] {
+  display: none;
+}
+
+.talos-agent-model-menu-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 9px 9px;
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 64%, transparent);
+}
+
+.talos-agent-model-menu-heading strong {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: 720;
+}
+
+.talos-agent-model-menu-heading small {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
+}
+
+.talos-agent-model-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 7px 9px !important;
+  border-radius: 9px !important;
+  color: var(--text-normal);
+  cursor: pointer;
+  text-align: start;
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+body[data-talos-vault-theme] .talos-console .talos-agent-model-option:hover,
+body[data-talos-vault-theme] .talos-console .talos-agent-model-option:focus-visible {
+  background-color: color-mix(in srgb, var(--interactive-accent) 9%, transparent) !important;
+  transform: translateX(2px);
+}
+
+body[data-talos-vault-theme] .talos-console .talos-agent-model-option[aria-selected="true"] {
+  background-color: color-mix(in srgb, var(--interactive-accent) 13%, transparent) !important;
+}
+
+.talos-agent-model-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.talos-agent-model-option-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.talos-agent-model-option-line strong {
+  overflow: hidden;
+  font-size: var(--font-ui-small);
+  font-weight: 690;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talos-agent-model-option-kicker,
+.talos-agent-model-option-badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.talos-agent-model-option-kicker {
+  color: var(--text-muted);
+}
+
+.talos-agent-model-option-badge {
+  padding: 0 6px;
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+
+.talos-agent-model-option-copy > small {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talos-agent-model-option-check {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 13%, transparent);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0;
+  transform: scale(0.55);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.talos-agent-model-option[aria-selected="true"] .talos-agent-model-option-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.talos-agent-model-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes talos-agent-model-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes talos-agent-model-progress {
+  from { transform: scaleX(0.18); }
+  to { transform: scaleX(1); }
 }
 
 .talos-agent-workflow {
@@ -2546,10 +2829,14 @@ body[data-talos-vault-theme] .talos-console
 
   .talos-agent-controls :is(
     .talos-agent-provider-picker,
-    .talos-agent-model-picker,
     .talos-agent-permission-picker
   ) {
     flex: 1 1 132px;
+    max-width: 100%;
+  }
+
+  .talos-agent-model-control {
+    flex: 1 1 190px;
     max-width: 100%;
   }
 
@@ -2567,6 +2854,16 @@ body[data-talos-vault-theme] .talos-console
   .talos-agent-runtime-button {
     width: 32px;
     height: 32px;
+  }
+
+  .talos-agent-model-control {
+    flex-basis: 100%;
+  }
+
+  .talos-agent-model-menu {
+    right: 0;
+    left: 0;
+    width: auto;
   }
 
   .talos-agent-compatibility-body .talos-quyuan-capabilities--embedded {
@@ -2588,5 +2885,10 @@ body[data-talos-vault-theme] .talos-console
   .talos-agent-runtime-button:hover,
   .talos-agent-runtime-button:focus-visible {
     transform: none;
+  }
+
+  .talos-agent-model-menu,
+  .talos-agent-model-control[data-state="switching"] .talos-agent-model-trigger::after {
+    animation: none;
   }
 }

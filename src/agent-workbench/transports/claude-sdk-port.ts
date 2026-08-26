@@ -15,6 +15,15 @@ export interface ClaudeSdkFacade {
 
 const defaultSdk: ClaudeSdkFacade = { query, forkSession: (sessionId) => forkSession(sessionId) };
 
+// Claude Code's session-level --model contract accepts these official aliases.
+// Availability is still decided by the user's existing Claude authentication.
+const CLAUDE_CODE_MODEL_ALIASES: readonly ModelDescriptor[] = [
+	{ id: "sonnet", label: "Sonnet" },
+	{ id: "opus", label: "Opus" },
+	{ id: "haiku", label: "Haiku" },
+	{ id: "fable", label: "Fable" },
+];
+
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" ? value as Record<string, unknown> : {}; }
 
 function mapMessage(message: SDKMessage): ProtocolFrame[] {
@@ -65,7 +74,11 @@ export class ClaudeSdkQueryPort implements ClaudeAgentSdkPort {
 	) {}
 
 	probe(signal?: AbortSignal) { return this.probeRuntime(signal); }
-	async models(): Promise<ModelDescriptor[]> { return [...this.configuredModels]; }
+	async models(): Promise<ModelDescriptor[]> {
+		return this.configuredModels.length > 0
+			? [...this.configuredModels]
+			: CLAUDE_CODE_MODEL_ALIASES.map((model) => ({ ...model }));
+	}
 	async create(_input: CreateSessionInput): Promise<string> { this.newSession = true; return this.sessionId = randomUUID(); }
 	async resume(sessionId: string): Promise<void> { this.newSession = false; this.sessionId = sessionId; }
 	async *turn(input: ClaudeTurnInput): AsyncIterable<ProtocolFrame> {
