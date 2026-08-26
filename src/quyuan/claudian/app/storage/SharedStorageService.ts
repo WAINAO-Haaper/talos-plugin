@@ -114,7 +114,7 @@ export class SharedStorageService implements SharedAppStorage {
     const operation = this.sidecarWriteQueue.catch(() => {}).then(async () => {
       const temporary = `${path}.tmp`;
       await this.adapter.write(temporary, `${JSON.stringify(value, null, 2)}\n`);
-      await this.adapter.rename(temporary, path);
+      await this.adapter.replace(temporary, path);
     });
     this.sidecarWriteQueue = operation;
     await operation;

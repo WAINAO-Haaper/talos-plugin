@@ -5,7 +5,8 @@
  * vault adapter instead of Node's fs module.
  */
 
-import type { App } from 'obsidian';
+import { rename as renameFile } from 'node:fs/promises';
+import { FileSystemAdapter, type App } from 'obsidian';
 
 export class VaultFileAdapter {
   private writeQueue: Promise<void> = Promise.resolve();
@@ -115,9 +116,18 @@ export class VaultFileAdapter {
     }
   }
 
-  /** Rename/move a file. */
+  /** Rename/move a file when the destination does not exist. */
   async rename(oldPath: string, newPath: string): Promise<void> {
     await this.app.vault.adapter.rename(oldPath, newPath);
+  }
+
+  /** Atomically replace an existing file on a desktop FileSystem Vault. */
+  async replace(oldPath: string, newPath: string): Promise<void> {
+    const adapter = this.app.vault.adapter;
+    if (!(adapter instanceof FileSystemAdapter)) {
+      throw new Error("原子 sidecar 替换仅支持桌面 FileSystem Vault");
+    }
+    await renameFile(adapter.getFullPath(oldPath), adapter.getFullPath(newPath));
   }
 
   async stat(path: string): Promise<{ mtime: number; size: number } | null> {
