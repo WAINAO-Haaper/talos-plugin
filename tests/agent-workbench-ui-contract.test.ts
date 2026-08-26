@@ -95,6 +95,8 @@ describe("TALOS agent workbench compatibility UI", () => {
 		expect(view).toContain("service.selectRuntime(runtimeId, modelId ?? null)");
 		expect(claudianView).not.toContain("modelId = 'default'");
 		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(modelProvider, model)");
+		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(newProvider, model)");
+		expect(tab).toContain("tab.draftModel = runtimeModel");
 		expect(tab).toContain("settings.model = runtimeModel");
 		expect(tab).toContain("nextUIConfig.applyModelDefaults(runtimeModel, settings)");
 		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(boundProvider, model)");

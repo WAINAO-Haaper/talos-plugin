@@ -849,11 +849,12 @@ function initializeInputToolbar(
       // For blank tabs, update draft model and derive provider
       if (tab.lifecycleState === 'blank') {
         const previousProvider = tab.providerId;
-        tab.draftModel = model;
         const newProvider = getEnabledProviderForModel(
           model,
           plugin.settings,
         );
+        const runtimeModel = toProviderRuntimeModelId(newProvider, model);
+        tab.draftModel = runtimeModel;
         const didProviderChange = newProvider !== previousProvider;
         if (tab.service) {
           cleanupTabRuntime(tab);
@@ -867,13 +868,13 @@ function initializeInputToolbar(
         // Update settings for the new provider
         const uiConfig = ProviderRegistry.getChatUIConfig(newProvider);
         await updateTabProviderSettings(tab, plugin, (settings) => {
-          settings.model = model;
-          uiConfig.applyModelDefaults(model, settings);
+          settings.model = runtimeModel;
+          uiConfig.applyModelDefaults(runtimeModel, settings);
         });
         if (didProviderChange) {
           await onProviderChanged?.(newProvider);
         }
-        await uiConfig.prepareModelMetadata?.(model, plugin.settings, { plugin });
+        await uiConfig.prepareModelMetadata?.(runtimeModel, plugin.settings, { plugin });
         tab.ui.thinkingBudgetSelector?.updateDisplay();
         tab.ui.serviceTierToggle?.updateDisplay();
         tab.ui.modelSelector?.updateDisplay();
