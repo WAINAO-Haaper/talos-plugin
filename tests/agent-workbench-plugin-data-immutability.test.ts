@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
+const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
 const sharedStorageSource = readFileSync(
 	`${projectRoot}src/quyuan/claudian/app/storage/SharedStorageService.ts`,
 	"utf8",
@@ -17,6 +18,9 @@ describe("agent workbench plugin data immutability", () => {
 		expect(mainSource).toContain('`${workbenchStateRoot}/runtime-bindings.json`');
 		expect(mainSource).not.toContain("stored.agentWorkbenchPermissionRules");
 		expect(mainSource).not.toContain("stored.agentWorkbenchBindings");
+		expect(mainSource).toContain("chat-surface.json");
+		expect(viewSource).toContain("this.plugin.setAgentWorkbenchSurface(id)");
+		expect(viewSource).not.toContain("this.plugin.talosSettings.harnessSurface = id");
 	});
 
 	it("routes compatibility tab and session state away from plugin data in read-only mode", () => {

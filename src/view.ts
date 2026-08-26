@@ -1996,11 +1996,10 @@ export class TalosView extends ItemView {
 						],
 						getActiveId: () =>
 							normalizeHarnessSurface(
-								this.plugin.talosSettings.harnessSurface
+								this.plugin.getAgentWorkbenchSurface()
 							),
 						setActiveId: (id) => {
-							this.plugin.talosSettings.harnessSurface = id;
-							void this.plugin.saveTalosSettings();
+							this.plugin.setAgentWorkbenchSurface(id);
 						},
 						getSwitchHost: () => this.chatSwitchHostEl,
 					})

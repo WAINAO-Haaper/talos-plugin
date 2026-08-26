@@ -218,6 +218,8 @@ class TalosAskPromptModal extends Modal {
 export default class TalosPlugin extends Plugin {
 	talosSettings!: TalosSettings;
 	private agentWorkbenchService: AgentWorkbenchService | null = null;
+	private agentWorkbenchStorage: ObsidianWorkbenchStorage | null = null;
+	private agentWorkbenchSurface: "dsh" | "codex" = "dsh";
 	private claudianCompatibility: ClaudianCompatibilityHost | null = null;
 	private quyuanSoul: QuyuanSoulContext | null = null;
 	private quyuanSoulError = "";
@@ -568,6 +570,7 @@ export default class TalosPlugin extends Plugin {
 		this.quyuanTts = null;
 		this.agentWorkbenchService?.dispose();
 		this.agentWorkbenchService = null;
+		this.agentWorkbenchStorage = null;
 		this.claudianCompatibility = null;
 		activeDocument.body.removeAttribute("data-talos-vault-theme");
 	}
@@ -584,6 +587,29 @@ export default class TalosPlugin extends Plugin {
 			throw new Error(this.quyuanWorkbenchError || "兼容展示层仍在初始化");
 		}
 		return this.claudianCompatibility;
+	}
+
+	getAgentWorkbenchSurface(): "dsh" | "codex" {
+		return this.agentWorkbenchSurface;
+	}
+
+	setAgentWorkbenchSurface(value: string): void {
+		const activeChannel = value === "codex" ? "codex" : "dsh";
+		this.agentWorkbenchSurface = activeChannel;
+		const storage = this.agentWorkbenchStorage;
+		if (!storage) {
+			this.recordQuyuanRuntimeError(
+				"AgentWorkbenchService.chatSurface",
+				new Error("工作台 sidecar 存储尚未初始化")
+			);
+			return;
+		}
+		void storage.writeJsonAtomic(".talos/agent-workbench/v1/chat-surface.json", {
+			schemaVersion: 1,
+			activeChannel,
+		}).catch((error) => {
+			this.recordQuyuanRuntimeError("AgentWorkbenchService.chatSurface", error);
+		});
 	}
 
 	// 旧版右侧栏 JarvisView 已随 C-3b 移除；语音统一走控制台内屈原语音页。
@@ -1779,6 +1805,15 @@ export default class TalosPlugin extends Plugin {
 			);
 			const portableStorage = new ObsidianWorkbenchStorage(this.app.vault.adapter, vaultRoot);
 			const workbenchStateRoot = ".talos/agent-workbench/v1";
+			this.agentWorkbenchStorage = portableStorage;
+			const storedSurface = await portableStorage.readJson<{
+				activeChannel?: unknown;
+			}>(`${workbenchStateRoot}/chat-surface.json`);
+			if (storedSurface?.activeChannel === "codex" || storedSurface?.activeChannel === "dsh") {
+				this.agentWorkbenchSurface = storedSurface.activeChannel;
+			} else {
+				this.agentWorkbenchSurface = this.talosSettings.harnessSurface === "codex" ? "codex" : "dsh";
+			}
 			const permissionRules = new PermissionRuleStore({
 				read: () => portableStorage.readJson(`${workbenchStateRoot}/permission-rules.json`),
 				write: (rules) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/permission-rules.json`, rules),
