@@ -2299,3 +2299,88 @@
 		display: none;
 	}
 }
+/* TALOS agent workbench controls · D-TLP-034 */
+.talos-agent-workbench {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.talos-agent-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+}
+
+.talos-agent-controls select,
+.talos-agent-workflow button {
+  min-height: 30px;
+  border-radius: 8px;
+}
+
+.talos-agent-workflow {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+}
+
+.talos-agent-workflow button {
+  border: 0;
+  background: transparent;
+}
+
+.talos-agent-workflow button[aria-pressed="true"] {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+
+.talos-agent-runtime-status {
+  min-width: 12ch;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.talos-agent-install-link {
+  font-size: var(--font-ui-smaller);
+}
+
+.talos-agent-handoff-marker {
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border-inline-start: 3px solid var(--interactive-accent);
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: var(--background-secondary-alt);
+  font-size: var(--font-ui-smaller);
+}
+
+.talos-agent-compatibility-body {
+  min-height: 0;
+  flex: 1;
+}
+
+@container talos-main (max-width: 720px) {
+  .talos-agent-controls {
+    align-items: stretch;
+  }
+  .talos-agent-controls > select,
+  .talos-agent-workflow {
+    flex: 1 1 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talos-agent-workbench *,
+  .talos-agent-workbench *::before,
+  .talos-agent-workbench *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

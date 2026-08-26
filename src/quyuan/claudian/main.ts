@@ -65,6 +65,10 @@ export default class ClaudianPlugin extends Plugin {
     return true;
   }
 
+  protected isCompatibilityReadOnly(): boolean {
+    return false;
+  }
+
   async onload() {
     await this.loadSettings();
     await ProviderWorkspaceRegistry.initializeAll(this);
@@ -301,7 +305,8 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.storage = new SharedStorageService(this);
+    const compatibilityReadOnly = this.isCompatibilityReadOnly();
+    this.storage = new SharedStorageService(this, compatibilityReadOnly);
     const { claudian } = await this.storage.initialize();
     this.lastKnownTabManagerState = await this.storage.getTabManagerState();
 
@@ -343,23 +348,21 @@ export default class ClaudianPlugin extends Plugin {
     const didNormalizeModelVariants = this.normalizeModelVariantSettings();
 
     const allMetadata = await this.storage.sessions.listMetadata();
-    const migratedLegacyConversations: Conversation[] = [];
     this.conversations = allMetadata.map(meta => {
       const resumeSessionId = meta.sessionId !== undefined ? meta.sessionId : meta.id;
-      // D-TLP-013：claude/opencode/pi 旧链路会话一次性迁移到 codex；
-      // 跨 harness 会话无法 resume，sessionId 与 providerState 一并作废。
+      // D-TLP-034: compatibility startup is read-only. Preserve the original
+      // provider/session binding; TALOS imports into its sidecar namespace.
       const providerId = meta.providerId ?? DEFAULT_CHAT_PROVIDER_ID;
-      const migratedFromLegacyProvider = providerId !== DEFAULT_CHAT_PROVIDER_ID;
 
       const conversation: Conversation = {
         id: meta.id,
-        providerId: DEFAULT_CHAT_PROVIDER_ID,
+        providerId,
         title: meta.title,
         createdAt: meta.createdAt,
         updatedAt: meta.updatedAt,
         lastResponseAt: meta.lastResponseAt,
-        sessionId: migratedFromLegacyProvider ? null : resumeSessionId,
-        providerState: migratedFromLegacyProvider ? undefined : meta.providerState,
+        sessionId: resumeSessionId,
+        providerState: meta.providerState,
         messages: [],
         currentNote: meta.currentNote,
         externalContextPaths: meta.externalContextPaths,
@@ -368,9 +371,6 @@ export default class ClaudianPlugin extends Plugin {
         titleGenerationStatus: meta.titleGenerationStatus,
         resumeAtMessageId: meta.resumeAtMessageId,
       };
-      if (migratedFromLegacyProvider) {
-        migratedLegacyConversations.push(conversation);
-      }
       return conversation;
     }).sort(
       (a, b) => (b.lastResponseAt ?? b.updatedAt) - (a.lastResponseAt ?? a.updatedAt)
@@ -385,16 +385,15 @@ export default class ClaudianPlugin extends Plugin {
       this.settings,
     );
 
-    if (changed || didNormalizePermissionMode || didNormalizeModelVariants || didNormalizeProviderSelection || didEnableSoleHarness) {
+    if (!compatibilityReadOnly && (changed || didNormalizePermissionMode || didNormalizeModelVariants || didNormalizeProviderSelection || didEnableSoleHarness)) {
       await this.saveSettings();
     }
 
     const conversationsToSave = new Set([
       ...backfilledConversations,
       ...invalidatedConversations,
-      ...migratedLegacyConversations,
     ]);
-    for (const conv of conversationsToSave) {
+    for (const conv of compatibilityReadOnly ? [] : conversationsToSave) {
       await this.storage.sessions.saveMetadata(
         this.storage.sessions.toSessionMetadata(conv)
       );

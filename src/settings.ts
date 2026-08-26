@@ -443,7 +443,10 @@ export class TalosSettingTab extends PluginSettingTab {
 			.setDesc("模型、Provider、权限、环境变量、上下文、快捷键与多标签等高级配置。原第二个 TALOS 设置页已融合到这里。");
 		try {
 			const { ClaudianSettingTab } = await import("./quyuan/claudian/features/settings/ClaudianSettings");
-			this.workbenchSettingsTab ??= new ClaudianSettingTab(this.app, this.plugin);
+			this.workbenchSettingsTab ??= new ClaudianSettingTab(
+				this.app,
+				this.plugin.getAgentWorkbenchCompatibility()
+			);
 			this.workbenchSettingsTab.display();
 			this.workbenchSettingsTab.containerEl.addClass("talos-embedded-workbench-settings");
 			c.appendChild(this.workbenchSettingsTab.containerEl);

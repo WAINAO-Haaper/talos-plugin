@@ -86,10 +86,10 @@ describe("harness embed contract (D-TLP-014)", () => {
 		const view = readSrc("src/view.ts");
 		expect(view).toContain("HarnessSwitcherWorkbench");
 		expect(view).toContain("HarnessWorkbench");
-		expect(view).toContain("ClaudianCodexWorkbench");
+		expect(view).toContain("TalosAgentWorkbench");
 		expect(view).toContain("getHarnessManager");
-		// D-TLP-015（2026-08-23 改写）：对话页为 DeepSeek｜Codex 双通道滑动
-		// 切换器；ClaudianView 嵌入接线迁入 claudian-codex-workbench 适配器，
+		// D-TLP-034（2026-08-26 改写）：对话页为 DeepSeek Harness｜TALOS 智能体双通道，
+		// ClaudianView 仅作为兼容 renderer，由 TALOS workbench 拥有，
 		// 构造隔离代理不直接出现在 view.ts。
 		expect(view).not.toContain("chatWorkbenchView");
 		expect(view).not.toContain("createConstructorIsolatedProxy");

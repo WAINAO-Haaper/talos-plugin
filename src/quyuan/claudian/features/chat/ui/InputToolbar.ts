@@ -103,6 +103,12 @@ export class ModelSelector {
     labelEl.setText(displayModel?.label || 'Unknown');
   }
 
+  async selectModel(model: string): Promise<void> {
+    await this.callbacks.onModelChange(model);
+    this.updateDisplay();
+    this.renderOptions();
+  }
+
   renderOptions() {
     if (!this.dropdownEl) return;
     this.dropdownEl.empty();
@@ -141,9 +147,7 @@ export class ModelSelector {
       option.addEventListener('click', (e) => {
         e.stopPropagation();
         runToolbarAction(async () => {
-          await this.callbacks.onModelChange(model.value);
-          this.updateDisplay();
-          this.renderOptions();
+          await this.selectModel(model.value);
         }, 'Failed to change model');
       });
     }

@@ -1,4 +1,5 @@
 import { getEnabledProviderForModel } from '../../../core/providers/modelRouting';
+import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { ProviderId } from '../../../core/providers/types';
 import type { Conversation } from '../../../core/types';
 import type ClaudianPlugin from '../../../main';
@@ -10,6 +11,13 @@ function getStoredConversationProviderId(
 ): ProviderId {
   if (tab.conversationId) {
     const conversation = plugin.getConversationSync(tab.conversationId);
+    const talosRuntimeId = conversation?.providerState?.talosRuntimeId;
+    if (
+      (talosRuntimeId === 'claude' || talosRuntimeId === 'codex' || talosRuntimeId === 'ohmypi')
+      && ProviderRegistry.getRegisteredProviderIds().includes(talosRuntimeId)
+    ) {
+      return talosRuntimeId;
+    }
     if (conversation?.providerId) {
       return conversation.providerId;
     }

@@ -1963,13 +1963,13 @@ export class TalosView extends ItemView {
 			if (!this.chatSurface) {
 				// D-TLP-014/D-TLP-015：对话页为双通道滑动切换器——
 				// DeepSeek Harness（iframe 嵌入 dsh web 桌面界面）｜
-				// Codex 工作台（claudian codex 内核，经适配器挂回）。
+				// TALOS 智能体（序列化仍使用 codex 别名以支持二进制回滚）。
 				// claudian 工作台另保留独立恢复视图（命令 open-quyuan-v2-recovery）。
 				const { HarnessWorkbench } = await import(
 					"./harness/harness-workbench"
 				);
-				const { ClaudianCodexWorkbench } = await import(
-					"./harness/claudian-codex-workbench"
+				const { TalosAgentWorkbench } = await import(
+					"./agent-workbench/ui/talos-agent-workbench"
 				);
 				const { HarnessSwitcherWorkbench, normalizeHarnessSurface } =
 					await import("./harness/harness-switcher");
@@ -1985,10 +1985,12 @@ export class TalosView extends ItemView {
 							},
 							{
 								id: "codex",
-								label: "Codex 工作台",
-								workbench: new ClaudianCodexWorkbench({
+								label: "TALOS 智能体",
+								workbench: new TalosAgentWorkbench({
 									leaf: this.leaf,
-									plugin: this.plugin,
+									service: this.plugin.getAgentWorkbenchService(),
+									compatibility:
+										this.plugin.getAgentWorkbenchCompatibility(),
 								}),
 							},
 						],
@@ -2074,7 +2076,7 @@ export class TalosView extends ItemView {
 			if (!this.jarvis) {
 				this.jarvis = new QuyuanVoicePanel(
 					this.app,
-					this.plugin,
+					this.plugin.getAgentWorkbenchCompatibility(),
 					this.plugin.talosSettings,
 					() => this.plugin.saveTalosSettings(),
 					(pageKey) => this.navigateToPage(pageKey)

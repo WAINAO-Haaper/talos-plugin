@@ -149,7 +149,9 @@ assert.equal(upstreamCapabilityFiles.every((path) => existsSync(path)), true);
 const talosMain = readFileSync("src/main.ts", "utf8");
 const talosSettingsSource = readFileSync("src/settings.ts", "utf8");
 const embeddedWorkbenchMain = readFileSync("src/quyuan/claudian/main.ts", "utf8");
-assert.match(talosMain, /extends ClaudianWorkbenchPlugin/);
+const compatibilityHost = readFileSync("src/agent-workbench/ui/claudian-compatibility-host.ts", "utf8");
+assert.match(talosMain, /extends Plugin/);
+assert.match(talosMain, /new ClaudianCompatibilityHost\(this\)/);
 assert.match(talosMain, /initializeQuyuanSoul/);
 assert.match(talosMain, /activateQuyuanV2MainView/);
 assert.match(talosMain, /candidate\.getRoot\(\) === workspace\.rootSplit/);
@@ -158,7 +160,8 @@ assert.match(talosMain, /writeQuyuanDiagnostics/);
 assert.match(talosMain, /recordQuyuanRuntimeError/);
 assert.match(talosMain, /window\.unhandledrejection/);
 assert.match(talosMain, /activateQuyuanV2View\.postOpenCheck/);
-assert.match(talosMain, /private async initializeQuyuanWorkbench\(\): Promise<void>[\s\S]*await super\.onload\(\)/);
+assert.match(talosMain, /private async initializeQuyuanWorkbench\(\): Promise<void>[\s\S]*await service\.initialize\(\)/);
+assert.match(compatibilityHost, /initialize\(\): Promise<void>[\s\S]*super\.onload\(\)/);
 assert.match(talosMain, /void this\.initializeQuyuanWorkbench\(\)/);
 assert.ok(
 	talosMain.indexOf("this.registerView(\n\t\t\tVIEW_TYPE_TALOS") <
@@ -170,7 +173,7 @@ assert.match(
 	/shouldRegisterWorkbenchRibbon\(\)[\s\S]*if \(this\.shouldRegisterWorkbenchRibbon\(\)\)/
 );
 assert.match(
-	talosMain,
+	compatibilityHost,
 	/protected shouldRegisterWorkbenchRibbon\(\): boolean \{\s*return false;/
 );
 assert.match(
@@ -178,17 +181,17 @@ assert.match(
 	/shouldRegisterWorkbenchSettingTab\(\)[\s\S]*if \(this\.shouldRegisterWorkbenchSettingTab\(\)\)/
 );
 assert.match(
-	talosMain,
+	compatibilityHost,
 	/protected shouldRegisterWorkbenchSettingTab\(\): boolean \{\s*return false;/
 );
 assert.match(
 	talosSettingsSource,
 	/\{\s*id:\s*"workbench",\s*label:\s*"屈原 · 高级"/
 );
-assert.match(
-	talosSettingsSource,
-	/renderWorkbench[\s\S]*new ClaudianSettingTab\(this\.app, this\.plugin\)/
-);
+	assert.match(
+		talosSettingsSource,
+		/renderWorkbench[\s\S]*new ClaudianSettingTab\([\s\S]*this\.plugin\.getAgentWorkbenchCompatibility\(\)/
+	);
 assert.equal((talosMain.match(/this\.addRibbonIcon\(/g) ?? []).length, 1);
 const talosViewSource = readFileSync("src/view.ts", "utf8");
 const navigationModelSource = readFileSync("src/ui/navigation-model.ts", "utf8");

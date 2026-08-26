@@ -32,6 +32,12 @@ export {
 
 export type StoredClaudianSettings = ClaudianSettings;
 
+export interface ClaudianSettingsStorageOptions {
+  writePath?: string;
+  readPaths?: string[];
+  deleteLegacyOnSave?: boolean;
+}
+
 const LEGACY_TOP_LEVEL_PROVIDER_FIELDS = [
   'claudeSafeMode',
   'codexSafeMode',
@@ -247,7 +253,15 @@ function hasLegacyTopLevelProviderFields(stored: Record<string, unknown>): boole
 }
 
 export class ClaudianSettingsStorage {
-  constructor(private adapter: VaultFileAdapter) {}
+  private readonly writePath: string;
+  private readonly readPaths: string[];
+  private readonly deleteLegacyOnSave: boolean;
+
+  constructor(private adapter: VaultFileAdapter, options: ClaudianSettingsStorageOptions = {}) {
+    this.writePath = options.writePath ?? CLAUDIAN_SETTINGS_PATH;
+    this.readPaths = options.readPaths ?? [CLAUDIAN_SETTINGS_PATH, LEGACY_CLAUDIAN_SETTINGS_PATH];
+    this.deleteLegacyOnSave = options.deleteLegacyOnSave ?? true;
+  }
 
   async load(): Promise<StoredClaudianSettings> {
     const settingsPath = await this.getLoadPath();
@@ -300,7 +314,7 @@ export class ClaudianSettingsStorage {
     );
 
     if (
-      settingsPath !== CLAUDIAN_SETTINGS_PATH
+      settingsPath !== this.writePath
       || (
       hasLegacyTopLevelProviderFields(stored)
       || 'show1MModel' in stored
@@ -332,16 +346,13 @@ export class ClaudianSettingsStorage {
       null,
       2,
     );
-    await this.adapter.write(CLAUDIAN_SETTINGS_PATH, content);
-    await this.deleteLegacyFileIfPresent();
+    await this.adapter.write(this.writePath, content);
+    if (this.deleteLegacyOnSave) await this.deleteLegacyFileIfPresent();
   }
 
   async exists(): Promise<boolean> {
-    if (await this.adapter.exists(CLAUDIAN_SETTINGS_PATH)) {
-      return true;
-    }
-
-    return this.adapter.exists(LEGACY_CLAUDIAN_SETTINGS_PATH);
+    for (const path of this.readPaths) if (await this.adapter.exists(path)) return true;
+    return false;
   }
 
   async update(updates: Partial<StoredClaudianSettings>): Promise<void> {
@@ -354,14 +365,7 @@ export class ClaudianSettingsStorage {
   }
 
   private async getLoadPath(): Promise<string | null> {
-    if (await this.adapter.exists(CLAUDIAN_SETTINGS_PATH)) {
-      return CLAUDIAN_SETTINGS_PATH;
-    }
-
-    if (await this.adapter.exists(LEGACY_CLAUDIAN_SETTINGS_PATH)) {
-      return LEGACY_CLAUDIAN_SETTINGS_PATH;
-    }
-
+    for (const path of this.readPaths) if (await this.adapter.exists(path)) return path;
     return null;
   }
 

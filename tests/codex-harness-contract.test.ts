@@ -72,8 +72,8 @@ describe("codex harness replacement contract", () => {
 		expect(main).toContain(
 			'new Set(["OPENAI_BASE_URL", "OPENAI_MODEL", "OPENAI_API_KEY"])'
 		);
-		// key 只在 spawn 子进程前经 getActiveEnvironmentVariables 运行时注入
-		expect(main).toContain("getActiveEnvironmentVariables");
+		// key 只在兼容 host 请求环境时经 TALOS delegate 运行时注入
+		expect(main).toContain("decorateClaudianEnvironment");
 		expect(main).toContain("OPENAI_API_KEY=${key}");
 		expect(main).toContain('readProviderSecret("codexApiKey")');
 	});

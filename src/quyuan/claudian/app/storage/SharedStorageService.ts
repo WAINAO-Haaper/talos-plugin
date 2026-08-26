@@ -1,11 +1,13 @@
 import type { Plugin } from 'obsidian';
 import { Notice } from 'obsidian';
 
-import { SESSIONS_PATH, SessionStorage } from '../../core/bootstrap/SessionStorage';
+import { SESSIONS_PATH, SessionStorage, type CompatibilitySessionHost } from '../../core/bootstrap/SessionStorage';
 import type { SharedAppStorage } from '../../core/bootstrap/storage';
 import { CLAUDIAN_STORAGE_PATH } from '../../core/bootstrap/StoragePaths';
 import { VaultFileAdapter } from '../../core/storage/VaultFileAdapter';
 import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../settings/ClaudianSettingsStorage';
+
+const TALOS_COMPATIBILITY_SETTINGS_PATH = '.talos/agent-workbench/v1/compatibility-settings.json';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -18,15 +20,46 @@ export class SharedStorageService implements SharedAppStorage {
   private adapter: VaultFileAdapter;
   private plugin: Plugin;
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: Plugin, private readonly readOnly = false) {
     this.plugin = plugin;
     this.adapter = new VaultFileAdapter(plugin.app);
-    this.claudianSettings = new ClaudianSettingsStorage(this.adapter);
-    this.sessions = new SessionStorage(this.adapter);
+    this.claudianSettings = new ClaudianSettingsStorage(this.adapter, readOnly ? {
+      writePath: TALOS_COMPATIBILITY_SETTINGS_PATH,
+      readPaths: [TALOS_COMPATIBILITY_SETTINGS_PATH, CLAUDIAN_STORAGE_PATH + '/claudian-settings.json', CLAUDIAN_STORAGE_PATH + '/legacy-settings.json'],
+      deleteLegacyOnSave: false,
+    } : undefined);
+    const compatibilityHost: CompatibilitySessionHost | undefined = readOnly ? {
+      read: async () => {
+        const loaded: unknown = await this.plugin.loadData();
+        const data = isRecord(loaded) ? loaded : {};
+        const host = isRecord(data.agentWorkbenchHost) ? data.agentWorkbenchHost : {};
+        const bindings = isRecord(host.compatibilityBindings)
+          ? host.compatibilityBindings as Record<string, { sessionId?: string | null; providerId?: string }>
+          : {};
+        const deletedIds = Array.isArray(host.compatibilityDeletedIds)
+          ? host.compatibilityDeletedIds.filter((id): id is string => typeof id === 'string')
+          : [];
+        return { bindings: { ...bindings }, deletedIds: [...deletedIds] };
+      },
+      write: async (value) => {
+        const loaded: unknown = await this.plugin.loadData();
+        const data = isRecord(loaded) ? loaded : {};
+        const host = isRecord(data.agentWorkbenchHost) ? data.agentWorkbenchHost : {};
+        await this.plugin.saveData({
+          ...data,
+          agentWorkbenchHost: {
+            ...host,
+            compatibilityBindings: value.bindings,
+            compatibilityDeletedIds: value.deletedIds,
+          },
+        });
+      },
+    } : undefined;
+    this.sessions = new SessionStorage(this.adapter, readOnly, compatibilityHost);
   }
 
   async initialize(): Promise<{ claudian: Record<string, unknown> }> {
-    await this.ensureDirectories();
+    if (!this.readOnly) await this.ensureDirectories();
     const claudian = await this.claudianSettings.load();
     return { claudian };
   }

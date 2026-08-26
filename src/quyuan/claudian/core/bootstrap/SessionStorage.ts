@@ -8,13 +8,20 @@ import type {
 } from '../types';
 import { LEGACY_SESSIONS_PATH, SESSIONS_PATH } from './StoragePaths';
 
+const TALOS_COMPATIBILITY_SESSIONS_PATH = '.talos/agent-workbench/v1/compatibility-sessions';
+
+export interface CompatibilitySessionHost {
+  read(): Promise<{ bindings: Record<string, { sessionId?: string | null; providerId?: string }>; deletedIds: string[] }>;
+  write(value: { bindings: Record<string, { sessionId?: string | null; providerId?: string }>; deletedIds: string[] }): Promise<void>;
+}
+
 export {
   LEGACY_SESSIONS_PATH,
   SESSIONS_PATH,
 };
 
 export class SessionStorage {
-  constructor(private adapter: VaultFileAdapter) {}
+	constructor(private adapter: VaultFileAdapter, private readonly readOnly = false, private readonly compatibilityHost?: CompatibilitySessionHost) {}
 
   getMetadataPath(id: string): string {
     return `${SESSIONS_PATH}/${id}.meta.json`;
@@ -25,6 +32,27 @@ export class SessionStorage {
   }
 
   async saveMetadata(metadata: SessionMetadata): Promise<void> {
+    if (this.readOnly) {
+      const safeMetadata: SessionMetadata = {
+        id: metadata.id,
+        providerId: metadata.providerId,
+        title: metadata.title.replace(/(?:bearer\s+|sk-[a-z0-9_-]{12,})/gi, '[redacted]'),
+        titleGenerationStatus: metadata.titleGenerationStatus,
+        createdAt: metadata.createdAt,
+        updatedAt: metadata.updatedAt,
+        lastResponseAt: metadata.lastResponseAt,
+        usage: metadata.usage,
+      };
+      await this.adapter.ensureFolder?.(TALOS_COMPATIBILITY_SESSIONS_PATH);
+      await this.adapter.write(`${TALOS_COMPATIBILITY_SESSIONS_PATH}/${metadata.id}.meta.json`, JSON.stringify(safeMetadata, null, 2));
+      if (this.compatibilityHost) {
+        const state = await this.compatibilityHost.read();
+        state.bindings[metadata.id] = { sessionId: metadata.sessionId, providerId: metadata.providerId };
+        state.deletedIds = state.deletedIds.filter(id => id !== metadata.id);
+        await this.compatibilityHost.write(state);
+      }
+      return;
+    }
     const filePath = this.getMetadataPath(metadata.id);
     const content = JSON.stringify(metadata, null, 2);
     await this.adapter.write(filePath, content);
@@ -42,6 +70,16 @@ export class SessionStorage {
       const content = await this.adapter.read(filePath);
       const metadata = JSON.parse(content) as SessionMetadata;
 
+      if (this.readOnly && this.compatibilityHost) {
+        const state = await this.compatibilityHost.read();
+        if (state.deletedIds.includes(id)) return null;
+        const binding = state.bindings[id];
+        if (binding) {
+          metadata.sessionId = binding.sessionId;
+          metadata.providerId = binding.providerId ?? metadata.providerId;
+        }
+      }
+
       if (filePath !== this.getMetadataPath(id)) {
         await this.saveMetadata(metadata);
       }
@@ -53,6 +91,15 @@ export class SessionStorage {
   }
 
   async deleteMetadata(id: string): Promise<void> {
+    if (this.readOnly) {
+      if (this.compatibilityHost) {
+        const state = await this.compatibilityHost.read();
+        delete state.bindings[id];
+        if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
+        await this.compatibilityHost.write(state);
+      }
+      return;
+    }
     await this.adapter.delete(this.getMetadataPath(id));
     await this.deleteLegacyMetadataIfPresent(id);
   }
@@ -66,9 +113,18 @@ export class SessionStorage {
       try {
         const content = await this.adapter.read(filePath);
         const raw = JSON.parse(content) as SessionMetadata;
+        if (this.readOnly && this.compatibilityHost) {
+          const state = await this.compatibilityHost.read();
+          if (state.deletedIds.includes(raw.id)) continue;
+          const binding = state.bindings[raw.id];
+          if (binding) {
+            raw.sessionId = binding.sessionId;
+            raw.providerId = binding.providerId ?? raw.providerId;
+          }
+        }
         metas.push(raw);
 
-        if (filePath.startsWith(`${LEGACY_SESSIONS_PATH}/`)) {
+        if (!this.readOnly && filePath.startsWith(`${LEGACY_SESSIONS_PATH}/`)) {
           await this.saveMetadata(raw);
         }
       } catch {
@@ -124,6 +180,10 @@ export class SessionStorage {
   }
 
   private async getLoadPath(id: string): Promise<string | null> {
+    if (this.readOnly) {
+      const compatibilityPath = `${TALOS_COMPATIBILITY_SESSIONS_PATH}/${id}.meta.json`;
+      if (await this.adapter.exists(compatibilityPath)) return compatibilityPath;
+    }
     const filePath = this.getMetadataPath(id);
     if (await this.adapter.exists(filePath)) {
       return filePath;
@@ -145,11 +205,19 @@ export class SessionStorage {
   }
 
   private async listUniqueMetadataFiles(): Promise<string[]> {
+    const compatibilityFiles = this.readOnly
+      ? await this.listMetadataFiles(TALOS_COMPATIBILITY_SESSIONS_PATH)
+      : [];
     const preferredFiles = await this.listMetadataFiles(SESSIONS_PATH);
     const fallbackFiles = await this.listMetadataFiles(LEGACY_SESSIONS_PATH);
     const filesByName = new Map<string, string>();
 
+    for (const filePath of compatibilityFiles) {
+      filesByName.set(this.getFileName(filePath), filePath);
+    }
+
     for (const filePath of preferredFiles) {
+      if (filesByName.has(this.getFileName(filePath))) continue;
       filesByName.set(this.getFileName(filePath), filePath);
     }
 

@@ -885,12 +885,62 @@ function initializeInputToolbar(
       }
 
       // For bound tabs, reject cross-provider model changes
-      const boundProvider = tab.providerId;
+      const boundProvider = getTabProviderId(tab, plugin);
       const modelProvider = getProviderForModel(model, plugin.settings);
       if (modelProvider !== boundProvider) {
-        new Notice('Cannot switch provider on a bound session. Start a new tab instead.');
-        tab.ui.modelSelector?.updateDisplay();
-        return;
+        const talosRuntimeIds = new Set<ProviderId>(['claude', 'codex', 'ohmypi']);
+        if (!talosRuntimeIds.has(boundProvider) || !talosRuntimeIds.has(modelProvider)) {
+          new Notice('Cannot switch provider on a bound session. Start a new tab instead.');
+          tab.ui.modelSelector?.updateDisplay();
+          return;
+        }
+        if (tab.state.isStreaming) {
+          throw new Error('运行或审批未决时不能切换智能体；请先等待完成或明确停止。');
+        }
+        if (!tab.conversationId) {
+          throw new Error('当前标签页没有可切换的统一会话。');
+        }
+
+        await tab.controllers.conversationController?.save(false);
+        const conversation = plugin.getConversationSync(tab.conversationId);
+        if (!conversation) throw new Error('统一会话不存在，已停止切换。');
+        const previousProviderState = conversation.providerState;
+        const previousProvider = getTabProviderId(tab, plugin, conversation);
+        const nextProviderState = {
+          ...(previousProviderState ?? {}),
+          talosRuntimeId: modelProvider,
+        };
+
+        await plugin.updateConversation(conversation.id, { providerState: nextProviderState });
+        try {
+          cleanupTabRuntime(tab);
+          tab.providerId = modelProvider;
+          syncTabProviderServices(tab, plugin);
+          syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
+          const nextUIConfig = ProviderRegistry.getChatUIConfig(modelProvider);
+          await updateTabProviderSettings(tab, plugin, (settings) => {
+            settings.model = model;
+            nextUIConfig.applyModelDefaults(model, settings);
+          });
+          await nextUIConfig.prepareModelMetadata?.(model, plugin.settings, { plugin });
+          await initializeTabService(tab, plugin, plugin.getConversationSync(conversation.id));
+          setupServiceCallbacks(tab, plugin);
+          refreshTabProviderUI(tab, plugin);
+          applyProviderUIGating(tab, plugin);
+          await onProviderChanged?.(modelProvider);
+          return;
+        } catch (error) {
+          await plugin.updateConversation(conversation.id, { providerState: previousProviderState });
+          cleanupTabRuntime(tab);
+          tab.providerId = previousProvider;
+          syncTabProviderServices(tab, plugin);
+          syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
+          await initializeTabService(tab, plugin, plugin.getConversationSync(conversation.id));
+          setupServiceCallbacks(tab, plugin);
+          refreshTabProviderUI(tab, plugin);
+          applyProviderUIGating(tab, plugin);
+          throw error;
+        }
       }
 
       const uiConfig: ProviderChatUIConfig = getTabChatUIConfig(tab, plugin);
