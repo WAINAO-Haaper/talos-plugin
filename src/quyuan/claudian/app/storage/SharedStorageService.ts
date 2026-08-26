@@ -8,6 +8,8 @@ import { VaultFileAdapter } from '../../core/storage/VaultFileAdapter';
 import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../settings/ClaudianSettingsStorage';
 
 const TALOS_COMPATIBILITY_SETTINGS_PATH = '.talos/agent-workbench/v1/compatibility-settings.json';
+const TALOS_COMPATIBILITY_HOST_PATH = '.talos/agent-workbench/v1/compatibility-host.json';
+const TALOS_TAB_MANAGER_STATE_PATH = '.talos/agent-workbench/v1/tab-manager-state.json';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -30,7 +32,7 @@ export class SharedStorageService implements SharedAppStorage {
     } : undefined);
     const compatibilityHost: CompatibilitySessionHost | undefined = readOnly ? {
       read: async () => {
-        const loaded: unknown = await this.plugin.loadData();
+        const loaded = await this.readSidecar(TALOS_COMPATIBILITY_HOST_PATH);
         const data = isRecord(loaded) ? loaded : {};
         const host = isRecord(data.agentWorkbenchHost) ? data.agentWorkbenchHost : {};
         const bindings = isRecord(host.compatibilityBindings)
@@ -42,10 +44,10 @@ export class SharedStorageService implements SharedAppStorage {
         return { bindings: { ...bindings }, deletedIds: [...deletedIds] };
       },
       write: async (value) => {
-        const loaded: unknown = await this.plugin.loadData();
+        const loaded = await this.readSidecar(TALOS_COMPATIBILITY_HOST_PATH);
         const data = isRecord(loaded) ? loaded : {};
         const host = isRecord(data.agentWorkbenchHost) ? data.agentWorkbenchHost : {};
-        await this.plugin.saveData({
+        await this.writeSidecar(TALOS_COMPATIBILITY_HOST_PATH, {
           ...data,
           agentWorkbenchHost: {
             ...host,
@@ -70,6 +72,10 @@ export class SharedStorageService implements SharedAppStorage {
 
   async setTabManagerState(state: { openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>; activeTabId: string | null }): Promise<void> {
     try {
+      if (this.readOnly) {
+        await this.writeSidecar(TALOS_TAB_MANAGER_STATE_PATH, state);
+        return;
+      }
       const loaded: unknown = await this.plugin.loadData();
       const data = isRecord(loaded) ? loaded : {};
       data.tabManagerState = state;
@@ -81,7 +87,9 @@ export class SharedStorageService implements SharedAppStorage {
 
   async getTabManagerState(): Promise<{ openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>; activeTabId: string | null } | null> {
     try {
-      const data: unknown = await this.plugin.loadData();
+      const data: unknown = this.readOnly
+        ? await this.readSidecar(TALOS_TAB_MANAGER_STATE_PATH)
+        : await this.plugin.loadData();
       if (!isRecord(data) || !data.tabManagerState) {
         return null;
       }
@@ -94,6 +102,17 @@ export class SharedStorageService implements SharedAppStorage {
 
   getAdapter(): VaultFileAdapter {
     return this.adapter;
+  }
+
+  private async readSidecar(path: string): Promise<unknown> {
+    if (!(await this.adapter.exists(path))) return null;
+    return JSON.parse(await this.adapter.read(path)) as unknown;
+  }
+
+  private async writeSidecar(path: string, value: unknown): Promise<void> {
+    const temporary = `${path}.tmp`;
+    await this.adapter.write(temporary, `${JSON.stringify(value, null, 2)}\n`);
+    await this.adapter.rename(temporary, path);
   }
 
   private async ensureDirectories(): Promise<void> {

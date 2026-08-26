@@ -1777,16 +1777,11 @@ export default class TalosPlugin extends Plugin {
 				discovery,
 				new ProcessSandbox(new NodeSandboxProbeHost()),
 			);
+			const portableStorage = new ObsidianWorkbenchStorage(this.app.vault.adapter, vaultRoot);
+			const workbenchStateRoot = ".talos/agent-workbench/v1";
 			const permissionRules = new PermissionRuleStore({
-				read: async () => {
-					const stored: unknown = await this.loadData();
-					return isRecord(stored) ? stored.agentWorkbenchPermissionRules : undefined;
-				},
-				write: async (rules) => {
-					const loaded: unknown = await this.loadData();
-					const stored = isRecord(loaded) ? loaded : {};
-					await this.saveData({ ...stored, agentWorkbenchPermissionRules: rules });
-				},
+				read: () => portableStorage.readJson(`${workbenchStateRoot}/permission-rules.json`),
+				write: (rules) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/permission-rules.json`, rules),
 			});
 			const approvalBroker = new ApprovalBroker(
 				new VaultBoundary(vaultRoot, undefined, 20, this.app.vault.configDir),
@@ -1796,30 +1791,13 @@ export default class TalosPlugin extends Plugin {
 			);
 			const secretStore = providerSecretStoreFromApp(this.app);
 			const workbenchSettings = new WorkbenchSettingsStore({
-				read: async () => {
-					const stored: unknown = await this.loadData();
-					return isRecord(stored) ? stored.agentWorkbench : null;
-				},
-				write: async (value) => {
-					const loaded: unknown = await this.loadData();
-					const stored = isRecord(loaded) ? loaded : {};
-					await this.saveData({ ...stored, agentWorkbench: value });
-				},
+				read: () => portableStorage.readJson(`${workbenchStateRoot}/settings.json`),
+				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/settings.json`, value),
 			}, { has: (reference) => secretStore?.has(reference) ?? false });
-			const portableStorage = new ObsidianWorkbenchStorage(this.app.vault.adapter, vaultRoot);
 			const conversations = new ConversationService(new PortableConversationStore(portableStorage));
 			const nativeBindings = new RuntimeBindingStore({
-				read: async () => {
-					const stored: unknown = await this.loadData();
-					if (!isRecord(stored)) return null;
-					const value = stored.agentWorkbenchBindings;
-					return isRecord(value) ? value : null;
-				},
-				write: async (value) => {
-					const loaded: unknown = await this.loadData();
-					const stored = isRecord(loaded) ? loaded : {};
-					await this.saveData({ ...stored, agentWorkbenchBindings: value });
-				},
+				read: () => portableStorage.readJson<Record<string, unknown>>(`${workbenchStateRoot}/runtime-bindings.json`),
+				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/runtime-bindings.json`, value),
 			});
 			const importManifestPath = ".talos/agent-workbench/v1/import-manifest.json";
 			const legacyImporter = new ClaudianReadonlyImporter(
