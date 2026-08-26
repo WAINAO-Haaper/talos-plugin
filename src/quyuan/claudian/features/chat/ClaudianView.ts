@@ -395,11 +395,21 @@ export class ClaudianView extends ItemView {
       : null;
   }
 
-  async selectTalosRuntime(runtimeId: 'claude' | 'codex' | 'ohmypi', modelId = 'default'): Promise<void> {
+  async selectTalosRuntime(runtimeId: 'claude' | 'codex' | 'ohmypi', modelId?: string): Promise<void> {
     const tab = this.tabManager?.getActiveTab();
     if (!tab?.ui.modelSelector) throw new Error('当前 TALOS 标签页尚未准备好');
     if (tab.state.isStreaming) throw new Error('运行或审批未决时不能切换智能体');
-    await tab.ui.modelSelector.selectModel(encodeProviderModelSelectionId(runtimeId, modelId));
+    const providerSettings = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+      this.plugin.settings,
+      runtimeId,
+    );
+    const savedModel = typeof providerSettings.model === 'string'
+      ? providerSettings.model.trim()
+      : '';
+    const resolvedModelId = modelId ?? (savedModel || 'default');
+    await tab.ui.modelSelector.selectModel(
+      encodeProviderModelSelectionId(runtimeId, resolvedModelId),
+    );
     this.syncProviderBrandColor();
     this.updateTalosChrome();
     this.persistTabState();

@@ -10,6 +10,7 @@ const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 const registration = readFileSync(`${root}src/agent-workbench/ui/adapter-provider-registration.ts`, "utf8");
 const compatibilityHost = readFileSync(`${root}src/agent-workbench/ui/claudian-compatibility-host.ts`, "utf8");
 const claudianView = readFileSync(`${root}src/quyuan/claudian/features/chat/ClaudianView.ts`, "utf8");
+const tab = readFileSync(`${root}src/quyuan/claudian/features/chat/tabs/Tab.ts`, "utf8");
 
 describe("TALOS agent workbench compatibility UI", () => {
 	it("registers all three TALOS adapter providers while preserving the renderer provider contract", () => {
@@ -65,5 +66,14 @@ describe("TALOS agent workbench compatibility UI", () => {
 	it("routes the top logo switcher into the embedded runtime and gives OhMyPi an unambiguous model namespace", () => {
 		expect(view).toContain("compatibility.selectRuntime");
 		expect(decodeProviderModelSelectionId(encodeProviderModelSelectionId("ohmypi", "synthetic/model"))).toEqual({ providerId: "ohmypi", modelId: "synthetic/model" });
+	});
+
+	it("restores each runtime's saved model and persists runtime-native model ids", () => {
+		expect(claudianView).toContain("const resolvedModelId = modelId ?? (savedModel || 'default')");
+		expect(claudianView).toContain("ProviderSettingsCoordinator.getProviderSettingsSnapshot");
+		expect(claudianView).not.toContain("modelId = 'default'");
+		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(modelProvider, model)");
+		expect(tab).toContain("settings.model = runtimeModel");
+		expect(tab).toContain("nextUIConfig.applyModelDefaults(runtimeModel, settings)");
 	});
 });

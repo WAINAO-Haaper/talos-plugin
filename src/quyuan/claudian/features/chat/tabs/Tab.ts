@@ -5,6 +5,7 @@ import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hi
 import type { ProviderCommandDropdownConfig } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
 import { getEnabledProviderForModel, getProviderForModel } from '../../../core/providers/modelRouting';
+import { toProviderRuntimeModelId } from '../../../core/providers/modelSelection';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import { ProviderWorkspaceRegistry } from '../../../core/providers/ProviderWorkspaceRegistry';
@@ -900,6 +901,7 @@ function initializeInputToolbar(
         if (!tab.conversationId) {
           throw new Error('当前标签页没有可切换的统一会话。');
         }
+        const runtimeModel = toProviderRuntimeModelId(modelProvider, model);
 
         await tab.controllers.conversationController?.save(false);
         const conversation = plugin.getConversationSync(tab.conversationId);
@@ -919,10 +921,10 @@ function initializeInputToolbar(
           syncSlashCommandDropdownForProvider(tab, plugin, getProviderCatalogConfig);
           const nextUIConfig = ProviderRegistry.getChatUIConfig(modelProvider);
           await updateTabProviderSettings(tab, plugin, (settings) => {
-            settings.model = model;
-            nextUIConfig.applyModelDefaults(model, settings);
+            settings.model = runtimeModel;
+            nextUIConfig.applyModelDefaults(runtimeModel, settings);
           });
-          await nextUIConfig.prepareModelMetadata?.(model, plugin.settings, { plugin });
+          await nextUIConfig.prepareModelMetadata?.(runtimeModel, plugin.settings, { plugin });
           await initializeTabService(tab, plugin, plugin.getConversationSync(conversation.id));
           setupServiceCallbacks(tab, plugin);
           refreshTabProviderUI(tab, plugin);
