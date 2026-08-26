@@ -67,8 +67,18 @@ assert.equal(
 );
 assert.match(TALOS_ICON_SVG, /M180 247H249/);
 
+const missingReadTarget = evaluateQuyuanGovernance(
+	request({ toolName: "Read", input: {} })
+);
+assert.equal(missingReadTarget.decision, "deny");
+assert.match(missingReadTarget.reason, /缺少可验证的目标路径/);
 assert.equal(
-	evaluateQuyuanGovernance(request({ toolName: "Read", input: {} })).decision,
+	evaluateQuyuanGovernance(
+		request({
+			toolName: "Read",
+			input: { file_path: "02-洞察/安全.md" },
+		})
+	).decision,
 	"allow"
 );
 
@@ -261,6 +271,18 @@ const voiceParticleSource = readFileSync("src/quyuan/voice-particle-field.ts", "
 const vadSource = readFileSync("src/quyuan/vad-mic.ts", "utf8");
 const vadTurnSource = readFileSync("src/quyuan/vad-turn.ts", "utf8");
 const sileroSource = readFileSync("src/quyuan/silero-vad.ts", "utf8");
+const localVoiceSupplySource = readFileSync(
+	"src/quyuan/local-voice-supply-chain.ts",
+	"utf8"
+);
+const bundledLocalVoiceSource = readFileSync(
+	"src/quyuan/bundled-local-voice-runtime.ts",
+	"utf8"
+);
+const qwenRealtimeSource = readFileSync(
+	"src/quyuan/qwen-realtime-voice.ts",
+	"utf8"
+);
 const voiceIoSource = readFileSync("src/jarvis/voiceio.ts", "utf8");
 const particleCreateRegion = sourceRegion(
 	voiceParticleSource,
@@ -346,9 +368,18 @@ assert.match(
 	voicePanelSource,
 	/syncAsrBusy[\s\S]*setBusy\(busy,\s*busy\)/
 );
-// 唤醒窗口：忙碌期冻结、结束重计（长回答不再掉唤醒）
+// Realtime 唤醒态由显式休眠/退出/离开页面结束，不再保留旧 30 秒计时器。
 assert.match(voicePanelSource, /private pauseWakeWindow\(\)/);
-assert.match(voicePanelSource, /if \(busy\) this\.pauseWakeWindow\(\);\s*else this\.refreshWakeWindow\(\);/);
+assert.doesNotMatch(voicePanelSource, /wakeWindowMs|wakeTimer/);
+assert.match(voicePanelSource, /There is intentionally no legacy 30-second timer/);
+assert.doesNotMatch(
+	sourceRegion(
+		voicePanelSource,
+		"private syncAsrBusy(): void {",
+		"// ---------- 状态机 ----------"
+	),
+	/pauseWakeWindow|refreshWakeWindow/
+);
 assert.match(voicePanelSource, /ttsPending[\s\S]*ttsSpeaking[\s\S]*responseActive/);
 assert.match(voicePanelSource, /\(level\) => \{[\s\S]*characterStage\?\.setOutputLevel\(level\)/);
 assert.match(voicePanelSource, /onLevel: \(level\)[\s\S]*characterStage\?\.setInputLevel\(visualLevel\)/);
@@ -380,32 +411,42 @@ assert.match(vadSource, /keepVoiced: byProb \?[\s\S]*SPEECH_KEEP_PROB : rms >= K
 assert.match(vadSource, /const rms = this\.rmsOf\(frame\);[\s\S]*this\.h\.onLevel\?\.\(/);
 // 打断判定必须留在响度：屈原自己的朗读在模型看来同样是人声
 assert.match(vadSource, /BARGE_RMS = 0\.05[\s\S]*rms > BARGE_RMS/);
-// 降级路径：任一环失败都回退响度判定 + 一次性中文提示，且不缓存失败的 promise
-assert.match(vadSource, /private fallbackToRms\(reason: string\): void/);
+// 降级路径：任一环失败都回退响度判定 + 一次性中文提示；过期生命周期不得复活。
+assert.match(
+	vadSource,
+	/private fallbackToRms\(reason: string, generation = this\.lifecycleGeneration\): void[\s\S]*generation !== this\.lifecycleGeneration[\s\S]*return;/
+);
 assert.match(vadSource, /this\.turn\.setPeakGate\(true\)[\s\S]*语音断句已回退到响度判定/);
-assert.match(sileroSource, /this\.loading = null;\s*\n\s*throw error/);
-assert.match(sileroSource, /withTimeout\(import\(entry\)/);
-assert.match(sileroSource, /wasmPaths = base[\s\S]*numThreads = 1/);
-assert.match(sileroSource, /requestUrl\(\{ url: modelUrl/);
-// CDN 与模型地址必须来自设置拼出的运行时字符串，esbuild 不得静态打包
-assert.match(sileroSource, /this\.settings\.quyuanVadCdn\?\.trim\(\) \|\| DEFAULT_ORT_CDN/);
-assert.match(sileroSource, /this\.settings\.quyuanVadModel\?\.trim\(\) \|\| DEFAULT_MODEL_URL/);
+// 本地 VAD 供应链：禁止远程 JavaScript/自定义 CDN，只接受固定清单与校验后资产。
+assert.match(sileroSource, /BUNDLED_SILERO_VAD_PACKAGE/);
+assert.match(sileroSource, /loadVerifiedVoiceModelAsset\(modelPackage\.manifest/);
+assert.match(sileroSource, /runtimeVersion[\s\S]*\^\(latest\|main\|master\|head\)\$/);
+assert.match(sileroSource, /const clear = \(\): void =>[\s\S]*task\.then\(clear, clear\)/);
+assert.match(sileroSource, /dispose\(\): void[\s\S]*\+\+this\.loadGeneration[\s\S]*session\?\.release/);
+assert.doesNotMatch(sileroSource, /\bimport\s*\(|\bfetch\s*\(|requestUrl|quyuanVadCdn/);
+assert.match(bundledLocalVoiceSource, /BUNDLED_SILERO_VAD_PACKAGE[\s\S]*= null/);
+assert.match(bundledLocalVoiceSource, /runtimeDelivery: "build-time-static"/);
+assert.match(bundledLocalVoiceSource, /dynamicRemoteJavaScript: false/);
+assert.match(bundledLocalVoiceSource, /modelIntegrity: "sha256-required"/);
+assert.match(localVoiceSupplySource, /模型清单缺少 NOTICE 声明/);
+assert.match(localVoiceSupplySource, /\^\[a-f0-9\]\{64\}\$/);
+assert.match(localVoiceSupplySource, /actual !== manifest\.sha256/);
 assert.match(talosSettingsSource, /quyuanVadEnabled:\s*boolean/);
-// 神经 VAD 会下载并执行外部运行时与模型，统一主线必须保持显式选择、默认不联网。
+// 旧本地 VAD 不参与 Qwen Realtime；默认关闭，首次固定模型获取也默认无联网同意。
 assert.match(talosSettingsSource, /quyuanVadEnabled:\s*false/);
 assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*boolean/);
 assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*false/);
 assert.match(
 	vadSource,
-	/quyuanVadEnabled === false \|\|[\s\S]*quyuanVadNetworkConsent !== true/
+	/if \(this\.settings\.quyuanVadEnabled === false\) return;/
 );
 assert.match(
 	talosSettingsSource,
-	/quyuanVadEnabled = v;[\s\S]*quyuanVadNetworkConsent = v;/
+	/允许首次获取固定 VAD 模型[\s\S]*setValue\(false\)\.setDisabled\(true\)/
 );
 assert.match(
 	talosMain,
-	/if \(!settings\.quyuanVadNetworkConsent\) settings\.quyuanVadEnabled = false;/
+	/settings\.quyuanVadCdn = "";[\s\S]*settings\.quyuanVadModel = "";/
 );
 assert.match(talosSettingsSource, /quyuanVadCdn:\s*""[\s\S]*quyuanVadModel:\s*""/);
 
@@ -415,9 +456,11 @@ const cloudAsrSource = readFileSync("src/quyuan/cloud-asr.ts", "utf8");
 assert.match(vadSource, /protected supportsPartial\(\): boolean \{\s*return false;/);
 assert.match(localAsrSource, /protected override supportsPartial\(\): boolean \{\s*return true;/);
 assert.doesNotMatch(cloudAsrSource, /supportsPartial|onPartial|partial/i);
-// 同一个 ONNX session 不能并发跑：中途与最终转写必须排队
-assert.match(localAsrSource, /private enqueue<T>[\s\S]*this\.queue = next\.catch/);
-assert.match(localAsrSource, /await this\.enqueue\(\(\) =>\s*\n?\s*withTimeout\(transcriber/);
+// 同一个 ONNX session 不能并发跑：中途与最终转写共用串行队列；超时不提前放行底层推理。
+assert.match(localAsrSource, /export class SerializedInferenceQueue[\s\S]*private tail: Promise<unknown>/);
+assert.match(localAsrSource, /const operation = this\.tail\.then\(task, task\)[\s\S]*this\.tail = operation\.catch/);
+assert.match(localAsrSource, /this\.inferenceQueue\.run\([\s\S]*\(\) => transcriber\(samples/);
+assert.match(localAsrSource, /protected override requiresFinalTranscription\(\): boolean[\s\S]*return true/);
 // 中途结果只喂字幕；轮次已定案就不再刷，避免上一句残影
 assert.match(vadSource, /if \(this\.supportsPartial\(\)\) this\.maybePartial\(\);/);
 assert.match(vadSource, /live\?\.turnId === snap\.turnId\) this\.h\.onPartial\?\.\(text\)/);
@@ -427,12 +470,15 @@ assert.match(
 	vadSource,
 	/cached\.turnId === turnId && cached\.samples === total && cached\.text/
 );
-// 面板：partial 绝不触发唤醒或发送
-assert.match(voicePanelSource, /onPartial: \(text\) => this\.showPartialTranscript\(text\)/);
+// 兼容 ASR 回调：partial 受 lifecycle 守卫保护，且绝不触发唤醒或发送。
+assert.match(
+	voicePanelSource,
+	/onPartial: \(text\) => \{[\s\S]*if \(current\(\)\) this\.showPartialTranscript\(text\)/
+);
 const partialRegion = sourceRegion(
 	voicePanelSource,
 	"private showPartialTranscript(text: string): void {",
-	"private showTranscriptEditor"
+	"private showFinalTranscript"
 );
 assert.doesNotMatch(partialRegion, /commitUser|matchWake|activateWake|respond\(/);
 assert.match(
@@ -442,11 +488,13 @@ assert.match(
 assert.match(partialRegion, /this\.setState\("reco"\)/);
 // 忙碌 = 本轮已交给 agent：软结束的立即定案，半句一律丢弃
 assert.match(vadSource, /if \(busy\) this\.turn\.onBusy\(\);/);
-// VadMic 对外契约不变（子类 LocalAsr / CloudAsr 不受影响）
+// VadMic 为 partial/final 提供稳定流标识，流式 Worker 才能在 final 时正确 flush。
 assert.match(
 	vadSource,
-	/protected abstract transcribe\(samples: Float32Array, sampleRate: number\): Promise<string>/
+	/protected abstract transcribe\([\s\S]*samples: Float32Array,[\s\S]*sampleRate: number,[\s\S]*context: VadTranscriptionContext[\s\S]*\): Promise<string>/
 );
+assert.match(vadSource, /streamId: `\$\{lifecycleGeneration\}:\$\{snap\.turnId\}`[\s\S]*phase: "partial"/);
+assert.match(vadSource, /streamId: `\$\{lifecycleGeneration\}:\$\{turnId\}`[\s\S]*phase: "final"/);
 assert.match(voiceIoSource, /rest\.length > 28/);
 assert.match(
 	voicePanelSource,
@@ -454,16 +502,43 @@ assert.match(
 );
 assert.match(voicePanelSource, /wakeWord = "屈原"/);
 assert.match(voicePanelSource, /sleepWord = "退下"/);
-assert.match(voicePanelSource, /wakeWindowMs = 30_000/);
+assert.doesNotMatch(voicePanelSource, /wakeWindowMs|wakeTimer/);
 assert.match(
 	voicePanelSource,
 	/onText: \(text\) => \{[\s\S]*this\.handleVoiceTranscript\(text\)[\s\S]*renderPushToTalkReady/
 );
 assert.match(talosSettingsSource, /quyuanVoiceInputMode:\s*"continuous" \| "push-to-talk"/);
-assert.match(voicePanelSource, /fallbackToPushToTalk[\s\S]*onAsrFailure/);
-assert.match(voicePanelSource, /tq-transcript-editor[\s\S]*createEl\("textarea"[\s\S]*语音识别文字，可编辑/);
-assert.match(voicePanelSource, /channel === "voice"[\s\S]*showTranscriptEditor\(trimmed\)/);
-assert.match(voicePanelSource, /showTranscriptEditor[\s\S]*requestAnimationFrame[\s\S]*is-visible/);
+// 活跃麦克风主链固定为 Qwen Realtime；打开页面不会构造或启动本地 ASR。
+assert.match(
+	voicePanelSource,
+	/Local ASR is no longer part of the active path[\s\S]*this\.asr = null;[\s\S]*this\.realtime = this\.buildRealtime\(lifecycleGeneration\)/
+);
+assert.match(voicePanelSource, /return new QwenRealtimeVoiceSession\(/);
+assert.match(qwenRealtimeSource, /type: "semantic_vad"/);
+assert.match(qwenRealtimeSource, /interrupt_response: true/);
+assert.match(
+	voicePanelSource,
+	/onInputTranscript: \(text, final\) => \{[\s\S]*showPartialTranscript\(text\)[\s\S]*showFinalTranscript\(trimmed\)/
+);
+assert.match(
+	voicePanelSource,
+	/setVoiceRecognitionEnabled[\s\S]*fallbackToPushToTalk\("Realtime 会话未能进入就绪状态"\)/
+);
+// TPI-114：转写只显示一次；partial 与 final 复用同一字幕流，不再创建可编辑 textarea。
+assert.match(voicePanelSource, /tq-transcript-editor is-visible[\s\S]*tq-transcript-lines/);
+assert.match(voicePanelSource, /tq-transcript-line tq-transcript-line--partial/);
+assert.match(
+	voicePanelSource,
+	/private showFinalTranscript[\s\S]*this\.pushTranscriptLine\(text\)[\s\S]*requestAnimationFrame[\s\S]*is-visible/
+);
+assert.match(voicePanelSource, /private pushTranscriptLine[\s\S]*this\.clearPartialTranscript\(\)/);
+const transcriptMountRegion = sourceRegion(
+	voicePanelSource,
+	"this.overlayTranscriptEl = dock.createDiv({",
+	"const controls = dock.createDiv({"
+);
+assert.doesNotMatch(transcriptMountRegion, /createEl\("textarea"/);
+assert.doesNotMatch(voicePanelSource, /showTranscriptEditor|最终文本可编辑/);
 assert.match(
 	voicePanelSource,
 	/handleVoiceTranscript[\s\S]*activateWake[\s\S]*commitUser\(command,\s*"voice"\)/

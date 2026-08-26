@@ -9,6 +9,7 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": false,
 		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
 		"isolatedModules": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,

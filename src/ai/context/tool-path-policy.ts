@@ -2,7 +2,7 @@ import {
 	inspectVaultPath,
 	type SecretBlockReason,
 	type SecretPolicyOptions,
-} from "./secret-policy";
+} from "./secret-policy.ts";
 
 export interface ToolPathInspection {
 	blocked: boolean;

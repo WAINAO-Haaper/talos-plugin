@@ -1,4 +1,4 @@
-import { inspectToolTargetPaths } from "../ai/context/tool-path-policy";
+import { inspectToolTargetPaths } from "../ai/context/tool-path-policy.ts";
 export type QuyuanGovernanceDecision = "allow" | "ask" | "deny";
 
 export interface QuyuanToolRequest {
