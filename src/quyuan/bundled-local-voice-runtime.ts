@@ -83,4 +83,3 @@ export const LOCAL_VOICE_RUNTIME_BOUNDARY = Object.freeze({
 	asrRuntime: "sherpa-onnx-browser-wasm@1.13.6",
 	asrModelRevision: MODEL_REVISION,
 });
-
