@@ -2300,6 +2300,7 @@
 }
 /* TALOS agent workbench · dynamic runtime control surface */
 .talos-agent-workbench {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -2772,12 +2773,29 @@ body[data-talos-vault-theme] .talos-console .talos-agent-workflow button[aria-pr
 }
 
 .talos-agent-handoff-marker {
-  margin: 6px 12px 0;
-  padding: 6px 10px;
+  position: absolute;
+  z-index: 18;
+  right: 12px;
+  width: min(460px, calc(100% - 24px));
+  padding: 8px 12px;
   border-inline-start: 3px solid var(--interactive-accent);
+  border-radius: 8px;
   color: var(--text-muted);
-  background: color-mix(in srgb, var(--interactive-accent) 6%, transparent);
+  background: color-mix(in srgb, var(--background-primary) 94%, var(--interactive-accent));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--background-modifier-box-shadow) 38%, transparent);
   font-size: var(--font-ui-smaller);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.talos-agent-handoff-marker.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .talos-agent-compatibility-body {

@@ -54,6 +54,15 @@ describe("TALOS agent workbench compatibility UI", () => {
 		}
 	});
 
+	it("shows runtime handoffs as one temporary overlay instead of taking chat layout space", () => {
+		for (const contract of ["handoffToast", "handoffDismissTimer", "clearHandoffToast", 'marker.classList.add("is-visible")']) {
+			expect(view).toContain(contract);
+		}
+		expect(view).toContain("}, 3200)");
+		expect(css).toMatch(/\.talos-agent-handoff-marker\s*\{[^}]*position:\s*absolute/s);
+		expect(css).toContain(".talos-agent-handoff-marker.is-visible");
+	});
+
 	it("uses the registered standard provider SVG prototypes and plain-language dynamic modes", () => {
 		for (const icon of ["CLAUDE_PROVIDER_ICON", "OPENAI_PROVIDER_ICON", "PI_PROVIDER_ICON"]) {
 			expect(view).toContain(icon);

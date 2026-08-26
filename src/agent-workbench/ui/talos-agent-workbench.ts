@@ -65,6 +65,9 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private install: HTMLAnchorElement | null = null;
 	private refreshVersion = 0;
 	private outsideModelMenuListener: ((event: PointerEvent) => void) | null = null;
+	private handoffToast: HTMLElement | null = null;
+	private handoffDismissTimer: number | null = null;
+	private handoffRemovalTimer: number | null = null;
 
 	constructor(private readonly options: TalosAgentWorkbenchOptions) {
 		this.compatibility = new CompatibilityChatView(options.leaf, options.compatibility);
@@ -289,11 +292,33 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 
 	private appendHandoffMarker(root: HTMLElement, from: RuntimeId, to: RuntimeId): void {
 		if (from === to) return;
-		const marker = root.ownerDocument.createElement("div");
+		const marker = this.handoffToast ?? root.ownerDocument.createElement("div");
+		if (this.handoffDismissTimer) window.clearTimeout(this.handoffDismissTimer);
+		if (this.handoffRemovalTimer) window.clearTimeout(this.handoffRemovalTimer);
 		marker.className = "talos-agent-handoff-marker";
 		marker.setAttribute("role", "status");
-		marker.textContent = `${from} → ${to} · 将在下一回合注入增量上下文并恢复目标原生会话`;
-		root.insertBefore(marker, this.body);
+		marker.setAttribute("aria-live", "polite");
+		marker.textContent = `${from} → ${to} · 下一回合将恢复目标会话`;
+		marker.style.top = `${(root.querySelector<HTMLElement>(".talos-agent-controls")?.offsetHeight ?? 52) + 8}px`;
+		if (!marker.parentElement) root.appendChild(marker);
+		this.handoffToast = marker;
+		window.requestAnimationFrame(() => marker.classList.add("is-visible"));
+		this.handoffDismissTimer = window.setTimeout(() => {
+			marker.classList.remove("is-visible");
+			this.handoffRemovalTimer = window.setTimeout(() => {
+				marker.remove();
+				if (this.handoffToast === marker) this.handoffToast = null;
+			}, 220);
+		}, 3200);
+	}
+
+	private clearHandoffToast(): void {
+		if (this.handoffDismissTimer) window.clearTimeout(this.handoffDismissTimer);
+		if (this.handoffRemovalTimer) window.clearTimeout(this.handoffRemovalTimer);
+		this.handoffDismissTimer = null;
+		this.handoffRemovalTimer = null;
+		this.handoffToast?.remove();
+		this.handoffToast = null;
 	}
 
 	private updateRuntimeButtons(runtimeId: RuntimeId): void {
@@ -515,12 +540,14 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 
 	async suspend(): Promise<void> {
 		this.setModelMenuOpen(false);
+		this.clearHandoffToast();
 		await this.compatibility.suspend();
 		this.root?.remove();
 	}
 	focusComposer(): void { this.compatibility.focusComposer(); }
 	async destroy(): Promise<void> {
 		this.setModelMenuOpen(false);
+		this.clearHandoffToast();
 		this.outsideModelMenuListener = null;
 		await this.compatibility.destroy();
 		this.root?.remove();
