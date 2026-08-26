@@ -71,6 +71,8 @@ describe("TALOS agent workbench compatibility UI", () => {
 	it("restores each runtime's saved model and persists runtime-native model ids", () => {
 		expect(claudianView).toContain("const resolvedModelId = modelId ?? (savedModel || 'default')");
 		expect(claudianView).toContain("ProviderSettingsCoordinator.getProviderSettingsSnapshot");
+		expect(claudianView).toContain("toProviderRuntimeModelId(runtimeId, model)");
+		expect(view).toContain("service.selectRuntime(runtimeId, modelId ?? null)");
 		expect(claudianView).not.toContain("modelId = 'default'");
 		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(modelProvider, model)");
 		expect(tab).toContain("settings.model = runtimeModel");

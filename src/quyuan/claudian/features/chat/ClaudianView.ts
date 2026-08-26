@@ -4,7 +4,10 @@ import { ItemView, Notice, Scope, setIcon } from 'obsidian';
 import { getHiddenProviderCommandSet } from '../../core/providers/commands/hiddenCommands';
 import { ProviderRegistry } from '../../core/providers/ProviderRegistry';
 import { ProviderSettingsCoordinator } from '../../core/providers/ProviderSettingsCoordinator';
-import { encodeProviderModelSelectionId } from '../../core/providers/modelSelection';
+import {
+  encodeProviderModelSelectionId,
+  toProviderRuntimeModelId,
+} from '../../core/providers/modelSelection';
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderId } from '../../core/providers/types';
 import { VIEW_TYPE_CLAUDIAN } from '../../core/types';
 import type ClaudianPlugin from '../../main';
@@ -59,7 +62,10 @@ export class ClaudianView extends ItemView {
   private talosCapabilitiesPanelEl: HTMLElement | null = null;
   private embeddedMode = false;
   private surfaceActive = false;
-  private readonly talosRuntimeListeners = new Set<(runtimeId: 'claude' | 'codex' | 'ohmypi') => void>();
+  private readonly talosRuntimeListeners = new Set<(
+    runtimeId: 'claude' | 'codex' | 'ohmypi',
+    modelId?: string,
+  ) => void>();
   private lastTalosRuntimeId: 'claude' | 'codex' | 'ohmypi' | null = null;
 
   // Header elements
@@ -379,10 +385,13 @@ export class ClaudianView extends ItemView {
     this.tabManager?.getActiveTab()?.dom.inputEl.focus();
   }
 
-  onTalosRuntimeChanged(listener: (runtimeId: 'claude' | 'codex' | 'ohmypi') => void): () => void {
+  onTalosRuntimeChanged(listener: (
+    runtimeId: 'claude' | 'codex' | 'ohmypi',
+    modelId?: string,
+  ) => void): () => void {
     this.talosRuntimeListeners.add(listener);
     const current = this.getSelectedTalosRuntime();
-    if (current) listener(current);
+    if (current) listener(current, this.getSelectedTalosRuntimeModel(current));
     return () => this.talosRuntimeListeners.delete(listener);
   }
 
@@ -393,6 +402,18 @@ export class ClaudianView extends ItemView {
     return providerId === 'claude' || providerId === 'codex' || providerId === 'ohmypi'
       ? providerId
       : null;
+  }
+
+  private getSelectedTalosRuntimeModel(
+    runtimeId: 'claude' | 'codex' | 'ohmypi',
+  ): string | undefined {
+    const snapshot = ProviderSettingsCoordinator.getProviderSettingsSnapshot(
+      this.plugin.settings,
+      runtimeId,
+    );
+    const model = typeof snapshot.model === 'string' ? snapshot.model.trim() : '';
+    const runtimeModel = model ? toProviderRuntimeModelId(runtimeId, model) : '';
+    return runtimeModel && runtimeModel !== 'default' ? runtimeModel : undefined;
   }
 
   async selectTalosRuntime(runtimeId: 'claude' | 'codex' | 'ohmypi', modelId?: string): Promise<void> {
@@ -532,7 +553,8 @@ export class ClaudianView extends ItemView {
     const runtimeId = this.getSelectedTalosRuntime();
     if (runtimeId && runtimeId !== this.lastTalosRuntimeId) {
       this.lastTalosRuntimeId = runtimeId;
-      for (const listener of this.talosRuntimeListeners) listener(runtimeId);
+      const modelId = this.getSelectedTalosRuntimeModel(runtimeId);
+      for (const listener of this.talosRuntimeListeners) listener(runtimeId, modelId);
     }
     if (this.talosStatusTextEl) {
       this.talosStatusTextEl.setText(tab?.state.isStreaming ? '思考中' : '待命');

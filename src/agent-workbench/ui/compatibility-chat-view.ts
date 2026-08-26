@@ -7,7 +7,7 @@ import type { ClaudianCompatibilityHost } from "./claudian-compatibility-host";
 export class CompatibilityChatView implements ChatSurfaceWorkbench {
 	private view: ClaudianView | null = null;
 	private runtimeCleanup: (() => void) | null = null;
-	private runtimeListener: ((runtimeId: "claude" | "codex" | "ohmypi") => void) | null = null;
+	private runtimeListener: ((runtimeId: "claude" | "codex" | "ohmypi", modelId?: string) => void) | null = null;
 
 	constructor(private readonly leaf: WorkspaceLeaf, private readonly plugin: ClaudianCompatibilityHost) {}
 
@@ -23,7 +23,7 @@ export class CompatibilityChatView implements ChatSurfaceWorkbench {
 			view.leaf = this.leaf;
 			this.plugin.registerEmbeddedView(view);
 			this.view = view;
-			this.runtimeCleanup = view.onTalosRuntimeChanged((runtimeId) => this.runtimeListener?.(runtimeId));
+			this.runtimeCleanup = view.onTalosRuntimeChanged((runtimeId, modelId) => this.runtimeListener?.(runtimeId, modelId));
 		}
 		await this.view.mountEmbedded(container, namespace);
 	}
@@ -34,7 +34,7 @@ export class CompatibilityChatView implements ChatSurfaceWorkbench {
 		if (!this.view) throw new Error("TALOS 兼容视图尚未挂载");
 		await this.view.selectTalosRuntime(runtimeId, modelId);
 	}
-	onRuntimeChanged(listener: (runtimeId: "claude" | "codex" | "ohmypi") => void): void {
+	onRuntimeChanged(listener: (runtimeId: "claude" | "codex" | "ohmypi", modelId?: string) => void): void {
 		this.runtimeListener = listener;
 		const current = this.view?.getSelectedTalosRuntime();
 		if (current) listener(current);

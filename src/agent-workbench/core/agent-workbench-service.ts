@@ -144,12 +144,13 @@ export class AgentWorkbenchService {
 		return this.options.conversationCoordinator;
 	}
 
-	selectRuntime(runtimeId: RuntimeId): void {
+	selectRuntime(runtimeId: RuntimeId, model?: string | null): void {
 		if (runtimeId !== this.selectedRuntimeId) {
 			this.selectedRuntimeId = runtimeId;
 			this.selectedProviderProfileId = undefined;
 			this.selectedModel = undefined;
 		}
+		if (model !== undefined) this.selectedModel = model ?? undefined;
 		this.queueSettingsSave();
 	}
 

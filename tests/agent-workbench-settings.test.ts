@@ -71,6 +71,27 @@ describe("WorkbenchSettingsStore", () => {
 		expect(value.providers[0]?.secretRef).toBe("talos-openai-main");
 	});
 
+	it("projects the compatibility runtime model into the TALOS selector atomically", async () => {
+		let value = settings();
+		value.selection = { runtimeId: "codex" };
+		const store = new WorkbenchSettingsStore(
+			{ read: async () => structuredClone(value), write: async (next) => { value = structuredClone(next); } },
+			{ has: () => true },
+		);
+		const service = new AgentWorkbenchService({
+			compatibility: { initialize: async () => {}, dispose: () => {} },
+			settingsStore: store,
+		});
+		await service.initialize();
+		service.selectRuntime("codex", "gpt-5.5");
+		await service.flushSettings();
+		expect(service.getSelection()).toEqual({ runtimeId: "codex", model: "gpt-5.5" });
+		expect(value.selection.model).toBe("gpt-5.5");
+		service.selectRuntime("codex", null);
+		await service.flushSettings();
+		expect(service.getSelection()).toEqual({ runtimeId: "codex" });
+	});
+
 	it("syncs only TALOS-managed API profiles and avoids no-op writes", async () => {
 		let value = settings();
 		let writes = 0;

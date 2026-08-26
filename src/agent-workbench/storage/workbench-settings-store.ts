@@ -42,6 +42,12 @@ function defaults(): WorkbenchSettings {
 
 function normalizeSelection(selection: RuntimeSelection, providers: ProviderProfile[]): RuntimeSelection {
 	if (!selection || !["claude", "codex", "ohmypi"].includes(selection.runtimeId)) throw new Error("runtime selection 无效");
+	if (!selection.providerProfileId) {
+		return {
+			runtimeId: selection.runtimeId,
+			...(selection.model ? { model: selection.model } : {}),
+		};
+	}
 	const provider = providers.find((candidate) => candidate.enabled && candidate.id === selection.providerProfileId && candidate.runtimeId === selection.runtimeId);
 	if (!provider) return { runtimeId: selection.runtimeId };
 	return {
