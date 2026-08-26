@@ -24,6 +24,12 @@ function getStoredConversationProviderId(
   }
 
   if (tab.lifecycleState === 'blank' && tab.draftModel) {
+    if (
+      ProviderRegistry.getRegisteredProviderIds().includes(tab.providerId)
+      && ProviderRegistry.isEnabled(tab.providerId, plugin.settings)
+    ) {
+      return tab.providerId;
+    }
     return getEnabledProviderForModel(
       tab.draftModel,
       plugin.settings,

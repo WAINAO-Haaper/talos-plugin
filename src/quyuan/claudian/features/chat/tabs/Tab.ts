@@ -487,7 +487,13 @@ export function createTab(options: TabCreateOptions): TabData {
   const draftModel = isBound
     ? null
     : (restoredDraftModel || resolveBlankTabModel(plugin, options.defaultProviderId));
+  const restoredProviderId = options.defaultProviderId
+    && ProviderRegistry.getRegisteredProviderIds().includes(options.defaultProviderId)
+    && ProviderRegistry.isEnabled(options.defaultProviderId, plugin.settings)
+    ? options.defaultProviderId
+    : undefined;
   const initialProviderId = conversation?.providerId
+    ?? restoredProviderId
     ?? (draftModel
       ? getEnabledProviderForModel(draftModel, plugin.settings)
       : DEFAULT_CHAT_PROVIDER_ID);

@@ -12,6 +12,7 @@ import { CodexProcessPort } from "../transports/codex-process-port";
 import { OhMyPiProcessPort } from "../transports/ohmypi-process-port";
 import { spawnJsonLineRpc } from "../transports/json-line-rpc-connection";
 import { spawnOmpRpc } from "../transports/omp-rpc-connection";
+import { desktopRuntimePath } from "./node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "./runtime-discovery-service";
 import { codexPermissionProfileArgs } from "../security/codex-permission-profile";
 import { LoopbackEgressProxy } from "../security/loopback-egress-proxy";
@@ -111,7 +112,7 @@ export class DesktopRuntimeFactory {
 		const proxyPort = await proxy.start();
 		const proxyUrl = "http://localhost:" + proxyPort;
 		const environment = {
-			PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", CFFIXED_USER_HOME: runtimeTemp, TMPDIR: runtimeTemp, LANG: process.env.LANG ?? "",
+			PATH: desktopRuntimePath(probe.executable), HOME: process.env.HOME ?? "", CFFIXED_USER_HOME: runtimeTemp, TMPDIR: runtimeTemp, LANG: process.env.LANG ?? "",
 			__CFPREFERENCES_AVOID_DAEMON: "1",
 			HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, ALL_PROXY: proxyUrl,
 			http_proxy: proxyUrl, https_proxy: proxyUrl, all_proxy: proxyUrl, NO_PROXY: "", no_proxy: "",

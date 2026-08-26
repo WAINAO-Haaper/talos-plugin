@@ -87,7 +87,7 @@ export interface ProviderSettingsReconciler {
 
 /** Tab manager state persisted across restarts. */
 export interface AppTabManagerState {
-  openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>;
+  openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null; providerId?: ProviderId }>;
   activeTabId: string | null;
 }
 

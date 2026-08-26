@@ -51,6 +51,7 @@ function isTabManagerViewHost(value: unknown): value is TabManagerViewHost {
 type CreateTabOptions = {
   activate?: boolean;
   draftModel?: string;
+  providerId?: ProviderId;
 };
 
 type OpenConversationOptions = {
@@ -162,7 +163,7 @@ export class TabManager implements TabManagerInterface {
       return null;
     }
 
-    const { activate = true, draftModel } = options;
+    const { activate = true, draftModel, providerId } = options;
 
     const conversation = conversationId
       ? await this.plugin.getConversationById(conversationId)
@@ -172,7 +173,7 @@ export class TabManager implements TabManagerInterface {
     const activeTab = this.getActiveTab();
     const defaultProviderId = conversation
       ? undefined
-      : (activeTab ? getTabProviderId(activeTab, this.plugin) : undefined);
+      : (providerId ?? (activeTab ? getTabProviderId(activeTab, this.plugin) : undefined));
 
     const tab = createTab({
       plugin: this.plugin,
@@ -624,7 +625,7 @@ export class TabManager implements TabManagerInterface {
     for (const tab of this.tabs.values()) {
       openTabs.push({
         ...(tab.lifecycleState === 'blank' && tab.draftModel
-          ? { draftModel: tab.draftModel }
+          ? { draftModel: tab.draftModel, providerId: getTabProviderId(tab, this.plugin) }
           : {}),
         tabId: tab.id,
         conversationId: tab.conversationId,
@@ -647,6 +648,7 @@ export class TabManager implements TabManagerInterface {
           await this.createTab(tabState.conversationId, tabState.tabId, {
             activate: false,
             ...(typeof tabState.draftModel === 'string' ? { draftModel: tabState.draftModel } : {}),
+            ...(typeof tabState.providerId === 'string' ? { providerId: tabState.providerId } : {}),
           });
         } catch {
           // Continue restoring other tabs

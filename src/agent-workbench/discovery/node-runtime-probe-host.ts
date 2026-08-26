@@ -10,31 +10,37 @@ async function executable(candidate: string): Promise<boolean> {
 	try { await access(candidate, constants.X_OK); return true; } catch { return false; }
 }
 
-type ProbeEnvironment = Partial<Pick<NodeJS.ProcessEnv, "PATH" | "HOME" | "TMPDIR" | "LANG">>;
+export type ProbeEnvironment = Partial<Pick<NodeJS.ProcessEnv, "PATH" | "HOME" | "TMPDIR" | "LANG">>;
+
+export function desktopRuntimeSearchDirectories(environment: ProbeEnvironment = process.env): string[] {
+	const directories = (environment.PATH ?? "").split(path.delimiter).filter(Boolean);
+	const home = environment.HOME?.trim();
+	if (home) {
+		directories.push(
+			path.join(home, ".local", "bin"),
+			path.join(home, ".bun", "bin"),
+		);
+	}
+	directories.push("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin");
+	return [...new Set(directories)];
+}
+
+export function desktopRuntimePath(executablePath: string, environment: ProbeEnvironment = process.env): string {
+	return [...new Set([path.dirname(executablePath), ...desktopRuntimeSearchDirectories(environment)])]
+		.filter(Boolean)
+		.join(path.delimiter);
+}
 
 export class NodeRuntimeProbeHost implements RuntimeProbeHost {
 	constructor(private readonly environment: ProbeEnvironment = process.env) {}
 
 	private searchDirectories(): string[] {
-		const directories = (this.environment.PATH ?? "").split(path.delimiter).filter(Boolean);
-		const home = this.environment.HOME?.trim();
-		if (home) {
-			directories.push(
-				path.join(home, ".local", "bin"),
-				path.join(home, ".bun", "bin"),
-			);
-		}
-		directories.push("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin");
-		return [...new Set(directories)];
+		return desktopRuntimeSearchDirectories(this.environment);
 	}
 
 	private childEnvironment(executablePath: string): NodeJS.ProcessEnv {
-		const runtimePath = [
-			path.dirname(executablePath),
-			...this.searchDirectories(),
-		].filter(Boolean).join(path.delimiter);
 		return {
-			PATH: runtimePath,
+			PATH: desktopRuntimePath(executablePath, this.environment),
 			...(this.environment.HOME ? { HOME: this.environment.HOME } : {}),
 			...(this.environment.TMPDIR ? { TMPDIR: this.environment.TMPDIR } : {}),
 			...(this.environment.LANG ? { LANG: this.environment.LANG } : {}),

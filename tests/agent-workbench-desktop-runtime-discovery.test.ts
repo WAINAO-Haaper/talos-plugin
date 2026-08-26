@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { NodeRuntimeProbeHost } from "../src/agent-workbench/discovery/node-runtime-probe-host";
+import { desktopRuntimePath, NodeRuntimeProbeHost } from "../src/agent-workbench/discovery/node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "../src/agent-workbench/discovery/runtime-discovery-service";
 
 async function fakeRuntime(file: string, version: string): Promise<void> {
@@ -42,5 +42,14 @@ describe("desktop runtime discovery", () => {
 		} finally {
 			await rm(home, { recursive: true, force: true });
 		}
+	});
+
+	it("keeps user runtime bins available to spawned RPC processes", () => {
+		const home = path.join(tmpdir(), "synthetic-runtime-home");
+		const runtime = path.join(home, ".bun/bin/omp");
+		const value = desktopRuntimePath(runtime, { PATH: "/usr/bin:/bin", HOME: home });
+		expect(value.split(path.delimiter)).toContain(path.join(home, ".local/bin"));
+		expect(value.split(path.delimiter)).toContain(path.join(home, ".bun/bin"));
+		expect(value.split(path.delimiter)[0]).toBe(path.dirname(runtime));
 	});
 });

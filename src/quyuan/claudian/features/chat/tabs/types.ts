@@ -229,6 +229,7 @@ export interface PersistedTabState {
   tabId: TabId;
   conversationId: string | null;
   draftModel?: string | null;
+  providerId?: ProviderId;
 }
 
 /**

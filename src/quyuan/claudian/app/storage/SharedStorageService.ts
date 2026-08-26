@@ -5,6 +5,7 @@ import { SESSIONS_PATH, SessionStorage, type CompatibilitySessionHost } from '..
 import type { SharedAppStorage } from '../../core/bootstrap/storage';
 import { CLAUDIAN_STORAGE_PATH } from '../../core/bootstrap/StoragePaths';
 import { VaultFileAdapter } from '../../core/storage/VaultFileAdapter';
+import type { ProviderId } from '../../core/providers/types';
 import { ClaudianSettingsStorage, type StoredClaudianSettings } from '../settings/ClaudianSettingsStorage';
 
 const TALOS_COMPATIBILITY_SETTINGS_PATH = '.talos/agent-workbench/v1/compatibility-settings.json';
@@ -71,7 +72,7 @@ export class SharedStorageService implements SharedAppStorage {
     await this.claudianSettings.save(settings as StoredClaudianSettings);
   }
 
-  async setTabManagerState(state: { openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>; activeTabId: string | null }): Promise<void> {
+  async setTabManagerState(state: { openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null; providerId?: ProviderId }>; activeTabId: string | null }): Promise<void> {
     try {
       if (this.readOnly) {
         await this.writeSidecar(TALOS_TAB_MANAGER_STATE_PATH, state);
@@ -86,16 +87,16 @@ export class SharedStorageService implements SharedAppStorage {
     }
   }
 
-  async getTabManagerState(): Promise<{ openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>; activeTabId: string | null } | null> {
+  async getTabManagerState(): Promise<{ openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null; providerId?: ProviderId }>; activeTabId: string | null } | null> {
     try {
       const data: unknown = this.readOnly
         ? await this.readSidecar(TALOS_TAB_MANAGER_STATE_PATH)
         : await this.plugin.loadData();
-      if (!isRecord(data) || !data.tabManagerState) {
-        return null;
-      }
-
-      return this.validateTabManagerState(data.tabManagerState);
+      const tabManagerState = this.readOnly
+        ? data
+        : isRecord(data) ? data.tabManagerState : null;
+      if (!tabManagerState) return null;
+      return this.validateTabManagerState(tabManagerState);
     } catch {
       return null;
     }
@@ -125,7 +126,7 @@ export class SharedStorageService implements SharedAppStorage {
     await this.adapter.ensureFolder(SESSIONS_PATH);
   }
 
-  private validateTabManagerState(data: unknown): { openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }>; activeTabId: string | null } | null {
+  private validateTabManagerState(data: unknown): { openTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null; providerId?: ProviderId }>; activeTabId: string | null } | null {
     if (!data || typeof data !== 'object') {
       return null;
     }
@@ -135,7 +136,7 @@ export class SharedStorageService implements SharedAppStorage {
       return null;
     }
 
-    const validatedTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null }> = [];
+    const validatedTabs: Array<{ tabId: string; conversationId: string | null; draftModel?: string | null; providerId?: ProviderId }> = [];
     for (const tab of state.openTabs) {
       if (!tab || typeof tab !== 'object') {
         continue;
@@ -151,6 +152,9 @@ export class SharedStorageService implements SharedAppStorage {
         conversationId: typeof tabObj.conversationId === 'string' ? tabObj.conversationId : null,
         ...(typeof tabObj.draftModel === 'string'
           ? { draftModel: tabObj.draftModel }
+          : {}),
+        ...(typeof tabObj.providerId === 'string' && tabObj.providerId.trim()
+          ? { providerId: tabObj.providerId }
           : {}),
       });
     }

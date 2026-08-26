@@ -72,7 +72,11 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	constructor(private readonly options: TalosAgentWorkbenchOptions) {
 		this.compatibility = new CompatibilityChatView(options.leaf, options.compatibility);
 		this.compatibility.onRuntimeChanged((runtimeId, modelId) => {
-			this.options.service.selectRuntime(runtimeId, modelId ?? null);
+			const current = this.options.service.getSelection();
+			this.options.service.selectRuntime(
+				runtimeId,
+				modelId !== undefined ? modelId : current.runtimeId === runtimeId ? undefined : null,
+			);
 			this.updateRuntimeButtons(runtimeId);
 			void this.refreshRuntime(runtimeId);
 		});
