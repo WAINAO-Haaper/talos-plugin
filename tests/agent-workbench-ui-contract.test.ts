@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { AgentWorkbenchService } from "../src/agent-workbench/core/agent-workbench-service";
-import { decodeProviderModelSelectionId, encodeProviderModelSelectionId } from "../src/quyuan/claudian/core/providers/modelSelection";
+import { decodeProviderModelSelectionId, encodeProviderModelSelectionId, toProviderRuntimeModelId } from "../src/quyuan/claudian/core/providers/modelSelection";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const view = readFileSync(`${root}src/agent-workbench/ui/talos-agent-workbench.ts`, "utf8");
@@ -97,5 +97,9 @@ describe("TALOS agent workbench compatibility UI", () => {
 		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(modelProvider, model)");
 		expect(tab).toContain("settings.model = runtimeModel");
 		expect(tab).toContain("nextUIConfig.applyModelDefaults(runtimeModel, settings)");
+		expect(tab).toContain("const runtimeModel = toProviderRuntimeModelId(boundProvider, model)");
+		expect(toProviderRuntimeModelId("codex", encodeProviderModelSelectionId("codex", "gpt-5.5"))).toBe("gpt-5.5");
+		expect(toProviderRuntimeModelId("claude", encodeProviderModelSelectionId("claude", "sonnet"))).toBe("sonnet");
+		expect(toProviderRuntimeModelId("ohmypi", encodeProviderModelSelectionId("ohmypi", "deepseek/deepseek-chat"))).toBe("deepseek/deepseek-chat");
 	});
 });

@@ -946,11 +946,12 @@ function initializeInputToolbar(
       }
 
       const uiConfig: ProviderChatUIConfig = getTabChatUIConfig(tab, plugin);
+      const runtimeModel = toProviderRuntimeModelId(boundProvider, model);
       const providerSettings = await updateTabProviderSettings(tab, plugin, (settings) => {
-        settings.model = model;
-        uiConfig.applyModelDefaults(model, settings);
+        settings.model = runtimeModel;
+        uiConfig.applyModelDefaults(runtimeModel, settings);
       });
-      await uiConfig.prepareModelMetadata?.(model, plugin.settings, { plugin });
+      await uiConfig.prepareModelMetadata?.(runtimeModel, plugin.settings, { plugin });
       tab.ui.thinkingBudgetSelector?.updateDisplay();
       tab.ui.serviceTierToggle?.updateDisplay();
       tab.ui.modelSelector?.updateDisplay();
@@ -960,11 +961,11 @@ function initializeInputToolbar(
       const currentUsage = tab.state.usage;
       if (currentUsage) {
         const newContextWindow = uiConfig.getContextWindowSize(
-          model,
+          runtimeModel,
           providerSettings.customContextLimits,
           providerSettings,
         );
-        tab.state.usage = recalculateUsageForModel(currentUsage, model, newContextWindow);
+        tab.state.usage = recalculateUsageForModel(currentUsage, runtimeModel, newContextWindow);
       }
     },
     onModeChange: async (mode: string) => {
