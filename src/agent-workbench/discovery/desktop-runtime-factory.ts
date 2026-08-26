@@ -25,6 +25,38 @@ export interface RuntimeFactoryInput {
 	approve: (toolName: string, input: Record<string, unknown>, metadata?: Record<string, unknown>) => Promise<"allow" | "allow-always" | "deny">;
 }
 
+export type ProviderSecretResolver = (secretRef: string) => string | null;
+
+export function providerEnvironmentForRuntime(
+	runtimeId: RuntimeId,
+	profile: ProviderProfile | undefined,
+	resolveSecret: ProviderSecretResolver
+): Record<string, string> {
+	if (!profile) return {};
+	if (profile.runtimeId !== runtimeId) {
+		throw new Error("Provider profile 与运行时不匹配");
+	}
+	const secret = profile.secretRef
+		? resolveSecret(profile.secretRef)
+		: null;
+	if (profile.secretRef && !secret) {
+		throw new Error(`${profile.displayName} 的 SecretStorage 凭据不可用`);
+	}
+	if (runtimeId === "claude") {
+		return {
+			...(secret ? { ANTHROPIC_API_KEY: secret } : {}),
+			...(profile.endpoint ? { ANTHROPIC_BASE_URL: profile.endpoint } : {}),
+		};
+	}
+	if (runtimeId === "codex") {
+		return {
+			...(secret ? { OPENAI_API_KEY: secret } : {}),
+			...(profile.endpoint ? { OPENAI_BASE_URL: profile.endpoint } : {}),
+		};
+	}
+	return {};
+}
+
 function runtimeInstallationRoot(executable: string): string {
 	const normalized = executable.replace(/\\/g, "/");
 	for (const marker of ["/.codex/packages/", "/.bun/", "/.local/"]) {
@@ -37,19 +69,32 @@ function runtimeInstallationRoot(executable: string): string {
 }
 
 export class DesktopRuntimeFactory {
-	constructor(private readonly discovery: RuntimeDiscoveryService, private readonly sandbox: ProcessSandbox) {}
+	constructor(
+		private readonly discovery: RuntimeDiscoveryService,
+		private readonly sandbox: ProcessSandbox,
+		private readonly resolveSecret: ProviderSecretResolver = () => null
+	) {}
 
 	async create(runtimeId: RuntimeId, input: RuntimeFactoryInput): Promise<AgentRuntimeAdapter> {
 		const probe = await this.discovery.probe(runtimeId, input.runtimeProfile);
 		if (probe.status !== "ready" || !probe.executable) throw new Error(probe.reason ?? `${runtimeId} 运行时不可用`);
 		const probeRuntime = (signal?: AbortSignal) => this.discovery.probe(runtimeId, input.runtimeProfile);
+		const providerEnvironment = providerEnvironmentForRuntime(
+			runtimeId,
+			input.providerProfile,
+			this.resolveSecret
+		);
 		if (runtimeId === "claude") {
 			const port = new ClaudeSdkQueryPort(input.vaultRoot, probeRuntime, {
 				decide: async (toolName, toolInput, metadata) => {
 					const decision = await input.approve(toolName, toolInput, metadata);
 					return { allow: decision === "allow" || decision === "allow-always", message: decision === "deny" ? "TALOS 权限策略拒绝" : undefined };
 				},
-			}, [], probe.executable);
+			}, (input.providerProfile?.models ?? []).map((id) => ({
+				id,
+				label: id,
+				providerProfileId: input.providerProfile?.id,
+			})), probe.executable, providerEnvironment);
 			return new ClaudeAgentSdkAdapter(port, () => true);
 		}
 		const home = process.env.HOME ?? "";
@@ -70,6 +115,7 @@ export class DesktopRuntimeFactory {
 			__CFPREFERENCES_AVOID_DAEMON: "1",
 			HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, ALL_PROXY: proxyUrl,
 			http_proxy: proxyUrl, https_proxy: proxyUrl, all_proxy: proxyUrl, NO_PROXY: "", no_proxy: "",
+			...providerEnvironment,
 		};
 		try {
 		if (runtimeId === "codex") {

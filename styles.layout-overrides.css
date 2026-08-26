@@ -426,8 +426,7 @@
   animation: talos-app-content-in 220ms var(--talos-ease, ease) both;
 }
 
-.talos-console .talos-settings--console .talos-setcontent > .setting-item,
-.talos-console .talos-settings--console .talos-embedded-workbench-settings .setting-item {
+.talos-console .talos-settings--console .talos-setcontent > .setting-item {
   margin: 0;
   padding: 15px 16px;
   border: 1px solid var(--line);
@@ -440,16 +439,14 @@
     transform 180ms ease;
 }
 
-.talos-console .talos-settings--console .talos-setcontent > .setting-item:not(.setting-item-heading):hover,
-.talos-console .talos-settings--console .talos-embedded-workbench-settings .setting-item:not(.setting-item-heading):hover {
+.talos-console .talos-settings--console .talos-setcontent > .setting-item:not(.setting-item-heading):hover {
   border-color: color-mix(in srgb, var(--blue) 34%, var(--line));
   background: color-mix(in srgb, var(--blue) 5%, var(--surface));
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
   transform: translateY(-1px);
 }
 
-.talos-console .talos-settings--console .talos-setcontent > .setting-item-heading,
-.talos-console .talos-settings--console .talos-embedded-workbench-settings .setting-item-heading {
+.talos-console .talos-settings--console .talos-setcontent > .setting-item-heading {
   margin-top: 6px;
   border-color: color-mix(in srgb, var(--blue) 28%, var(--line));
   background:

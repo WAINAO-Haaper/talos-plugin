@@ -124,4 +124,64 @@ describe("compatibility runtime crash recovery", () => {
 		expect(createRuntime).toHaveBeenCalledTimes(2);
 		expect(firstSendCount).toBe(1);
 	});
+
+	it("rebuilds the local runtime when authentication changes and requests a profile-scoped binding", async () => {
+		let selection: { runtimeId: "codex"; providerProfileId?: string } = {
+			runtimeId: "codex",
+		};
+		const firstDispose = vi.fn(async () => undefined);
+		const first = {
+			id: "codex",
+			resumeSession: vi.fn(async () => undefined),
+			dispose: firstDispose,
+		} as never;
+		const second = {
+			id: "codex",
+			resumeSession: vi.fn(async () => undefined),
+			dispose: vi.fn(async () => undefined),
+		} as never;
+		const coordinator = {
+			ensure: async (input: { conversationId: string }) => ({
+				schemaVersion: 1,
+				conversationId: input.conversationId,
+				title: "Synthetic",
+				createdAt: "2026-08-26T00:00:00.000Z",
+				updatedAt: "2026-08-26T00:00:00.000Z",
+				lifecycle: "active",
+				selection: { runtimeId: "codex" },
+			}),
+			switchRuntime: vi.fn(async () => undefined),
+			getBinding: vi.fn(async () => null),
+			setBinding: vi.fn(async () => undefined),
+		};
+		const createRuntime = vi.fn()
+			.mockResolvedValueOnce(first)
+			.mockResolvedValueOnce(second);
+		const service = {
+			probeRuntime: async () => ({ runtimeId: "codex", status: "ready" }),
+			getConversationCoordinator: () => coordinator,
+			createRuntime,
+			getSelection: () => selection,
+			getPermissionMode: () => "ask",
+			authorizeTool: async () => "deny",
+		};
+		const fsAdapter = Object.assign(
+			new FileSystemAdapter(),
+			{ getBasePath: () => "/synthetic/vault" }
+		);
+		const plugin = {
+			app: { vault: { adapter: fsAdapter } },
+			getAgentWorkbenchService: () => service,
+		};
+		const runtime = new AdapterCompatibilityRuntime(plugin as never, "codex");
+		expect(await runtime.ensureReady()).toBe(true);
+		selection = { runtimeId: "codex", providerProfileId: "openai" };
+		expect(await runtime.ensureReady()).toBe(true);
+		expect(firstDispose).toHaveBeenCalledOnce();
+		expect(createRuntime).toHaveBeenCalledTimes(2);
+		expect(coordinator.getBinding.mock.calls.map((call) => call[2])).toEqual([
+			undefined,
+			"openai",
+		]);
+	});
 });

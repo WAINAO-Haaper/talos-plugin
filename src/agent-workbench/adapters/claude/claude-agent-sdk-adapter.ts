@@ -50,7 +50,7 @@ export class ClaudeAgentSdkAdapter implements AgentRuntimeAdapter {
 	async createSession(input: CreateSessionInput): Promise<NativeSessionBinding> {
 		const sessionId = await this.port.create(input);
 		this.pendingContext = input.initialContext;
-		return this.binding = { runtimeId: this.id, sessionId, protocolVersion: "agent-sdk" };
+		return this.binding = { runtimeId: this.id, sessionId, protocolVersion: "agent-sdk", ...(input.providerProfileId ? { providerProfileId: input.providerProfileId } : {}) };
 	}
 	async resumeSession(binding: NativeSessionBinding): Promise<void> { await this.port.resume(binding.sessionId); this.binding = binding; }
 	async synchronizeContext(input: { context: string }): Promise<void> { this.pendingContext = input.context; }
@@ -69,7 +69,7 @@ export class ClaudeAgentSdkAdapter implements AgentRuntimeAdapter {
 		return output;
 	}
 	async cancel(): Promise<void> { await this.port.cancel(); }
-	async fork(input: { binding: NativeSessionBinding }): Promise<NativeSessionBinding> { return { runtimeId: this.id, sessionId: await this.port.fork(input.binding.sessionId), protocolVersion: "agent-sdk" }; }
+	async fork(input: { binding: NativeSessionBinding }): Promise<NativeSessionBinding> { return { runtimeId: this.id, sessionId: await this.port.fork(input.binding.sessionId), protocolVersion: "agent-sdk", ...(input.binding.providerProfileId ? { providerProfileId: input.binding.providerProfileId } : {}) }; }
 	async dispose(): Promise<void> { await this.cancel(); await this.port.close(); this.binding = null; }
 	capabilities(): RuntimeCapabilities {
 		return {

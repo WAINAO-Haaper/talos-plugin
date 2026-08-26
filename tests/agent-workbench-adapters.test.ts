@@ -96,6 +96,23 @@ describe("runtime adapter shared contract", () => {
 });
 
 describe("adapter protocol semantics", () => {
+	it("passes the selected Codex API profile to thread/start and binds that session separately", async () => {
+		const port = new CodexPort();
+		const adapter = new CodexAppServerAdapter(port);
+		const binding = await adapter.createSession({
+			...createInput,
+			providerProfileId: "openai",
+		});
+		expect(port.calls[0]).toEqual([
+			"thread/start",
+			expect.objectContaining({ provider: "openai" }),
+		]);
+		expect(binding).toMatchObject({
+			runtimeId: "codex",
+			providerProfileId: "openai",
+		});
+	});
+
 	it("maps Codex server events and preserves persistent approval", async () => {
 		const port = new CodexPort(); const adapter = new CodexAppServerAdapter(port);
 		await adapter.createSession({ ...createInput, model: "synthetic/omp-test" });

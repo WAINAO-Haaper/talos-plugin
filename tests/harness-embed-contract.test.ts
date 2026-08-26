@@ -131,7 +131,8 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(settings).toContain("harnessExecutable: string");
 		expect(settings).toContain("harnessPort: number");
 		expect(settings).toContain("harnessPort: DEFAULT_DSH_PORT");
-		expect(settings).toContain("AI 对话 Harness（内嵌界面）");
+		expect(settings).toContain('setName("DeepSeek Harness")');
+		expect(settings).toContain("DSH 保留独立对话面");
 	});
 
 	it("persists either selected channel without replacing it (D-TLP-015)", () => {

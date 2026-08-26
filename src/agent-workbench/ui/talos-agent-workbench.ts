@@ -11,6 +11,16 @@ export interface TalosAgentWorkbenchOptions {
 	compatibility: ClaudianCompatibilityHost;
 }
 
+const NATIVE_PROVIDER_LABELS: Record<RuntimeId, string> = {
+	claude: "Claude 本机登录",
+	codex: "Codex 本机登录",
+	ohmypi: "OhMyPi 原生 Provider",
+};
+
+function nativeProviderLabel(runtimeId: RuntimeId): string {
+	return NATIVE_PROVIDER_LABELS[runtimeId];
+}
+
 export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private readonly compatibility: CompatibilityChatView;
 	private root: HTMLElement | null = null;
@@ -74,10 +84,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 
 		const provider = doc.createElement("select");
 		provider.className = "talos-agent-provider-picker";
-		provider.setAttribute("aria-label", "Provider profile");
+		provider.setAttribute("aria-label", "认证或 API");
 		const native = doc.createElement("option");
 		native.value = "native";
-		native.textContent = "本机原生认证";
+		native.textContent = nativeProviderLabel(this.options.service.getSelectedRuntimeId());
 		provider.appendChild(native);
 		this.provider = provider;
 		provider.addEventListener("change", () => {
@@ -97,7 +107,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		model.setAttribute("aria-label", "模型");
 		const automatic = doc.createElement("option");
 		automatic.value = "";
-		automatic.textContent = "默认模型";
+		automatic.textContent = "运行时默认模型";
 		model.appendChild(automatic);
 		controls.appendChild(model);
 		this.model = model;
@@ -192,7 +202,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.status.textContent = `${runtimeId} · 检测中`;
 		this.install.hidden = true;
 		this.provider.replaceChildren();
-		const native = this.provider.ownerDocument.createElement("option"); native.value = "native"; native.textContent = "本机原生认证"; this.provider.appendChild(native);
+		const native = this.provider.ownerDocument.createElement("option"); native.value = "native"; native.textContent = nativeProviderLabel(runtimeId); this.provider.appendChild(native);
 		for (const profile of this.options.service.getProviderProfiles(runtimeId)) {
 			const option = this.provider.ownerDocument.createElement("option"); option.value = profile.id; option.textContent = profile.displayName;
 			this.provider.appendChild(option);
@@ -208,7 +218,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			this.install.href = urls[runtimeId];
 		}
 		this.model.replaceChildren();
-		const automatic = this.model.ownerDocument.createElement("option"); automatic.value = ""; automatic.textContent = "默认模型"; this.model.appendChild(automatic);
+		const automatic = this.model.ownerDocument.createElement("option"); automatic.value = ""; automatic.textContent = "运行时默认模型"; this.model.appendChild(automatic);
 		if (probe.status === "ready") {
 			try {
 				const descriptors = await this.options.service.listModels(runtimeId);

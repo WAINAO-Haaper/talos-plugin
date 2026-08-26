@@ -2239,24 +2239,23 @@
 
 @container talos-app (min-width: 1240px) {
 	.talos-console[data-talos-page="settings"]
-		.talos-setcontent:not([data-settings-tab="workbench"]) {
+		.talos-setcontent {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-items: stretch;
 	}
 
 	.talos-console[data-talos-page="settings"]
-		.talos-setcontent:not([data-settings-tab="workbench"])
+		.talos-setcontent
 		> :is(
 			.talos-settings-section-intro,
 			.setting-item-heading,
-			.talos-schema-report,
-			.talos-embedded-workbench-settings
+			.talos-schema-report
 		) {
 		grid-column: 1 / -1;
 	}
 
 	.talos-console[data-talos-page="settings"]
-		.talos-setcontent:not([data-settings-tab="workbench"])
+		.talos-setcontent
 		> .setting-item:not(.setting-item-heading) {
 		align-items: stretch;
 		flex-direction: column;
@@ -2265,7 +2264,7 @@
 	}
 
 	.talos-console[data-talos-page="settings"]
-		.talos-setcontent:not([data-settings-tab="workbench"])
+		.talos-setcontent
 		> .setting-item:not(.setting-item-heading)
 		.setting-item-control {
 		justify-content: flex-start;
@@ -2273,7 +2272,7 @@
 	}
 
 	.talos-console[data-talos-page="settings"]
-		.talos-setcontent:not([data-settings-tab="workbench"])
+		.talos-setcontent
 		> .setting-item:not(.setting-item-heading)
 		.setting-item-control
 		> :is(input, select, textarea) {

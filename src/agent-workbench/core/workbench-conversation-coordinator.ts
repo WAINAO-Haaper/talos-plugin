@@ -133,8 +133,12 @@ export class WorkbenchConversationCoordinator {
 		});
 	}
 
-	getBinding(conversationId: string, runtimeId: RuntimeId): Promise<NativeSessionBinding | null> {
-		return this.bindings.get(conversationId, runtimeId);
+	getBinding(
+		conversationId: string,
+		runtimeId: RuntimeId,
+		providerProfileId?: string
+	): Promise<NativeSessionBinding | null> {
+		return this.bindings.get(conversationId, runtimeId, providerProfileId);
 	}
 
 	setBinding(conversationId: string, binding: NativeSessionBinding): Promise<void> {

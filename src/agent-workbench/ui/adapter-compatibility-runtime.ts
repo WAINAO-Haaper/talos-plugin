@@ -34,9 +34,11 @@ function recordValue(value: unknown): Record<string, unknown> {
 	return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-function bindingValue(value: unknown, runtimeId: RuntimeId): NativeSessionBinding | null {
+function bindingValue(value: unknown, runtimeId: RuntimeId, providerProfileId?: string): NativeSessionBinding | null {
 	const candidate = recordValue(value) as Partial<NativeSessionBinding>;
-	return candidate.runtimeId === runtimeId && typeof candidate.sessionId === "string"
+	return candidate.runtimeId === runtimeId
+		&& candidate.providerProfileId === providerProfileId
+		&& typeof candidate.sessionId === "string"
 		? candidate as NativeSessionBinding
 		: null;
 }
@@ -57,6 +59,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 	readonly providerId: RuntimeId;
 	private adapter: AgentRuntimeAdapter | null = null;
 	private binding: NativeSessionBinding | null = null;
+	private activeProviderProfileId: string | undefined;
 	private ready = false;
 	private invalidated = false;
 	private approvalCallback: ApprovalCallback | null = null;
@@ -71,6 +74,10 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 
 	constructor(private readonly plugin: WorkbenchPlugin, providerId: RuntimeId) { this.providerId = providerId; }
 	private service() { return this.plugin.getAgentWorkbenchService(); }
+	private selectedProviderProfileId(): string | undefined {
+		const selection = this.service().getSelection();
+		return selection.runtimeId === this.providerId ? selection.providerProfileId : undefined;
+	}
 	private portableConversationId(): string {
 		this.talosConversationId ??= crypto.randomUUID();
 		return this.talosConversationId;
@@ -117,11 +124,12 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 			title: fullConversation.title, createdAt: fullConversation.createdAt, updatedAt: fullConversation.updatedAt,
 		} : this.conversationIdentity;
 		const bindings = recordValue(providerState.talosNativeBindings);
-		const legacySessionId = fullConversation?.providerId === this.providerId && typeof fullConversation.sessionId === "string"
+		const providerProfileId = textValue(providerState.talosProviderProfileId) || undefined;
+		const legacySessionId = !providerProfileId && fullConversation?.providerId === this.providerId && typeof fullConversation.sessionId === "string"
 			? fullConversation.sessionId
 			: null;
-		this.binding = bindingValue(bindings[this.providerId], this.providerId)
-			?? bindingValue(providerState.talosNativeBinding, this.providerId)
+		this.binding = bindingValue(bindings[this.providerId], this.providerId, providerProfileId)
+			?? bindingValue(providerState.talosNativeBinding, this.providerId, providerProfileId)
 			?? (legacySessionId
 				? { runtimeId: this.providerId, sessionId: legacySessionId }
 				: null);
@@ -129,6 +137,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		const persistedCount = Number(counts[this.providerId]);
 		const messages = fullConversation?.messages ?? [];
 		const originalNativeSession = fullConversation?.providerId === this.providerId
+			&& !providerProfileId
 			&& !bindings[this.providerId]
 			&& !providerState.talosNativeBinding;
 		this.synchronizedMessageCount = Number.isSafeInteger(persistedCount) && persistedCount >= 0
@@ -138,12 +147,33 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 	}
 	async reloadMcpServers(): Promise<void> {}
 	async ensureReady(_options?: ChatRuntimeEnsureReadyOptions): Promise<boolean> {
-		if (this.adapter) return this.ready;
+		const providerProfileId = this.selectedProviderProfileId();
+		if (this.adapter && this.activeProviderProfileId === providerProfileId) {
+			return this.ready;
+		}
+		if (this.adapter) {
+			if (this.abortController) {
+				throw new Error("当前回合仍在运行，不能切换认证或 API");
+			}
+			const previous = this.adapter;
+			this.adapter = null;
+			this.binding = null;
+			this.activeProviderProfileId = undefined;
+			this.ready = false;
+			for (const listener of this.readyListeners) listener(false);
+			await previous.dispose();
+		}
 		const probe = await this.service().probeRuntime(this.providerId);
 		if (probe.status !== "ready") return false;
 		const manifest = await this.ensurePortableConversation();
 		const coordinator = this.service().getConversationCoordinator();
-		this.binding = await coordinator.getBinding(manifest.conversationId, this.providerId) ?? this.binding;
+		this.binding =
+			await coordinator.getBinding(
+				manifest.conversationId,
+				this.providerId,
+				providerProfileId
+			)
+			?? bindingValue(this.binding, this.providerId, providerProfileId);
 		const runtime = await this.service().createRuntime(this.providerId, {
 			vaultRoot: this.vaultRoot(),
 			permissionMode: this.service().getPermissionMode(),
@@ -166,6 +196,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 			throw error;
 		}
 		this.adapter = runtime;
+		this.activeProviderProfileId = providerProfileId;
 		this.ready = true; for (const listener of this.readyListeners) listener(true); return true;
 	}
 	async *query(turn: PreparedChatTurn, _history?: ChatMessage[], queryOptions?: ChatRuntimeQueryOptions): AsyncGenerator<StreamChunk> {
@@ -174,13 +205,15 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		const manifest = await this.ensurePortableConversation();
 		const coordinator = this.service().getConversationCoordinator();
 		const selection = this.service().getSelection();
-		const model = this.model(queryOptions?.model ?? selection.model);
+		const selectedModel = selection.runtimeId === this.providerId ? selection.model : undefined;
+		const providerProfileId = this.selectedProviderProfileId();
+		const model = this.model(queryOptions?.model ?? selectedModel);
 		this.abortController = new AbortController();
 		const turnId = crypto.randomUUID(); let finished = false; let sawAssistantContent = false;
 		await coordinator.appendUser({ conversationId: manifest.conversationId, turnId, runtimeId: this.providerId, text: turn.prompt, vaultRoot: this.vaultRoot() });
 		try {
 			if (!this.binding) {
-				this.binding = await adapter.createSession({ conversationId: manifest.conversationId, vaultRoot: this.vaultRoot(), model, providerProfileId: selection.providerProfileId, initialContext: this.pendingContext });
+				this.binding = await adapter.createSession({ conversationId: manifest.conversationId, vaultRoot: this.vaultRoot(), model, providerProfileId, initialContext: this.pendingContext });
 				await coordinator.setBinding(manifest.conversationId, this.binding);
 			}
 			for await (const event of adapter.send({ conversationId: manifest.conversationId, turnId, text: turn.prompt, model, workflow: this.service().getWorkflowMode(), signal: this.abortController.signal })) {
@@ -193,6 +226,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 			if (!finished) yield { type: "done" };
 		} catch (error) {
 			if (this.adapter === adapter) this.adapter = null;
+			this.activeProviderProfileId = undefined;
 			this.ready = false; for (const listener of this.readyListeners) listener(false);
 			await adapter.dispose().catch(() => undefined);
 			const message = error instanceof Error ? error.message : "运行时进程异常退出";
@@ -231,7 +265,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 	isReady() { return this.ready; }
 	async getSupportedCommands(): Promise<SlashCommand[]> { return []; }
 	getAuxiliaryModel() { return null; }
-	cleanup(): void { this.cancel(); void this.adapter?.dispose(); this.adapter = null; this.ready = false; }
+	cleanup(): void { this.cancel(); void this.adapter?.dispose(); this.adapter = null; this.activeProviderProfileId = undefined; this.ready = false; }
 	async rewind(_userMessageId: string, _assistantMessageId: string, _mode?: ChatRewindMode): Promise<ChatRewindResult> { return { canRewind: false, error: "此运行时暂不支持从兼容 UI 回退文件" }; }
 	setApprovalCallback(callback: ApprovalCallback | null): void { this.approvalCallback = callback; }
 	setApprovalDismisser(_dismisser: (() => void) | null): void {}
@@ -251,6 +285,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		const providerState = {
 			...previous,
 			talosRuntimeId: this.providerId,
+			talosProviderProfileId: this.activeProviderProfileId,
 			talosConversationId: this.portableConversationId(),
 			talosNativeBindings: bindings,
 			talosSyncedMessageCounts: counts,

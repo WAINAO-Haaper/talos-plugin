@@ -29,6 +29,7 @@ export interface ModelDescriptor {
 export interface NativeSessionBinding {
 	runtimeId: RuntimeId;
 	sessionId: string;
+	providerProfileId?: string;
 	nativeResumeToken?: string;
 	protocolVersion?: string;
 	lastSyncedEventId?: string;

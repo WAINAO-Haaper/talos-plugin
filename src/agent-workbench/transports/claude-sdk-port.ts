@@ -60,6 +60,7 @@ export class ClaudeSdkQueryPort implements ClaudeAgentSdkPort {
 		private readonly permissions: ClaudePermissionDelegate,
 		private readonly configuredModels: ModelDescriptor[] = [],
 		private readonly executablePath?: string,
+		private readonly environment: Record<string, string> = {},
 		private readonly sdk: ClaudeSdkFacade = defaultSdk,
 	) {}
 
@@ -80,6 +81,7 @@ export class ClaudeSdkQueryPort implements ClaudeAgentSdkPort {
 			includePartialMessages: true,
 			sandbox: { enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: false, allowUnsandboxedCommands: false },
 			pathToClaudeCodeExecutable: this.executablePath,
+			...(Object.keys(this.environment).length > 0 ? { env: this.environment } : {}),
 			...(this.newSession ? { sessionId: this.sessionId ?? input.sessionId } : { resume: this.sessionId ?? input.sessionId }),
 		};
 		const active = this.sdk.query({ prompt: input.prompt, options }); this.active = active;

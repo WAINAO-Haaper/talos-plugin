@@ -5,7 +5,6 @@ import {
 	PluginSettingTab,
 	SecretComponent,
 	Setting,
-	requestUrl,
 	setIcon,
 } from "obsidian";
 import type TalosPlugin from "./main";
@@ -25,11 +24,6 @@ import {
 	providerSecretStoreFromApp,
 	saveProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
-import {
-	isProviderModuleAllowed,
-	setProviderModuleAllowed,
-} from "./ai/provider/provider-module-access";
-import { openAiModelsEndpoint } from "./ai/provider/openai-endpoints";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
 import { DEFAULT_DSH_PORT, normalizeDshPort } from "./harness/dsh-runtime";
 
@@ -110,6 +104,8 @@ export interface TalosSettings {
 	codexApiKey: string; // 仅用于旧版一次性迁移，运行时读取 SecretStorage
 	codexBaseUrl: string; // Codex harness 的 OpenAI Responses 端点，留空用官方
 	codexModel: string; // Codex harness 模型，留空用 harness 默认（gpt-5.5）
+	agentWorkbenchClaudeModels: string; // TALOS 工作台 Claude API 模型目录，每行一个
+	agentWorkbenchCodexModels: string; // TALOS 工作台 Codex API 模型目录，每行一个
 	// D-TLP-014：AI 对话页内嵌 DeepSeek Harness 桌面界面（iframe + loopback dsh web）
 	harnessExecutable: string; // dsh CLI 路径，留空自动探测 PATH
 	harnessPort: number; // dsh web 仅监听 127.0.0.1，默认 3180
@@ -207,6 +203,8 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	codexApiKey: "",
 	codexBaseUrl: "",
 	codexModel: "",
+	agentWorkbenchClaudeModels: "",
+	agentWorkbenchCodexModels: "",
 	harnessExecutable: "",
 	harnessPort: DEFAULT_DSH_PORT,
 	harnessSurface: "dsh",
@@ -254,7 +252,7 @@ type FreeTextSettingKey = Exclude<
 	| "quyuanVoiceSessionJson"
 >;
 
-type TabId = "ui" | "schema" | "data" | "channel" | "voice" | "workbench";
+type TabId = "ui" | "schema" | "data" | "channel" | "voice";
 
 interface TalosSettingTabDefinition {
 	id: TabId;
@@ -284,8 +282,8 @@ const TALOS_SETTING_TABS: readonly TalosSettingTabDefinition[] = [
 	},
 	{
 		id: "channel",
-		label: "AI Provider",
-		description: "Harness、模型、密钥与权限",
+		label: "智能体与模型",
+		description: "认证、API 与模型目录",
 		icon: "bot",
 	},
 	{
@@ -294,19 +292,12 @@ const TALOS_SETTING_TABS: readonly TalosSettingTabDefinition[] = [
 		description: "模型、朗读、识别与 VAD",
 		icon: "audio-lines",
 	},
-	{
-		id: "workbench",
-		label: "屈原 · 高级",
-		description: "环境、MCP、快捷键与多标签",
-		icon: "sliders-horizontal",
-	},
 ];
 
 export class TalosSettingTab extends PluginSettingTab {
 	plugin: TalosPlugin;
 	private activeTab: TabId = "ui";
 	private renderTarget: HTMLElement | null = null;
-	private workbenchSettingsTab: { display(): void; containerEl: HTMLElement } | null = null;
 	/** 最近一次识别结果（用于在设置页展示检测报告，供客户核对） */
 	private lastDetection: SchemaDetectionResult | null = null;
 
@@ -350,8 +341,7 @@ export class TalosSettingTab extends PluginSettingTab {
 			else if (active.id === "schema") this.renderSchema(content);
 			else if (active.id === "data") this.renderData(content);
 			else if (active.id === "channel") this.renderChannel(content);
-			else if (active.id === "voice") this.renderVoice(content);
-			else void this.renderWorkbench(content);
+			else this.renderVoice(content);
 		};
 
 		const buttons: HTMLButtonElement[] = [];
@@ -437,25 +427,6 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.display();
 	}
 
-	private async renderWorkbench(c: HTMLElement): Promise<void> {
-		new Setting(c)
-			.setName("屈原完整工作台")
-			.setDesc("模型、Provider、权限、环境变量、上下文、快捷键与多标签等高级配置。原第二个 TALOS 设置页已融合到这里。");
-		try {
-			const { ClaudianSettingTab } = await import("./quyuan/claudian/features/settings/ClaudianSettings");
-			this.workbenchSettingsTab ??= new ClaudianSettingTab(
-				this.app,
-				this.plugin.getAgentWorkbenchCompatibility()
-			);
-			this.workbenchSettingsTab.display();
-			this.workbenchSettingsTab.containerEl.addClass("talos-embedded-workbench-settings");
-			c.appendChild(this.workbenchSettingsTab.containerEl);
-		} catch (error) {
-			new Setting(c)
-				.setName("高级设置暂不可用")
-				.setDesc(error instanceof Error ? error.message : String(error));
-		}
-	}
 
 	private describeHarnessState(): string {
 		const manager = this.plugin.getHarnessManager();
@@ -487,6 +458,32 @@ export class TalosSettingTab extends PluginSettingTab {
 						await this.plugin.saveTalosSettings();
 					})
 			);
+	}
+
+	private modelCatalogIn(
+		c: HTMLElement,
+		name: string,
+		desc: string,
+		key: "agentWorkbenchClaudeModels" | "agentWorkbenchCodexModels",
+		placeholder: string
+	): void {
+		new Setting(c)
+			.setName(name)
+			.setDesc(desc)
+			.addTextArea((text) => {
+				text
+					.setPlaceholder(placeholder)
+					.setValue(this.plugin.talosSettings[key])
+					.onChange(async (value) => {
+						this.plugin.talosSettings[key] = value
+							.split(/\r?\n/)
+							.map((model) => model.trim())
+							.filter(Boolean)
+							.join("\n");
+						await this.plugin.saveTalosSettings();
+					});
+				text.inputEl.rows = 3;
+			});
 	}
 
 	private secretIn(
@@ -543,88 +540,6 @@ export class TalosSettingTab extends PluginSettingTab {
 		);
 	}
 
-	private async testApiConnection(
-		kind: "anthropic" | "openai"
-	): Promise<void> {
-		const field =
-			kind === "anthropic" ? "anthropicApiKey" : "openaiApiKey";
-		const key = this.plugin.readProviderSecret(field);
-		if (!key) {
-			new Notice("请先安全保存 API Key");
-			return;
-		}
-		const configured =
-			kind === "anthropic"
-				? this.plugin.talosSettings.anthropicBaseUrl
-				: this.plugin.talosSettings.openaiBaseUrl;
-		const base =
-			configured.trim() ||
-			(kind === "anthropic"
-				? "https://api.anthropic.com"
-				: "https://api.openai.com");
-		try {
-			const response = await requestUrl({
-				url:
-					kind === "anthropic"
-						? `${base.replace(/\/+$/, "")}/v1/models`
-						: openAiModelsEndpoint(base),
-				method: "GET",
-				headers:
-					kind === "anthropic"
-						? {
-							"x-api-key": key,
-							"anthropic-version": "2023-06-01",
-						}
-						: { Authorization: `Bearer ${key}` },
-				throw: false,
-			});
-			if (response.status >= 200 && response.status < 300) {
-				new Notice("Provider 连接成功");
-			} else {
-				new Notice(`Provider 连接失败（HTTP ${response.status}）`);
-			}
-		} catch {
-			new Notice("Provider 连接失败，请检查 endpoint 与网络");
-		}
-	}
-
-	private renderProviderModuleAccess(
-		c: HTMLElement,
-		providerId: "claude-api" | "openai-compatible",
-		label: string
-	): void {
-		new Setting(c).setName(`${label} · 模块授权`).setHeading();
-		new Setting(c).setDesc(
-			"默认全部允许。关闭某一模块后，只要本次上下文包含该模块，出库门就会在调用 Provider 前阻断，并写入 metadata-only 审计记录。"
-		);
-		const schema = resolveSchema(this.plugin.talosSettings.vaultSchema);
-		for (const key of MODULE_KEYS) {
-			new Setting(c)
-				.setName(SCHEMA_LABELS[key])
-				.setDesc(`当前目录：${schema[key]}`)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(
-							isProviderModuleAllowed(
-								this.plugin.talosSettings.providerModuleAccess,
-								providerId,
-								key
-							)
-						)
-						.setTooltip(`${label} 读取 ${SCHEMA_LABELS[key]}`)
-						.onChange(async (allowed) => {
-							this.plugin.talosSettings.providerModuleAccess =
-								setProviderModuleAllowed(
-									this.plugin.talosSettings.providerModuleAccess,
-									providerId,
-									key,
-									allowed
-								);
-							await this.plugin.saveTalosSettings();
-						})
-				);
-		}
-	}
 
 	// ---------- Tab：界面 ----------
 	private renderUi(c: HTMLElement): void {
@@ -825,36 +740,16 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.textIn(c, "重估期启动日", "算冻结天数，YYYY-MM-DD", "freezeStartDate");
 	}
 
-	// ---------- Tab：屈原 · 通道 ----------
+	// ---------- Tab：智能体与模型 ----------
 	private renderChannel(c: HTMLElement): void {
 		new Setting(c).setDesc(
-			"云端 AI 为主力，本机 CLI 继续可用。模型可以读取整个 Vault 并提出复杂操作；真正写入、移动、删除或执行命令前，统一进入 TALOS 审批任务。"
+			"工作台先选智能体，再选认证/API，最后选模型。本机登录与 API 配置互不覆盖；密钥只保存在 Obsidian SecretStorage。"
 		);
 
-		// D-TLP-014：对话页内嵌 DeepSeek Harness 桌面界面
-		new Setting(c).setName("AI 对话 Harness（内嵌界面）").setHeading();
+		new Setting(c).setName("DeepSeek Harness").setHeading();
 		new Setting(c).setDesc(
-			"对话页直接嵌入 DeepSeek Harness 桌面界面，功能与独立版一致。API 与模型在嵌入界面的「设置 → Models」里配置：支持 OpenAI 兼容 / DeepSeek / 智谱 / Kimi 等任意端点，可无缝切换 API 与模型；凭证由 harness 侧管理，不进入 vault 与 data.json。工作区已锁死到当前仓库（harness 以 vault 根为工作目录启动，仅监听 127.0.0.1）。"
+			"DSH 保留独立对话面。它的 API 与模型继续在 DSH 内的「Settings → Models」配置，这里只显示运行状态，避免重复设置。"
 		);
-		this.textIn(
-			c,
-			"dsh 可执行路径",
-			"留空自动探测 PATH 中的 dsh（npm i -g @deepseek-ai/dsh）。也可填绝对路径。修改后点「重启 Harness」生效。",
-			"harnessExecutable",
-			"(自动探测)"
-		);
-		new Setting(c)
-			.setName("Harness 端口")
-			.setDesc("dsh web 的 loopback 端口，非法值自动回退 3180。修改后点「重启 Harness」生效。")
-			.addText((t) =>
-				t
-					.setPlaceholder(String(DEFAULT_DSH_PORT))
-					.setValue(String(this.plugin.talosSettings.harnessPort || DEFAULT_DSH_PORT))
-					.onChange(async (v) => {
-						this.plugin.talosSettings.harnessPort = normalizeDshPort(v);
-						await this.plugin.saveTalosSettings();
-					})
-			);
 		new Setting(c)
 			.setName("Harness 运行状态")
 			.setDesc(this.describeHarnessState())
@@ -868,125 +763,87 @@ export class TalosSettingTab extends PluginSettingTab {
 						.finally(() => this.rerender());
 				})
 			);
-
-		new Setting(c)
-			.setName("执行通道")
-			.setDesc(
-				"Codex harness 是唯一 agent 内核（OpenAI 走 codex 核心，Responses 协议）；Claude 直连与 OpenAI-compatible 直连（DeepSeek/智谱/Kimi/自建网关）是轻量对话通道。切换后重开对话页生效。"
-			)
-			.addDropdown((d) =>
-				d
-					.addOption("codex-cli", "Codex harness · 本机（唯一 agent 内核）")
-					.addOption("claude-api", "Claude · 直连 API")
-					.addOption("codex", "OpenAI-compatible 直连 · DeepSeek/智谱/Kimi")
-					.setValue(this.plugin.talosSettings.engineProvider)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.engineProvider = v;
-						await this.plugin.saveTalosSettings();
-					})
+		if (this.plugin.getHarnessManager().getState() === "error") {
+			this.textIn(
+				c,
+				"DSH 可执行路径（故障恢复）",
+				"仅在自动探测失败时填写；留空继续使用 PATH 自动探测。",
+				"harnessExecutable",
+				"(自动探测)"
 			);
+			new Setting(c)
+				.setName("Harness 端口（故障恢复）")
+				.setDesc("仅在端口冲突时修改；默认 3180，只监听 127.0.0.1。")
+				.addText((text) =>
+					text
+						.setPlaceholder(String(DEFAULT_DSH_PORT))
+						.setValue(String(this.plugin.talosSettings.harnessPort || DEFAULT_DSH_PORT))
+						.onChange(async (value) => {
+							this.plugin.talosSettings.harnessPort = normalizeDshPort(value);
+							await this.plugin.saveTalosSettings();
+						})
+				);
+		}
 
-		new Setting(c).setName("Codex harness（codex-cli）").setHeading();
+		new Setting(c).setName("Claude").setHeading();
 		new Setting(c).setDesc(
-			"对话工作台的唯一大模型执行内核。需要本机已安装 codex CLI（npm i -g @openai/codex）；0.122+ 使用 OpenAI Responses 协议，第三方端点须兼容 Responses API。"
+			"默认使用 Claude 本机登录。保存 API Key 后，工作台顶部会新增“Anthropic API”；Base URL 和模型目录只作用于这个 API 选项。"
 		);
-		this.secretIn(
-			c,
-			"Codex API Key",
-			"仅以 OPENAI_API_KEY 注入 harness 子进程环境，保存到 Obsidian SecretStorage，不进入 data.json、日志或发行物。",
-			"codexApiKey"
-		);
-		this.textIn(c, "Codex Base URL", "留空用 OpenAI 官方端点；自建 Responses 兼容网关填这里（作为 OPENAI_BASE_URL 注入 harness）。", "codexBaseUrl", "(官方)");
-		this.textIn(c, "Codex 模型", "留空用 harness 默认（gpt-5.5）。可填 gpt-5.4-mini 等。", "codexModel", "(gpt-5.5)");
-
-		new Setting(c).setName("Claude 直连（claude-api）").setHeading();
 		this.secretIn(
 			c,
 			"Anthropic API Key",
-			"仅保存到 Obsidian SecretStorage，不进入 data.json、日志或发行物。",
+			"保存后启用 Anthropic API 认证，不进入 data.json、Vault、日志或发行物。",
 			"anthropicApiKey"
 		);
-		this.textIn(c, "Anthropic Base URL", "留空用官方 api.anthropic.com；自建网关/代理填这里。", "anthropicBaseUrl", "(官方)");
-		new Setting(c)
-			.setName("测试 Claude 连接")
-			.setDesc("只验证 endpoint 与鉴权，不发送 Vault 内容。")
-			.addButton((button) =>
-				button.setButtonText("测试连接").onClick(() =>
-					this.testApiConnection("anthropic")
-				)
-			);
+		this.textIn(
+			c,
+			"Anthropic Base URL",
+			"留空使用官方端点；自建 Anthropic 兼容网关填完整 HTTPS 地址。",
+			"anthropicBaseUrl",
+			"https://api.anthropic.com"
+		);
+		this.modelCatalogIn(
+			c,
+			"Claude API 模型",
+			"每行一个模型 ID；留空时由运行时使用默认模型。",
+			"agentWorkbenchClaudeModels",
+			"claude-sonnet-…\nclaude-opus-…"
+		);
 
-		new Setting(c).setName("OpenAI-compatible 直连（DeepSeek/智谱/Kimi）").setHeading();
+		new Setting(c).setName("Codex").setHeading();
+		new Setting(c).setDesc(
+			"默认使用 Codex 本机登录。保存 API Key 后，工作台顶部会新增“OpenAI Responses API”；自建端点必须兼容 Responses API。"
+		);
 		this.secretIn(
 			c,
-			"OpenAI-compatible API Key",
-			"支持 OpenAI 与兼容 Bearer + Chat Completions 的模型服务（DeepSeek/智谱/Kimi/自建网关）。",
-			"openaiApiKey"
+			"OpenAI API Key",
+			"保存后只注入所选 Codex 子进程，不进入 data.json、Vault、日志或发行物。",
+			"codexApiKey"
 		);
-		this.textIn(c, "OpenAI-compatible Base URL", "留空用官方 api.openai.com；DeepSeek/智谱/Kimi 或自建兼容网关填这里（填到 host 根，插件自动补 /v1/chat/completions）。", "openaiBaseUrl", "(官方)");
-		this.textIn(c, "OpenAI-compatible 模型", "留空用 gpt-4o。可填 deepseek-chat / glm-4.6 / kimi-k2 等。", "openaiModel", "(gpt-4o)");
-		new Setting(c)
-			.setName("测试 OpenAI-compatible 连接")
-			.setDesc("只验证 endpoint 与鉴权，不发送 Vault 内容。")
-			.addButton((button) =>
-				button.setButtonText("测试连接").onClick(() =>
-					this.testApiConnection("openai")
-				)
-			);
-
-		new Setting(c).setName("模型（直连通道）").setHeading();
-		this.textIn(c, "Claude 模型", "claude-api 直连共用。留空用默认模型。可填 sonnet / opus 或完整模型串。", "jarvisModel", "(默认)");
-
-		new Setting(c).setName("通用").setHeading();
-		new Setting(c)
-			.setName("允许模型读取当前 Vault")
-			.setDesc(
-				"开启后 Provider 可读取库内数据来分析与提案；密钥、凭证和隐私门拦截内容仍不会发送。"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.talosSettings.providerVaultAccess)
-					.onChange(async (value) => {
-						this.plugin.talosSettings.providerVaultAccess = value;
-						await this.plugin.saveTalosSettings();
-					})
-			);
-		this.renderProviderModuleAccess(c, "claude-api", "Claude API");
-		this.renderProviderModuleAccess(
+		this.textIn(
 			c,
-			"openai-compatible",
-			"OpenAI-compatible"
+			"Responses Base URL",
+			"留空使用 OpenAI 官方端点；自建网关填完整 HTTPS 地址。",
+			"codexBaseUrl",
+			"https://api.openai.com"
 		);
-		new Setting(c)
-			.setName("复杂操作先提案再批准")
-			.setDesc(
-				"保持开启：模型可以全权分析，但写入、移动、删除和命令执行必须生成任务卡，由用户批准后执行。"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.talosSettings.providerManualReview)
-					.onChange(async (value) => {
-						this.plugin.talosSettings.providerManualReview = value;
-						await this.plugin.saveTalosSettings();
-					})
-			);
-		new Setting(c)
-			.setName("实际权限策略")
-			.setDesc(
-				"AI 对话只提供 Safe 与 Plan：写入和命令仍经过 A/B/C 治理；语音工具固定只读、禁命令和通用网络。仅百炼实时音频及用户当前轮明确说“联网搜索”或“上网查”触发的 Qwen 检索可以联网，旧权限值不能放宽实际运行策略。"
-			);
-		new Setting(c)
-			.setName("Deep Research 命令")
-			.setDesc("Deep Research 调用的命令前缀，如 claude -p 或 codex exec。留空只写占位报告。")
-			.addText((t) =>
-				t
-					.setPlaceholder("claude -p")
-					.setValue(this.plugin.talosSettings.agentCommand)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.agentCommand = v.trim();
-						await this.plugin.saveTalosSettings();
-					})
-			);
+		this.modelCatalogIn(
+			c,
+			"Codex API 模型",
+			"每行一个 Responses 模型 ID；留空时由 Codex 使用默认模型。",
+			"agentWorkbenchCodexModels",
+			"gpt-…\ngpt-…-codex"
+		);
+
+		new Setting(c).setName("OhMyPi").setHeading();
+		new Setting(c).setDesc(
+			"OhMyPi 继续使用它自己的 Provider 与模型目录；TALOS 工作台会直接读取，不再复制一套无效配置。"
+		);
+
+		new Setting(c).setName("权限").setHeading();
+		new Setting(c).setDesc(
+			"Plan / Execute 和 Ask / Scoped / Vault Full 都在工作台顶部切换。设置页不再重复展示不会改变新工作台权限的旧开关。"
+		);
 	}
 
 	// ---------- Tab：屈原 · 语音 ----------
@@ -1154,61 +1011,6 @@ export class TalosSettingTab extends PluginSettingTab {
 						await this.plugin.saveTalosSettings();
 					})
 			);
-
-		new Setting(c).setName("旧串行语音设置（存档）").setHeading();
-		new Setting(c)
-			.setName("语音引擎")
-			.setDesc("系统朗读不参与实时麦克风对话，仅保留旧设置兼容。")
-			.addDropdown((d) => {
-				d.addOption("system", "系统语音（离线·固定）").setValue("system");
-				d.selectEl.disabled = true;
-			});
-		this.textIn(c, "Live2D 模型路径", "库内 *.model3.json 路径，留空用 SVG 角色（详见插件 _README）。", "live2dModelPath");
-
-		new Setting(c).setName("语音识别（STT）").setHeading();
-		new Setting(c)
-			.setName("旧语音识别引擎")
-			.setDesc("旧 WebSpeech 与本地 ASR 不参与实时语音；字幕由 Qwen Realtime 会话返回。")
-			.addDropdown((d) => {
-				d.addOption("off", "WebSpeech 已禁用").setValue("off");
-				d.selectEl.disabled = true;
-			});
-		this.textIn(c, "识别语言", "麦克风识别语言，如 zh-CN / en-US。", "jarvisSttLang", "zh-CN");
-		new Setting(c)
-			.setName("本地 ASR 模型")
-			.setDesc(
-				"已停用；本方案不会下载或部署本地模型。"
-			)
-			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
-
-		new Setting(c).setName("旧本地断句（存档）").setHeading();
-		new Setting(c)
-			.setName("用 Silero VAD 判断人声")
-			.setDesc("不参与实时语音；断句固定由 Qwen semantic_vad 处理。")
-			.addToggle((t) =>
-				t.setValue(this.plugin.talosSettings.quyuanVadEnabled).onChange(async (v) => {
-					this.plugin.talosSettings.quyuanVadEnabled = v;
-					await this.plugin.saveTalosSettings();
-				})
-			);
-		new Setting(c)
-			.setName("允许首次获取固定 VAD 模型")
-			.setDesc(
-				"已停用；本方案不会下载或部署本地模型。"
-			)
-			.addToggle((toggle) => toggle.setValue(false).setDisabled(true));
-
-		new Setting(c).setName("旧·语音助手（存档）").setHeading();
-		new Setting(c)
-			.setName("旧语音命令")
-			.setDesc("已停用并清空；语音通道不会启动 shell 或旧 CLI。");
-		new Setting(c)
-			.setName("工具权限（旧）")
-			.setDesc("旧入口已停用；语音工具仍固定只读、无 shell、无通用网络，只有已授权的实时音频与明确口令触发的 Qwen 检索可联网。")
-			.addDropdown((d) => {
-				d.addOption("off", "已停用（固定）").setValue("off");
-				d.selectEl.disabled = true;
-			});
 	}
 
 	private populateVoices(d: DropdownComponent): void {

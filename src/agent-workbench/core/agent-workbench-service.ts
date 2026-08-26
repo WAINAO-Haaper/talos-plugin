@@ -1,5 +1,6 @@
 import type { PermissionMode, WorkflowMode } from "../contracts/approval";
 import type { ProviderProfile, RuntimeProfile } from "../contracts/provider-profile";
+import { validateProviderProfile } from "../contracts/provider-profile";
 import type { AgentRuntimeAdapter, ModelDescriptor, RuntimeId, RuntimeProbe } from "../contracts/runtime-adapter";
 import { RuntimeRegistry } from "./runtime-registry";
 import type { ApprovalBroker } from "../security/approval-broker";
@@ -80,6 +81,54 @@ export class AgentWorkbenchService {
 
 	getProviderProfiles(runtimeId: RuntimeId): ProviderProfile[] {
 		return (this.settings?.providers ?? []).filter((profile) => profile.enabled && profile.runtimeId === runtimeId).map((profile) => ({ ...profile, models: [...profile.models] }));
+	}
+
+	async syncProviderProfiles(
+		profiles: ProviderProfile[],
+		managedIds: readonly string[]
+	): Promise<void> {
+		if (!this.options.settingsStore) return;
+		const base = this.settings ?? {
+			schemaVersion: 1 as const,
+			runtimes: [],
+			providers: [],
+			selection: { runtimeId: this.selectedRuntimeId },
+			workflow: this.workflow,
+			permission: this.permission,
+		};
+		const managed = new Set(managedIds);
+		const nextProviders = [
+			...base.providers.filter((profile) => !managed.has(profile.id)),
+			...profiles.map((profile) => validateProviderProfile(profile)),
+		];
+		if (JSON.stringify(base.providers) === JSON.stringify(nextProviders)) return;
+
+		const selected = nextProviders.find(
+			(profile) =>
+				profile.enabled &&
+				profile.id === this.selectedProviderProfileId &&
+				profile.runtimeId === this.selectedRuntimeId
+		);
+		if (!selected && this.selectedProviderProfileId) {
+			this.selectedProviderProfileId = undefined;
+			this.selectedModel = undefined;
+		} else if (
+			selected &&
+			this.selectedModel &&
+			!selected.models.includes(this.selectedModel)
+		) {
+			this.selectedModel = undefined;
+		}
+		const next: WorkbenchSettings = {
+			...base,
+			providers: nextProviders,
+			selection: this.getSelection(),
+		};
+		this.settings = next;
+		this.persistence = this.persistence
+			.then(() => this.options.settingsStore?.save(next))
+			.then(() => undefined);
+		await this.persistence;
 	}
 
 	getSelectedProviderProfile(runtimeId = this.selectedRuntimeId): ProviderProfile | undefined {

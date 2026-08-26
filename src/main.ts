@@ -22,6 +22,10 @@ import { RuntimeBindingStore } from "./agent-workbench/storage/runtime-binding-s
 import { WorkbenchSettingsStore } from "./agent-workbench/storage/workbench-settings-store";
 import { ClaudianCompatibilityHost } from "./agent-workbench/ui/claudian-compatibility-host";
 import {
+	buildTalosProviderProfiles,
+	TALOS_MANAGED_PROVIDER_PROFILE_IDS,
+} from "./agent-workbench/config/talos-provider-profiles";
+import {
 	getCodexProviderSettings,
 	updateCodexProviderSettings,
 } from "./quyuan/claudian/providers/codex/settings";
@@ -769,6 +773,7 @@ export default class TalosPlugin extends Plugin {
 		this.talosAskCommand = null;
 		this.talosProviderFacade = null;
 		this.syncCodexHarnessEnvironment();
+		await this.syncAgentWorkbenchProviderProfiles();
 	}
 
 	/**
@@ -815,6 +820,26 @@ export default class TalosPlugin extends Plugin {
 		if (next !== current.trim()) {
 			updateCodexProviderSettings(compatibility.settings, { environmentVariables: next });
 			void compatibility.saveSettings();
+		}
+	}
+
+	private async syncAgentWorkbenchProviderProfiles(): Promise<void> {
+		const service = this.agentWorkbenchService;
+		if (!service?.isReady()) return;
+		const secretStore = providerSecretStoreFromApp(this.app);
+		try {
+			await service.syncProviderProfiles(
+				buildTalosProviderProfiles(
+					this.talosSettings,
+					(reference) => secretStore?.has(reference) ?? false
+				),
+				TALOS_MANAGED_PROVIDER_PROFILE_IDS
+			);
+		} catch (error) {
+			this.recordQuyuanRuntimeError(
+				"AgentWorkbenchService.providerProfiles",
+				error
+			);
 		}
 	}
 
@@ -1799,9 +1824,11 @@ export default class TalosPlugin extends Plugin {
 			}
 			const vaultRoot = this.app.vault.adapter.getBasePath();
 			const discovery = new RuntimeDiscoveryService(new NodeRuntimeProbeHost());
+			const secretStore = providerSecretStoreFromApp(this.app);
 			const runtimeFactory = new DesktopRuntimeFactory(
 				discovery,
 				new ProcessSandbox(new NodeSandboxProbeHost()),
+				(reference) => secretStore?.get(reference) ?? null,
 			);
 			const portableStorage = new ObsidianWorkbenchStorage(this.app.vault.adapter, vaultRoot);
 			const workbenchStateRoot = ".talos/agent-workbench/v1";
@@ -1824,7 +1851,6 @@ export default class TalosPlugin extends Plugin {
 				new ExternalAccessGrantStore(),
 				new JsonlSecurityAuditSink(vaultRoot),
 			);
-			const secretStore = providerSecretStoreFromApp(this.app);
 			const workbenchSettings = new WorkbenchSettingsStore({
 				read: () => portableStorage.readJson(`${workbenchStateRoot}/settings.json`),
 				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/settings.json`, value),
@@ -1865,6 +1891,7 @@ export default class TalosPlugin extends Plugin {
 			this.claudianCompatibility = compatibility;
 			this.agentWorkbenchService = service;
 			await service.initialize();
+			await this.syncAgentWorkbenchProviderProfiles();
 			this.quyuanWorkbenchReady = true;
 			this.talosProviderFacade = null;
 			this.talosAskService = null;

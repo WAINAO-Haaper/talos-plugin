@@ -70,6 +70,49 @@ describe("WorkbenchSettingsStore", () => {
 		expect(value.selection).toEqual({ runtimeId: "ohmypi" });
 		expect(value.providers[0]?.secretRef).toBe("talos-openai-main");
 	});
+
+	it("syncs only TALOS-managed API profiles and avoids no-op writes", async () => {
+		let value = settings();
+		let writes = 0;
+		const store = new WorkbenchSettingsStore(
+			{
+				read: async () => structuredClone(value),
+				write: async (next) => {
+					writes += 1;
+					value = structuredClone(next);
+				},
+			},
+			{ has: () => true },
+		);
+		const service = new AgentWorkbenchService({
+			compatibility: { initialize: async () => {}, dispose: () => {} },
+			settingsStore: store,
+		});
+		await service.initialize();
+		const managed = {
+			id: "openai",
+			displayName: "OpenAI Responses API",
+			runtimeId: "codex" as const,
+			protocol: "openai-responses" as const,
+			endpoint: "https://responses.example.test/",
+			models: ["model-b"],
+			secretRef: "talos-codex-api-key",
+			enabled: true,
+		};
+		await service.syncProviderProfiles([managed], ["anthropic", "openai"]);
+		expect(value.providers.map((profile) => profile.id)).toEqual([
+			"openai-main",
+			"openai",
+		]);
+		expect(value.selection.providerProfileId).toBe("openai-main");
+		const firstWriteCount = writes;
+		await service.syncProviderProfiles([managed], ["anthropic", "openai"]);
+		expect(writes).toBe(firstWriteCount);
+		await service.syncProviderProfiles([], ["anthropic", "openai"]);
+		expect(value.providers.map((profile) => profile.id)).toEqual([
+			"openai-main",
+		]);
+	});
 });
 
 it("allows egress only to the selected provider profile", async () => {

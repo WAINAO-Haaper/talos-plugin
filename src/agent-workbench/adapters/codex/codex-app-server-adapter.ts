@@ -54,7 +54,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 		});
 		assertCodexPermissionProfile(result);
 		this.pendingContext = input.initialContext;
-		return this.binding = { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2" };
+		return this.binding = { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2", ...(input.providerProfileId ? { providerProfileId: input.providerProfileId } : {}) };
 	}
 	async resumeSession(binding: NativeSessionBinding): Promise<void> {
 		const result = await this.port.request<{ activePermissionProfile?: { id?: string } }>("thread/resume", { threadId: binding.sessionId, approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE, persistExtendedHistory: true });
@@ -104,7 +104,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	async cancel(reason?: string): Promise<void> { if (this.binding) await this.port.cancel(this.binding.sessionId, this.activeTurnId, reason); }
 	async fork(input: { binding: NativeSessionBinding }): Promise<NativeSessionBinding> {
 		const result = await this.port.request<{ thread: { id: string } }>("thread/fork", { threadId: input.binding.sessionId });
-		return { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2" };
+		return { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2", ...(input.binding.providerProfileId ? { providerProfileId: input.binding.providerProfileId } : {}) };
 	}
 	async rollback(numTurns: number): Promise<void> { await this.port.request("thread/rollback", { threadId: this.binding?.sessionId, numTurns }); }
 	async compact(): Promise<void> { await this.port.request("thread/compact/start", { threadId: this.binding?.sessionId }); }
