@@ -1,7 +1,13 @@
 import type { WorkspaceLeaf } from "obsidian";
 import type { ChatSurfaceWorkbench } from "../../quyuan/chat-surface";
 import type { AgentWorkbenchService } from "../core/agent-workbench-service";
-import type { RuntimeId } from "../contracts/runtime-adapter";
+import type { RuntimeHealth, RuntimeId } from "../contracts/runtime-adapter";
+import {
+	CLAUDE_PROVIDER_ICON,
+	OPENAI_PROVIDER_ICON,
+	PI_PROVIDER_ICON,
+	createProviderIconSvg,
+} from "../../quyuan/claudian/shared/icons";
 import type { ClaudianCompatibilityHost } from "./claudian-compatibility-host";
 import { CompatibilityChatView } from "./compatibility-chat-view";
 
@@ -17,6 +23,23 @@ const NATIVE_PROVIDER_LABELS: Record<RuntimeId, string> = {
 	ohmypi: "OhMyPi 原生 Provider",
 };
 
+const RUNTIME_PRESENTATION = [
+	{ id: "claude", label: "Claude", icon: CLAUDE_PROVIDER_ICON },
+	{ id: "codex", label: "Codex", icon: OPENAI_PROVIDER_ICON },
+	{ id: "ohmypi", label: "OhMyPi", icon: PI_PROVIDER_ICON },
+] as const;
+
+const RUNTIME_HEALTH_LABELS: Record<RuntimeHealth, string> = {
+	unknown: "状态未知",
+	probing: "检测中",
+	"not-installed": "未安装",
+	incompatible: "版本不兼容",
+	unauthenticated: "未登录",
+	ready: "已就绪",
+	degraded: "部分可用",
+	crashed: "启动失败",
+};
+
 function nativeProviderLabel(runtimeId: RuntimeId): string {
 	return NATIVE_PROVIDER_LABELS[runtimeId];
 }
@@ -28,7 +51,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private status: HTMLElement | null = null;
 	private model: HTMLSelectElement | null = null;
 	private provider: HTMLSelectElement | null = null;
-	private runtime: HTMLSelectElement | null = null;
+	private readonly runtimeButtons = new Map<RuntimeId, HTMLButtonElement>();
 	private install: HTMLAnchorElement | null = null;
 	private refreshVersion = 0;
 
@@ -36,7 +59,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.compatibility = new CompatibilityChatView(options.leaf, options.compatibility);
 		this.compatibility.onRuntimeChanged((runtimeId) => {
 			this.options.service.selectRuntime(runtimeId);
-			if (this.runtime) this.runtime.value = runtimeId;
+			this.updateRuntimeButtons(runtimeId);
 			void this.refreshRuntime(runtimeId);
 		});
 	}
@@ -58,29 +81,44 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		controls.setAttribute("role", "group");
 		controls.setAttribute("aria-label", "TALOS 智能体运行时与模型");
 
-		const runtime = doc.createElement("select");
-		runtime.className = "talos-agent-runtime-picker";
-		runtime.setAttribute("aria-label", "智能体");
-		for (const [id, label] of [["claude", "Claude"], ["codex", "Codex"], ["ohmypi", "OhMyPi"]] as const) {
-			const option = doc.createElement("option");
-			option.value = id;
-			option.textContent = label;
-			runtime.appendChild(option);
+		const runtimeSwitcher = doc.createElement("div");
+		runtimeSwitcher.className = "talos-agent-runtime-switcher";
+		runtimeSwitcher.setAttribute("role", "radiogroup");
+		runtimeSwitcher.setAttribute("aria-label", "选择智能体");
+		for (const runtime of RUNTIME_PRESENTATION) {
+			const button = doc.createElement("button");
+			button.type = "button";
+			button.className = "talos-agent-runtime-button";
+			button.dataset.runtime = runtime.id;
+			button.title = `切换到 ${runtime.label}`;
+			button.setAttribute("role", "radio");
+			button.setAttribute("aria-label", `切换到 ${runtime.label}`);
+			button.appendChild(createProviderIconSvg(runtime.icon, {
+				className: "talos-agent-runtime-logo",
+				dataProvider: runtime.id,
+				height: 20,
+				ownerDocument: doc,
+				width: 20,
+			}));
+			button.addEventListener("click", () => {
+				const previous = this.options.service.getSelectedRuntimeId();
+				if (previous === runtime.id) return;
+				this.setRuntimeButtonsDisabled(true);
+				void this.compatibility.selectRuntime(runtime.id).then(() => {
+					this.appendHandoffMarker(root, previous, runtime.id);
+				}).catch((error: unknown) => {
+					this.updateRuntimeButtons(previous);
+					if (this.status) {
+						this.status.dataset.state = "error";
+						this.status.textContent = `切换失败 · ${error instanceof Error ? error.message : String(error)}`;
+					}
+				}).finally(() => this.setRuntimeButtonsDisabled(false));
+			});
+			this.runtimeButtons.set(runtime.id, button);
+			runtimeSwitcher.appendChild(button);
 		}
-		runtime.value = this.options.service.getSelectedRuntimeId();
-		this.runtime = runtime;
-		runtime.addEventListener("change", () => {
-			const previous = this.options.service.getSelectedRuntimeId();
-			const next = runtime.value as RuntimeId;
-			runtime.disabled = true;
-			void this.compatibility.selectRuntime(next).then(() => {
-				this.appendHandoffMarker(root, previous, next);
-			}).catch((error: unknown) => {
-				runtime.value = previous;
-				if (this.status) this.status.textContent = `切换失败 · ${error instanceof Error ? error.message : String(error)}`;
-			}).finally(() => { runtime.disabled = false; });
-		});
-		controls.appendChild(runtime);
+		this.updateRuntimeButtons(this.options.service.getSelectedRuntimeId());
+		controls.appendChild(runtimeSwitcher);
 
 		const provider = doc.createElement("select");
 		provider.className = "talos-agent-provider-picker";
@@ -94,7 +132,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			try {
 				this.options.service.selectProviderProfile(provider.value === "native" ? undefined : provider.value);
 				this.options.service.selectModel(undefined);
-				void this.refreshRuntime(runtime.value as RuntimeId);
+				void this.refreshRuntime(this.options.service.getSelectedRuntimeId());
 			} catch (error) {
 				provider.value = this.options.service.getSelection().providerProfileId ?? "native";
 				if (this.status) this.status.textContent = `Provider 切换失败 · ${error instanceof Error ? error.message : String(error)}`;
@@ -112,7 +150,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		controls.appendChild(model);
 		this.model = model;
 		model.addEventListener("change", () => {
-			const runtimeId = runtime.value as RuntimeId;
+			const runtimeId = this.options.service.getSelectedRuntimeId();
 			const previous = this.options.service.getSelection().model;
 			try {
 				this.options.service.selectModel(model.value || undefined);
@@ -131,11 +169,15 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		workflow.className = "talos-agent-workflow";
 		workflow.setAttribute("role", "group");
 		workflow.setAttribute("aria-label", "工作流模式");
-		for (const [value, label] of [["plan", "Plan"], ["execute", "Execute"]] as const) {
+		for (const [value, label, description] of [
+			["plan", "只规划", "只分析和给方案，不执行修改"],
+			["execute", "可执行", "在当前授权范围内执行可恢复操作"],
+		] as const) {
 			const button = doc.createElement("button");
 			button.type = "button";
 			button.textContent = label;
 			button.dataset.value = value;
+			button.title = description;
 			button.setAttribute("aria-pressed", String(this.options.service.getWorkflowMode() === value));
 			button.addEventListener("click", () => {
 				this.options.service.setWorkflowMode(value);
@@ -148,7 +190,11 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		const permission = doc.createElement("select");
 		permission.className = "talos-agent-permission-picker";
 		permission.setAttribute("aria-label", "授权模式");
-		for (const [value, label] of [["ask", "Ask"], ["scoped", "Scoped"], ["vault-full", "Vault Full"]] as const) {
+		for (const [value, label] of [
+			["ask", "每次询问"],
+			["scoped", "仅已授权范围"],
+			["vault-full", "Vault 普通写入自动"],
+		] as const) {
 			const option = doc.createElement("option"); option.value = value; option.textContent = label; permission.appendChild(option);
 		}
 		permission.value = this.options.service.getPermissionMode();
@@ -159,6 +205,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		status.className = "talos-agent-runtime-status";
 		status.setAttribute("role", "status");
 		status.setAttribute("aria-live", "polite");
+		status.dataset.state = "checking";
 		status.textContent = "等待无付费运行时探测";
 		controls.appendChild(status);
 		this.status = status;
@@ -196,10 +243,24 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		root.insertBefore(marker, this.body);
 	}
 
+	private updateRuntimeButtons(runtimeId: RuntimeId): void {
+		for (const [id, button] of this.runtimeButtons) {
+			const selected = id === runtimeId;
+			button.setAttribute("aria-checked", String(selected));
+			button.classList.toggle("is-active", selected);
+		}
+	}
+
+	private setRuntimeButtonsDisabled(disabled: boolean): void {
+		for (const button of this.runtimeButtons.values()) button.disabled = disabled;
+	}
+
 	private async refreshRuntime(runtimeId: RuntimeId): Promise<void> {
 		if (!this.status || !this.model || !this.provider || !this.install) return;
 		const refreshVersion = ++this.refreshVersion;
-		this.status.textContent = `${runtimeId} · 检测中`;
+		this.updateRuntimeButtons(runtimeId);
+		this.status.dataset.state = "checking";
+		this.status.textContent = `${RUNTIME_PRESENTATION.find((runtime) => runtime.id === runtimeId)?.label ?? runtimeId} · 检测中`;
 		this.install.hidden = true;
 		this.provider.replaceChildren();
 		const native = this.provider.ownerDocument.createElement("option"); native.value = "native"; native.textContent = nativeProviderLabel(runtimeId); this.provider.appendChild(native);
@@ -211,7 +272,8 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.provider.value = selection.providerProfileId ?? "native";
 		const probe = await this.options.service.probeRuntime(runtimeId);
 		if (refreshVersion !== this.refreshVersion || !this.status || !this.model || !this.provider || !this.install) return;
-		this.status.textContent = `${runtimeId} · ${probe.status}${probe.version ? ` · ${probe.version}` : ""}${probe.reason ? ` · ${probe.reason}` : ""}`;
+		this.status.dataset.state = probe.status;
+		this.status.textContent = `${RUNTIME_PRESENTATION.find((runtime) => runtime.id === runtimeId)?.label ?? runtimeId} · ${RUNTIME_HEALTH_LABELS[probe.status]}${probe.version ? ` · ${probe.version}` : ""}${probe.reason ? ` · ${probe.reason}` : ""}`;
 		this.install.hidden = probe.status !== "not-installed" && probe.status !== "incompatible";
 		if (!this.install.hidden) {
 			const urls: Record<RuntimeId, string> = { claude: "https://docs.anthropic.com/en/docs/claude-code/setup", codex: "https://developers.openai.com/codex/cli", ohmypi: "https://github.com/can1357/oh-my-pi" };
@@ -229,7 +291,8 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 				const selectedModel = this.options.service.getSelection().model;
 				if (selectedModel && Array.from(this.model.options).some((option) => option.value === selectedModel)) this.model.value = selectedModel;
 			} catch (error) {
-				this.status.textContent = `${runtimeId} · degraded · 模型目录不可用：${error instanceof Error ? error.message : "unknown"}`;
+				this.status.dataset.state = "degraded";
+				this.status.textContent = `${RUNTIME_PRESENTATION.find((runtime) => runtime.id === runtimeId)?.label ?? runtimeId} · 模型列表不可用 · ${error instanceof Error ? error.message : "unknown"}`;
 			}
 		}
 	}
@@ -247,7 +310,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.status = null;
 		this.model = null;
 		this.provider = null;
-		this.runtime = null;
+		this.runtimeButtons.clear();
 		this.install = null;
 	}
 }

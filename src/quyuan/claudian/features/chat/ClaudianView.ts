@@ -202,9 +202,11 @@ export class ClaudianView extends ItemView {
     this.viewContainerEl.addClass('claudian-container');
     this.viewContainerEl.addClass('talos-quyuan-shell');
 
-    const header = this.viewContainerEl.createDiv({ cls: 'claudian-header' });
-    this.buildHeader(header);
-    this.buildTalosChrome();
+    if (!this.embeddedMode) {
+      const header = this.viewContainerEl.createDiv({ cls: 'claudian-header' });
+      this.buildHeader(header);
+      this.buildTalosChrome();
+    }
 
     this.navRowContent = this.buildNavRowContent();
     this.tabContentEl = this.viewContainerEl.createDiv({ cls: 'claudian-tab-content-container' });
@@ -447,11 +449,17 @@ export class ClaudianView extends ItemView {
       void toggle.selectMode(mode).then(() => this.updateTalosChrome());
     });
 
-    const capabilityButton = statusBar.createEl('button', {
-      cls: 'talos-quyuan-capability-button',
+    this.buildTalosCapabilityControls(statusBar, false);
+  }
+
+  private buildTalosCapabilityControls(buttonHost: HTMLElement, embedded: boolean): void {
+    if (!this.viewContainerEl) return;
+
+    const capabilityButton = buttonHost.createEl('button', {
+      cls: `talos-quyuan-capability-button${embedded ? ' talos-quyuan-capability-button--embedded' : ''}`,
       attr: {
         type: 'button',
-        'aria-label': '屈原能力',
+        'aria-label': '能力',
         'aria-expanded': 'false',
       },
     });
@@ -459,7 +467,7 @@ export class ClaudianView extends ItemView {
     capabilityButton.createSpan({ text: '能力' });
 
     this.talosCapabilitiesPanelEl = this.viewContainerEl.createDiv({
-      cls: 'talos-quyuan-capabilities',
+      cls: `talos-quyuan-capabilities${embedded ? ' talos-quyuan-capabilities--embedded' : ''}`,
     });
     const capabilities = [
       ['terminal-square', 'Commands', '/'],
@@ -592,6 +600,10 @@ export class ClaudianView extends ItemView {
       e.stopPropagation();
       this.toggleHistoryDropdown();
     });
+
+    if (this.embeddedMode) {
+      this.buildTalosCapabilityControls(navActionsEl, true);
+    }
 
     fragment.appendChild(navActionsEl);
 

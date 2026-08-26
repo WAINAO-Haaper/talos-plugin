@@ -5,7 +5,8 @@ import { QueryBackedInstructionRefineService } from "../../quyuan/claudian/core/
 import { QueryBackedTitleGenerationService } from "../../quyuan/claudian/core/auxiliary/QueryBackedTitleGenerationService";
 import { ProviderRegistry } from "../../quyuan/claudian/core/providers/ProviderRegistry";
 import { decodeProviderModelSelectionId, encodeProviderModelSelectionId } from "../../quyuan/claudian/core/providers/modelSelection";
-import type { ProviderChatUIConfig, ProviderConversationHistoryService, ProviderRegistration, ProviderTaskResultInterpreter } from "../../quyuan/claudian/core/providers/types";
+import type { ProviderChatUIConfig, ProviderConversationHistoryService, ProviderIconSvg, ProviderRegistration, ProviderTaskResultInterpreter } from "../../quyuan/claudian/core/providers/types";
+import { CLAUDE_PROVIDER_ICON, OPENAI_PROVIDER_ICON, PI_PROVIDER_ICON } from "../../quyuan/claudian/shared/icons";
 import type { Conversation } from "../../quyuan/claudian/core/types";
 import type ClaudianPlugin from "../../quyuan/claudian/main";
 import { codexProviderRegistration } from "../../quyuan/claudian/providers/codex/registration";
@@ -14,6 +15,13 @@ import { AdapterAuxQueryRunner } from "./adapter-aux-query-runner";
 import { AdapterCompatibilityRuntime } from "./adapter-compatibility-runtime";
 
 type WorkbenchPlugin = ClaudianPlugin & { getAgentWorkbenchService(): AgentWorkbenchService };
+
+const RUNTIME_PROVIDER_ICONS = {
+	claude: CLAUDE_PROVIDER_ICON,
+	codex: OPENAI_PROVIDER_ICON,
+	ohmypi: PI_PROVIDER_ICON,
+} satisfies Record<RuntimeId, ProviderIconSvg>;
+
 let registered = false;
 
 function vaultRoot(plugin: ClaudianPlugin): string {
@@ -41,7 +49,7 @@ function ui(runtimeId: RuntimeId): ProviderChatUIConfig {
 		normalizeModelVariant: (model) => model || selection,
 		getCustomModelIds: () => new Set(),
 		getPermissionModeToggle: () => null,
-		getProviderIcon: () => null,
+		getProviderIcon: () => RUNTIME_PROVIDER_ICONS[runtimeId],
 	};
 }
 
