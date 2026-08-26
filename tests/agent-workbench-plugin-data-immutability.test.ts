@@ -26,6 +26,8 @@ describe("agent workbench plugin data immutability", () => {
 	it("routes compatibility tab and session state away from plugin data in read-only mode", () => {
 		expect(sharedStorageSource).toContain("TALOS_COMPATIBILITY_HOST_PATH");
 		expect(sharedStorageSource).toContain("TALOS_TAB_MANAGER_STATE_PATH");
+		expect(sharedStorageSource).toContain("private sidecarWriteQueue: Promise<void> = Promise.resolve()");
+		expect(sharedStorageSource).toContain("this.sidecarWriteQueue.catch(() => {}).then");
 		expect(sharedStorageSource).toContain("const loaded = await this.readSidecar(TALOS_COMPATIBILITY_HOST_PATH)");
 		expect(sharedStorageSource).toContain("if (this.readOnly) {\n        await this.writeSidecar(TALOS_TAB_MANAGER_STATE_PATH, state);\n        return;");
 		expect(sharedStorageSource).toContain("const data: unknown = this.readOnly\n        ? await this.readSidecar(TALOS_TAB_MANAGER_STATE_PATH)\n        : await this.plugin.loadData();");

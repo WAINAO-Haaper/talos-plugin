@@ -21,6 +21,7 @@ export class SharedStorageService implements SharedAppStorage {
 
   private adapter: VaultFileAdapter;
   private plugin: Plugin;
+  private sidecarWriteQueue: Promise<void> = Promise.resolve();
 
   constructor(plugin: Plugin, private readonly readOnly = false) {
     this.plugin = plugin;
@@ -110,9 +111,13 @@ export class SharedStorageService implements SharedAppStorage {
   }
 
   private async writeSidecar(path: string, value: unknown): Promise<void> {
-    const temporary = `${path}.tmp`;
-    await this.adapter.write(temporary, `${JSON.stringify(value, null, 2)}\n`);
-    await this.adapter.rename(temporary, path);
+    const operation = this.sidecarWriteQueue.catch(() => {}).then(async () => {
+      const temporary = `${path}.tmp`;
+      await this.adapter.write(temporary, `${JSON.stringify(value, null, 2)}\n`);
+      await this.adapter.rename(temporary, path);
+    });
+    this.sidecarWriteQueue = operation;
+    await operation;
   }
 
   private async ensureDirectories(): Promise<void> {
