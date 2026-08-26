@@ -186,12 +186,16 @@ assert.match(
 );
 assert.match(
 	talosSettingsSource,
-	/\{\s*id:\s*"workbench",\s*label:\s*"屈原 · 高级"/
+	/\{\s*id:\s*"channel",\s*label:\s*"智能体与模型"/
 );
-	assert.match(
-		talosSettingsSource,
-		/renderWorkbench[\s\S]*new ClaudianSettingTab\([\s\S]*this\.plugin\.getAgentWorkbenchCompatibility\(\)/
-	);
+assert.match(
+	talosSettingsSource,
+	/Anthropic API Key[\s\S]*OpenAI API Key[\s\S]*OhMyPi/
+);
+assert.doesNotMatch(
+	talosSettingsSource,
+	/renderWorkbench|ClaudianSettingTab|屈原 · 高级/
+);
 assert.equal((talosMain.match(/this\.addRibbonIcon\(/g) ?? []).length, 1);
 const talosViewSource = readFileSync("src/view.ts", "utf8");
 const navigationModelSource = readFileSync("src/ui/navigation-model.ts", "utf8");
@@ -435,7 +439,7 @@ assert.match(localVoiceSupplySource, /模型清单缺少 NOTICE 声明/);
 assert.match(localVoiceSupplySource, /\^\[a-f0-9\]\{64\}\$/);
 assert.match(localVoiceSupplySource, /actual !== manifest\.sha256/);
 assert.match(talosSettingsSource, /quyuanVadEnabled:\s*boolean/);
-// 旧本地 VAD 不参与 Qwen Realtime；默认关闭，首次固定模型获取也默认无联网同意。
+// 旧本地 VAD 不参与 Qwen Realtime；兼容字段保留并默认关闭，但无效控件不再显示。
 assert.match(talosSettingsSource, /quyuanVadEnabled:\s*false/);
 assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*boolean/);
 assert.match(talosSettingsSource, /quyuanVadNetworkConsent:\s*false/);
@@ -443,9 +447,9 @@ assert.match(
 	vadSource,
 	/if \(this\.settings\.quyuanVadEnabled === false\) return;/
 );
-assert.match(
+assert.doesNotMatch(
 	talosSettingsSource,
-	/允许首次获取固定 VAD 模型[\s\S]*setValue\(false\)\.setDisabled\(true\)/
+	/允许首次获取固定 VAD 模型|旧本地断句（存档）/
 );
 assert.match(
 	talosMain,
