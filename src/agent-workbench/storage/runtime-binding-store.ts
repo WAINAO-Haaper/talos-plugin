@@ -43,4 +43,17 @@ export class RuntimeBindingStore {
 		bindings[bindingKey(conversationId, binding.runtimeId, binding.providerProfileId)] = binding;
 		await this.store.write({ ...state, bindings });
 	}
+
+	async remove(
+		conversationId: string,
+		runtimeId: RuntimeId,
+		providerProfileId?: string
+	): Promise<void> {
+		const state = (await this.store.read()) ?? {};
+		const current = state.bindings;
+		if (!current || typeof current !== "object" || Array.isArray(current)) return;
+		const bindings = { ...(current as Record<string, unknown>) };
+		delete bindings[bindingKey(conversationId, runtimeId, providerProfileId)];
+		await this.store.write({ ...state, bindings });
+	}
 }

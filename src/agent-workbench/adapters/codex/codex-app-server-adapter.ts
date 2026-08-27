@@ -37,6 +37,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	readonly id = "codex" as const;
 	private binding: NativeSessionBinding | null = null;
 	private activeTurnId: string | undefined;
+	private activeModel: string | undefined;
 	private pendingContext: string | undefined;
 	private readonly events = new RuntimeEventFactory(this.id);
 	constructor(private readonly port: CodexAppServerPort, private readonly onDispose: () => Promise<void> = async () => {}) {}
@@ -47,18 +48,20 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 		return (result.data ?? []).map((model) => ({ id: model.id, label: model.displayName ?? model.id }));
 	}
 	async createSession(input: CreateSessionInput): Promise<NativeSessionBinding> {
-		const result = await this.port.request<{ thread: { id: string }; activePermissionProfile?: { id?: string } }>("thread/start", {
+		const result = await this.port.request<{ thread: { id: string }; model?: string; activePermissionProfile?: { id?: string } }>("thread/start", {
 			cwd: input.vaultRoot, model: input.model, provider: input.providerProfileId,
 			approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE,
 			runtimeWorkspaceRoots: [input.vaultRoot], persistExtendedHistory: true, experimentalRawEvents: true,
 		});
 		assertCodexPermissionProfile(result);
+		this.activeModel = result.model ?? input.model;
 		this.pendingContext = input.initialContext;
 		return this.binding = { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2", ...(input.providerProfileId ? { providerProfileId: input.providerProfileId } : {}) };
 	}
 	async resumeSession(binding: NativeSessionBinding): Promise<void> {
-		const result = await this.port.request<{ activePermissionProfile?: { id?: string } }>("thread/resume", { threadId: binding.sessionId, approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE, persistExtendedHistory: true });
+		const result = await this.port.request<{ model?: string; activePermissionProfile?: { id?: string } }>("thread/resume", { threadId: binding.sessionId, approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE, persistExtendedHistory: true });
 		assertCodexPermissionProfile(result);
+		this.activeModel = result.model;
 		this.binding = binding;
 	}
 	async synchronizeContext(input: { context: string }): Promise<void> { this.pendingContext = input.context; }
@@ -71,7 +74,14 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 			model: turn.model,
 			approvalPolicy: "on-request",
 			permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE,
-			collaborationMode: { mode: turn.workflow === "plan" ? "plan" : "default" },
+			collaborationMode: {
+				mode: turn.workflow === "plan" ? "plan" : "default",
+				settings: {
+					model: turn.model ?? this.activeModel ?? "gpt-5.5",
+					reasoning_effort: null,
+					developer_instructions: null,
+				},
+			},
 		};
 		for await (const frame of this.port.turn(params, turn.signal)) {
 			const payload = { ...frame.params, protocolMethod: frame.method };
@@ -108,7 +118,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	}
 	async rollback(numTurns: number): Promise<void> { await this.port.request("thread/rollback", { threadId: this.binding?.sessionId, numTurns }); }
 	async compact(): Promise<void> { await this.port.request("thread/compact/start", { threadId: this.binding?.sessionId }); }
-	async dispose(): Promise<void> { try { await this.cancel("dispose"); await this.port.close(); } finally { await this.onDispose(); this.binding = null; } }
+	async dispose(): Promise<void> { try { await this.cancel("dispose"); await this.port.close(); } finally { await this.onDispose(); this.binding = null; this.activeModel = undefined; } }
 	capabilities(): RuntimeCapabilities {
 		return {
 			session: { resume: "native", fork: "native", compact: "native", rewind: "native", steer: "native" },

@@ -144,4 +144,12 @@ export class WorkbenchConversationCoordinator {
 	setBinding(conversationId: string, binding: NativeSessionBinding): Promise<void> {
 		return this.bindings.set(conversationId, binding);
 	}
+
+	clearBinding(
+		conversationId: string,
+		runtimeId: RuntimeId,
+		providerProfileId?: string
+	): Promise<void> {
+		return this.bindings.remove(conversationId, runtimeId, providerProfileId);
+	}
 }

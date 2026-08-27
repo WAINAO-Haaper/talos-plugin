@@ -227,6 +227,9 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		} catch (error) {
 			if (this.adapter === adapter) this.adapter = null;
 			this.activeProviderProfileId = undefined;
+			this.binding = null;
+			this.invalidated = true;
+			await coordinator.clearBinding(manifest.conversationId, this.providerId, providerProfileId).catch(() => undefined);
 			this.ready = false; for (const listener of this.readyListeners) listener(false);
 			await adapter.dispose().catch(() => undefined);
 			const message = error instanceof Error ? error.message : "运行时进程异常退出";

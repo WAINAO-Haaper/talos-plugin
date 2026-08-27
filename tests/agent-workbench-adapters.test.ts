@@ -113,6 +113,17 @@ describe("adapter protocol semantics", () => {
 		});
 	});
 
+	it("sends the complete Codex collaboration settings required by current app-server", async () => {
+		const port = new CodexPort();
+		const adapter = new CodexAppServerAdapter(port);
+		await adapter.createSession({ ...createInput, model: "gpt-5.6-sol" });
+		await consume(adapter.send({ ...turn, model: undefined, workflow: "plan" }));
+		expect(port.turnParams[0]?.collaborationMode).toEqual({
+			mode: "plan",
+			settings: { model: "gpt-5.6-sol", reasoning_effort: null, developer_instructions: null },
+		});
+	});
+
 	it("maps Codex server events and preserves persistent approval", async () => {
 		const port = new CodexPort(); const adapter = new CodexAppServerAdapter(port);
 		await adapter.createSession({ ...createInput, model: "synthetic/omp-test" });

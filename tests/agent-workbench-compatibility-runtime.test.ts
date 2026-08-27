@@ -93,6 +93,7 @@ describe("compatibility runtime crash recovery", () => {
 			switchRuntime: vi.fn(async () => undefined),
 			getBinding: vi.fn(async () => binding),
 			setBinding: vi.fn(async (_conversationId: string, value: { runtimeId: "codex"; sessionId: string }) => { binding = value; }),
+			clearBinding: vi.fn(async () => { binding = null; }),
 			appendUser: vi.fn(async () => ({})),
 			appendRuntimeEvent: vi.fn(async () => ({})),
 		};
@@ -119,10 +120,14 @@ describe("compatibility runtime crash recovery", () => {
 		expect(createRuntime).toHaveBeenCalledTimes(1);
 		expect(firstSendCount).toBe(1);
 		expect(disposeFirst).toHaveBeenCalledOnce();
+		expect(coordinator.clearBinding).toHaveBeenCalledWith(expect.any(String), "codex", undefined);
+		expect(binding).toBeNull();
 		const secondChunks = await collect();
 		expect(secondChunks.some((chunk) => chunk.type === "done")).toBe(true);
 		expect(createRuntime).toHaveBeenCalledTimes(2);
 		expect(firstSendCount).toBe(1);
+		expect(second.resumeSession).not.toHaveBeenCalled();
+		expect(second.createSession).toHaveBeenCalledOnce();
 	});
 
 	it("rebuilds the local runtime when authentication changes and requests a profile-scoped binding", async () => {
