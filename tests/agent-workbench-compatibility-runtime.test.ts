@@ -130,6 +130,57 @@ describe("compatibility runtime crash recovery", () => {
 		expect(second.createSession).toHaveBeenCalledOnce();
 	});
 
+	it("clears an unresumable binding before the next explicit turn", async () => {
+		let binding: { runtimeId: "codex"; sessionId: string } | null = {
+			runtimeId: "codex",
+			sessionId: "stale-native",
+		};
+		const stale = {
+			id: "codex",
+			resumeSession: vi.fn(async () => { throw new Error("no rollout found"); }),
+			dispose: vi.fn(async () => undefined),
+		} as never;
+		const fresh = {
+			id: "codex",
+			resumeSession: vi.fn(async () => undefined),
+			dispose: vi.fn(async () => undefined),
+		} as never;
+		const coordinator = {
+			ensure: async (input: { conversationId: string }) => ({
+				schemaVersion: 1,
+				conversationId: input.conversationId,
+				title: "Synthetic",
+				createdAt: "2026-08-27T00:00:00.000Z",
+				updatedAt: "2026-08-27T00:00:00.000Z",
+				lifecycle: "active",
+				selection: { runtimeId: "codex" },
+			}),
+			switchRuntime: vi.fn(async () => undefined),
+			getBinding: vi.fn(async () => binding),
+			setBinding: vi.fn(async () => undefined),
+			clearBinding: vi.fn(async () => { binding = null; }),
+		};
+		const createRuntime = vi.fn().mockResolvedValueOnce(stale).mockResolvedValueOnce(fresh);
+		const service = {
+			probeRuntime: async () => ({ runtimeId: "codex", status: "ready" }),
+			getConversationCoordinator: () => coordinator,
+			createRuntime,
+			getSelection: () => ({ runtimeId: "codex" }),
+			getPermissionMode: () => "ask",
+			authorizeTool: async () => "deny",
+		};
+		const fsAdapter = Object.assign(new FileSystemAdapter(), { getBasePath: () => "/synthetic/vault" });
+		const plugin = { app: { vault: { adapter: fsAdapter } }, getAgentWorkbenchService: () => service };
+		const runtime = new AdapterCompatibilityRuntime(plugin as never, "codex");
+		expect(await runtime.ensureReady()).toBe(true);
+		expect(stale.resumeSession).toHaveBeenCalledOnce();
+		expect(stale.dispose).toHaveBeenCalledOnce();
+		expect(coordinator.clearBinding).toHaveBeenCalledWith(expect.any(String), "codex", undefined);
+		expect(createRuntime).toHaveBeenCalledTimes(2);
+		expect(fresh.resumeSession).not.toHaveBeenCalled();
+		expect(runtime.getSessionId()).toBeNull();
+	});
+
 	it("rebuilds the local runtime when authentication changes and requests a profile-scoped binding", async () => {
 		let selection: { runtimeId: "codex"; providerProfileId?: string } = {
 			runtimeId: "codex",

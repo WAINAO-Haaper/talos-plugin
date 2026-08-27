@@ -174,13 +174,14 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 				providerProfileId
 			)
 			?? bindingValue(this.binding, this.providerId, providerProfileId);
-		const runtime = await this.service().createRuntime(this.providerId, {
+		const createRuntime = () => this.service().createRuntime(this.providerId, {
 			vaultRoot: this.vaultRoot(),
 			permissionMode: this.service().getPermissionMode(),
 			approve: async (toolName, input, metadata) => {
 				return this.authorize(toolName, input, textValue(metadata?.reason, toolName), metadata ?? {});
 			},
 		});
+		let runtime = await createRuntime();
 		try {
 			if (this.binding) {
 				await runtime.resumeSession(this.binding);
@@ -191,9 +192,12 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 				}
 				await coordinator.setBinding(manifest.conversationId, this.binding);
 			}
-		} catch (error) {
-			await runtime.dispose();
-			throw error;
+		} catch {
+			await runtime.dispose().catch(() => undefined);
+			this.binding = null;
+			this.invalidated = true;
+			await coordinator.clearBinding(manifest.conversationId, this.providerId, providerProfileId).catch(() => undefined);
+			runtime = await createRuntime();
 		}
 		this.adapter = runtime;
 		this.activeProviderProfileId = providerProfileId;
