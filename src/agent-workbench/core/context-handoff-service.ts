@@ -2,6 +2,7 @@ import type { AgentEvent } from "../contracts/agent-events";
 import type { HandoffEnvelope } from "../contracts/conversation";
 import type { RuntimeId } from "../contracts/runtime-adapter";
 import { projectMessages } from "../storage/conversation-projection";
+import { sanitizePortableValue } from "../storage/portable-conversation-store";
 
 function relativeReferences(events: AgentEvent[]): string[] {
 	const refs = new Set<string>();
@@ -24,7 +25,7 @@ export class ContextHandoffService {
 			.filter((message) => message.role !== "system")
 			.slice(-8)
 			.map((message) => ({ role: message.role as "user" | "assistant", text: message.text.slice(0, 4000) }));
-		return {
+		const envelope: HandoffEnvelope = {
 			schemaVersion: 1,
 			conversationId: input.conversationId,
 			fromRuntimeId: input.fromRuntimeId,
@@ -39,5 +40,6 @@ export class ContextHandoffService {
 			vaultRelativeReferences: relativeReferences(input.events),
 			lastSyncedEventId: input.events.at(-1)?.eventId,
 		};
+		return sanitizePortableValue(envelope) as HandoffEnvelope;
 	}
 }

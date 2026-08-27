@@ -24,6 +24,10 @@ const ROOT = ".talos/agent-workbench/v1";
 const INDEX = `${ROOT}/index.json`;
 const FORBIDDEN_KEY = /(?:secret|token|password|authorization|cookie|executablePath|vaultRoot)/i;
 const ABSOLUTE_PATH = /(?:^|[\s("'=:[{,])\/(?!\/)(?:[A-Za-z0-9._~+-]+\/)+[A-Za-z0-9._~+-]+|[A-Za-z]:[\\/]|\\\\/;
+const POSIX_ABSOLUTE = /(^|[\s("'=:[{,])\/(?!\/)(?:[A-Za-z0-9._~+-]+\/)+[A-Za-z0-9._~+-]+/g;
+const WINDOWS_ABSOLUTE = /\b[A-Za-z]:[\\/][^\s"'<>)}\]]+/g;
+const WINDOWS_UNC = /\\\\[^\s"'<>)}\]]+/g;
+const SECRET = /\b(?:bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{12,})\b/gi;
 
 function stableJson(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;
@@ -47,6 +51,32 @@ export function assertPortableValue(value: unknown, key = ""): void {
 			assertPortableValue(child, childKey);
 		}
 	}
+}
+
+export function sanitizePortableString(value: string, vaultRoot = ""): string {
+	let result = value;
+	const normalizedRoot = vaultRoot.replace(/\\/g, "/").replace(/\/$/, "");
+	if (normalizedRoot) {
+		result = result.split(normalizedRoot).join(".");
+		result = result.split(normalizedRoot.replace(/\//g, "\\")).join(".");
+	}
+	result = result.replace(SECRET, "[凭据已省略]");
+	result = result.replace(POSIX_ABSOLUTE, (_match, prefix: string) => prefix + "[本机路径已省略]");
+	result = result.replace(WINDOWS_ABSOLUTE, "[本机路径已省略]");
+	result = result.replace(WINDOWS_UNC, "[本机路径已省略]");
+	return result;
+}
+
+export function sanitizePortableValue(value: unknown, vaultRoot = ""): unknown {
+	if (typeof value === "string") return sanitizePortableString(value, vaultRoot);
+	if (Array.isArray(value)) return value.map((item) => sanitizePortableValue(item, vaultRoot));
+	if (!value || typeof value !== "object") return value;
+	const result: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(value)) {
+		if (FORBIDDEN_KEY.test(key)) continue;
+		result[key] = sanitizePortableValue(child, vaultRoot);
+	}
+	return result;
 }
 
 function safeConversationId(id: string): string {

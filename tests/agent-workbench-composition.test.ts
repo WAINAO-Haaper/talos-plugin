@@ -100,6 +100,7 @@ describe("AgentWorkbench composition persistence", () => {
 			runtimeId: "codex",
 			type: "tool.started",
 			timestamp: "2026-08-26T00:00:00.000Z",
+			nativeId: "/Users/synthetic/.codex/native/request.json",
 			payload: { path: vault + "/note.md", vaultRoot: vault, authorization: "Bearer synthetic" },
 		}, vault);
 		await coordinator.setBinding(manifest.conversationId, {
@@ -118,6 +119,7 @@ describe("AgentWorkbench composition persistence", () => {
 		]));
 		const portableBytes = JSON.stringify(projection);
 		expect(portableBytes).not.toContain(vault);
+		expect(portableBytes).not.toContain("/Users/synthetic");
 		expect(portableBytes).not.toContain("sk-synthetic");
 		expect(portableBytes).not.toContain("authorization");
 		expect(await coordinator.getBinding(manifest.conversationId, "codex")).toMatchObject({

@@ -30,6 +30,12 @@ function usageChunk(payload: Record<string, unknown>): StreamChunk {
 
 function textValue(value: unknown, fallback = ""): string { return typeof value === "string" ? value : typeof value === "number" ? String(value) : fallback; }
 
+export function runtimeNoticeContent(event: AgentEvent): string | null {
+	const content = textValue(event.payload.message).trim();
+	if (!content || content.toLowerCase() === "notice" || content === event.type) return null;
+	return content;
+}
+
 function recordValue(value: unknown): Record<string, unknown> {
 	return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
@@ -261,7 +267,11 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		if (event.type === "usage.updated") { yield usageChunk(event.payload); return; }
 		if (event.type === "context.compacted") { yield { type: "context_compacted" }; return; }
 		if (event.type === "error") { yield { type: "error", content: textValue(event.payload.message, "运行时错误") }; return; }
-		if (event.type === "notice" || event.type === "runtime.status" || event.type === "handoff.created") { yield { type: "notice", content: textValue(event.payload.message, event.type) }; return; }
+		if (event.type === "notice" || event.type === "runtime.status" || event.type === "handoff.created") {
+			const content = runtimeNoticeContent(event);
+			if (content) yield { type: "notice", content };
+			return;
+		}
 		if (event.type === "turn.finished") yield { type: "done" };
 	}
 	async steer(turn: PreparedChatTurn): Promise<boolean> { if (!this.adapter?.steer) return false; await this.adapter.steer({ turnId: this.metadata.userMessageId ?? "", text: turn.prompt }); return true; }

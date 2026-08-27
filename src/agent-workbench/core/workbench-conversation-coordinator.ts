@@ -3,6 +3,7 @@ import type { ConversationManifest } from "../contracts/conversation";
 import type { NativeSessionBinding, RuntimeId } from "../contracts/runtime-adapter";
 import type { ClaudianReadonlyImporter, LegacyImportReport } from "../legacy/claudian-readonly-importer";
 import { RuntimeBindingStore } from "../storage/runtime-binding-store";
+import { sanitizePortableString, sanitizePortableValue } from "../storage/portable-conversation-store";
 import { ContextHandoffService } from "./context-handoff-service";
 import { ConversationService } from "./conversation-service";
 
@@ -14,37 +15,10 @@ export interface CompatibilityConversationIdentity {
 	runtimeId: RuntimeId;
 }
 
-const FORBIDDEN_KEY = /(?:secret|token|password|authorization|cookie|executablePath|vaultRoot)/i;
-const SECRET = /\b(?:bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{12,})\b/gi;
-const POSIX_ABSOLUTE = /(^|[\s("'=:[{,])\/(?!\/)(?:[A-Za-z0-9._~+-]+\/)+[A-Za-z0-9._~+-]+/g;
-const WINDOWS_ABSOLUTE = /\b[A-Za-z]:\\[^\s"'<>)}\]]+/g;
-
 function iso(value: number | string | undefined, fallback: string): string {
 	if (typeof value === "number" && Number.isFinite(value)) return new Date(value).toISOString();
 	if (typeof value === "string" && !Number.isNaN(Date.parse(value))) return new Date(value).toISOString();
 	return fallback;
-}
-
-function sanitizeString(value: string, vaultRoot: string): string {
-	let result = value;
-	const normalizedRoot = vaultRoot.replace(/\\/g, "/").replace(/\/$/, "");
-	if (normalizedRoot) result = result.split(normalizedRoot).join(".");
-	result = result.replace(SECRET, "[凭据已省略]");
-	result = result.replace(POSIX_ABSOLUTE, (_match, prefix: string) => prefix + "[本机路径已省略]");
-	result = result.replace(WINDOWS_ABSOLUTE, "[本机路径已省略]");
-	return result;
-}
-
-function sanitizeValue(value: unknown, vaultRoot: string): unknown {
-	if (typeof value === "string") return sanitizeString(value, vaultRoot);
-	if (Array.isArray(value)) return value.map((item) => sanitizeValue(item, vaultRoot));
-	if (!value || typeof value !== "object") return value;
-	const result: Record<string, unknown> = {};
-	for (const [key, child] of Object.entries(value)) {
-		if (FORBIDDEN_KEY.test(key)) continue;
-		result[key] = sanitizeValue(child, vaultRoot);
-	}
-	return result;
 }
 
 export class WorkbenchConversationCoordinator {
@@ -95,16 +69,15 @@ export class WorkbenchConversationCoordinator {
 			turnId: input.turnId,
 			runtimeId: input.runtimeId,
 			type: "user.message",
-			payload: { text: sanitizeString(input.text, input.vaultRoot) },
+			payload: { text: sanitizePortableString(input.text, input.vaultRoot) },
 		});
 	}
 
 	async appendRuntimeEvent(conversationId: string, event: AgentEvent, vaultRoot: string): Promise<AgentEvent> {
-		const portable: AgentEvent = {
+		const portable = sanitizePortableValue({
 			...event,
 			conversationId,
-			payload: sanitizeValue(event.payload, vaultRoot) as Record<string, unknown>,
-		};
+		}, vaultRoot) as AgentEvent;
 		await this.conversations.store.append(portable);
 		return portable;
 	}

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("obsidian", () => ({ FileSystemAdapter: class FileSystemAdapter {} }));
 
 import { FileSystemAdapter } from "obsidian";
-import { AdapterCompatibilityRuntime } from "../src/agent-workbench/ui/adapter-compatibility-runtime";
+import { AdapterCompatibilityRuntime, runtimeNoticeContent } from "../src/agent-workbench/ui/adapter-compatibility-runtime";
 import type { Conversation, StreamChunk } from "../src/quyuan/claudian/core/types";
 
 function conversation(): Conversation {
@@ -49,6 +49,13 @@ describe("compatibility runtime binding projection", () => {
 	});
 });
 
+describe("compatibility runtime notice mapping", () => {
+	it("drops empty protocol notices and preserves meaningful notices", () => {
+		expect(runtimeNoticeContent({ type: "notice", payload: {} } as never)).toBeNull();
+		expect(runtimeNoticeContent({ type: "notice", payload: { message: "notice" } } as never)).toBeNull();
+		expect(runtimeNoticeContent({ type: "notice", payload: { message: "已连接" } } as never)).toBe("已连接");
+	});
+});
 describe("compatibility runtime crash recovery", () => {
 	it("does not replay a failed turn and rebuilds the adapter on the next explicit turn", async () => {
 		let binding: { runtimeId: "codex"; sessionId: string } | null = null;
