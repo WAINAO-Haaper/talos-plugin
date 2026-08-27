@@ -232,6 +232,10 @@ export default class TalosPlugin extends Plugin {
 	private readonly quyuanReadPaths = new Set<string>();
 	private quyuanTts: StreamTts | null = null;
 	private quyuanWorkbenchReady = false;
+	private quyuanWorkbenchInitialization: Promise<{
+		service: AgentWorkbenchService;
+		compatibility: ClaudianCompatibilityHost;
+	}> | null = null;
 	private talosAskService: TalosAskService | null = null;
 	private talosAskCommand: TalosAskCommand | null = null;
 	private talosProviderFacade: ProviderFacade | null = null;
@@ -308,7 +312,9 @@ export default class TalosPlugin extends Plugin {
 		this.registerDomEvent(window, "unhandledrejection", this.handleWindowRejection);
 
 		void this.initializeQuyuanSoul();
-		void this.initializeQuyuanWorkbench();
+		void this.startQuyuanWorkbenchInitialization().catch(() => {
+			// The recorded initialization error is delivered to a waiting view.
+		});
 
 		this.app.workspace.onLayoutReady(() => {
 			// 部署即自适应：首次加载（尚无目录映射）时自动识别客户库结构并落盘。
@@ -577,6 +583,21 @@ export default class TalosPlugin extends Plugin {
 		this.agentWorkbenchStorage = null;
 		this.claudianCompatibility = null;
 		activeDocument.body.removeAttribute("data-talos-vault-theme");
+	}
+
+	private startQuyuanWorkbenchInitialization(): Promise<{
+		service: AgentWorkbenchService;
+		compatibility: ClaudianCompatibilityHost;
+	}> {
+		this.quyuanWorkbenchInitialization ??= this.initializeQuyuanWorkbench();
+		return this.quyuanWorkbenchInitialization;
+	}
+
+	async waitForAgentWorkbench(): Promise<{
+		service: AgentWorkbenchService;
+		compatibility: ClaudianCompatibilityHost;
+	}> {
+		return this.startQuyuanWorkbenchInitialization();
 	}
 
 	getAgentWorkbenchService(): AgentWorkbenchService {
@@ -1815,7 +1836,10 @@ export default class TalosPlugin extends Plugin {
 		this.quyuanTts?.stop();
 	}
 
-	private async initializeQuyuanWorkbench(): Promise<void> {
+	private async initializeQuyuanWorkbench(): Promise<{
+		service: AgentWorkbenchService;
+		compatibility: ClaudianCompatibilityHost;
+	}> {
 		this.quyuanWorkbenchReady = false;
 		this.quyuanWorkbenchError = "";
 		try {
@@ -1898,6 +1922,7 @@ export default class TalosPlugin extends Plugin {
 			this.quyuanWorkbenchError = "";
 			this.syncCodexHarnessEnvironment();
 			this.syncQuyuanSoulPrompt();
+			return { service, compatibility };
 		} catch (error) {
 			this.agentWorkbenchService?.dispose();
 			this.agentWorkbenchService = null;
@@ -1909,6 +1934,7 @@ export default class TalosPlugin extends Plugin {
 				error instanceof Error ? error.message : String(error);
 			this.recordQuyuanRuntimeError("ClaudianWorkbenchPlugin.onload", error);
 			console.error("TALOS Quyuan workbench failed to initialize", error);
+			throw error;
 		}
 	}
 

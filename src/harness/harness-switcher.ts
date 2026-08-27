@@ -20,6 +20,7 @@ export interface HarnessSwitcherDeps {
 	setActiveId(id: string): void;
 	/** AI 对话页导航卡底部的切换器挂载点。 */
 	getSwitchHost(): HTMLElement | null;
+	onSwitchError?(id: string, error: unknown): void;
 }
 
 export const HARNESS_SURFACE_IDS = ["dsh", "codex"] as const;
@@ -35,7 +36,9 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	private track: HTMLButtonElement | null = null;
 	private readonly slots = new Map<string, HTMLElement>();
 	private readonly mountedChannels = new Set<string>();
+	private readonly channelMounts = new Map<string, Promise<void>>();
 	private activeId: string;
+	private destroyed = false;
 
 	constructor(private readonly deps: HarnessSwitcherDeps) {
 		if (deps.channels.length !== 2) {
@@ -59,6 +62,7 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		if (namespace !== "chat") {
 			throw new Error("Harness 切换器只允许 chat 会话命名空间");
 		}
+		if (this.destroyed) throw new Error("Harness 切换器已释放");
 		if (!this.root) this.buildShell(container.ownerDocument);
 		if (this.root && this.root.parentElement !== container) {
 			container.appendChild(this.root);
@@ -93,7 +97,7 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		thumb.className = "talos-harness-switch__thumb";
 		track.appendChild(thumb);
 		track.addEventListener("click", () =>
-			void this.switchTo(
+			this.requestSwitch(
 				this.activeId === first.id ? second.id : first.id
 			)
 		);
@@ -136,9 +140,16 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		option.textContent = channel.label;
 		option.setAttribute("aria-label", `切换到 ${channel.label}`);
 		option.addEventListener("click", () =>
-			void this.switchTo(channel.id)
+			this.requestSwitch(channel.id)
 		);
 		return option;
+	}
+
+	private requestSwitch(id: string): void {
+		void this.switchTo(id).catch((error: unknown) => {
+			this.deps.onSwitchError?.(id, error);
+			this.renderActive();
+		});
 	}
 
 	private async ensureChannelMounted(
@@ -146,21 +157,34 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 		namespace: "chat"
 	): Promise<void> {
 		if (this.mountedChannels.has(id)) return;
+		const pending = this.channelMounts.get(id);
+		if (pending) return pending;
 		const slot = this.slots.get(id);
 		if (!slot) throw new Error(`Harness 通道插槽缺失：${id}`);
-		await this.channel(id).workbench.mount(slot, namespace);
-		this.mountedChannels.add(id);
+		const workbench = this.channel(id).workbench;
+		const mount = workbench.mount(slot, namespace).then(async () => {
+			if (this.destroyed) {
+				await workbench.destroy();
+				throw new Error("Harness 切换器已释放");
+			}
+			this.mountedChannels.add(id);
+		});
+		this.channelMounts.set(id, mount);
+		try {
+			await mount;
+		} finally {
+			if (this.channelMounts.get(id) === mount) {
+				this.channelMounts.delete(id);
+			}
+		}
 	}
 
 	private async switchTo(id: string): Promise<void> {
 		if (id === this.activeId) return;
+		await this.ensureChannelMounted(id, "chat");
 		this.activeId = id;
 		this.deps.setActiveId(id);
-		try {
-			await this.ensureChannelMounted(id, "chat");
-		} finally {
-			this.renderActive();
-		}
+		this.renderActive();
 		this.channel(id).workbench.focusComposer();
 	}
 
@@ -212,12 +236,13 @@ export class HarnessSwitcherWorkbench implements ChatSurfaceWorkbench {
 	}
 
 	async destroy(): Promise<void> {
+		if (this.destroyed) return;
+		this.destroyed = true;
 		for (const channel of this.deps.channels) {
-			if (this.mountedChannels.has(channel.id)) {
-				await channel.workbench.destroy();
-			}
+			await channel.workbench.destroy();
 		}
 		this.mountedChannels.clear();
+		this.channelMounts.clear();
 		this.root?.remove();
 		this.switchBar?.remove();
 		this.root = null;

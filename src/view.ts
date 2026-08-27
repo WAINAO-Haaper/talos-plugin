@@ -71,6 +71,7 @@ import {
 	renderTalosPageHeader,
 } from "./ui/page-primitives";
 import { QuickNote } from "./ui/quick-note";
+import { DeferredChatWorkbench } from "./quyuan/deferred-chat-workbench";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -1986,11 +1987,14 @@ export class TalosView extends ItemView {
 							{
 								id: "codex",
 								label: "TALOS 智能体",
-								workbench: new TalosAgentWorkbench({
-									leaf: this.leaf,
-									service: this.plugin.getAgentWorkbenchService(),
-									compatibility:
-										this.plugin.getAgentWorkbenchCompatibility(),
+								workbench: new DeferredChatWorkbench(async () => {
+									const { service, compatibility } =
+										await this.plugin.waitForAgentWorkbench();
+									return new TalosAgentWorkbench({
+										leaf: this.leaf,
+										service,
+										compatibility,
+									});
 								}),
 							},
 						],
@@ -2002,6 +2006,9 @@ export class TalosView extends ItemView {
 							this.plugin.setAgentWorkbenchSurface(id);
 						},
 						getSwitchHost: () => this.chatSwitchHostEl,
+						onSwitchError: (_id, error) => {
+							new Notice(`AI 工作区切换失败：${error instanceof Error ? error.message : String(error)}`);
+						},
 					})
 				);
 			}
@@ -2013,6 +2020,7 @@ export class TalosView extends ItemView {
 			}
 			this.chatMounted = true;
 		} catch (error) {
+			if (this.activePage !== "chat" || !page.isConnected) return;
 			console.error("TALOS AI chat surface failed to mount", error);
 			this.chatMounted = false;
 			page.empty();
@@ -2070,12 +2078,13 @@ export class TalosView extends ItemView {
 			page.empty();
 			page.createDiv({ cls: "empty", text: "屈原模块加载中…" });
 			const { QuyuanVoicePanel } = await import("./quyuan/voice-panel");
+			const { compatibility } = await this.plugin.waitForAgentWorkbench();
 			if (this.activePage !== "jarvis") return;
 			page.empty();
 			if (!this.jarvis) {
 				this.jarvis = new QuyuanVoicePanel(
 					this.app,
-					this.plugin.getAgentWorkbenchCompatibility(),
+					compatibility,
 					this.plugin.talosSettings,
 					() => this.plugin.saveTalosSettings(),
 					(pageKey) => this.navigateToPage(pageKey)
