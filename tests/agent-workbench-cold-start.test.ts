@@ -90,6 +90,10 @@ describe("agent workbench cold-start lifecycle", () => {
 		expect(mainSource).toContain("startQuyuanWorkbenchInitialization");
 		expect(mainSource).toContain("waitForAgentWorkbench");
 		expect(mainSource).toContain("return this.startQuyuanWorkbenchInitialization()");
+		expect(mainSource.match(/\.\.\.leaf\.getViewState\(\)/g)).toHaveLength(1);
+		expect(
+			mainSource.match(/await leaf\.setViewState\(\{ type: VIEW_TYPE_TALOS, active: true \}\);/g),
+		).toHaveLength(1);
 		expect(viewSource).toContain("new DeferredChatWorkbench");
 		expect(viewSource).toContain("await this.plugin.waitForAgentWorkbench()");
 		expect(viewSource).toContain("const { compatibility } = await this.plugin.waitForAgentWorkbench()");

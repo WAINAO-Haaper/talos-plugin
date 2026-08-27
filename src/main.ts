@@ -701,7 +701,11 @@ export default class TalosPlugin extends Plugin {
 		if (existing.length > 0) {
 			const leaf = existing[0];
 			if (!leaf) return null;
-			await leaf.setViewState({ type: VIEW_TYPE_TALOS, active: true });
+			await leaf.setViewState({
+				...leaf.getViewState(),
+				type: VIEW_TYPE_TALOS,
+				active: true,
+			});
 			const view = leaf.view;
 			if (view instanceof TalosView && !view.hasRenderedShell()) {
 				await view.recoverFromBlankView();
