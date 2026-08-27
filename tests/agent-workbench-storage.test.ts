@@ -118,12 +118,20 @@ describe("PortableConversationStore", () => {
 		expect([...files.files.keys()].some((path) => path.endsWith(".tmp"))).toBe(false);
 	});
 
-	it("rejects secrets and local absolute paths from portable events", async () => {
-		const store = new PortableConversationStore(new MemoryFiles());
+	it("redacts secrets and local absolute paths at the storage boundary", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
 		await store.create(manifest);
-		await expect(store.append({ ...event(), payload: { authorization: "Bearer fake-secret-value" } })).rejects.toThrow("禁止字段");
-		await expect(store.append({ ...event("event-2"), payload: { text: "/synthetic/private.md" } })).rejects.toThrow("绝对路径");
-		await expect(store.append({ ...event("event-3"), payload: { text: "read /etc/passwd now" } })).rejects.toThrow("绝对路径");
+		await expect(store.append({ ...event(), payload: { authorization: "Bearer fake-secret-value" } })).resolves.toBe("written");
+		await expect(store.append({ ...event("event-2"), payload: { text: "/synthetic/private.md" } })).resolves.toBe("written");
+		const nestedRuntimeEvent = { ...event("event-3"), payload: { threadSettings: { collaborationMode: { settings: { developer_instructions: "read /etc/passwd now" } } } } };
+		await expect(store.append(nestedRuntimeEvent)).resolves.toBe("written");
+		await expect(store.append(nestedRuntimeEvent)).resolves.toBe("duplicate");
+		const projection = await store.load("conv-1");
+		expect(projection.events[0]?.payload).not.toHaveProperty("authorization");
+		expect(JSON.stringify(projection.events)).not.toContain("/synthetic/private.md");
+		expect(JSON.stringify(projection.events)).not.toContain("/etc/passwd");
+		expect([...files.files.values()].join("\n")).not.toContain("fake-secret-value");
 	});
 
 	it("orders conversations by durable user activity instead of creation time", async () => {

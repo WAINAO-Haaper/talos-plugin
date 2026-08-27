@@ -104,11 +104,12 @@ export class PortableConversationStore {
 	}
 
 	private async atomicWrite(path: string, value: unknown): Promise<void> {
-		assertPortableValue(value);
+		const portable = sanitizePortableValue(value);
+		assertPortableValue(portable);
 		const slash = path.lastIndexOf("/");
 		if (slash > 0) await this.ensure(path.slice(0, slash));
 		const temporary = `${path}.tmp`;
-		await this.files.write(temporary, stableJson(value));
+		await this.files.write(temporary, stableJson(portable));
 		await this.files.flush?.();
 		await this.files.replace(temporary, path);
 	}
@@ -137,13 +138,14 @@ export class PortableConversationStore {
 	}
 
 	async append(event: AgentEvent): Promise<"written" | "duplicate"> {
-		const path = eventPath(event.conversationId, event.eventId);
+		const portable = sanitizePortableValue(event) as AgentEvent;
+		const path = eventPath(portable.conversationId, portable.eventId);
 		if (await this.files.exists(path)) {
-			const existing = JSON.parse(await this.files.read(path)) as AgentEvent;
-			if (stableJson(existing) !== stableJson(event)) throw new Error("eventId 内容冲突");
+			const existing = sanitizePortableValue(JSON.parse(await this.files.read(path))) as AgentEvent;
+			if (stableJson(existing) !== stableJson(portable)) throw new Error("eventId 内容冲突");
 			return "duplicate";
 		}
-		await this.atomicWrite(path, event);
+		await this.atomicWrite(path, portable);
 		return "written";
 	}
 
