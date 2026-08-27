@@ -21,6 +21,10 @@ function iso(value: number | string | undefined, fallback: string): string {
 	return fallback;
 }
 
+function isPortablePolicyFailure(error: unknown): boolean {
+	return error instanceof Error && error.message.startsWith("portable 数据");
+}
+
 export class WorkbenchConversationCoordinator {
 	private importReport: LegacyImportReport | null = null;
 	private readonly handoffs = new ContextHandoffService();
@@ -78,8 +82,28 @@ export class WorkbenchConversationCoordinator {
 			...event,
 			conversationId,
 		}, vaultRoot) as AgentEvent;
-		await this.conversations.store.append(portable);
-		return portable;
+		try {
+			await this.conversations.store.append(portable);
+			return portable;
+		} catch (error) {
+			if (!isPortablePolicyFailure(error)) throw error;
+			const safeId = crypto.randomUUID();
+			const omitted: AgentEvent = {
+				schemaVersion: 1,
+				eventId: `portable-omitted-${safeId}`,
+				conversationId,
+				turnId: `portable-omitted-${safeId}`,
+				runtimeId: event.runtimeId,
+				type: "notice",
+				timestamp: new Date().toISOString(),
+				payload: {
+					message: "运行时事件已显示；不可移植元数据未保存",
+					omittedEventType: event.type,
+				},
+			};
+			await this.conversations.store.append(omitted);
+			return omitted;
+		}
 	}
 
 	async switchRuntime(conversationId: string, toRuntimeId: RuntimeId): Promise<void> {

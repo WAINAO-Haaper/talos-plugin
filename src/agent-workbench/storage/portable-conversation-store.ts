@@ -23,10 +23,15 @@ interface PortableIndex {
 const ROOT = ".talos/agent-workbench/v1";
 const INDEX = `${ROOT}/index.json`;
 const FORBIDDEN_KEY = /(?:secret|token|password|authorization|cookie|executablePath|vaultRoot)/i;
-const ABSOLUTE_PATH = /(?:^|[\s("'=:[{,])\/(?!\/)(?:[A-Za-z0-9._~+-]+\/)+[A-Za-z0-9._~+-]+|[A-Za-z]:[\\/]|\\\\/;
-const POSIX_ABSOLUTE = /(^|[\s("'=:[{,])\/(?!\/)(?:[A-Za-z0-9._~+-]+\/)+[A-Za-z0-9._~+-]+/g;
-const WINDOWS_ABSOLUTE = /\b[A-Za-z]:[\\/][^\s"'<>)}\]]+/g;
-const WINDOWS_UNC = /\\\\[^\s"'<>)}\]]+/g;
+// Detection and redaction must be built from the same sources. A wider assertion
+// than sanitizer turns harmless native runtime metadata into a connection error.
+const POSIX_ABSOLUTE_SOURCE = String.raw`(^|[\s("'=:[{,<\x60])\/(?!\/)[^\s/"'<>)}\],]+(?:\/[^\s/"'<>)}\],]+)+`;
+const WINDOWS_ABSOLUTE_SOURCE = String.raw`\b[A-Za-z]:[\\\/][^\s"'<>)}\]]*`;
+const WINDOWS_UNC_SOURCE = String.raw`\\\\[^\\/\s"'<>)}\]]+[\\/][^\\/\s"'<>)}\]]+(?:[\\/][^\s"'<>)}\]]*)?`;
+const ABSOLUTE_PATH = new RegExp(`(?:${POSIX_ABSOLUTE_SOURCE}|${WINDOWS_ABSOLUTE_SOURCE}|${WINDOWS_UNC_SOURCE})`);
+const POSIX_ABSOLUTE = new RegExp(POSIX_ABSOLUTE_SOURCE, "g");
+const WINDOWS_ABSOLUTE = new RegExp(WINDOWS_ABSOLUTE_SOURCE, "g");
+const WINDOWS_UNC = new RegExp(WINDOWS_UNC_SOURCE, "g");
 const SECRET = /\b(?:bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{12,})\b/gi;
 
 function stableJson(value: unknown): string {

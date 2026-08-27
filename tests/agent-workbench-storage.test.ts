@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
 import type { ConversationManifest } from "../src/agent-workbench/contracts/conversation";
 import { ConversationService } from "../src/agent-workbench/core/conversation-service";
+import { WorkbenchConversationCoordinator } from "../src/agent-workbench/core/workbench-conversation-coordinator";
 import {
+	assertPortableValue,
 	PortableConversationStore,
+	sanitizePortableString,
 	type PortableFileAdapter,
 } from "../src/agent-workbench/storage/portable-conversation-store";
+import { RuntimeBindingStore } from "../src/agent-workbench/storage/runtime-binding-store";
 
 class MemoryFiles implements PortableFileAdapter {
 	readonly files = new Map<string, string>();
@@ -132,6 +136,80 @@ describe("PortableConversationStore", () => {
 		expect(JSON.stringify(projection.events)).not.toContain("/synthetic/private.md");
 		expect(JSON.stringify(projection.events)).not.toContain("/etc/passwd");
 		expect([...files.files.values()].join("\n")).not.toContain("fake-secret-value");
+	});
+
+	const syntheticMacPath = ["", "Users", "synthetic", "超级大脑", "state.json"].join("/");
+	const markdownWrappedMacPath = ["`", syntheticMacPath, "`"].join("");
+
+	it.each([
+		["Windows drive root with backslash", "C:\\"],
+		["Windows drive root with slash", "C:/"],
+		["UNC share root", "\\\\server\\share"],
+		["Markdown-wrapped Unicode POSIX path", markdownWrappedMacPath],
+	])("keeps portable detection and redaction symmetric for %s", (_label, value) => {
+		expect(() => assertPortableValue(value)).toThrow("portable 数据不得包含本机绝对路径");
+		const portable = sanitizePortableString(value);
+		expect(portable).not.toBe(value);
+		expect(() => assertPortableValue(portable)).not.toThrow();
+	});
+
+	it.each([
+		["HTTPS URL", "https://api.openai.com/v1"],
+		["embedded drive-like text", "abcC:\\runtime\\state.json"],
+		["bare escaped slashes", "\\\\"],
+		["model id", "openai-codex/gpt-5.6-sol"],
+	])("does not mistake %s for a local absolute path", (_label, value) => {
+		expect(sanitizePortableString(value)).toBe(value);
+		expect(() => assertPortableValue(value)).not.toThrow();
+	});
+
+	it.each(["claude", "codex", "ohmypi"] as const)(
+		"keeps %s native path metadata from aborting the shared portable append",
+		async (runtimeId) => {
+			const files = new MemoryFiles();
+			const store = new PortableConversationStore(files);
+			await store.create(manifest);
+			await expect(store.append({
+				...event("event-" + runtimeId),
+				runtimeId,
+				payload: {
+					driveRoot: "C:\\",
+					uncRoot: "\\\\server\\share",
+					instruction: markdownWrappedMacPath,
+				},
+			})).resolves.toBe("written");
+			const projection = await store.load("conv-1");
+			expect(() => assertPortableValue(projection.events)).not.toThrow();
+		},
+	);
+
+	it("keeps a portable policy rejection from interrupting the runtime", async () => {
+		const appended: unknown[] = [];
+		let rejectPolicy = true;
+		const store = {
+			append: async (value: unknown) => {
+				appended.push(value);
+				if (rejectPolicy) {
+					rejectPolicy = false;
+					throw new Error("portable 数据不得包含本机绝对路径");
+				}
+				return "written" as const;
+			},
+		} as unknown as PortableConversationStore;
+		const coordinator = new WorkbenchConversationCoordinator(
+			new ConversationService(store),
+			new RuntimeBindingStore({
+				read: async () => null,
+				write: async () => undefined,
+			}),
+		);
+		const result = await coordinator.appendRuntimeEvent("conv-1", event("native-policy-event"), "");
+		expect(result).toMatchObject({
+			type: "notice",
+			payload: { omittedEventType: "assistant.final" },
+		});
+		expect(appended).toHaveLength(2);
+		expect(appended[1]).toEqual(result);
 	});
 
 	it("orders conversations by durable user activity instead of creation time", async () => {
