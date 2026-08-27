@@ -2808,6 +2808,12 @@ body[data-talos-vault-theme] .talos-console .talos-agent-workflow button[aria-pr
   display: none;
 }
 
+/* TALOS owns runtime/model selection in its top bar. Keep Claudian's legacy
+   model picker for the standalone view, but never duplicate it when embedded. */
+.talos-agent-compatibility-body .claudian-model-selector {
+  display: none !important;
+}
+
 body[data-talos-vault-theme] .talos-console
   .talos-agent-compatibility-body
   .talos-quyuan-capability-button--embedded {

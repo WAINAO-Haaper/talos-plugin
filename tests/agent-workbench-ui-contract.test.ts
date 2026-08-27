@@ -80,11 +80,15 @@ describe("TALOS agent workbench compatibility UI", () => {
 		expect(claudianView).toContain("buildTalosCapabilityControls(navActionsEl, true)");
 		expect(claudianView).toContain("talos-quyuan-capability-button--embedded");
 		expect(css).toContain(".talos-agent-compatibility-body :is(.claudian-header, .talos-quyuan-statusbar)");
+		expect(css).toMatch(/\.talos-agent-compatibility-body \.claudian-model-selector\s*\{[^}]*display:\s*none !important/s);
 		expect(css).toContain(".talos-quyuan-capabilities--embedded");
 	});
 
 	it("routes the top logo switcher into the embedded runtime and gives OhMyPi an unambiguous model namespace", () => {
 		expect(view).toContain("compatibility.selectRuntime");
+		expect(view).toContain('button.dataset.runtime = runtime.id');
+		expect(view).toContain('button.addEventListener("click"');
+		expect(view).toContain("this.updateRuntimeButtons(runtimeId)");
 		expect(decodeProviderModelSelectionId(encodeProviderModelSelectionId("ohmypi", "synthetic/model"))).toEqual({ providerId: "ohmypi", modelId: "synthetic/model" });
 	});
 
