@@ -20,8 +20,9 @@ export class ExternalAccessGrantStore {
 	consume(input: { type: "path" | "host"; value: string; direction: ExternalAccessGrant["direction"]; actionId: string; conversationId?: string }): ExternalAccessGrant | undefined {
 		const grant = [...this.grants.values()].find((candidate) => candidate.type === input.type
 			&& candidate.value === input.value && candidate.direction === input.direction
-			&& candidate.actionId === input.actionId
-			&& (candidate.lifetime === "once" || candidate.conversationId === input.conversationId));
+			&& (candidate.lifetime === "once"
+				? candidate.actionId === input.actionId
+				: candidate.conversationId === input.conversationId));
 		if (grant?.lifetime === "once") this.grants.delete(grant.id);
 		return grant;
 	}

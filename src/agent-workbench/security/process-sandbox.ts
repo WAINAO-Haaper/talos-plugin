@@ -27,7 +27,7 @@ export class ProcessSandbox {
 		if (!vaultRoot || !runtime.executable) throw new Error("sandbox 边界参数不完整");
 		const quote = (value: string) => value.replace(/[\\"]/g, "\\$&");
 		const requestedWriteRoots = [vaultRoot, ...(runtime.readWriteRoots ?? [])];
-		const requestedReadRoots = [vaultRoot, ...requestedWriteRoots, "/System", "/usr", "/bin", "/sbin", "/dev", "/private/etc", "/Library/Apple", ...(runtime.readOnlyRoots ?? [])];
+		const requestedReadRoots = [vaultRoot, ...requestedWriteRoots, "/System", "/usr", "/bin", "/sbin", "/dev", "/private/etc", "/Library/Apple", "/Library/Keychains", ...(runtime.readOnlyRoots ?? [])];
 		if ([...requestedReadRoots, ...requestedWriteRoots].some((root) => !root.startsWith("/"))) throw new Error("sandbox 根目录必须是绝对路径");
 		const writeRoots = await Promise.all(requestedWriteRoots.map((root) => realpath(root)));
 		const readRoots = await Promise.all(requestedReadRoots.map((root) => realpath(root)));
@@ -42,7 +42,7 @@ export class ProcessSandbox {
 		const network = proxyPort === undefined
 			? ""
 			: "(allow network-outbound (remote tcp \"localhost:" + proxyPort + "\"))";
-		const platformServices = '(allow ipc-posix-shm-read-data (ipc-posix-name "apple.shm.notification_center")) (allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo") (global-name "com.apple.system.notification_center") (global-name "com.apple.logd"))';
+		const platformServices = '(allow ipc-posix-shm-read-data (ipc-posix-name "apple.shm.notification_center")) (allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo") (global-name "com.apple.system.notification_center") (global-name "com.apple.logd") (global-name "com.apple.trustd.agent") (global-name "com.apple.trustd") (global-name "com.apple.SecurityServer"))';
 		const profile = "(version 1) (deny default) (allow process*) (allow sysctl-read) (allow file-read* (literal \"/\")) " + platformServices + " " + metadata + " " + clauses("allow file-read*", readRoots) + " " + clauses("allow file-write*", writeRoots) + " " + network;
 		return {
 			executable: "/usr/bin/sandbox-exec",

@@ -9,10 +9,18 @@ export interface ApprovalContext {
 	permission: PermissionMode;
 	conversationId: string;
 	providerEgressHosts?: string[];
+	providerEgressRequest?: boolean;
 	approvalUiAttached: boolean;
 }
 
 const MUTATING = new Set(["write", "delete", "shell", "network", "export", "mcp"]);
+
+function isProviderEgress(request: ActionRequest, context: ApprovalContext): boolean {
+	return request.kind === "network"
+		&& context.providerEgressRequest === true
+		&& Boolean(request.network)
+		&& Boolean(context.providerEgressHosts?.includes(request.network!.host));
+}
 
 export class ApprovalBroker {
 	constructor(
@@ -28,9 +36,9 @@ export class ApprovalBroker {
 			const boundary = await this.boundary.assess(request);
 			if (boundary.hasPermanentDenial) {
 				decision = { actionId: request.actionId, decision: "deny", reason: "永久禁区不可授权" };
-			} else if (context.workflow === "plan" && MUTATING.has(request.kind)) {
+			} else if (context.workflow === "plan" && MUTATING.has(request.kind) && !isProviderEgress(request, context)) {
 				decision = { actionId: request.actionId, decision: "deny", reason: "Plan 模式禁止执行变更" };
-			} else if (!context.approvalUiAttached && this.requiresApproval(request, boundary.hasExternalTarget, boundary.bulkDestructive)) {
+			} else if (!context.approvalUiAttached && this.requiresApproval(request, boundary.hasExternalTarget, boundary.bulkDestructive) && !isProviderEgress(request, context)) {
 				decision = { actionId: request.actionId, decision: "deny", reason: "审批界面不可用" };
 			} else {
 				decision = await this.decide(request, context, boundary.targets, boundary.hasExternalTarget, boundary.bulkDestructive);
@@ -47,6 +55,19 @@ export class ApprovalBroker {
 	}
 
 	async rememberExactRule(request: ActionRequest, context: ApprovalContext): Promise<string | null> {
+		if (request.kind === "network" && request.network) {
+			const id = crypto.randomUUID();
+			this.grants.add({
+				id,
+				type: "host",
+				value: request.network.host,
+				direction: "network",
+				actionId: request.actionId,
+				lifetime: "conversation",
+				conversationId: context.conversationId,
+			});
+			return id;
+		}
 		if (request.kind !== "read" && request.kind !== "write") return null;
 		const assessment = await this.boundary.assess(request);
 		if (assessment.hasExternalTarget || assessment.hasPermanentDenial || assessment.targets.length !== 1) return null;
@@ -67,7 +88,7 @@ export class ApprovalBroker {
 		bulk: boolean,
 	): Promise<ApprovalDecision> {
 		if (request.kind === "network" && request.network) {
-			if (context.providerEgressHosts?.includes(request.network.host)) {
+			if (isProviderEgress(request, context)) {
 				return { actionId: request.actionId, decision: "allow", reason: "已确认 Provider endpoint" };
 			}
 			const grant = this.grants.consume({ type: "host", value: request.network.host, direction: "network", actionId: request.actionId, conversationId: context.conversationId });

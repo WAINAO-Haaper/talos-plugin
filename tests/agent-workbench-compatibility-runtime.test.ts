@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("obsidian", () => ({ FileSystemAdapter: class FileSystemAdapter {} }));
 
 import { FileSystemAdapter } from "obsidian";
-import { AdapterCompatibilityRuntime, runtimeNoticeContent } from "../src/agent-workbench/ui/adapter-compatibility-runtime";
+import { AdapterCompatibilityRuntime, runtimeErrorContent, runtimeNoticeContent } from "../src/agent-workbench/ui/adapter-compatibility-runtime";
 import type { Conversation, StreamChunk } from "../src/quyuan/claudian/core/types";
 
 function conversation(): Conversation {
@@ -54,8 +54,41 @@ describe("compatibility runtime notice mapping", () => {
 		expect(runtimeNoticeContent({ type: "notice", payload: {} } as never)).toBeNull();
 		expect(runtimeNoticeContent({ type: "notice", payload: { message: "notice" } } as never)).toBeNull();
 		expect(runtimeNoticeContent({ type: "notice", payload: { message: "已连接" } } as never)).toBe("已连接");
+		expect(runtimeNoticeContent({ type: "runtime.status", payload: { willRetry: true, error: { message: "Reconnecting" } } } as never)).toBe("连接中断，正在重试：Reconnecting");
+	});
+
+	it("surfaces nested native errors instead of a generic runtime error", () => {
+		expect(runtimeErrorContent({ runtimeId: "claude", payload: { message: "request failed" } } as never)).toBe("request failed");
+		expect(runtimeErrorContent({ runtimeId: "codex", payload: { error: { message: "proxy rejected" } } } as never)).toBe("proxy rejected");
+		expect(runtimeErrorContent({ runtimeId: "codex", payload: { turn: { error: { message: "turn failed" } } } } as never)).toBe("turn failed");
+		expect(runtimeErrorContent({ runtimeId: "ohmypi", payload: { assistantMessageEvent: { error: { errorMessage: "provider failed" } } } } as never)).toBe("provider failed");
+		expect(runtimeErrorContent({ runtimeId: "codex", payload: { error: { message: "TLS failed", additionalDetails: "UnknownIssuer", code: "E_TLS", codexErrorInfo: {} } } } as never)).toBe("TLS failed：UnknownIssuer（字段：code、codexErrorInfo）");
+		expect(runtimeErrorContent({ runtimeId: "codex", payload: { message: "Bearer secret-token sk-12345678" } } as never)).toBe("Bearer [凭据已省略] [凭据已省略]");
 	});
 });
+
+describe("compatibility runtime provider authorization", () => {
+	it("marks only the internal Provider proxy bridge as trusted egress", async () => {
+		const authorizeTool = vi.fn(async () => "allow" as const);
+		const fsAdapter = Object.assign(new FileSystemAdapter(), { getBasePath: () => "/synthetic/vault" });
+		const plugin = {
+			app: { vault: { adapter: fsAdapter } },
+			getAgentWorkbenchService: () => ({ authorizeTool }),
+		};
+		const runtime = new AdapterCompatibilityRuntime(plugin as never, "codex");
+		const authorize = (runtime as unknown as {
+			authorize(toolName: string, input: Record<string, unknown>, reason: string): Promise<"allow" | "allow-always" | "deny">;
+		}).authorize.bind(runtime);
+		await authorize("NetworkRequest", { url: "https://chatgpt.com:443" }, "provider-egress-proxy");
+		await authorize("NetworkRequest", { url: "https://example.com" }, "WebFetch");
+		expect(authorizeTool.mock.calls[0]?.[0]).toMatchObject({
+			runtimeId: "codex",
+			providerEgressRequest: true,
+		});
+		expect(authorizeTool.mock.calls[1]?.[0]).toMatchObject({ providerEgressRequest: false });
+	});
+});
+
 describe("compatibility runtime crash recovery", () => {
 	it("does not replay a failed turn and rebuilds the adapter on the next explicit turn", async () => {
 		let binding: { runtimeId: "codex"; sessionId: string } | null = null;

@@ -81,6 +81,8 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		const { vault } = await fixture();
 		const { value } = broker(vault);
 		expect((await value.evaluate(request(), { ...context, workflow: "plan", permission: "vault-full" })).decision).toBe("deny");
+		expect((await value.evaluate(request({ kind: "shell" }), { ...context, workflow: "plan" })).decision).toBe("deny");
+		expect((await value.evaluate(request({ kind: "delete", destructive: true }), { ...context, workflow: "plan" })).decision).toBe("deny");
 		expect((await value.evaluate(request(), { ...context, permission: "vault-full" })).decision).toBe("allow");
 		expect((await value.evaluate(request({ kind: "delete", destructive: true }), { ...context, permission: "vault-full" })).decision).toBe("ask");
 		expect((await value.evaluate(request(), { ...context, approvalUiAttached: false })).decision).toBe("deny");
@@ -103,13 +105,30 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		const { vault, outside } = await fixture();
 		const fixtureBroker = broker(vault);
 		const network = request({ kind: "network", targets: [], network: { protocol: "https", host: "api.example.test" } });
-		expect((await fixtureBroker.value.evaluate(network, { ...context, providerEgressHosts: ["api.example.test"] })).decision).toBe("allow");
+		const providerContext = { ...context, providerEgressHosts: ["api.example.test"], providerEgressRequest: true };
+		expect((await fixtureBroker.value.evaluate(network, providerContext)).decision).toBe("allow");
+		expect((await fixtureBroker.value.evaluate(network, { ...providerContext, workflow: "plan" })).decision).toBe("allow");
+		expect((await fixtureBroker.value.evaluate(network, { ...providerContext, workflow: "plan", approvalUiAttached: false })).decision).toBe("allow");
+		expect((await fixtureBroker.value.evaluate(network, { ...context, workflow: "plan", providerEgressHosts: ["api.example.test"] })).decision).toBe("deny");
+		expect((await fixtureBroker.value.evaluate(network, { ...context, providerEgressHosts: ["api.example.test"] })).decision).toBe("ask");
 		expect((await fixtureBroker.value.evaluate(network, context)).decision).toBe("ask");
+		expect(fixtureBroker.audits).toHaveLength(6);
 		const external = await realpath(join(outside, "private.md"));
 		fixtureBroker.grants.add({ id: "grant-1", type: "path", value: external, direction: "read", actionId: "action-1", lifetime: "once" });
 		const externalRead = request({ kind: "read", targets: [{ raw: external, role: "source" }] });
 		expect((await fixtureBroker.value.evaluate(externalRead, context)).decision).toBe("allow");
 		expect((await fixtureBroker.value.evaluate(externalRead, context)).decision).toBe("ask");
+	});
+
+	it("remembers generic network approval for the current conversation only", async () => {
+		const { vault } = await fixture();
+		const fixtureBroker = broker(vault);
+		const network = request({ actionId: "network-1", kind: "network", targets: [], network: { protocol: "https", host: "example.test" } });
+		const ruleId = await fixtureBroker.value.rememberExactRule(network, context);
+		expect(ruleId).not.toBeNull();
+		const reconnect = request({ ...network, actionId: "network-2" });
+		expect((await fixtureBroker.value.evaluate(reconnect, context)).ruleId).toBe(ruleId);
+		expect((await fixtureBroker.value.evaluate(reconnect, { ...context, conversationId: "conversation-2" })).decision).toBe("ask");
 	});
 
 	it("fails closed when audit persistence fails and stores only target digests", async () => {
@@ -207,6 +226,10 @@ describe("ProcessSandbox", () => {
 		expect(profile.replace('(allow network-outbound (remote tcp "localhost:45678"))', "")).not.toContain("allow network-outbound");
 		expect(profile).toContain("(allow sysctl-read)");
 		expect(profile).toContain('(allow file-read* (literal "/"))');
+		expect(profile).toContain('(global-name "com.apple.trustd.agent")');
+		expect(profile).toContain('(global-name "com.apple.trustd")');
+		expect(profile).toContain('(global-name "com.apple.SecurityServer")');
+		expect(profile).toContain("/Library/Keychains");
 		expect(profile).not.toContain("/Library/Preferences/");
 		expect(profile).not.toContain("user-preference-read");
 		await expect(sandbox.prepare({ executable: "/usr/bin/agent", args: [], cwd: vault, loopbackProxyPort: 0 }, vault)).rejects.toThrow("端口无效");

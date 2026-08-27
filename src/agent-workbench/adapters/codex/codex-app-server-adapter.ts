@@ -16,20 +16,38 @@ export interface CodexAppServerPort {
 
 type TalosApproval = "allow" | "allow-always" | "deny" | "cancel";
 
-function eventType(method: string): AgentEventType {
+function nestedRecord(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? value as Record<string, unknown>
+		: null;
+}
+
+function completedAgentMessageText(payload: Record<string, unknown>): string | undefined {
+	const item = nestedRecord(payload.item);
+	if (item?.type === "agentMessage" && typeof item.text === "string") {
+		return item.text;
+	}
+	return undefined;
+}
+
+function eventType(method: string, payload: Record<string, unknown>): AgentEventType {
 	if (method === "item/agentMessage/delta") return "assistant.delta";
+	if (method === "item/completed" && completedAgentMessageText(payload) !== undefined) return "assistant.final";
 	if (method.includes("reasoning")) return "thinking.delta";
 	if (method.includes("plan")) return "plan.updated";
 	if (method === "item/fileChange/patchUpdated") return "file.diff";
 	if (method.includes("requestApproval")) return "approval.requested";
 	if (method === "item/tool/requestUserInput") return "user.question";
 	if (method.includes("tokenUsage")) return "usage.updated";
-	if (method === "turn/completed") return "turn.finished";
+	if (method === "turn/completed") {
+		const turn = nestedRecord(payload.turn);
+		return turn?.status === "failed" ? "error" : "turn.finished";
+	}
 	if (method.includes("subagent")) return "subagent.updated";
 	if (method.includes("commandExecution") || method.includes("fileChange") || method.includes("tool")) {
 		return method.endsWith("/completed") ? "tool.finished" : method.endsWith("/started") ? "tool.started" : "tool.updated";
 	}
-	if (method === "error") return "error";
+	if (method === "error") return payload.willRetry === true ? "runtime.status" : "error";
 	return "notice";
 }
 
@@ -84,9 +102,10 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 			},
 		};
 		for await (const frame of this.port.turn(params, turn.signal)) {
-			const payload = { ...frame.params, protocolMethod: frame.method };
+			const completedText = completedAgentMessageText(frame.params);
+			const payload = { ...frame.params, ...(completedText !== undefined ? { text: completedText } : {}), protocolMethod: frame.method };
 			const nativeId = textField(frame.params, "itemId", "id") ?? String(frame.id ?? "");
-			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type: eventType(frame.method), payload, nativeId });
+			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type: eventType(frame.method, frame.params), payload, nativeId });
 		}
 		this.pendingContext = undefined;
 		this.activeTurnId = undefined;

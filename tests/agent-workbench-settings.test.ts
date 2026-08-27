@@ -168,4 +168,12 @@ it("allows egress only to the selected provider profile", async () => {
 		prompt: async () => "deny",
 	});
 	expect(providerEgressHosts).toEqual(["api.example.test"]);
+	service.selectRuntime("ohmypi");
+	await service.authorizeTool({
+		runtimeId: "ohmypi", conversationId: "conversation-1", vaultRoot: "/synthetic/vault",
+		toolName: "NetworkRequest", toolInput: { url: "https://api.deepseek.com/v1" },
+		approvalUiAttached: true,
+		prompt: async () => "deny",
+	});
+	expect(providerEgressHosts).toEqual(["api.deepseek.com", "open.bigmodel.cn"]);
 });

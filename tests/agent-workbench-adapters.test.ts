@@ -4,6 +4,8 @@ import { ClaudeAgentSdkAdapter, type ClaudeAgentSdkPort, type ClaudeTurnInput } 
 import { CodexAppServerAdapter, type CodexAppServerPort } from "../src/agent-workbench/adapters/codex/codex-app-server-adapter";
 import { buildOhMyPiLaunch, OhMyPiRpcAdapter, type OhMyPiRpcPort } from "../src/agent-workbench/adapters/ohmypi/ohmypi-rpc-adapter";
 import type { ProtocolFrame } from "../src/agent-workbench/adapters/shared/protocol-frame";
+import { CodexProcessPort } from "../src/agent-workbench/transports/codex-process-port";
+import type { JsonRpcConnection } from "../src/agent-workbench/transports/json-line-rpc-connection";
 
 const ready = (runtimeId: "claude" | "codex" | "ohmypi"): RuntimeProbe => ({ runtimeId, status: "ready", version: "1.2.3" });
 
@@ -96,6 +98,82 @@ describe("runtime adapter shared contract", () => {
 });
 
 describe("adapter protocol semantics", () => {
+	it("keeps the Codex turn open across retryable errors until completion", async () => {
+		const connection = {
+			request: async <T,>(method: string) => method === "turn/start" ? { turn: { id: "turn-native" } } as T : {} as T,
+			notify: async () => undefined,
+			respond: async () => undefined,
+			async *subscribe() {
+				yield { method: "error", params: { turnId: "turn-native", willRetry: true, error: { message: "Reconnecting" } } };
+				yield { method: "item/agentMessage/delta", params: { turnId: "turn-native", delta: "recovered" } };
+				yield { method: "turn/completed", params: { turn: { id: "turn-native", status: "completed" } } };
+			},
+			close: async () => undefined,
+		} as JsonRpcConnection;
+		const port = new CodexProcessPort(connection, async () => ready("codex"));
+		const methods: string[] = [];
+		for await (const frame of port.turn({ threadId: "thread-1" })) methods.push(frame.method);
+		expect(methods).toEqual(["error", "item/agentMessage/delta", "turn/completed"]);
+	});
+
+	it("stops a Codex turn after six consecutive retryable errors", async () => {
+		const requests: string[] = [];
+		const connection = {
+			request: async <T,>(method: string) => {
+				requests.push(method);
+				return method === "turn/start" ? { turn: { id: "turn-native" } } as T : {} as T;
+			},
+			notify: async () => undefined,
+			respond: async () => undefined,
+			async *subscribe() {
+				for (let index = 1; index <= 6; index += 1) {
+					yield { method: "error", params: { turnId: "turn-native", willRetry: true, error: { message: `retry ${index}` } } };
+				}
+			},
+			close: async () => undefined,
+		} as JsonRpcConnection;
+		const port = new CodexProcessPort(connection, async () => ready("codex"));
+		const frames: ProtocolFrame[] = [];
+		for await (const frame of port.turn({ threadId: "thread-1" })) frames.push(frame);
+		expect(frames).toHaveLength(6);
+		expect(frames.slice(0, -1).every((frame) => frame.params.willRetry === true)).toBe(true);
+		expect(frames.at(-1)?.params).toMatchObject({
+			willRetry: false,
+			error: { message: "连接重试已达到 6 次", additionalDetails: "retry 6" },
+		});
+		expect(requests).toContain("turn/interrupt");
+	});
+
+	it("maps retrying Codex errors to silent runtime status and failed turns to errors", async () => {
+		class RetryPort extends CodexPort {
+			async *turn(): AsyncIterable<ProtocolFrame> {
+				yield { method: "error", params: { willRetry: true, error: { message: "Reconnecting" } } };
+				yield { method: "item/agentMessage/delta", params: { delta: "recovered" } };
+				yield { method: "turn/completed", params: { turn: { status: "failed", error: { message: "final failure" } } } };
+			}
+		}
+		const adapter = new CodexAppServerAdapter(new RetryPort());
+		await adapter.createSession(createInput);
+		const events = [];
+		for await (const event of adapter.send(turn)) events.push(event);
+		expect(events.map((event) => event.type)).toEqual(["runtime.status", "assistant.delta", "error"]);
+	});
+
+	it("maps a final-only Codex agent message to assistant.final", async () => {
+		class FinalOnlyPort extends CodexPort {
+			async *turn(): AsyncIterable<ProtocolFrame> {
+				yield { method: "item/completed", params: { item: { id: "agent-1", type: "agentMessage", text: "final answer" } } };
+				yield { method: "turn/completed", params: { turn: { status: "completed" } } };
+			}
+		}
+		const adapter = new CodexAppServerAdapter(new FinalOnlyPort());
+		await adapter.createSession(createInput);
+		const events = [];
+		for await (const event of adapter.send(turn)) events.push(event);
+		expect(events.map((event) => event.type)).toEqual(["assistant.final", "turn.finished"]);
+		expect(events[0]?.payload).toMatchObject({ text: "final answer" });
+	});
+
 	it("passes the selected Codex API profile to thread/start and binds that session separately", async () => {
 		const port = new CodexPort();
 		const adapter = new CodexAppServerAdapter(port);

@@ -220,6 +220,7 @@ export class AgentWorkbenchService {
 		vaultRoot: string;
 		toolName: string;
 		toolInput: Record<string, unknown>;
+		providerEgressRequest?: boolean;
 		approvalUiAttached: boolean;
 		prompt: () => Promise<"allow" | "allow-always" | "deny">;
 	}): Promise<"allow" | "allow-always" | "deny"> {
@@ -230,6 +231,7 @@ export class AgentWorkbenchService {
 			permission: this.permission,
 			conversationId: input.conversationId,
 			providerEgressHosts: this.providerEgressHosts(input.runtimeId),
+			providerEgressRequest: input.providerEgressRequest,
 			approvalUiAttached: input.approvalUiAttached,
 		});
 		if (decision.decision === "allow") return "allow";
@@ -245,6 +247,7 @@ export class AgentWorkbenchService {
 		const defaults: Partial<Record<RuntimeId, string[]>> = {
 			claude: ["api.anthropic.com"],
 			codex: ["api.openai.com", "chatgpt.com"],
+			ohmypi: ["api.deepseek.com", "open.bigmodel.cn"],
 		};
 		const selected = this.getSelectedProviderProfile(runtimeId);
 		if (selected?.endpoint) {

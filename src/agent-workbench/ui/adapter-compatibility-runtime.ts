@@ -30,10 +30,60 @@ function usageChunk(payload: Record<string, unknown>): StreamChunk {
 
 function textValue(value: unknown, fallback = ""): string { return typeof value === "string" ? value : typeof value === "number" ? String(value) : fallback; }
 
+function diagnosticText(value: unknown): string {
+	return textValue(value).trim()
+		.replace(/bearer\s+\S+/gi, "Bearer [凭据已省略]")
+		.replace(/\bsk-[a-z0-9_-]{8,}\b/gi, "[凭据已省略]")
+		.slice(0, 2_000);
+}
+
+function firstDiagnostic(values: unknown[]): string {
+	for (const value of values) {
+		const content = diagnosticText(value);
+		if (content) return content;
+	}
+	return "";
+}
+
 export function runtimeNoticeContent(event: AgentEvent): string | null {
+	if (event.payload.willRetry === true) {
+		const detail = runtimeErrorContent(event);
+		const fallback = `${event.runtimeId} 运行时返回未知错误`;
+		return detail === fallback ? "连接中断，正在重试" : `连接中断，正在重试：${detail}`;
+	}
 	const content = textValue(event.payload.message).trim();
 	if (!content || content.toLowerCase() === "notice" || content === event.type) return null;
 	return content;
+}
+
+export function runtimeErrorContent(event: AgentEvent): string {
+	const payload = event.payload;
+	const error = recordValue(payload.error);
+	const turnError = recordValue(recordValue(payload.turn).error);
+	const assistantError = recordValue(recordValue(payload.assistantMessageEvent).error);
+	const records = [payload, error, turnError, assistantError];
+	const message = firstDiagnostic([
+		payload.message,
+		typeof payload.error === "string" ? payload.error : undefined,
+		error.message,
+		error.errorMessage,
+		turnError.message,
+		turnError.errorMessage,
+		assistantError.message,
+		assistantError.errorMessage,
+	]);
+	const details = firstDiagnostic([
+		error.additionalDetails,
+		payload.additionalDetails,
+		turnError.additionalDetails,
+		assistantError.additionalDetails,
+	]);
+	const markers = ["code", "codexErrorInfo"].filter((key) =>
+		records.some((record) => Object.prototype.hasOwnProperty.call(record, key))
+	);
+	const base = message || details || `${event.runtimeId} 运行时返回未知错误`;
+	const combined = details && details !== base ? `${base}：${details}` : base;
+	return markers.length > 0 ? `${combined}（字段：${markers.join("、")}）` : combined;
 }
 
 function recordValue(value: unknown): Record<string, unknown> {
@@ -106,6 +156,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 			vaultRoot: this.vaultRoot(),
 			toolName,
 			toolInput: input,
+			providerEgressRequest: reason === "provider-egress-proxy",
 			approvalUiAttached: Boolean(this.approvalCallback),
 			prompt: async () => {
 				if (!this.approvalCallback) return "deny";
@@ -266,7 +317,7 @@ export class AdapterCompatibilityRuntime implements ChatRuntime {
 		}
 		if (event.type === "usage.updated") { yield usageChunk(event.payload); return; }
 		if (event.type === "context.compacted") { yield { type: "context_compacted" }; return; }
-		if (event.type === "error") { yield { type: "error", content: textValue(event.payload.message, "运行时错误") }; return; }
+		if (event.type === "error") { yield { type: "error", content: runtimeErrorContent(event) }; return; }
 		if (event.type === "notice" || event.type === "runtime.status" || event.type === "handoff.created") {
 			const content = runtimeNoticeContent(event);
 			if (content) yield { type: "notice", content };

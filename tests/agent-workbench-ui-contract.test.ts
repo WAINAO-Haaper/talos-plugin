@@ -33,10 +33,14 @@ describe("TALOS agent workbench compatibility UI", () => {
 		expect(service.getPermissionMode()).toBe("vault-full");
 		service.setWorkflowMode("plan");
 		expect(service.getPermissionMode()).toBe("vault-full");
+		for (const runtimeId of ["claude", "codex", "ohmypi"] as const) {
+			service.selectRuntime(runtimeId);
+			expect(service.getPermissionMode()).toBe("vault-full");
+		}
 	});
 
 	it("exposes runtime/provider/model, dual permission dimensions, status/install, handoff and accessible live regions", () => {
-		for (const contract of ["talos-agent-runtime-switcher", "talos-agent-runtime-button", "talos-agent-provider-picker", "talos-agent-model-control", "talos-agent-model-trigger", "talos-agent-model-menu", "talos-agent-model-picker", "talos-agent-workflow", "talos-agent-permission-picker", "talos-agent-runtime-status", "talos-agent-install-link", "talos-agent-handoff-marker", "talos-agent-approval-region"]) expect(view).toContain(contract);
+		for (const contract of ["talos-agent-runtime-switcher", "talos-agent-runtime-button", "talos-agent-provider-picker", "talos-agent-model-control", "talos-agent-model-trigger", "talos-agent-model-menu", "talos-agent-model-picker", "talos-agent-workflow", "talos-agent-permission-picker", "talos-agent-permission-trigger", "talos-agent-permission-menu", "talos-agent-runtime-status", "talos-agent-install-link", "talos-agent-handoff-marker", "talos-agent-approval-region"]) expect(view).toContain(contract);
 		expect(view).toContain('setAttribute("aria-live", "polite")');
 		expect(view).toContain('setAttribute("aria-live", "assertive")');
 		expect(view).toContain('setAttribute("role", "listbox")');
@@ -68,9 +72,11 @@ describe("TALOS agent workbench compatibility UI", () => {
 			expect(view).toContain(icon);
 			expect(registration).toContain(icon);
 		}
-		for (const label of ["只规划", "可执行", "每次询问", "仅已授权范围", "Vault 普通写入自动", "已就绪", "未安装"]) {
+		for (const label of ["只规划", "可执行", "请求批准", "帮我批准", "完全访问权限", "已就绪", "未安装"]) {
 			expect(view).toContain(label);
 		}
+		for (const contract of ["handlePermissionMenuKeydown", "aria-selected", "setPermissionMode"]) expect(view).toContain(contract);
+		expect(css).toContain(".talos-agent-permission-option");
 		expect(css).toContain(".talos-agent-runtime-button.is-active");
 		expect(css).toContain("background-color: transparent !important");
 	});

@@ -1,6 +1,7 @@
-import type { WorkspaceLeaf } from "obsidian";
+import { setIcon, type WorkspaceLeaf } from "obsidian";
 import type { ChatSurfaceWorkbench } from "../../quyuan/chat-surface";
 import type { AgentWorkbenchService } from "../core/agent-workbench-service";
+import type { PermissionMode } from "../contracts/approval";
 import type { ModelDescriptor, RuntimeHealth, RuntimeId } from "../contracts/runtime-adapter";
 import {
 	CLAUDE_PROVIDER_ICON,
@@ -41,6 +42,28 @@ const RUNTIME_HEALTH_LABELS: Record<RuntimeHealth, string> = {
 	crashed: "启动失败",
 };
 
+const PERMISSION_PRESENTATION: Record<PermissionMode, {
+	label: string;
+	description: string;
+	icon: string;
+}> = {
+	ask: {
+		label: "请求批准",
+		description: "修改文件、运行命令或访问额外网络时先询问",
+		icon: "hand",
+	},
+	scoped: {
+		label: "帮我批准",
+		description: "已授权的安全操作自动继续，仅风险操作询问",
+		icon: "shield-check",
+	},
+	"vault-full": {
+		label: "完全访问权限",
+		description: "当前 Vault 普通读写自动，高风险与外部目标仍受保护",
+		icon: "shield-alert",
+	},
+};
+
 function nativeProviderLabel(runtimeId: RuntimeId): string {
 	return NATIVE_PROVIDER_LABELS[runtimeId];
 }
@@ -65,6 +88,11 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private install: HTMLAnchorElement | null = null;
 	private refreshVersion = 0;
 	private outsideModelMenuListener: ((event: PointerEvent) => void) | null = null;
+	private permissionControl: HTMLElement | null = null;
+	private permissionTrigger: HTMLButtonElement | null = null;
+	private permissionTriggerLabel: HTMLElement | null = null;
+	private permissionMenu: HTMLElement | null = null;
+	private outsidePermissionMenuListener: ((event: PointerEvent) => void) | null = null;
 	private handoffToast: HTMLElement | null = null;
 	private handoffDismissTimer: number | null = null;
 	private handoffRemovalTimer: number | null = null;
@@ -247,19 +275,45 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		}
 		controls.appendChild(workflow);
 
-		const permission = doc.createElement("select");
-		permission.className = "talos-agent-permission-picker";
-		permission.setAttribute("aria-label", "授权模式");
-		for (const [value, label] of [
-			["ask", "每次询问"],
-			["scoped", "仅已授权范围"],
-			["vault-full", "Vault 普通写入自动"],
-		] as const) {
-			const option = doc.createElement("option"); option.value = value; option.textContent = label; permission.appendChild(option);
-		}
-		permission.value = this.options.service.getPermissionMode();
-		permission.addEventListener("change", () => this.options.service.setPermissionMode(permission.value as "ask" | "scoped" | "vault-full"));
-		controls.appendChild(permission);
+		const permissionControl = doc.createElement("div");
+		permissionControl.className = "talos-agent-permission-control talos-agent-permission-picker";
+		const permissionTrigger = doc.createElement("button");
+		permissionTrigger.type = "button";
+		permissionTrigger.className = "talos-agent-permission-trigger";
+		permissionTrigger.setAttribute("aria-haspopup", "listbox");
+		permissionTrigger.setAttribute("aria-expanded", "false");
+		const permissionIcon = doc.createElement("span");
+		permissionIcon.className = "talos-agent-permission-trigger-icon";
+		setIcon(permissionIcon, "shield-check");
+		const permissionLabel = doc.createElement("span");
+		permissionLabel.className = "talos-agent-permission-trigger-label";
+		const permissionChevron = doc.createElement("span");
+		permissionChevron.className = "talos-agent-permission-trigger-chevron";
+		permissionChevron.setAttribute("aria-hidden", "true");
+		permissionChevron.textContent = "⌄";
+		permissionTrigger.append(permissionIcon, permissionLabel, permissionChevron);
+		permissionControl.appendChild(permissionTrigger);
+		const permissionMenu = doc.createElement("div");
+		permissionMenu.className = "talos-agent-permission-menu";
+		permissionMenu.setAttribute("role", "listbox");
+		permissionMenu.setAttribute("aria-label", "授权模式");
+		permissionMenu.hidden = true;
+		permissionMenu.addEventListener("keydown", (event) => this.handlePermissionMenuKeydown(event));
+		permissionControl.appendChild(permissionMenu);
+		this.permissionControl = permissionControl;
+		this.permissionTrigger = permissionTrigger;
+		this.permissionTriggerLabel = permissionLabel;
+		this.permissionMenu = permissionMenu;
+		this.updatePermissionTrigger();
+		this.renderPermissionMenu();
+		permissionTrigger.addEventListener("click", () => this.setPermissionMenuOpen(permissionMenu.hidden));
+		permissionTrigger.addEventListener("keydown", (event) => {
+			if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				this.setPermissionMenuOpen(true, true);
+			}
+		});
+		controls.appendChild(permissionControl);
 
 		const status = doc.createElement("span");
 		status.className = "talos-agent-runtime-status";
@@ -427,6 +481,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.modelTrigger.setAttribute("aria-expanded", String(open));
 		this.modelControl.classList.toggle("is-open", open);
 		if (open) {
+			this.setPermissionMenuOpen(false);
 			this.renderModelMenu();
 			this.outsideModelMenuListener ??= (event: PointerEvent) => {
 				if (!this.modelControl?.contains(event.target as Node)) this.setModelMenuOpen(false);
@@ -438,6 +493,100 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			if (this.outsideModelMenuListener) this.modelControl.ownerDocument.removeEventListener("pointerdown", this.outsideModelMenuListener, true);
 			if (focusFirst) this.modelTrigger.focus();
 		}
+	}
+
+	private updatePermissionTrigger(): void {
+		if (!this.permissionTrigger || !this.permissionTriggerLabel) return;
+		const presentation = PERMISSION_PRESENTATION[this.options.service.getPermissionMode()];
+		this.permissionTriggerLabel.textContent = presentation.label;
+		this.permissionTrigger.title = presentation.description;
+		this.permissionTrigger.setAttribute("aria-label", `授权模式，当前 ${presentation.label}`);
+		const icon = this.permissionTrigger.querySelector<HTMLElement>(".talos-agent-permission-trigger-icon");
+		if (icon) setIcon(icon, presentation.icon);
+	}
+
+	private renderPermissionMenu(): void {
+		if (!this.permissionMenu) return;
+		this.permissionMenu.replaceChildren();
+		const doc = this.permissionMenu.ownerDocument;
+		const heading = doc.createElement("div");
+		heading.className = "talos-agent-permission-menu-heading";
+		const title = doc.createElement("strong");
+		title.textContent = "应如何批准智能体操作？";
+		const hint = doc.createElement("small");
+		hint.textContent = "同一授权标准用于 Claude、Codex 与 OhMyPi";
+		heading.append(title, hint);
+		this.permissionMenu.appendChild(heading);
+		const current = this.options.service.getPermissionMode();
+		for (const mode of ["ask", "scoped", "vault-full"] as const) {
+			const presentation = PERMISSION_PRESENTATION[mode];
+			const button = doc.createElement("button");
+			button.type = "button";
+			button.className = "talos-agent-permission-option";
+			button.dataset.permission = mode;
+			button.setAttribute("role", "option");
+			button.setAttribute("aria-selected", String(mode === current));
+			button.tabIndex = -1;
+			const icon = doc.createElement("span");
+			icon.className = "talos-agent-permission-option-icon";
+			setIcon(icon, presentation.icon);
+			const copy = doc.createElement("span");
+			copy.className = "talos-agent-permission-option-copy";
+			const label = doc.createElement("strong");
+			label.textContent = presentation.label;
+			const description = doc.createElement("small");
+			description.textContent = presentation.description;
+			copy.append(label, description);
+			const check = doc.createElement("span");
+			check.className = "talos-agent-permission-option-check";
+			check.setAttribute("aria-hidden", "true");
+			check.textContent = "✓";
+			button.append(icon, copy, check);
+			button.addEventListener("click", () => this.selectPermissionMode(mode));
+			this.permissionMenu.appendChild(button);
+		}
+	}
+
+	private selectPermissionMode(mode: PermissionMode): void {
+		this.options.service.setPermissionMode(mode);
+		this.updatePermissionTrigger();
+		this.renderPermissionMenu();
+		this.setPermissionMenuOpen(false);
+	}
+
+	private setPermissionMenuOpen(open: boolean, focusFirst = false): void {
+		if (!this.permissionMenu || !this.permissionTrigger || !this.permissionControl) return;
+		this.permissionMenu.hidden = !open;
+		this.permissionTrigger.setAttribute("aria-expanded", String(open));
+		this.permissionControl.classList.toggle("is-open", open);
+		if (open) {
+			this.setModelMenuOpen(false);
+			this.renderPermissionMenu();
+			this.outsidePermissionMenuListener ??= (event: PointerEvent) => {
+				if (!this.permissionControl?.contains(event.target as Node)) this.setPermissionMenuOpen(false);
+			};
+			this.permissionControl.ownerDocument.addEventListener("pointerdown", this.outsidePermissionMenuListener, true);
+			const selected = this.permissionMenu.querySelector<HTMLElement>('[aria-selected="true"]');
+			if (focusFirst) (selected ?? this.permissionMenu.querySelector<HTMLElement>(".talos-agent-permission-option"))?.focus();
+		} else {
+			if (this.outsidePermissionMenuListener) this.permissionControl.ownerDocument.removeEventListener("pointerdown", this.outsidePermissionMenuListener, true);
+			if (focusFirst) this.permissionTrigger.focus();
+		}
+	}
+
+	private handlePermissionMenuKeydown(event: KeyboardEvent): void {
+		if (!this.permissionMenu) return;
+		const options = Array.from(this.permissionMenu.querySelectorAll<HTMLButtonElement>(".talos-agent-permission-option"));
+		const index = options.indexOf(event.target as HTMLButtonElement);
+		if (event.key === "Escape") {
+			event.preventDefault();
+			this.setPermissionMenuOpen(false, true);
+			return;
+		}
+		if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+		event.preventDefault();
+		const delta = event.key === "ArrowDown" ? 1 : -1;
+		options[(index + delta + options.length) % options.length]?.focus();
 	}
 
 	private handleModelMenuKeydown(event: KeyboardEvent): void {
@@ -544,6 +693,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 
 	async suspend(): Promise<void> {
 		this.setModelMenuOpen(false);
+		this.setPermissionMenuOpen(false);
 		this.clearHandoffToast();
 		await this.compatibility.suspend();
 		this.root?.remove();
@@ -551,8 +701,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	focusComposer(): void { this.compatibility.focusComposer(); }
 	async destroy(): Promise<void> {
 		this.setModelMenuOpen(false);
+		this.setPermissionMenuOpen(false);
 		this.clearHandoffToast();
 		this.outsideModelMenuListener = null;
+		this.outsidePermissionMenuListener = null;
 		await this.compatibility.destroy();
 		this.root?.remove();
 		this.root = null;
@@ -567,6 +719,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.modelMenu = null;
 		this.modelAnnouncement = null;
 		this.modelDescriptors = [];
+		this.permissionControl = null;
+		this.permissionTrigger = null;
+		this.permissionTriggerLabel = null;
+		this.permissionMenu = null;
 		this.provider = null;
 		this.runtimeButtons.clear();
 		this.install = null;
