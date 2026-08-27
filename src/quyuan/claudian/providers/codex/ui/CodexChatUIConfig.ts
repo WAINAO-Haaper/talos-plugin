@@ -101,6 +101,10 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       return option.value;
     }
 
+    if (looksLikeCodexModel(runtimeModel)) {
+      return runtimeModel;
+    }
+
     return DEFAULT_CODEX_PRIMARY_MODEL;
   },
 

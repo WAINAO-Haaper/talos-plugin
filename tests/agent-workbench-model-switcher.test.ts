@@ -1,12 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { ClaudeSdkQueryPort } from "../src/agent-workbench/transports/claude-sdk-port";
 import { automaticModelPresentation, presentRuntimeModel } from "../src/agent-workbench/ui/model-switcher-presentation";
+import { ProviderRegistry } from "../src/quyuan/claudian/core/providers/ProviderRegistry";
+import { ProviderSettingsCoordinator } from "../src/quyuan/claudian/core/providers/ProviderSettingsCoordinator";
+import { codexChatUIConfig } from "../src/quyuan/claudian/providers/codex/ui/CodexChatUIConfig";
 
 describe("TALOS in-conversation model switcher", () => {
 	it("describes the official Codex 5.6 tiers without inventing one generic choice", () => {
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-sol", label: "GPT-5.6-Sol" })).toMatchObject({ kicker: "旗舰", badge: "推荐" });
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-terra", label: "GPT-5.6-Terra" })).toMatchObject({ kicker: "均衡" });
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-luna", label: "GPT-5.6-Luna" })).toMatchObject({ kicker: "高效" });
+	});
+
+	it("keeps the current Codex 5.6 model ahead of a stale saved projection on startup", () => {
+		ProviderRegistry.register("codex", {
+			displayName: "Codex",
+			blankTabOrder: 1,
+			isEnabled: () => true,
+			chatUIConfig: codexChatUIConfig,
+		} as never);
+		const settings = {
+			codexEnabled: true,
+			model: "gpt-5.6-sol",
+			savedProviderModel: { codex: "gpt-5.5" },
+			settingsProvider: "codex",
+		};
+		expect(codexChatUIConfig.normalizeModelVariant(settings.model, settings)).toBe("gpt-5.6-sol");
+		expect(ProviderSettingsCoordinator.getProviderSettingsSnapshot(settings, "codex").model).toBe("gpt-5.6-sol");
 	});
 
 	it("gives Claude Code official aliases concise task-oriented labels", () => {

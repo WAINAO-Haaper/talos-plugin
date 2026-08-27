@@ -262,7 +262,9 @@ export class ProviderSettingsCoordinator {
     const savedModelValue = normalizeProviderModel(uiConfig, settings, savedModel?.[providerId]);
     const isSavedModelValid = savedModelValue !== undefined
       && modelOptions.some(option => option.value === savedModelValue);
-    const model = (isSavedModelValid ? savedModelValue : undefined) ?? fallbackModel;
+    const model = shouldPreferCurrentProjection && canReuseCurrentModel
+      ? currentModel
+      : (isSavedModelValid ? savedModelValue : undefined) ?? fallbackModel;
     const canReuseCurrentProjection = canReuseCurrentModel && model === currentModel;
 
     if (model) {
