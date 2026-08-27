@@ -9,6 +9,41 @@ import {
 
 type RouteSubscriber = (route: TalosPageRoute) => void;
 
+export const TALOS_VIEW_STATE_SCHEMA_VERSION = 1 as const;
+
+export interface TalosViewState {
+	schemaVersion: typeof TALOS_VIEW_STATE_SCHEMA_VERSION;
+	page: string;
+}
+
+function renderKeyForRoute(route: TalosPageRoute): string {
+	if (route.secondary) return route.secondary;
+	if (route.primary === "workbench") return "overview";
+	if (route.primary === "voice") return "jarvis";
+	return route.primary;
+}
+
+export function encodeTalosViewState(pageKey: string): TalosViewState {
+	const route = resolvePageRoute(pageKey) ?? { primary: "workbench" };
+	return {
+		schemaVersion: TALOS_VIEW_STATE_SCHEMA_VERSION,
+		page: renderKeyForRoute(route),
+	};
+}
+
+export function decodeTalosViewState(state: unknown): string {
+	if (!state || typeof state !== "object" || Array.isArray(state)) return "overview";
+	const record = state as Record<string, unknown>;
+	if (
+		record.schemaVersion !== TALOS_VIEW_STATE_SCHEMA_VERSION
+		|| typeof record.page !== "string"
+	) {
+		return "overview";
+	}
+	const route = resolvePageRoute(record.page);
+	return route ? renderKeyForRoute(route) : "overview";
+}
+
 export class TalosPageRouter {
 	private route: TalosPageRoute;
 	private readonly subscribers = new Set<RouteSubscriber>();
@@ -40,10 +75,7 @@ export class TalosPageRouter {
 	}
 
 	renderKey(): string {
-		if (this.route.secondary) return this.route.secondary;
-		if (this.route.primary === "workbench") return "overview";
-		if (this.route.primary === "voice") return "jarvis";
-		return this.route.primary;
+		return renderKeyForRoute(this.route);
 	}
 
 	subscribe(subscriber: RouteSubscriber): () => void {

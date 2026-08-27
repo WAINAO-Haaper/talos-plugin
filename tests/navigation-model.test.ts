@@ -7,7 +7,11 @@ import {
 	WORKBENCH_MODULES,
 	resolvePageRoute,
 } from "../src/ui/navigation-model";
-import { TalosPageRouter } from "../src/ui/page-router";
+import {
+	decodeTalosViewState,
+	encodeTalosViewState,
+	TalosPageRouter,
+} from "../src/ui/page-router";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
@@ -84,5 +88,23 @@ describe("TalosPageRouter", () => {
 		router.selectPrimary("settings");
 		expect(router.current()).toEqual({ primary: "settings" });
 		expect(router.renderKey()).toBe("settings");
+	});
+});
+
+describe("TALOS view state", () => {
+	it("round-trips the active inner page across a cold workspace restore", () => {
+		expect(encodeTalosViewState("chat")).toEqual({
+			schemaVersion: 1,
+			page: "chat",
+		});
+		expect(decodeTalosViewState(encodeTalosViewState("chat"))).toBe("chat");
+		expect(decodeTalosViewState(encodeTalosViewState("projects"))).toBe("projects");
+	});
+
+	it("normalizes aliases and rejects stale or malformed persisted state", () => {
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "talos-quyuan-view" })).toBe("chat");
+		expect(decodeTalosViewState({ schemaVersion: 2, page: "chat" })).toBe("overview");
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "missing" })).toBe("overview");
+		expect(decodeTalosViewState(null)).toBe("overview");
 	});
 });

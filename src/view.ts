@@ -3,6 +3,7 @@ import {
 	Notice,
 	WorkspaceLeaf,
 	setIcon,
+	type ViewStateResult,
 } from "obsidian";
 import type TalosPlugin from "./main";
 import { TalosSettingTab } from "./settings";
@@ -63,7 +64,11 @@ import {
 	PRIMARY_NAVIGATION,
 	primaryPage,
 } from "./ui/navigation-model";
-import { TalosPageRouter } from "./ui/page-router";
+import {
+	decodeTalosViewState,
+	encodeTalosViewState,
+	TalosPageRouter,
+} from "./ui/page-router";
 import { TalosChatSurface } from "./quyuan/chat-surface";
 import {
 	renderTalosEmptyState,
@@ -256,7 +261,11 @@ export class TalosView extends ItemView {
 	}
 
 	private set activePage(pageKey: string) {
+		const previousPage = this.pageRouter.renderKey();
 		this.pageRouter.navigate(pageKey);
+		if (this.pageRouter.renderKey() !== previousPage) {
+			this.app.workspace.requestSaveLayout();
+		}
 	}
 
 	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
@@ -273,6 +282,21 @@ export class TalosView extends ItemView {
 	getViewType(): string { return VIEW_TYPE_TALOS; }
 	getDisplayText(): string { return "TALOS 控制台"; }
 	getIcon(): string { return "talos-logo"; }
+	getState(): Record<string, unknown> {
+		return {
+			...super.getState(),
+			...encodeTalosViewState(this.activePage),
+		};
+	}
+
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
+		this.pageRouter.navigate(decodeTalosViewState(state));
+		await super.setState(state, result);
+		if (this.pageEl) {
+			this.renderNav();
+			this.renderPage();
+		}
+	}
 
 	async onOpen(): Promise<void> {
 		try {

@@ -94,6 +94,9 @@ describe("agent workbench cold-start lifecycle", () => {
 		expect(viewSource).toContain("await this.plugin.waitForAgentWorkbench()");
 		expect(viewSource).toContain("const { compatibility } = await this.plugin.waitForAgentWorkbench()");
 		expect(viewSource).toContain('this.activePage !== "chat" || !page.isConnected');
+		expect(viewSource).toContain("...encodeTalosViewState(this.activePage)");
+		expect(viewSource).toContain("this.pageRouter.navigate(decodeTalosViewState(state))");
+		expect(viewSource).toContain("this.app.workspace.requestSaveLayout()");
 	});
 
 	it("mounts a target channel before persisting it and deduplicates concurrent mounts", () => {
