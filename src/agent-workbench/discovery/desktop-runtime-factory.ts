@@ -12,10 +12,13 @@ import { CodexProcessPort } from "../transports/codex-process-port";
 import { OhMyPiProcessPort } from "../transports/ohmypi-process-port";
 import { spawnJsonLineRpc } from "../transports/json-line-rpc-connection";
 import { spawnOmpRpc } from "../transports/omp-rpc-connection";
+import { resolveCertificateEnvironment } from "./certificate-environment";
 import { desktopRuntimePath } from "./node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "./runtime-discovery-service";
 import { codexPermissionProfileArgs } from "../security/codex-permission-profile";
 import { LoopbackEgressProxy } from "../security/loopback-egress-proxy";
+
+export { resolveCertificateEnvironment } from "./certificate-environment";
 
 export interface RuntimeFactoryInput {
 	vaultRoot: string;
@@ -111,16 +114,19 @@ export class DesktopRuntimeFactory {
 		});
 		const proxyPort = await proxy.start();
 		const proxyUrl = "http://localhost:" + proxyPort;
+		const certificates = await resolveCertificateEnvironment();
+		const certificateRoots = certificates.readRoots;
 		const environment = {
 			PATH: desktopRuntimePath(probe.executable), HOME: process.env.HOME ?? "", CFFIXED_USER_HOME: runtimeTemp, TMPDIR: runtimeTemp, LANG: process.env.LANG ?? "",
 			__CFPREFERENCES_AVOID_DAEMON: "1",
+			...certificates.environment,
 			HTTP_PROXY: proxyUrl, HTTPS_PROXY: proxyUrl, ALL_PROXY: proxyUrl,
 			http_proxy: proxyUrl, https_proxy: proxyUrl, all_proxy: proxyUrl, NO_PROXY: "", no_proxy: "",
 			...providerEnvironment,
 		};
 		try {
 		if (runtimeId === "codex") {
-			const launch = await this.sandbox.prepare({ executable: runtimeExecutable, args: ["app-server", ...codexPermissionProfileArgs(input.configDir!)], cwd: input.vaultRoot, environment, readOnlyRoots: [packageRoot], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
+			const launch = await this.sandbox.prepare({ executable: runtimeExecutable, args: ["app-server", ...codexPermissionProfileArgs(input.configDir!)], cwd: input.vaultRoot, environment, readOnlyRoots: [packageRoot, ...certificateRoots], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
 			const connection = spawnJsonLineRpc(launch);
 			try {
 				await connection.request("initialize", { clientInfo: { name: "talos-agent-workbench", version: "1.0.0" }, capabilities: { experimentalApi: true } });
@@ -129,7 +135,7 @@ export class DesktopRuntimeFactory {
 			return new CodexAppServerAdapter(new CodexProcessPort(connection, probeRuntime), () => proxy.close());
 		}
 		const raw = buildOhMyPiLaunch(runtimeExecutable, input.vaultRoot, input.permissionMode ?? "ask");
-		const launch = await this.sandbox.prepare({ ...raw, environment, readOnlyRoots: [packageRoot], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
+		const launch = await this.sandbox.prepare({ ...raw, environment, readOnlyRoots: [packageRoot, ...certificateRoots], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
 		const connection = spawnOmpRpc(launch);
 		try {
 			await connection.ready();
