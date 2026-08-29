@@ -74,7 +74,6 @@ export interface TalosSettings {
 	freezeStartDate: string; // 重估期启动日，算冻结天数
 	agentCommand: string;
 	openOnStartup: boolean;
-	claudianCommandId: string;
 	// 屈原语音助手
 	voiceAgentCommand: string; // 语音大脑命令，如 claude -p
 	voicePermission: string; // 工具权限：readonly | acceptEdits | all | off
@@ -131,7 +130,7 @@ export interface TalosSettings {
 	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
 	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
 	quyuanVoiceInputMode: "continuous" | "push-to-talk"; // 默认持续监听；失败时降级为点击说话
-	quyuanVoiceSessionJson: string; // 独立 voice namespace 会话，不与 Claudian chat tab 混用
+	quyuanVoiceSessionJson: string; // 独立 voice namespace 会话，不与 TALOS 文字对话会话混用
 	jarvisVoiceEnabled: boolean; // 语音总开关：同时控制麦克风与自动朗读
 	jarvisThinkingLevel: string; // 思考档：off | low | medium | high
 	jarvisTabsJson: string; // 多标签会话持久化（SessionStore 序列化），勿手改
@@ -175,7 +174,6 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	freezeStartDate: "2026-06-19",
 	agentCommand: "",
 	openOnStartup: true,
-	claudianCommandId: "claudian:open-view",
 	voiceAgentCommand: "",
 	voicePermission: "off",
 	voicePersona: "",

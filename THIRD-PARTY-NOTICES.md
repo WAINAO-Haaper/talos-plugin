@@ -34,11 +34,13 @@ ASR 集成而自动引入第三方运行时或模型。
 
 ## Claudian
 
-TALOS 的屈原 Agent 工作台包含 Claudian 的 provider-neutral runtime、会话、聊天、行内编辑、上下文、MCP、Skills 与 Subagents 技术实现，并在外层增加 TALOS 品牌、屈原人格、知识治理与语音适配。
+TALOS 的生产对话行为代码由 `src/agent-workbench/` 自主实现，不再包含 Claudian 的 runtime、会话、Provider、聊天、行内编辑、MCP 或 Subagent 实现。功能架构研究以 Claudian 最新源码提交 `d190786d11cc0b067475dcffbf8c334ee565d208` 为参照。
+
+为保证已经验收的对话 UI 设计不发生视觉回归，`src/agent-workbench/ui/styles/` 保留了早期 Claudian MIT 样式基线及 `.claudian-*` 选择器作为纯视觉 ABI；这些选择器不代表运行时依赖。下列旧提交仅用于该既存视觉资产的许可证溯源，不是功能实现依据。
 
 - Project: Claudian
-- Version baseline: 2.0.25
-- Commit: `9496e66a3877aa9993f73432d411b7cd682f4557`
+- Visual asset origin: 2.0.25 / `9496e66a3877aa9993f73432d411b7cd682f4557`
+- Latest architecture reference: `d190786d11cc0b067475dcffbf8c334ee565d208`
 - Repository: https://github.com/YishenTu/claudian
 - License: MIT
 

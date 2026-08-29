@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const talosSource = resolve(root, "styles.talos.css");
-const upstreamRoot = resolve(root, "src/quyuan/claudian/style");
-const upstreamIndex = resolve(upstreamRoot, "index.css");
+const workbenchStyleRoot = resolve(root, "src/agent-workbench/ui/styles");
+const workbenchStyleIndex = resolve(workbenchStyleRoot, "index.css");
 const quyuanShellSource = resolve(root, "styles.quyuan-shell.css");
 const layoutOverridesSource = resolve(root, "styles.layout-overrides.css");
 const uiV2Source = resolve(root, "styles.ui-v2.css");
@@ -17,30 +17,30 @@ const output = resolve(root, "styles.css");
 const importPattern = /^\s*@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/gm;
 
 if (!existsSync(talosSource)) throw new Error("Missing styles.talos.css");
-if (!existsSync(upstreamIndex)) throw new Error("Missing Claudian style/index.css");
+if (!existsSync(workbenchStyleIndex)) throw new Error("Missing TALOS agent workbench style/index.css");
 if (!existsSync(quyuanShellSource)) throw new Error("Missing styles.quyuan-shell.css");
 if (!existsSync(layoutOverridesSource)) throw new Error("Missing styles.layout-overrides.css");
 if (!existsSync(uiV2Source)) throw new Error("Missing styles.ui-v2.css");
 
-const index = readFileSync(upstreamIndex, "utf8");
+const index = readFileSync(workbenchStyleIndex, "utf8");
 const imports = [...index.matchAll(importPattern)].map((match) => match[1]);
-if (imports.length === 0) throw new Error("Claudian style index has no imports");
+if (imports.length === 0) throw new Error("TALOS agent workbench style index has no imports");
 
 const parts = [
 	"/* GENERATED FILE — edit source CSS files, including styles.ui-v2.css */",
 	readFileSync(talosSource, "utf8"),
-	"\n/* Quyuan v2 workbench styles · derived from Claudian 2.0.25 */\n",
+	"\n/* TALOS native agent workbench styles · visual baseline derived from Claudian 2.0.25 (MIT) */\n",
 ];
 
 for (const modulePath of imports) {
 	if (!modulePath) continue;
-	const file = resolve(upstreamRoot, modulePath);
-	const rel = relative(upstreamRoot, file);
+	const file = resolve(workbenchStyleRoot, modulePath);
+	const rel = relative(workbenchStyleRoot, file);
 	if (rel.startsWith("..") || !rel.endsWith(".css")) {
 		throw new Error(`Unsafe style import: ${modulePath}`);
 	}
 	if (!existsSync(file)) throw new Error(`Missing style module: ${rel}`);
-	parts.push(`\n/* upstream: ${rel} */\n`, readFileSync(file, "utf8"));
+	parts.push(`\n/* workbench module: ${rel} */\n`, readFileSync(file, "utf8"));
 }
 
 parts.push(

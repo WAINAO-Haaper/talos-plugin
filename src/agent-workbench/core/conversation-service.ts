@@ -60,4 +60,5 @@ export class ConversationService {
 	archive(id: string): Promise<void> { return this.store.setLifecycle(id, "archived"); }
 	restore(id: string): Promise<void> { return this.store.setLifecycle(id, "active"); }
 	softDelete(id: string): Promise<void> { return this.store.setLifecycle(id, "deleted"); }
+	discardEmpty(id: string): Promise<boolean> { return this.store.discardEmpty(id); }
 }

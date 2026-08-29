@@ -14,8 +14,13 @@ export class OhMyPiProcessPort implements OhMyPiRpcPort {
 	async *prompt(params: Record<string, unknown>, signal?: AbortSignal): AsyncIterable<ProtocolFrame> {
 		const frames = this.connection.subscribe();
 		await this.connection.request("prompt", { message: params.text, streamingBehavior: params.streamingBehavior });
+		let activeRun = false;
 		for await (const frame of frames) {
 			if (signal?.aborted) break;
+			if (!activeRun) {
+				if (frame.type !== "agent_start") continue;
+				activeRun = true;
+			}
 			yield protocolFrame(frame);
 			if (frame.type === "agent_end") break;
 		}

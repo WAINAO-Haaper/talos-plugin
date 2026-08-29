@@ -277,7 +277,8 @@ describe("WP7 migration", () => {
 		// 语音统一走控制台内屈原语音页；此处由「存在性」反转为「不存在」契约。
 		expect(mainSource).not.toContain('id: "open-jarvis"');
 		expect(mainSource).not.toContain("jarvis-view");
-		expect(mainSource).toContain("VIEW_TYPE_CLAUDIAN");
+		expect(mainSource).toContain("VIEW_TYPE_TALOS_AGENT_RECOVERY");
+		expect(mainSource).not.toContain("VIEW_TYPE_CLAUDIAN");
 	});
 
 	it("scrubs a stale flat Aliyun key after schema v1 without replacing the verified secret", async () => {

@@ -11,7 +11,7 @@
 		"typecheck": "tsc --noEmit --skipLibCheck",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:quyuan": "node --experimental-strip-types quyuan-v2.selftest.mjs",
+		"test:quyuan": "node agent-workbench-native.selftest.mjs",
 		"test:approval-actions": "node --experimental-strip-types approval-actions.selftest.mjs",
 		"test:approval-executor": "node --experimental-strip-types approval-executor.selftest.mjs",
 		"licenses:generate": "node third-party-licenses.mjs",

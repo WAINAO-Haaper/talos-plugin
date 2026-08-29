@@ -52,7 +52,7 @@ describe("voice engine C-3b removal contract (D-TLP-016)", () => {
 
 	it("keeps the voice page on the single QuyuanVoiceDriver engine", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
-		expect(panel).toContain('from "./voice-driver"');
+		expect(panel).toContain('from "./native-voice-driver"');
 		expect(panel).toContain('from "../jarvis/voiceio"');
 		expect(panel).not.toContain("jarvis/panel");
 		expect(panel).not.toContain("engine-factory");

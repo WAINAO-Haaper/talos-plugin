@@ -11,7 +11,7 @@ function settings(): WorkbenchSettings {
 			id: "openai-main", displayName: "OpenAI", runtimeId: "codex", protocol: "openai-responses",
 			endpoint: "https://api.example.test/", models: ["model-a"], secretRef: "talos-openai-main", enabled: true,
 		}],
-		selection: { runtimeId: "codex", providerProfileId: "openai-main", model: "model-a" },
+		selection: { runtimeId: "codex", providerProfileId: "openai-main", model: "model-a", reasoning: "high", serviceTier: "fast" },
 		workflow: "plan", permission: "ask",
 	};
 }
@@ -56,10 +56,10 @@ describe("WorkbenchSettingsStore", () => {
 			{ read: async () => structuredClone(value), write: async (next) => { value = structuredClone(next); } },
 			{ has: () => true },
 		);
-		const service = new AgentWorkbenchService({ compatibility: { initialize: async () => {}, dispose: () => {} }, settingsStore: store });
+		const service = new AgentWorkbenchService({ settingsStore: store });
 		await service.initialize();
 		expect(service.getSelectedRuntimeId()).toBe("codex");
-		expect(service.getSelection()).toEqual({ runtimeId: "codex", providerProfileId: "openai-main", model: "model-a" });
+		expect(service.getSelection()).toEqual({ runtimeId: "codex", providerProfileId: "openai-main", model: "model-a", reasoning: "high", serviceTier: "fast" });
 		expect(service.getRuntimeProfile("codex")?.executablePath).toBe("/synthetic/codex");
 		expect(await service.listModels("codex")).toEqual([{ id: "model-a", label: "model-a", providerProfileId: "openai-main" }]);
 		service.selectRuntime("ohmypi");
@@ -71,7 +71,7 @@ describe("WorkbenchSettingsStore", () => {
 		expect(value.providers[0]?.secretRef).toBe("talos-openai-main");
 	});
 
-	it("projects the compatibility runtime model into the TALOS selector atomically", async () => {
+	it("projects the native runtime model into the TALOS selector atomically", async () => {
 		let value = settings();
 		value.selection = { runtimeId: "codex" };
 		const store = new WorkbenchSettingsStore(
@@ -79,7 +79,6 @@ describe("WorkbenchSettingsStore", () => {
 			{ has: () => true },
 		);
 		const service = new AgentWorkbenchService({
-			compatibility: { initialize: async () => {}, dispose: () => {} },
 			settingsStore: store,
 		});
 		await service.initialize();
@@ -89,6 +88,24 @@ describe("WorkbenchSettingsStore", () => {
 		expect(value.selection.model).toBe("gpt-5.5");
 		service.selectRuntime("codex", null);
 		await service.flushSettings();
+		expect(service.getSelection()).toEqual({ runtimeId: "codex" });
+	});
+
+	it("drops a conversation selection whose provider profile no longer exists", async () => {
+		const value = settings();
+		const store = new WorkbenchSettingsStore(
+			{ read: async () => structuredClone(value), write: async () => undefined },
+			{ has: () => true },
+		);
+		const service = new AgentWorkbenchService({ settingsStore: store });
+		await service.initialize();
+		service.restoreSelection({
+			runtimeId: "codex",
+			providerProfileId: "removed-provider",
+			model: "removed-model",
+			reasoning: "high",
+			serviceTier: "fast",
+		});
 		expect(service.getSelection()).toEqual({ runtimeId: "codex" });
 	});
 
@@ -106,7 +123,6 @@ describe("WorkbenchSettingsStore", () => {
 			{ has: () => true },
 		);
 		const service = new AgentWorkbenchService({
-			compatibility: { initialize: async () => {}, dispose: () => {} },
 			settingsStore: store,
 		});
 		await service.initialize();
@@ -155,7 +171,6 @@ it("allows egress only to the selected provider profile", async () => {
 		rememberExactRule: async () => undefined,
 	} as never;
 	const service = new AgentWorkbenchService({
-		compatibility: { initialize: async () => {}, dispose: () => {} },
 		settingsStore: store,
 		approvalBroker,
 	});

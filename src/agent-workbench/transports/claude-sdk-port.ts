@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { forkSession, query, type CanUseTool, type Query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { forkSession, query, type CanUseTool, type Query, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { CreateSessionInput, ModelDescriptor, RuntimeProbe } from "../contracts/runtime-adapter";
 import type { ClaudeAgentSdkPort, ClaudeTurnInput } from "../adapters/claude/claude-agent-sdk-adapter";
 import type { ProtocolFrame } from "../adapters/shared/protocol-frame";
 
 export interface ClaudePermissionDelegate {
-	decide(toolName: string, input: Record<string, unknown>, metadata: { blockedPath?: string; reason?: string; toolUseId: string; requestId: string }): Promise<{ allow: boolean; message?: string }>;
+	decide(toolName: string, input: Record<string, unknown>, metadata: { blockedPath?: string; reason?: string; toolUseId: string; requestId: string; signal?: AbortSignal }): Promise<{ allow: boolean; message?: string; updatedInput?: Record<string, unknown>; interrupt?: boolean }>;
 }
 
 export interface ClaudeSdkFacade {
@@ -26,6 +26,19 @@ const CLAUDE_CODE_MODEL_ALIASES: readonly ModelDescriptor[] = [
 
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" ? value as Record<string, unknown> : {}; }
 
+function toolResultText(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (Array.isArray(value)) {
+		return value.map((item) => {
+			const block = asRecord(item);
+			return typeof block.text === "string" ? block.text : "";
+		}).filter(Boolean).join("\n");
+	}
+	if (value === undefined || value === null) return "";
+	try { return JSON.stringify(value); }
+	catch { return "工具结果无法序列化"; }
+}
+
 function mapMessage(message: SDKMessage): ProtocolFrame[] {
 	const record = asRecord(message);
 	if (record.type === "stream_event") {
@@ -45,6 +58,19 @@ function mapMessage(message: SDKMessage): ProtocolFrame[] {
 			if (item.type === "tool_use") frames.push({ method: "tool.started", params: { id: item.id, name: item.name, input: item.input } });
 		}
 		return frames;
+	}
+	if (record.type === "user") {
+		const content = asRecord(record.message).content;
+		if (!Array.isArray(content)) return [];
+		return content.flatMap((block) => {
+			const item = asRecord(block);
+			if (item.type !== "tool_result" || typeof item.tool_use_id !== "string") return [];
+			return [{ method: "tool.finished", params: {
+				id: item.tool_use_id,
+				output: toolResultText(item.content),
+				error: item.is_error === true,
+			} }];
+		});
 	}
 	if (record.type === "result") {
 		const frames: ProtocolFrame[] = [];
@@ -83,8 +109,10 @@ export class ClaudeSdkQueryPort implements ClaudeAgentSdkPort {
 	async resume(sessionId: string): Promise<void> { this.newSession = false; this.sessionId = sessionId; }
 	async *turn(input: ClaudeTurnInput): AsyncIterable<ProtocolFrame> {
 		const canUseTool: CanUseTool = async (toolName, toolInput, options) => {
-			const decision = await this.permissions.decide(toolName, toolInput, { blockedPath: options.blockedPath, reason: options.decisionReason, toolUseId: options.toolUseID, requestId: options.requestId });
-			return decision.allow ? { behavior: "allow", updatedInput: toolInput, toolUseID: options.toolUseID } : { behavior: "deny", message: decision.message ?? "TALOS 权限策略拒绝", toolUseID: options.toolUseID };
+			const decision = await this.permissions.decide(toolName, toolInput, { blockedPath: options.blockedPath, reason: options.decisionReason, toolUseId: options.toolUseID, requestId: options.requestId, signal: options.signal });
+			return decision.allow
+				? { behavior: "allow", updatedInput: decision.updatedInput ?? toolInput, toolUseID: options.toolUseID }
+				: { behavior: "deny", message: decision.message ?? "TALOS 权限策略拒绝", toolUseID: options.toolUseID, ...(decision.interrupt ? { interrupt: true } : {}) };
 		};
 		const options = {
 			cwd: this.vaultRoot,
@@ -97,9 +125,39 @@ export class ClaudeSdkQueryPort implements ClaudeAgentSdkPort {
 			...(Object.keys(this.environment).length > 0 ? { env: this.environment } : {}),
 			...(this.newSession ? { sessionId: this.sessionId ?? input.sessionId } : { resume: this.sessionId ?? input.sessionId }),
 		};
-		const active = this.sdk.query({ prompt: input.prompt, options }); this.active = active;
-		try { for await (const message of active) for (const frame of mapMessage(message)) yield frame; this.newSession = false; }
-		finally { if (this.active === active) this.active = null; }
+		const prompt = input.images?.length ? (async function* (): AsyncGenerator<SDKUserMessage> {
+			yield {
+				type: "user",
+				message: {
+					role: "user",
+					content: [
+						...input.images!.map((image) => ({
+							type: "image" as const,
+							source: { type: "base64" as const, media_type: image.mimeType, data: image.base64 },
+						})),
+						...(input.prompt.trim() ? [{ type: "text" as const, text: input.prompt }] : []),
+					],
+				},
+				parent_tool_use_id: null,
+			};
+		})() : input.prompt;
+		const active = this.sdk.query({ prompt, options }); this.active = active;
+		let lastFinalText: string | undefined;
+		try {
+			for await (const message of active) {
+				for (const frame of mapMessage(message)) {
+					if (frame.method === "assistant.final") {
+						const finalText = typeof frame.params.text === "string" ? frame.params.text : "";
+						if (!finalText || finalText === lastFinalText) continue;
+						lastFinalText = finalText;
+					}
+					yield frame;
+				}
+			}
+			this.newSession = false;
+		} finally {
+			if (this.active === active) this.active = null;
+		}
 	}
 	async cancel(): Promise<void> { this.active?.close(); this.active = null; }
 	async fork(sessionId: string): Promise<string> { return (await this.sdk.forkSession(sessionId)).sessionId; }

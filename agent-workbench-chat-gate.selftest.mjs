@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// 部署后功能硬门：目标 Vault 的工作台会话在指定窗口内必须至少产生一条
-// assistant.final 事件，否则本次部署记 fail。
+// 部署后功能硬门：目标 Vault 的工作台会话在指定窗口内必须产生完整的
+// user.message -> assistant.final -> turn.finished 回合；回答不得早于问题，
+// assistant/thinking/tool-update/usage 瞬态流不得落入持久历史，否则本次部署
+// 记 fail。
 //
 // 存在理由：截至 2026-08-27，全部部署门都是数据完整性门（产物哈希、data.json、
 // 会话计数、业务保护树、自动回滚）。一次「模型不可达」故障可以让十余个候选
@@ -25,6 +27,9 @@ const EVENT_TYPES = new Set([
 	"subagent.updated", "approval.requested", "approval.resolved", "user.question",
 	"usage.updated", "session.bound", "handoff.created", "runtime.status",
 	"notice", "error", "turn.finished",
+]);
+const TRANSIENT_PERSISTED_TYPES = new Set([
+	"assistant.delta", "thinking.delta", "tool.updated", "usage.updated",
 ]);
 
 function parseArgs(argv) {
@@ -113,6 +118,7 @@ async function main() {
 	let considered = 0;
 	let latest = null;
 	let latestMs = null;
+	const eventRecords = [];
 
 	for (const file of files) {
 		let event;
@@ -137,6 +143,34 @@ async function main() {
 			if (text.trim().length > 0) assistantFinal += 1;
 		}
 		if (type === "error") errors += 1;
+		eventRecords.push({
+			type,
+			eventId: typeof event.eventId === "string" ? event.eventId : "",
+			conversationId: typeof event.conversationId === "string" ? event.conversationId : "",
+			turnId: typeof event.turnId === "string" ? event.turnId : "",
+			runtimeId: typeof event.runtimeId === "string" ? event.runtimeId : "",
+			timestampMs: Number.isNaN(timestampMs) ? Number.MAX_SAFE_INTEGER : timestampMs,
+			hasText: type === "assistant.final" && typeof event.payload?.text === "string" && event.payload.text.trim().length > 0,
+		});
+	}
+
+	const turns = new Map();
+	for (const event of eventRecords.sort((left, right) => left.timestampMs - right.timestampMs || left.eventId.localeCompare(right.eventId))) {
+		const key = `${event.conversationId}:${event.turnId}`;
+		const current = turns.get(key) ?? [];
+		current.push(event);
+		turns.set(key, current);
+	}
+	let qualifiedTurns = 0;
+	let invalidTurnOrder = 0;
+	let persistedTransient = 0;
+	for (const events of turns.values()) {
+		persistedTransient += events.filter((event) => TRANSIENT_PERSISTED_TYPES.has(event.type)).length;
+		const userIndex = events.findIndex((event) => event.type === "user.message");
+		const finalIndex = events.findIndex((event) => event.hasText);
+		const finishIndex = events.findIndex((event) => event.type === "turn.finished");
+		if (finalIndex >= 0 && (userIndex < 0 || finalIndex < userIndex)) invalidTurnOrder += 1;
+		if (userIndex >= 0 && finalIndex > userIndex && finishIndex > finalIndex) qualifiedTurns += 1;
 	}
 
 	const summary = [...counts.entries()].sort().map(([type, count]) => `${type}=${count}`).join(" ");
@@ -144,9 +178,18 @@ async function main() {
 	console.log(`分布：${summary || "（空）"}`);
 	console.log(`最新事件时间：${latest ?? "无"}`);
 	console.log(`带非空文本的 assistant.final：${assistantFinal}｜error：${errors}`);
+	console.log(`完整有序回合：${qualifiedTurns}｜乱序/无问题回答：${invalidTurnOrder}｜持久化瞬态事件：${persistedTransient}`);
 
-	if (assistantFinal < 1) {
-		console.error("FAIL 窗口内没有任何带文本的 assistant.final，判定本次部署功能门失败");
+	if (assistantFinal < 1 || qualifiedTurns < 1) {
+		console.error("FAIL 窗口内没有完整的 user.message -> assistant.final -> turn.finished 回合");
+		process.exit(1);
+	}
+	if (invalidTurnOrder > 0) {
+		console.error("FAIL 存在回答早于问题或没有问题归属的 assistant.final");
+		process.exit(1);
+	}
+	if (persistedTransient > 0) {
+		console.error("FAIL assistant/thinking/tool-update/usage 瞬态事件被写入持久历史");
 		process.exit(1);
 	}
 	console.log("PASS 功能门通过：模型已在目标环境产生真实回复");

@@ -3,27 +3,25 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = new URL("../", import.meta.url).pathname;
 const inputController = readFileSync(
-	`${projectRoot}src/quyuan/claudian/features/chat/controllers/InputController.ts`,
+	`${projectRoot}src/agent-workbench/core/agent-execution-coordinator.ts`,
 	"utf8"
 );
 const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
 
 describe("chat egress wiring", () => {
 	it("audits normal and steered messages before they reach the Provider", () => {
-		const queryAudit = inputController.indexOf(
-			"await this.auditTalosChatEgress({"
-		);
+		const queryAudit = inputController.indexOf("await this.options.preflightEgress?.({");
 		const querySend = inputController.indexOf(
-			"for await (const chunk of agentService.query"
+			"for await (const nativeEvent of lease.runtime.send(turn))"
 		);
 		const contextSent = inputController.indexOf(
-			"fileContextManager?.markCurrentNoteSent();"
+			"await this.options.ledger.stage(staged);"
 		);
 		const steerAudit = inputController.lastIndexOf(
-			"await this.auditTalosChatEgress({"
+			"await this.options.preflightEgress?.({"
 		);
 		const steerSend = inputController.indexOf(
-			"const accepted = await agentService.steer"
+			"await runtime.steer({ turnId: active.turnId, text });"
 		);
 
 		expect(queryAudit).toBeGreaterThan(-1);
@@ -38,18 +36,11 @@ describe("chat egress wiring", () => {
 		expect(inputController).not.toContain(
 			"if (!bridge.auditQuyuanChatEgress) return;"
 		);
-		const guard = inputController.indexOf(
-			"if (!bridge.auditQuyuanChatEgress) {"
-		);
-		const thrower = inputController.indexOf(
-			"失败关闭策略阻止发送"
-		);
+		const guard = inputController.indexOf("if (preflight && !preflight.allowed)");
+		const thrower = inputController.indexOf("Provider 出库隐私审计未通过");
 		expect(guard).toBeGreaterThan(-1);
 		expect(thrower).toBeGreaterThan(guard);
-		const auditCall = inputController.indexOf(
-			"bridge.auditQuyuanChatEgress({"
-		);
-		expect(auditCall).toBeGreaterThan(thrower);
+		expect(inputController).toContain("preflightEgress?");
 	});
 
 	it("persists metadata-only chat audits through the shared audit store", () => {
@@ -57,8 +48,8 @@ describe("chat egress wiring", () => {
 		expect(mainSource).toContain("createVaultProviderEgressAuditStore");
 		expect(mainSource).toContain('namespace: "chat"');
 		expect(mainSource).toContain("auditQuyuanProviderEgress");
-		expect(inputController).toContain("editorSourcePath:");
-		expect(inputController).toContain("canvasSourcePath:");
-		expect(inputController).toContain("hasBrowserContext:");
+		expect(mainSource).toContain("editorSourcePaths,");
+		expect(mainSource).toContain("canvasSourcePaths,");
+		expect(mainSource).toContain("hasBrowserContext:");
 	});
 });

@@ -3,7 +3,8 @@ import type { ConversationManifest } from "../contracts/conversation";
 import type { NativeSessionBinding, RuntimeId } from "../contracts/runtime-adapter";
 import type { ClaudianReadonlyImporter, LegacyImportReport } from "../legacy/claudian-readonly-importer";
 import { RuntimeBindingStore } from "../storage/runtime-binding-store";
-import { sanitizePortableString, sanitizePortableValue } from "../storage/portable-conversation-store";
+import { sanitizePortableValue } from "../storage/portable-conversation-store";
+import { hasMeaningfulHandoffPayload } from "../storage/conversation-projection";
 import { ContextHandoffService } from "./context-handoff-service";
 import { ConversationService } from "./conversation-service";
 
@@ -67,13 +68,17 @@ export class WorkbenchConversationCoordinator {
 		runtimeId: RuntimeId;
 		text: string;
 		vaultRoot: string;
+		metadata?: Record<string, unknown>;
 	}): Promise<AgentEvent> {
 		return this.conversations.append({
 			conversationId: input.conversationId,
 			turnId: input.turnId,
 			runtimeId: input.runtimeId,
 			type: "user.message",
-			payload: { text: sanitizePortableString(input.text, input.vaultRoot) },
+			payload: sanitizePortableValue({
+				text: input.text,
+				...input.metadata,
+			}, input.vaultRoot) as Record<string, unknown>,
 		});
 	}
 
@@ -106,16 +111,24 @@ export class WorkbenchConversationCoordinator {
 		}
 	}
 
-	async switchRuntime(conversationId: string, toRuntimeId: RuntimeId): Promise<void> {
+	async switchRuntime(conversationId: string, toRuntimeId: RuntimeId): Promise<boolean> {
 		const projection = await this.conversations.store.load(conversationId);
 		const fromRuntimeId = projection.manifest.selection.runtimeId;
-		if (fromRuntimeId === toRuntimeId) return;
+		if (fromRuntimeId === toRuntimeId) return false;
 		const envelope = this.handoffs.create({
 			conversationId,
 			fromRuntimeId,
 			toRuntimeId,
 			events: projection.events,
 		});
+		if (!hasMeaningfulHandoffPayload(envelope)) {
+			await this.conversations.store.updateManifest({
+				...projection.manifest,
+				selection: { runtimeId: toRuntimeId },
+				updatedAt: new Date().toISOString(),
+			});
+			return false;
+		}
 		await this.conversations.append({
 			conversationId,
 			turnId: "handoff-" + crypto.randomUUID(),
@@ -125,9 +138,10 @@ export class WorkbenchConversationCoordinator {
 		});
 		await this.conversations.store.updateManifest({
 			...projection.manifest,
-			selection: { ...projection.manifest.selection, runtimeId: toRuntimeId },
+			selection: { runtimeId: toRuntimeId },
 			updatedAt: new Date().toISOString(),
 		});
+		return true;
 	}
 
 	getBinding(

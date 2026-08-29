@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
 import type { ConversationManifest } from "../src/agent-workbench/contracts/conversation";
+import { hasMeaningfulHandoffContext } from "../src/agent-workbench/storage/conversation-projection";
 import { ConversationService } from "../src/agent-workbench/core/conversation-service";
 import { WorkbenchConversationCoordinator } from "../src/agent-workbench/core/workbench-conversation-coordinator";
 import {
@@ -27,7 +28,20 @@ class MemoryFiles implements PortableFileAdapter {
 		this.files.delete(from);
 	}
 	async replace(from: string, to: string) { await this.rename(from, to); }
-	async remove(path: string) { this.files.delete(path); }
+	async remove(path: string) {
+		if (this.folders.has(path)) throw new Error(`remove cannot delete directory: ${path}`);
+		this.files.delete(path);
+	}
+	async rmdir(path: string, recursive: boolean) {
+		const prefix = `${path}/`;
+		const children = [...this.files.keys(), ...this.folders].filter((candidate) => candidate.startsWith(prefix));
+		if (!recursive && children.length > 0) throw new Error(`directory not empty: ${path}`);
+		for (const candidate of children) {
+			this.files.delete(candidate);
+			this.folders.delete(candidate);
+		}
+		this.folders.delete(path);
+	}
 	async mkdir(path: string) { this.folders.add(path); }
 	async list(path: string) {
 		const prefix = `${path}/`;
@@ -72,6 +86,34 @@ function event(id = "event-1") {
 }
 
 describe("PortableConversationStore", () => {
+	it("physically discards only untouched blank conversations", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
+		const conversations = new ConversationService(store);
+		const blank = await conversations.create();
+		const named = await conversations.create("keep me");
+		const used = await conversations.create();
+		const guarded = await conversations.create();
+		files.files.set(`.talos/agent-workbench/v1/conversations/${guarded.conversationId}/recovery.bin`, "preserve");
+		await conversations.append({
+			conversationId: used.conversationId,
+			turnId: "turn-used",
+			runtimeId: "codex",
+			type: "user.message",
+			payload: { text: "real content" },
+		});
+
+		await expect(conversations.discardEmpty(blank.conversationId)).resolves.toBe(true);
+		await expect(conversations.discardEmpty(named.conversationId)).resolves.toBe(false);
+		await expect(conversations.discardEmpty(used.conversationId)).resolves.toBe(false);
+		await expect(conversations.discardEmpty(guarded.conversationId)).resolves.toBe(false);
+		expect((await store.list()).map((item) => item.conversationId)).toEqual(expect.arrayContaining([named.conversationId, used.conversationId]));
+		expect((await store.list()).map((item) => item.conversationId)).not.toContain(blank.conversationId);
+		await expect(store.load(blank.conversationId)).rejects.toThrow();
+		expect([...files.folders]).not.toContain(`.talos/agent-workbench/v1/conversations/${blank.conversationId}`);
+		expect(files.files.get(`.talos/agent-workbench/v1/conversations/${guarded.conversationId}/recovery.bin`)).toBe("preserve");
+	});
+
 	it("writes immutable events idempotently and rejects collisions", async () => {
 		const files = new MemoryFiles();
 		const store = new PortableConversationStore(files);
@@ -90,6 +132,61 @@ describe("PortableConversationStore", () => {
 		expect((await store.load("conv-1")).events.map((item) => item.eventId)).toEqual(["a-early", "z-late"]);
 		expect([...files.files.keys()].join("\n")).not.toMatch(/a-early|z-late/);
 		await expect(store.create({ ...manifest, conversationId: "../escape" })).rejects.toThrow("安全路径段");
+	});
+
+	it("keeps the user prompt before provider events when reloading a turn", async () => {
+		const store = new PortableConversationStore(new MemoryFiles());
+		await store.create(manifest);
+		await store.append(createAgentEvent({
+			eventId: "provider-first",
+			conversationId: "conv-1",
+			turnId: "turn-1",
+			runtimeId: "codex",
+			type: "assistant.delta",
+			timestamp: "2026-08-26T00:00:01.000Z",
+			payload: { text: "answer" },
+		}));
+		await store.append(createAgentEvent({
+			eventId: "user-after-acceptance",
+			conversationId: "conv-1",
+			turnId: "turn-1",
+			runtimeId: "codex",
+			type: "user.message",
+			timestamp: "2026-08-26T00:00:02.000Z",
+			payload: { text: "question" },
+		}));
+		await store.append(createAgentEvent({
+			eventId: "assistant-start",
+			conversationId: "conv-1",
+			turnId: "turn-1",
+			runtimeId: "codex",
+			type: "assistant.start",
+			timestamp: "2026-08-26T00:00:03.000Z",
+			payload: {},
+		}));
+		expect((await store.load("conv-1")).events.map((item) => item.type)).toEqual([
+			"user.message",
+			"assistant.start",
+			"assistant.delta",
+		]);
+	});
+
+	it("does not render legacy handoff markers that contain no context", () => {
+		expect(hasMeaningfulHandoffContext(createAgentEvent({
+			eventId: "empty-handoff",
+			conversationId: "conv-1",
+			turnId: "handoff-1",
+			runtimeId: "codex",
+			type: "handoff.created",
+			timestamp: "2026-08-26T00:00:01.000Z",
+			payload: {
+				goal: "",
+				recentMessages: [],
+				incompleteTasks: [],
+				toolResultSummaries: [],
+				vaultRelativeReferences: [],
+			},
+		}))).toBe(false);
 	});
 
 	it("rebuilds a corrupt index from immutable manifests", async () => {

@@ -16,18 +16,15 @@ vi.mock("obsidian", () => ({
 import type { TalosSettings } from "../src/settings";
 import { StreamTts } from "../src/jarvis/voiceio";
 import { SerializedInferenceQueue } from "../src/quyuan/local-asr";
-import { QuyuanVoiceDriver } from "../src/quyuan/voice-driver";
+import { QuyuanVoiceDriver } from "../src/quyuan/native-voice-driver";
 import { evaluateVoiceTurnAdmission } from "../src/quyuan/voice-turn-admission";
 import {
 	VadMic,
 	type VadMicHandlers,
 } from "../src/quyuan/vad-mic";
-import type { ChatRuntime } from "../src/quyuan/claudian/core/runtime/ChatRuntime";
-import type {
-	ChatTurnRequest,
-	PreparedChatTurn,
-} from "../src/quyuan/claudian/core/runtime/types";
-import type { StreamChunk } from "../src/quyuan/claudian/core/types";
+import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
+import type { AgentRuntimeAdapter } from "../src/agent-workbench/contracts/runtime-adapter";
+import { unavailableCapabilities } from "../src/agent-workbench/contracts/runtime-capabilities";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -303,36 +300,48 @@ describe("local ASR serialization", () => {
 	});
 });
 
-function runtimeWithChunks(chunks: StreamChunk[]): ChatRuntime {
+type VoiceTestChunk =
+	| { type: "text"; content: string }
+	| { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+	| { type: "tool_result"; id: string; content: string; isError: boolean }
+	| { type: "error"; content: string }
+	| { type: "done" };
+
+function runtimeWithChunks(chunks: VoiceTestChunk[]): AgentRuntimeAdapter {
 	return {
-		providerId: "codex",
-		prepareTurn: (request: ChatTurnRequest): PreparedChatTurn => ({
-			request,
-			persistedContent: request.text,
-			prompt: request.text,
-			isCompact: false,
-			mcpMentions: new Set(),
-		}),
-		query: async function* () {
-			for (const chunk of chunks) yield chunk;
+		id: "codex",
+		probe: async () => ({ runtimeId: "codex", status: "ready" }),
+		listModels: async () => [],
+		createSession: async () => ({ runtimeId: "codex", sessionId: "voice-session" }),
+		resumeSession: async () => undefined,
+		send: async function* (turn) {
+			for (const [index, chunk] of chunks.entries()) {
+				const common = { eventId: `event-${index}`, conversationId: turn.conversationId, turnId: turn.turnId, runtimeId: "codex" as const, timestamp: new Date().toISOString() };
+				if (chunk.type === "text") yield createAgentEvent({ ...common, type: "assistant.delta", payload: { text: chunk.content } });
+				else if (chunk.type === "tool_use") yield createAgentEvent({ ...common, type: "tool.started", payload: { id: chunk.id, name: chunk.name, input: chunk.input } });
+				else if (chunk.type === "tool_result") yield createAgentEvent({ ...common, type: "tool.finished", payload: { id: chunk.id, output: chunk.content, isError: chunk.isError } });
+				else if (chunk.type === "error") yield createAgentEvent({ ...common, type: "error", payload: { message: chunk.content } });
+				else yield createAgentEvent({ ...common, type: "turn.finished", payload: { status: "completed" } });
+			}
 		},
-		getSessionId: () => "voice-session",
-		cancel: vi.fn(),
-	} as unknown as ChatRuntime;
+		cancel: vi.fn(async () => undefined),
+		dispose: vi.fn(async () => undefined),
+		capabilities: unavailableCapabilities,
+	};
 }
 
-function voiceDriver(runtime: ChatRuntime): QuyuanVoiceDriver {
+function voiceDriver(runtime: AgentRuntimeAdapter): QuyuanVoiceDriver {
+	const service = {
+		getSelectedRuntimeId: () => "codex",
+		getVaultRoot: () => "/synthetic/vault",
+		getWorkflowMode: () => "plan",
+		createRuntime: async () => runtime,
+	};
 	const plugin = {
-		settings: {},
+		getAgentWorkbenchService: () => service,
 		auditQuyuanProviderEgress: async () => ({ allowed: true }),
 	} as never;
-	const driver = new QuyuanVoiceDriver(plugin);
-	(
-		driver as unknown as {
-			runtimes: Partial<Record<"voice" | "text", ChatRuntime>>;
-		}
-	).runtimes.voice = runtime;
-	return driver;
+	return new QuyuanVoiceDriver(plugin);
 }
 
 describe("voice driver terminal correctness", () => {
@@ -398,9 +407,9 @@ describe("voice driver terminal correctness", () => {
 	it("drops Provider output that arrives after cancel", async () => {
 		const release = new Deferred<void>();
 		const runtime = runtimeWithChunks([]);
-		runtime.query = async function* () {
+		runtime.send = async function* (turn) {
 			await release.promise;
-			yield { type: "text", content: "stale" };
+			yield createAgentEvent({ eventId: "late", conversationId: turn.conversationId, turnId: turn.turnId, runtimeId: "codex", type: "assistant.delta", timestamp: new Date().toISOString(), payload: { text: "stale" } });
 		};
 		const driver = voiceDriver(runtime);
 		const onText = vi.fn();
@@ -423,9 +432,9 @@ describe("voice driver terminal correctness", () => {
 	it("drops Provider output that arrives after driver dispose", async () => {
 		const release = new Deferred<void>();
 		const runtime = runtimeWithChunks([]);
-		runtime.query = async function* () {
+		runtime.send = async function* (turn) {
 			await release.promise;
-			yield { type: "text", content: "stale-after-dispose" };
+			yield createAgentEvent({ eventId: "late", conversationId: turn.conversationId, turnId: turn.turnId, runtimeId: "codex", type: "assistant.delta", timestamp: new Date().toISOString(), payload: { text: "stale-after-dispose" } });
 		};
 		const driver = voiceDriver(runtime);
 		const onText = vi.fn();

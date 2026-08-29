@@ -39,6 +39,18 @@ describe("OmpJsonLineConnection", () => {
 		await connection.close();
 	});
 
+	it("removes a frame subscription when its consumer returns", async () => {
+		const connection = spawnOmpRpc({ executable: process.execPath, args: ["-e", ompResponder], cwd: process.cwd() });
+		await connection.ready();
+		const retired = connection.subscribe()[Symbol.asyncIterator]();
+		await retired.return?.();
+		const active = connection.subscribe()[Symbol.asyncIterator]();
+		expect(await connection.request("get_state")).toEqual({ sessionId: "omp-1" });
+		expect((await active.next()).value).toMatchObject({ type: "notice", message: "synthetic" });
+		expect(await retired.next()).toEqual({ value: undefined, done: true });
+		await connection.close();
+	});
+
 	it("fails closed on a corrupt native frame", async () => {
 		const script = "process.stdout.write('{broken\\n'); setInterval(() => {}, 1000);";
 		const connection = spawnOmpRpc({ executable: process.execPath, args: ["-e", script], cwd: process.cwd() });
@@ -66,6 +78,19 @@ describe("JsonLineRpcConnection", () => {
 		expect(await second).toEqual({ order: 2 });
 		expect(await first).toEqual({ order: 1 });
 		expect((await frames.next()).value).toMatchObject({ method: "message.delta", params: { text: "synthetic" } });
+		await connection.close();
+	});
+
+	it("removes a Codex frame subscription when its turn consumer returns", async () => {
+		const connection = spawnJsonLineRpc({ executable: process.execPath, args: ["-e", reverseResponder], cwd: process.cwd() });
+		const retired = connection.subscribe()[Symbol.asyncIterator]();
+		await retired.return?.();
+		const active = connection.subscribe()[Symbol.asyncIterator]();
+		const first = connection.request<{ order: number }>("first", {});
+		const second = connection.request<{ order: number }>("second", {});
+		await Promise.all([first, second]);
+		expect((await active.next()).value).toMatchObject({ method: "message.delta" });
+		expect(await retired.next()).toEqual({ value: undefined, done: true });
 		await connection.close();
 	});
 

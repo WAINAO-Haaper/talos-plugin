@@ -24,7 +24,53 @@ export interface ModelDescriptor {
 	id: string;
 	label: string;
 	providerProfileId?: string;
+	description?: string;
+	isDefault?: boolean;
+	reasoningOptions?: Array<{ value: string; label: string; description?: string }>;
+	defaultReasoning?: string;
+	serviceTiers?: Array<{ id: string; label: string; description?: string }>;
+	defaultServiceTier?: string;
 }
+
+export type RuntimeInputBlock =
+	| { type: "text"; text: string }
+	| {
+			type: "image";
+			id: string;
+			name: string;
+			mimeType: string;
+			dataUrl: string;
+		};
+
+export interface RuntimeLinkedContent {
+	path: string;
+	content?: string;
+}
+
+export interface RuntimeSelectionContext {
+	text: string;
+	source: "editor" | "browser" | "canvas";
+	path?: string;
+}
+
+export interface RuntimeExecutionContext {
+	linkedContent?: RuntimeLinkedContent;
+	selections?: RuntimeSelectionContext[];
+	externalContextPaths?: string[];
+	enabledMcpServers?: string[];
+}
+
+export interface RuntimeHistoryItem {
+	role: "user" | "assistant";
+	text: string;
+	timestamp?: string;
+}
+
+export type RuntimeToolPolicy =
+	| { kind: "passive" }
+	| { kind: "read-only" }
+	| { kind: "provider-default" }
+	| { kind: "allow-list"; names: string[] };
 
 export interface NativeSessionBinding {
 	runtimeId: RuntimeId;
@@ -46,9 +92,17 @@ export interface CreateSessionInput {
 export interface RuntimeTurn {
 	conversationId: string;
 	turnId: string;
+	/** Canonical structured input. `text` remains as a compatibility projection. */
+	input?: RuntimeInputBlock[];
 	text: string;
+	context?: RuntimeExecutionContext;
+	history?: RuntimeHistoryItem[];
 	model?: string;
+	reasoning?: string;
+	serviceTier?: string;
 	workflow: "plan" | "execute";
+	permissionMode?: "ask" | "scoped" | "vault-full";
+	toolPolicy?: RuntimeToolPolicy;
 	signal?: AbortSignal;
 }
 
@@ -66,7 +120,7 @@ export interface AgentRuntimeAdapter {
 	synchronizeContext?(input: { binding: NativeSessionBinding; context: string; lastEventId?: string }): Promise<void>;
 	send(turn: RuntimeTurn): AsyncIterable<AgentEvent>;
 	respondApproval?(input: { requestId: string | number; decision: "allow" | "allow-always" | "deny" | "cancel"; kind?: "command" | "file" | "permissions"; details?: Record<string, unknown> }): Promise<void>;
-	respondUserInput?(input: { requestId: string | number; answers: Record<string, string | string[]> }): Promise<void>;
+	respondUserInput?(input: { requestId: string | number; answers: Record<string, string | string[]> | null }): Promise<void>;
 	steer?(input: RuntimeSteer): Promise<void>;
 	cancel(reason?: string): Promise<void>;
 	fork?(input: { binding: NativeSessionBinding }): Promise<NativeSessionBinding>;

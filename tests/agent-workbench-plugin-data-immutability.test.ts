@@ -5,14 +5,8 @@ import { describe, expect, it } from "vitest";
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
 const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
-const vaultAdapterSource = readFileSync(
-	`${projectRoot}src/quyuan/claudian/core/storage/VaultFileAdapter.ts`,
-	"utf8",
-);
-const sharedStorageSource = readFileSync(
-	`${projectRoot}src/quyuan/claudian/app/storage/SharedStorageService.ts`,
-	"utf8",
-);
+const storageSource = readFileSync(`${projectRoot}src/agent-workbench/storage/obsidian-workbench-storage.ts`, "utf8");
+const importerSource = readFileSync(`${projectRoot}src/agent-workbench/legacy/claudian-readonly-importer.ts`, "utf8");
 
 describe("agent workbench plugin data immutability", () => {
 	it("stores TALOS-owned settings, permissions and bindings only in the sidecar namespace", () => {
@@ -20,6 +14,8 @@ describe("agent workbench plugin data immutability", () => {
 		expect(mainSource).toContain('`${workbenchStateRoot}/settings.json`');
 		expect(mainSource).toContain('`${workbenchStateRoot}/permission-rules.json`');
 		expect(mainSource).toContain('`${workbenchStateRoot}/runtime-bindings.json`');
+		expect(mainSource).toContain('`${workbenchStateRoot}/input-ledger.json`');
+		expect(mainSource).toContain('`${workbenchStateRoot}/ui-state.json`');
 		expect(mainSource).not.toContain("stored.agentWorkbenchPermissionRules");
 		expect(mainSource).not.toContain("stored.agentWorkbenchBindings");
 		expect(mainSource).toContain("chat-surface.json");
@@ -27,15 +23,12 @@ describe("agent workbench plugin data immutability", () => {
 		expect(viewSource).not.toContain("this.plugin.talosSettings.harnessSurface = id");
 	});
 
-	it("routes compatibility tab and session state away from plugin data in read-only mode", () => {
-		expect(sharedStorageSource).toContain("TALOS_COMPATIBILITY_HOST_PATH");
-		expect(sharedStorageSource).toContain("TALOS_TAB_MANAGER_STATE_PATH");
-		expect(sharedStorageSource).toContain("private sidecarWriteQueue: Promise<void> = Promise.resolve()");
-		expect(sharedStorageSource).toContain("this.sidecarWriteQueue.catch(() => {}).then");
-		expect(sharedStorageSource).toContain("this.adapter.replace(temporary, path)");
-		expect(vaultAdapterSource).toContain("renameFile(adapter.getFullPath(oldPath), adapter.getFullPath(newPath))");
-		expect(sharedStorageSource).toContain("const loaded = await this.readSidecar(TALOS_COMPATIBILITY_HOST_PATH)");
-		expect(sharedStorageSource).toContain("if (this.readOnly) {\n        await this.writeSidecar(TALOS_TAB_MANAGER_STATE_PATH, state);\n        return;");
-		expect(sharedStorageSource).toContain("const data: unknown = this.readOnly\n        ? await this.readSidecar(TALOS_TAB_MANAGER_STATE_PATH)\n        : await this.plugin.loadData();");
+	it("uses atomic TALOS sidecar writes and keeps old source bytes read-only", () => {
+		expect(storageSource).toContain("writeJsonAtomic");
+		expect(storageSource).toContain("await this.flush()");
+		expect(storageSource).toContain("await this.replace(temporary, file)");
+		expect(importerSource).toContain("sourceAggregateBefore");
+		expect(importerSource).toContain("sourceAggregateAfter");
+		expect(importerSource).toContain("旧 Claudian 源数据在导入期间发生变化");
 	});
 });

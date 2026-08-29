@@ -1,32 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ClaudeSdkQueryPort } from "../src/agent-workbench/transports/claude-sdk-port";
-import { automaticModelPresentation, presentRuntimeModel } from "../src/agent-workbench/ui/model-switcher-presentation";
-import { ProviderRegistry } from "../src/quyuan/claudian/core/providers/ProviderRegistry";
-import { ProviderSettingsCoordinator } from "../src/quyuan/claudian/core/providers/ProviderSettingsCoordinator";
-import { codexChatUIConfig } from "../src/quyuan/claudian/providers/codex/ui/CodexChatUIConfig";
+import type { CanUseTool, Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { ClaudeSdkQueryPort, type ClaudeSdkFacade } from "../src/agent-workbench/transports/claude-sdk-port";
+import { automaticModelPresentation, explicitDefaultModel, presentRuntimeModel, reasoningForModel } from "../src/agent-workbench/ui/model-switcher-presentation";
 
 describe("TALOS in-conversation model switcher", () => {
 	it("describes the official Codex 5.6 tiers without inventing one generic choice", () => {
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-sol", label: "GPT-5.6-Sol" })).toMatchObject({ kicker: "旗舰", badge: "推荐" });
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-terra", label: "GPT-5.6-Terra" })).toMatchObject({ kicker: "均衡" });
 		expect(presentRuntimeModel("codex", { id: "gpt-5.6-luna", label: "GPT-5.6-Luna" })).toMatchObject({ kicker: "高效" });
-	});
-
-	it("keeps the current Codex 5.6 model ahead of a stale saved projection on startup", () => {
-		ProviderRegistry.register("codex", {
-			displayName: "Codex",
-			blankTabOrder: 1,
-			isEnabled: () => true,
-			chatUIConfig: codexChatUIConfig,
-		} as never);
-		const settings = {
-			codexEnabled: true,
-			model: "gpt-5.6-sol",
-			savedProviderModel: { codex: "gpt-5.5" },
-			settingsProvider: "codex",
-		};
-		expect(codexChatUIConfig.normalizeModelVariant(settings.model, settings)).toBe("gpt-5.6-sol");
-		expect(ProviderSettingsCoordinator.getProviderSettingsSnapshot(settings, "codex").model).toBe("gpt-5.6-sol");
 	});
 
 	it("gives Claude Code official aliases concise task-oriented labels", () => {
@@ -49,6 +30,31 @@ describe("TALOS in-conversation model switcher", () => {
 		expect(automaticModelPresentation("claude").description).toContain("Claude Code");
 	});
 
+	it("pins a concrete discovered model only for a new OhMyPi session", () => {
+		const models = [{ id: "provider/model-a", label: "Model A" }, { id: "provider/model-b", label: "Model B" }];
+		expect(explicitDefaultModel("ohmypi", models, undefined)).toBe("provider/model-a");
+		expect(explicitDefaultModel("ohmypi", models, "provider/model-b")).toBe("provider/model-b");
+		expect(explicitDefaultModel("codex", models, undefined)).toBeUndefined();
+		expect(explicitDefaultModel("claude", models, undefined)).toBeUndefined();
+	});
+
+	it("selects the active model's reasoning default and drops incompatible modes", () => {
+		const model = {
+			id: "gpt-test",
+			label: "GPT Test",
+			reasoningOptions: [
+				{ value: "low", label: "low" },
+				{ value: "high", label: "high" },
+			],
+			defaultReasoning: "low",
+		};
+		expect(reasoningForModel(model, undefined)).toBe("low");
+		expect(reasoningForModel(model, "high")).toBe("high");
+		expect(reasoningForModel(model, "unsupported")).toBe("low");
+		expect(reasoningForModel({ id: "sonnet", label: "Sonnet" }, "high")).toBeUndefined();
+		expect(reasoningForModel(undefined, "high")).toBeUndefined();
+	});
+
 	it("offers Claude Code aliases when no API-specific model catalog is configured", async () => {
 		const port = new ClaudeSdkQueryPort(
 			"/synthetic/vault",
@@ -61,5 +67,44 @@ describe("TALOS in-conversation model switcher", () => {
 			{ id: "haiku", label: "Haiku" },
 			{ id: "fable", label: "Fable" },
 		]);
+	});
+
+	it("returns updated AskUserQuestion answers through Claude canUseTool", async () => {
+		let permissionResult: Awaited<ReturnType<CanUseTool>> | undefined;
+		const sdk: ClaudeSdkFacade = {
+			query(input) {
+				const stream = (async function* (): AsyncGenerator<SDKMessage, void> {
+					const canUseTool = input.options?.canUseTool;
+					if (!canUseTool) throw new Error("missing canUseTool");
+					permissionResult = await canUseTool("AskUserQuestion", { questions: [] }, {
+						signal: new AbortController().signal,
+						toolUseID: "tool-1",
+						requestId: "request-1",
+					});
+					yield { type: "auth_status", isAuthenticating: false } as SDKMessage;
+				})();
+				return stream as Query;
+			},
+			forkSession: async () => ({ sessionId: "forked" }),
+		};
+		const updatedInput = { questions: [], answers: { choice: "A" } };
+		const port = new ClaudeSdkQueryPort(
+			"/synthetic/vault",
+			async () => ({ runtimeId: "claude", status: "ready" }),
+			{ decide: async () => ({ allow: true, updatedInput }) },
+			[],
+			undefined,
+			{},
+			sdk,
+		);
+		await port.create({ conversationId: "conversation-1", vaultRoot: "/synthetic/vault" });
+		for await (const frame of port.turn({
+			sessionId: "conversation-1",
+			prompt: "question",
+			workflow: "plan",
+			permissionMode: "default",
+			sandbox: { enabled: true, failIfUnavailable: true },
+		})) void frame;
+		expect(permissionResult).toMatchObject({ behavior: "allow", updatedInput });
 	});
 });

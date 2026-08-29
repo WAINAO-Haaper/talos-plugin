@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile, realpath } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { connect } from "node:net";
+import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ActionRequest } from "../src/agent-workbench/contracts/approval";
 import { ApprovalBroker } from "../src/agent-workbench/security/approval-broker";
@@ -11,7 +12,7 @@ import { ProcessSandbox } from "../src/agent-workbench/security/process-sandbox"
 import { LoopbackEgressProxy } from "../src/agent-workbench/security/loopback-egress-proxy";
 import type { SecurityAuditRecord } from "../src/agent-workbench/security/security-audit";
 import { VaultBoundary } from "../src/agent-workbench/security/vault-boundary";
-import { codexPermissionProfileArgs, TALOS_AGENT_WORKBENCH_CODEX_PROFILE } from "../src/agent-workbench/security/codex-permission-profile";
+import { codexProtectedVaultSubpaths } from "../src/agent-workbench/security/codex-permission-profile";
 import { AgentWorkbenchService } from "../src/agent-workbench/core/agent-workbench-service";
 import { normalizeToolAction } from "../src/agent-workbench/security/tool-action-normalizer";
 
@@ -120,15 +121,24 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		expect((await fixtureBroker.value.evaluate(externalRead, context)).decision).toBe("ask");
 	});
 
-	it("remembers generic network approval for the current conversation only", async () => {
+	it("persists exact network approval across conversations and restart while scoping runtime and port", async () => {
 		const { vault } = await fixture();
-		const fixtureBroker = broker(vault);
+		const host = new RuleHost();
+		const first = broker(vault, host);
 		const network = request({ actionId: "network-1", kind: "network", targets: [], network: { protocol: "https", host: "example.test" } });
-		const ruleId = await fixtureBroker.value.rememberExactRule(network, context);
+		const ruleId = await first.value.rememberExactRule(network, context);
 		expect(ruleId).not.toBeNull();
+		const restarted = broker(vault, host);
 		const reconnect = request({ ...network, actionId: "network-2" });
-		expect((await fixtureBroker.value.evaluate(reconnect, context)).ruleId).toBe(ruleId);
-		expect((await fixtureBroker.value.evaluate(reconnect, { ...context, conversationId: "conversation-2" })).decision).toBe("ask");
+		expect((await restarted.value.evaluate(reconnect, { ...context, conversationId: "conversation-2" })).ruleId).toBe(ruleId);
+		expect((await restarted.value.evaluate(request({
+			...reconnect, actionId: "network-3", network: { protocol: "https", host: "example.test", port: 8443 },
+		}), context)).decision).toBe("ask");
+		expect((await restarted.value.evaluate(request({
+			...reconnect, actionId: "network-4", runtimeId: "ohmypi",
+		}), context)).decision).toBe("ask");
+		await new PermissionRuleStore(host).revoke(ruleId!);
+		expect((await broker(vault, host).value.evaluate(reconnect, context)).decision).toBe("ask");
 	});
 
 	it("fails closed when audit persistence fails and stores only target digests", async () => {
@@ -145,7 +155,6 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		const { vault } = await fixture();
 		const fixtureBroker = broker(vault);
 		const service = new AgentWorkbenchService({
-			compatibility: { initialize: async () => {}, dispose: () => {} },
 			approvalBroker: fixtureBroker.value,
 		});
 		service.setWorkflowMode("execute");
@@ -183,6 +192,39 @@ async function proxyResponse(port: number, request: string): Promise<string> {
 }
 
 describe("LoopbackEgressProxy", () => {
+	it("coalesces concurrent authorization for the same CONNECT destination", async () => {
+		let release!: (allowed: boolean) => void;
+		let calls = 0;
+		const decision = new Promise<boolean>((resolve) => { release = resolve; });
+		const proxy = new LoopbackEgressProxy(async () => { calls += 1; return decision; });
+		const port = await proxy.start();
+		const request = "CONNECT repeated.example:443 HTTP/1.1\r\nHost: repeated.example\r\n\r\n";
+		const first = proxyResponse(port, request);
+		const second = proxyResponse(port, request);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(calls).toBe(1);
+		release(false);
+		await expect(Promise.all([first, second])).resolves.toEqual([
+			expect.stringContaining("403 Forbidden"),
+			expect.stringContaining("403 Forbidden"),
+		]);
+		await proxy.close();
+	});
+
+	it("reuses allow-always for sequential CONNECT requests to the exact destination", async () => {
+		let calls = 0;
+		const proxy = new LoopbackEgressProxy(async () => {
+			calls += 1;
+			return "allow-always";
+		});
+		const port = await proxy.start();
+		const request = "CONNECT 127.0.0.1:1 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+		await expect(proxyResponse(port, request)).resolves.toContain("502 Bad Gateway");
+		await expect(proxyResponse(port, request)).resolves.toContain("502 Bad Gateway");
+		expect(calls).toBe(1);
+		await proxy.close();
+	});
+
 	it("denies CONNECT before opening an upstream socket and rejects plaintext proxying", async () => {
 		const destinations: Array<{ host: string; port: number }> = [];
 		const proxy = new LoopbackEgressProxy(async (destination) => {
@@ -198,17 +240,10 @@ describe("LoopbackEgressProxy", () => {
 });
 
 describe("ProcessSandbox", () => {
-	it("activates the current Codex TOML permissions profile and protects permanent zones", () => {
+	it("validates the Codex permanent zones delegated to the outer sandbox", () => {
 		const configDir = ".test-config";
-		const args = codexPermissionProfileArgs(configDir);
-		const serialized = args.join(" ");
-		expect(serialized).toContain(`default_permissions="${TALOS_AGENT_WORKBENCH_CODEX_PROFILE}"`);
-		expect(serialized).toContain(`permissions.${TALOS_AGENT_WORKBENCH_CODEX_PROFILE}=`);
-		expect(serialized).toContain('":minimal"="read"');
-		expect(serialized).toContain('":workspace_roots"={"."="write"');
-		expect(serialized).toContain("\"" + configDir + "\"=\"deny\"");
-		expect(serialized).not.toContain('"type"="restricted"');
-		expect(() => codexPermissionProfileArgs("/absolute/config")).toThrow("配置目录");
+		expect(codexProtectedVaultSubpaths(configDir)).toContain(configDir);
+		expect(() => codexProtectedVaultSubpaths("/absolute/config")).toThrow("配置目录");
 	});
 	it("fails closed when the OS sandbox is unavailable", async () => {
 		const sandbox = new ProcessSandbox({ available: async () => false }, "darwin");
@@ -218,7 +253,15 @@ describe("ProcessSandbox", () => {
 	it("allows only the exact TALOS loopback proxy and includes minimum startup reads", async () => {
 		const { vault } = await fixture();
 		const sandbox = new ProcessSandbox({ available: async () => true }, "darwin");
-		const spec = await sandbox.prepare({ executable: "/usr/bin/agent", args: ["--mode", "rpc"], cwd: vault, loopbackProxyPort: 45_678 }, vault);
+		const protectedPaths = codexProtectedVaultSubpaths(".vault-config");
+		const spec = await sandbox.prepare({
+			executable: "/usr/bin/agent",
+			args: ["--mode", "rpc"],
+			cwd: vault,
+			loopbackProxyPort: 45_678,
+			deniedVaultSubpaths: protectedPaths,
+			denyDotEnvFiles: true,
+		}, vault);
 		const profile = spec.args[1] ?? "";
 		expect(spec.executable).toBe("/usr/bin/sandbox-exec");
 		expect(spec.args.join(" ")).not.toMatch(/yolo|auto-approve|add-dir/);
@@ -232,6 +275,38 @@ describe("ProcessSandbox", () => {
 		expect(profile).toContain("/Library/Keychains");
 		expect(profile).not.toContain("/Library/Preferences/");
 		expect(profile).not.toContain("user-preference-read");
+		for (const subpath of protectedPaths) {
+			expect(profile).toContain(`(deny file-read* file-write* (literal "${join(await realpath(vault), subpath)}"))`);
+		}
+		expect(profile).toContain('(deny file-read* file-write* (regex #"');
+		expect(profile).toContain("\\.env[^/]*");
 		await expect(sandbox.prepare({ executable: "/usr/bin/agent", args: [], cwd: vault, loopbackProxyPort: 0 }, vault)).rejects.toThrow("端口无效");
+	});
+
+	it("enforces protected Vault paths and dot-env files in the real macOS sandbox", async () => {
+		if (process.platform !== "darwin") return;
+		const { vault } = await fixture();
+		await writeFile(join(vault, ".vault-config", "secret.txt"), "blocked");
+		await writeFile(join(vault, ".env.local"), "blocked");
+		const sandbox = new ProcessSandbox({ available: async () => true }, "darwin");
+		const launch = async (executable: string, args: string[]) => {
+			const spec = await sandbox.prepare({
+				executable,
+				args,
+				cwd: vault,
+				deniedVaultSubpaths: codexProtectedVaultSubpaths(".vault-config"),
+				denyDotEnvFiles: true,
+			}, vault);
+			return spawnSync(spec.executable, spec.args, {
+				cwd: spec.cwd,
+				encoding: "utf8",
+				env: { ...process.env, ...spec.environment },
+			});
+		};
+		expect((await launch("/bin/cat", [join(vault, "note.md")])).status).toBe(0);
+		expect((await launch("/bin/cat", [join(vault, ".vault-config", "secret.txt")])).status).not.toBe(0);
+		expect((await launch("/bin/cat", [join(vault, ".env.local")])).status).not.toBe(0);
+		expect((await launch("/usr/bin/touch", [join(vault, "created.md")])).status).toBe(0);
+		expect((await launch("/usr/bin/touch", [join(vault, ".vault-config", "blocked.md")])).status).not.toBe(0);
 	});
 });

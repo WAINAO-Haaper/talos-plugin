@@ -12,24 +12,20 @@ import {
   LOCAL_PREVIEW_MAX_TABLE_COLUMNS,
   LOCAL_PREVIEW_MAX_TABLE_ROWS,
   LOCAL_PREVIEW_MAX_TEXT_BYTES,
-} from '../src/quyuan/claudian/features/chat/ui/file-preview/LocalFilePreviewPolicy';
+} from '../src/agent-workbench/ui/file-preview/local-preview-policy';
 
 const encode = (value: string): Uint8Array => new TextEncoder().encode(value);
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const modalSource = readFileSync(
-  `${projectRoot}src/quyuan/claudian/features/chat/ui/file-preview/LocalFilePreviewModal.ts`,
+  `${projectRoot}src/agent-workbench/ui/file-preview/local-preview-modal.ts`,
   'utf8',
 );
 const fileContextSource = readFileSync(
-  `${projectRoot}src/quyuan/claudian/features/chat/ui/FileContext.ts`,
-  'utf8',
-);
-const tabSource = readFileSync(
-  `${projectRoot}src/quyuan/claudian/features/chat/tabs/Tab.ts`,
+  `${projectRoot}src/agent-workbench/ui/native-composer.ts`,
   'utf8',
 );
 const styleIndex = readFileSync(
-  `${projectRoot}src/quyuan/claudian/style/index.css`,
+  `${projectRoot}src/agent-workbench/ui/styles/index.css`,
   'utf8',
 );
 
@@ -184,15 +180,14 @@ describe('G3 binary validation and privacy boundary', () => {
   );
 
   it('wires the picker into the product UI and keeps rendering local-only', () => {
-    expect(fileContextSource).toContain('pickLocalPreviewFile(): void');
-    expect(tabSource).toContain("actionButton('file-search', '预览', 'is-preview'");
+    expect(fileContextSource).toContain('new LocalFilePreviewPicker(this.options.app).open()');
     expect(styleIndex).toContain('@import "./features/file-preview.css";');
     expect(modalSource).toContain('evaluateDeclaredLocalPreview(this.file.name, this.file.stat.size)');
     expect(modalSource.indexOf('evaluateDeclaredLocalPreview')).toBeLessThan(
       modalSource.indexOf('this.app.vault.readBinary'),
     );
-    expect(modalSource).toContain("sandbox: ''");
-    expect(modalSource).toContain("referrerpolicy: 'no-referrer'");
+    expect(modalSource).toContain('sandbox: ""');
+    expect(modalSource).toContain('referrerpolicy: "no-referrer"');
     expect(modalSource).toContain('URL.revokeObjectURL');
     expect(modalSource).toContain('preEl.setText(result.text)');
     expect(modalSource).toContain('cellEl.setText(cell)');

@@ -1594,6 +1594,11 @@
 	}
 }
 
+.talos-agent-reasoning-control[hidden],
+.talos-agent-service-tier-control[hidden] {
+	display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.talos-console[data-talos-page="talos"] .talos-v2-gate-chart__segment {
 		transition: none;
@@ -2964,8 +2969,68 @@ body[data-talos-vault-theme] .talos-console .talos-agent-permission-option[aria-
 }
 
 .talos-agent-compatibility-body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   min-height: 0;
-  flex: 1;
+  overflow: hidden;
+}
+
+.talos-agent-compatibility-body > .talos-native-chat {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.talos-native-chat > .claudian-tab-bar-container {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.talos-native-chat-main {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.talos-native-chat-main > .claudian-tab-content-container {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.talos-native-chat .claudian-messages-wrapper {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.talos-native-chat .talos-native-history {
+  flex: 0 0 min(320px, 36%);
+  min-width: 220px;
+  min-height: 0;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--background-modifier-border);
+}
+
+.talos-native-chat .talos-native-approval-region {
+  flex: 0 0 auto;
+  max-height: 35%;
+  overflow-y: auto;
+}
+
+.talos-native-chat .claudian-active-input-slot {
+  flex: 0 0 auto;
+  padding: 0 12px 12px;
+  background: var(--background-primary);
+}
+
+.talos-native-chat .talos-native-composer {
+  width: 100%;
+  padding-top: 8px;
 }
 
 /* The standalone recovery workbench keeps its original chrome. */

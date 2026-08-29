@@ -1,12 +1,11 @@
 import { FileSystemAdapter, Modal, Notice, Plugin, TFile, WorkspaceLeaf, addIcon, debounce, normalizePath, requestUrl } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeVisualTheme } from "./settings";
 import { TalosView, VIEW_TYPE_TALOS } from "./view";
-import { VIEW_TYPE_CLAUDIAN } from "./quyuan/claudian/core/types";
-import type { ProviderId } from "./quyuan/claudian/core/providers/types";
 import { AgentWorkbenchService } from "./agent-workbench/core/agent-workbench-service";
 import { ConversationService } from "./agent-workbench/core/conversation-service";
 import { WorkbenchConversationCoordinator } from "./agent-workbench/core/workbench-conversation-coordinator";
 import { ClaudianReadonlyImporter, type LegacyImportState } from "./agent-workbench/legacy/claudian-readonly-importer";
+import { migrateLegacyCodexCredential } from "./agent-workbench/legacy/legacy-codex-credential-migrator";
 import { RuntimeDiscoveryService } from "./agent-workbench/discovery/runtime-discovery-service";
 import { NodeRuntimeProbeHost } from "./agent-workbench/discovery/node-runtime-probe-host";
 import { DesktopRuntimeFactory } from "./agent-workbench/discovery/desktop-runtime-factory";
@@ -20,16 +19,16 @@ import { ObsidianLegacyReadAdapter, ObsidianWorkbenchStorage } from "./agent-wor
 import { PortableConversationStore } from "./agent-workbench/storage/portable-conversation-store";
 import { RuntimeBindingStore } from "./agent-workbench/storage/runtime-binding-store";
 import { WorkbenchSettingsStore } from "./agent-workbench/storage/workbench-settings-store";
-import { ClaudianCompatibilityHost } from "./agent-workbench/ui/claudian-compatibility-host";
+import { ConversationInputLedger } from "./agent-workbench/storage/conversation-input-ledger";
+import { migrateLegacyTabManagerState, WorkbenchUiStateStore } from "./agent-workbench/storage/workbench-ui-state-store";
+import {
+	TalosAgentRecoveryView,
+	VIEW_TYPE_TALOS_AGENT_RECOVERY,
+} from "./agent-workbench/ui/talos-agent-recovery-view";
 import {
 	buildTalosProviderProfiles,
 	TALOS_MANAGED_PROVIDER_PROFILE_IDS,
 } from "./agent-workbench/config/talos-provider-profiles";
-import {
-	getCodexProviderSettings,
-	updateCodexProviderSettings,
-} from "./quyuan/claudian/providers/codex/settings";
-import { parseEnvironmentVariables } from "./quyuan/claudian/utils/env";
 import {
 	loadQuyuanSoulContextWithFallback,
 	type QuyuanSoulContext,
@@ -54,7 +53,6 @@ import {
 import {
 	providerSecretStoreFromApp,
 	readProviderSecret,
-	saveProviderSecret,
 } from "./ai/provider/secret-storage-runtime";
 import type { LegacySecretField } from "./ai/provider/settings-migration";
 import {
@@ -63,7 +61,7 @@ import {
 } from "./ai/provider/provider-config-runtime";
 import type { ProviderConfigFile } from "./ai/provider/provider-config-store";
 import { ProviderFacade } from "./ai/provider/provider-facade";
-import { createClaudianProviderAdapters } from "./ai/provider/claudian-provider-adapter";
+import { createAgentWorkbenchProviderAdapters } from "./ai/provider/agent-workbench-provider-adapter";
 import { AnthropicApiProvider } from "./ai/provider/anthropic-api-provider";
 import { OpenAiCompatibleProvider } from "./ai/provider/openai-compatible-provider";
 import { VaultRetriever } from "./ai/context/vault-retrieval";
@@ -120,8 +118,6 @@ import {
 // 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
 export const TALOS_ICON = "talos-logo";
-const QUYUAN_SOUL_START = "<!-- TALOS_QUYUAN_SOUL:START -->";
-const QUYUAN_SOUL_END = "<!-- TALOS_QUYUAN_SOUL:END -->";
 const QUYUAN_RUNTIME_ERROR_LIMIT = 24;
 
 type QuyuanRuntimeErrorRecord = {
@@ -224,7 +220,6 @@ export default class TalosPlugin extends Plugin {
 	private agentWorkbenchService: AgentWorkbenchService | null = null;
 	private agentWorkbenchStorage: ObsidianWorkbenchStorage | null = null;
 	private agentWorkbenchSurface: "dsh" | "codex" = "dsh";
-	private claudianCompatibility: ClaudianCompatibilityHost | null = null;
 	private quyuanSoul: QuyuanSoulContext | null = null;
 	private quyuanSoulError = "";
 	private quyuanWorkbenchError = "";
@@ -232,10 +227,7 @@ export default class TalosPlugin extends Plugin {
 	private readonly quyuanReadPaths = new Set<string>();
 	private quyuanTts: StreamTts | null = null;
 	private quyuanWorkbenchReady = false;
-	private quyuanWorkbenchInitialization: Promise<{
-		service: AgentWorkbenchService;
-		compatibility: ClaudianCompatibilityHost;
-	}> | null = null;
+	private quyuanWorkbenchInitialization: Promise<{ service: AgentWorkbenchService }> | null = null;
 	private talosAskService: TalosAskService | null = null;
 	private talosAskCommand: TalosAskCommand | null = null;
 	private talosProviderFacade: ProviderFacade | null = null;
@@ -267,6 +259,13 @@ export default class TalosPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_TALOS,
 			(leaf: WorkspaceLeaf) => new TalosView(leaf, this)
+		);
+		this.registerView(
+			VIEW_TYPE_TALOS_AGENT_RECOVERY,
+			(leaf: WorkspaceLeaf) => new TalosAgentRecoveryView(
+				leaf,
+				async () => (await this.waitForAgentWorkbench()).service,
+			)
 		);
 
 		this.addRibbonIcon(TALOS_ICON, "打开 TALOS 控制台", () => {
@@ -581,22 +580,15 @@ export default class TalosPlugin extends Plugin {
 		this.agentWorkbenchService?.dispose();
 		this.agentWorkbenchService = null;
 		this.agentWorkbenchStorage = null;
-		this.claudianCompatibility = null;
 		activeDocument.body.removeAttribute("data-talos-vault-theme");
 	}
 
-	private startQuyuanWorkbenchInitialization(): Promise<{
-		service: AgentWorkbenchService;
-		compatibility: ClaudianCompatibilityHost;
-	}> {
+	private startQuyuanWorkbenchInitialization(): Promise<{ service: AgentWorkbenchService }> {
 		this.quyuanWorkbenchInitialization ??= this.initializeQuyuanWorkbench();
 		return this.quyuanWorkbenchInitialization;
 	}
 
-	async waitForAgentWorkbench(): Promise<{
-		service: AgentWorkbenchService;
-		compatibility: ClaudianCompatibilityHost;
-	}> {
+	async waitForAgentWorkbench(): Promise<{ service: AgentWorkbenchService }> {
 		return this.startQuyuanWorkbenchInitialization();
 	}
 
@@ -605,13 +597,6 @@ export default class TalosPlugin extends Plugin {
 			throw new Error(this.quyuanWorkbenchError || "TALOS 智能体工作台仍在初始化");
 		}
 		return this.agentWorkbenchService;
-	}
-
-	getAgentWorkbenchCompatibility(): ClaudianCompatibilityHost {
-		if (!this.claudianCompatibility || !this.quyuanWorkbenchReady) {
-			throw new Error(this.quyuanWorkbenchError || "兼容展示层仍在初始化");
-		}
-		return this.claudianCompatibility;
 	}
 
 	getAgentWorkbenchSurface(): "dsh" | "codex" {
@@ -669,13 +654,13 @@ export default class TalosPlugin extends Plugin {
 		}
 
 		const { workspace } = this.app;
-		const existing = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
+		const existing = workspace.getLeavesOfType(VIEW_TYPE_TALOS_AGENT_RECOVERY);
 		const mainLeaf = existing.find(
 			(candidate) => candidate.getRoot() === workspace.rootSplit
 		);
 		const leaf = mainLeaf ?? workspace.getLeaf("tab");
 		if (!mainLeaf) {
-			await leaf.setViewState({ type: VIEW_TYPE_CLAUDIAN, active: true });
+			await leaf.setViewState({ type: VIEW_TYPE_TALOS_AGENT_RECOVERY, active: true });
 		}
 		await workspace.revealLeaf(leaf);
 		this.scheduleQuyuanWorkbenchCheck(leaf);
@@ -797,54 +782,25 @@ export default class TalosPlugin extends Plugin {
 		this.talosAskService = null;
 		this.talosAskCommand = null;
 		this.talosProviderFacade = null;
-		this.syncCodexHarnessEnvironment();
+		await this.syncCodexHarnessEnvironment();
 		await this.syncAgentWorkbenchProviderProfiles();
 	}
 
-	/**
-	 * D-TLP-013：设置页 → Codex harness 环境同步。
-	 * base_url/model 写入 codex provider 的环境文本（非密，可持久化）；
-	 * 环境文本里遗留的明文 OPENAI_API_KEY 先迁入 SecretStorage 再剔除（D-WP7-004）。
-	 */
-	private syncCodexHarnessEnvironment(): void {
-		const compatibility = this.claudianCompatibility;
-		if (!compatibility?.settings || !this.talosSettings) return;
-		const current = getCodexProviderSettings(compatibility.settings).environmentVariables;
-		const parsed = parseEnvironmentVariables(current);
-		const legacyKey = parsed.OPENAI_API_KEY?.trim() ?? "";
-		if (legacyKey && !this.readProviderSecret("codexApiKey")) {
-			const store = providerSecretStoreFromApp(this.app);
-			if (store) {
-				try {
-					saveProviderSecret(
-						this.talosSettings,
-						"codexApiKey",
-						legacyKey,
-						store
-					);
-				} catch (error) {
-					this.recordQuyuanRuntimeError("syncCodexHarnessEnvironment.secret", error);
-				}
+	/** One-way legacy credential bridge; native runtime profiles own all new settings. */
+	private async syncCodexHarnessEnvironment(): Promise<void> {
+		try {
+			const result = await migrateLegacyCodexCredential({
+				adapter: this.app.vault.adapter,
+				settings: this.talosSettings,
+				store: providerSecretStoreFromApp(this.app),
+			});
+			if (result.migrated) {
+				const loaded: unknown = await this.loadData();
+				const stored = isRecord(loaded) ? loaded : {};
+				await this.saveData({ ...stored, talos: this.talosSettings });
 			}
-		}
-
-		const managedKeys = new Set(["OPENAI_BASE_URL", "OPENAI_MODEL", "OPENAI_API_KEY"]);
-		const kept = current.split(/\r?\n/).filter((line) => {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith("#")) return true;
-			const normalized = trimmed.startsWith("export ") ? trimmed.slice(7) : trimmed;
-			const eqIndex = normalized.indexOf("=");
-			const key = eqIndex > 0 ? normalized.substring(0, eqIndex).trim() : "";
-			return !managedKeys.has(key);
-		});
-		const baseUrl = this.talosSettings.codexBaseUrl.trim();
-		const model = this.talosSettings.codexModel.trim();
-		if (baseUrl) kept.push(`OPENAI_BASE_URL=${baseUrl}`);
-		if (model) kept.push(`OPENAI_MODEL=${model}`);
-		const next = kept.join("\n").trim();
-		if (next !== current.trim()) {
-			updateCodexProviderSettings(compatibility.settings, { environmentVariables: next });
-			void compatibility.saveSettings();
+		} catch (error) {
+			this.recordQuyuanRuntimeError("nativeCodexCredentialMigration", error);
 		}
 	}
 
@@ -872,7 +828,7 @@ export default class TalosPlugin extends Plugin {
 	 * D-TLP-013/D-WP7-004：Codex API Key 只在 spawn 子进程前运行时注入，
 	 * 永不写入可持久化的设置文本。
 	 */
-	decorateClaudianEnvironment(providerId: ProviderId, base: string): string {
+	decorateRuntimeEnvironment(providerId: string | undefined, base: string): string {
 		if (providerId !== undefined && providerId !== "codex") return base;
 		const key = this.readProviderSecret("codexApiKey");
 		if (!key) return base;
@@ -886,8 +842,11 @@ export default class TalosPlugin extends Plugin {
 	getTalosProviderFacade(): ProviderFacade {
 		if (this.talosProviderFacade) return this.talosProviderFacade;
 		const facade = new ProviderFacade();
-		if (this.quyuanWorkbenchReady && this.claudianCompatibility) {
-			for (const provider of createClaudianProviderAdapters(this.claudianCompatibility)) {
+		if (this.quyuanWorkbenchReady && this.agentWorkbenchService) {
+			for (const provider of createAgentWorkbenchProviderAdapters(
+				this.agentWorkbenchService,
+				this.agentWorkbenchService.getVaultRoot(),
+			)) {
 				facade.register(provider);
 			}
 		}
@@ -1268,16 +1227,14 @@ export default class TalosPlugin extends Plugin {
 
 	private buildQuyuanDiagnosticsReport(path: string): string {
 		const workspace = this.app.workspace;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
-		const compatibilitySettings = this.claudianCompatibility?.settings;
-		const safeWorkbenchSettings = compatibilitySettings
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_TALOS_AGENT_RECOVERY);
+		const service = this.agentWorkbenchService;
+		const safeWorkbenchSettings = service?.isReady()
 			? {
-				settingsProvider: compatibilitySettings.settingsProvider,
-				model: compatibilitySettings.model,
-				permissionMode: compatibilitySettings.permissionMode,
-				maxTabs: compatibilitySettings.maxTabs,
-				chatViewPlacement: compatibilitySettings.chatViewPlacement,
-				locale: compatibilitySettings.locale,
+				selection: service.getSelection(),
+				workflow: service.getWorkflowMode(),
+				permissionMode: service.getPermissionMode(),
+				implementation: "talos-native",
 			}
 			: null;
 		const safeTalosSettings = this.talosSettings
@@ -1305,7 +1262,7 @@ export default class TalosPlugin extends Plugin {
 			"",
 				`- 报告文件：\`${path}\``,
 				`- 插件版本：\`${this.manifest.version}\``,
-				`- 完整工作台视图类型：\`${VIEW_TYPE_CLAUDIAN}\``,
+				`- 完整工作台视图类型：\`${VIEW_TYPE_TALOS_AGENT_RECOVERY}\``,
 				`- 完整工作台初始化：${this.describeQuyuanWorkbenchStatus()}`,
 				`- 屈原人格启动：${this.quyuanSoul ? "✅ 已加载" : `❌ ${this.quyuanSoulError || "未加载"}`}`,
 			`- 屈原人格加载时间：${this.quyuanSoul?.loadedAt ? new Date(this.quyuanSoul.loadedAt).toISOString() : "n/a"}`,
@@ -1333,8 +1290,8 @@ export default class TalosPlugin extends Plugin {
 			"",
 			"## 下一步",
 			"",
-			"- 如果 `ClaudianWorkbenchPlugin.onload` 有错误，优先看完整工作台初始化链路。",
-			"- 如果 leaf 已创建但 `hasShell=false` 或 `hasTabManager=false`，优先看 `ClaudianView.onOpen` 抛错。",
+			"- 如果 `AgentWorkbenchService.initialize` 有错误，优先看原生工作台初始化链路。",
+			"- 如果 leaf 已创建但对话内容为空，优先看 `TalosAgentRecoveryView.onOpen` 抛错。",
 			"- 如果没有错误但仍不可见，优先查 Obsidian 布局位置、右侧栏折叠状态和 CSS 可见性。",
 			"",
 		];
@@ -1711,8 +1668,8 @@ export default class TalosPlugin extends Plugin {
 		prompt: string;
 		historyText?: string;
 		currentNotePath?: string;
-		editorSourcePath?: string;
-		canvasSourcePath?: string;
+		editorSourcePaths?: string[];
+		canvasSourcePaths?: string[];
 		externalContextPaths?: string[];
 		hasImages?: boolean;
 		hasMcpMentions?: boolean;
@@ -1722,8 +1679,8 @@ export default class TalosPlugin extends Plugin {
 		const sourceKinds: ProviderEgressSourceKind[] = ["prompt"];
 		if (input.historyText) sourceKinds.push("history");
 		if (input.currentNotePath) sourceKinds.push("current-note");
-		if (input.editorSourcePath) sourceKinds.push("editor-selection");
-		if (input.canvasSourcePath) sourceKinds.push("canvas-selection");
+		if (input.editorSourcePaths?.length) sourceKinds.push("editor-selection");
+		if (input.canvasSourcePaths?.length) sourceKinds.push("canvas-selection");
 		if (input.hasBrowserContext) sourceKinds.push("browser-selection");
 		if (input.hasImages) sourceKinds.push("attachment");
 		if ((input.externalContextPaths?.length ?? 0) > 0) {
@@ -1739,9 +1696,9 @@ export default class TalosPlugin extends Plugin {
 				? [input.currentNotePath]
 				: [],
 			sourcePaths: [
-				input.editorSourcePath,
-				input.canvasSourcePath,
-			].filter((path): path is string => Boolean(path)),
+				...(input.editorSourcePaths ?? []),
+				...(input.canvasSourcePaths ?? []),
+			],
 			sourceKinds,
 			externalContextPaths: input.externalContextPaths,
 			hasImages: input.hasImages,
@@ -1840,10 +1797,7 @@ export default class TalosPlugin extends Plugin {
 		this.quyuanTts?.stop();
 	}
 
-	private async initializeQuyuanWorkbench(): Promise<{
-		service: AgentWorkbenchService;
-		compatibility: ClaudianCompatibilityHost;
-	}> {
+	private async initializeQuyuanWorkbench(): Promise<{ service: AgentWorkbenchService }> {
 		this.quyuanWorkbenchReady = false;
 		this.quyuanWorkbenchError = "";
 		try {
@@ -1888,6 +1842,21 @@ export default class TalosPlugin extends Plugin {
 				read: () => portableStorage.readJson<Record<string, unknown>>(`${workbenchStateRoot}/runtime-bindings.json`),
 				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/runtime-bindings.json`, value),
 			});
+			const inputLedger = new ConversationInputLedger({
+				read: () => portableStorage.readJson(`${workbenchStateRoot}/input-ledger.json`),
+				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/input-ledger.json`, value),
+			});
+			const uiStateStore = new WorkbenchUiStateStore({
+				read: async () => {
+					const current = await portableStorage.readJson(`${workbenchStateRoot}/ui-state.json`);
+					if (current) return current;
+					return migrateLegacyTabManagerState(
+						await portableStorage.readJson(`${workbenchStateRoot}/tab-manager-state.json`),
+						await portableStorage.readJson(`${workbenchStateRoot}/import-manifest.json`),
+					);
+				},
+				write: (value) => portableStorage.writeJsonAtomic(`${workbenchStateRoot}/ui-state.json`, value),
+			});
 			const importManifestPath = ".talos/agent-workbench/v1/import-manifest.json";
 			const legacyImporter = new ClaudianReadonlyImporter(
 				new ObsidianLegacyReadAdapter(this.app.vault.adapter),
@@ -1902,11 +1871,29 @@ export default class TalosPlugin extends Plugin {
 				nativeBindings,
 				legacyImporter,
 			);
-			const compatibility = new ClaudianCompatibilityHost(this);
 			const service = new AgentWorkbenchService({
-				compatibility,
 				approvalBroker,
 				conversationCoordinator,
+				inputLedger,
+				uiStateStore,
+				vaultRoot,
+				preflightEgress: (input) => {
+					const editorSourcePaths = input.context?.selections?.flatMap((selection) => selection.source === "editor" && selection.path ? [selection.path] : []) ?? [];
+					const canvasSourcePaths = input.context?.selections?.flatMap((selection) => selection.source === "canvas" && selection.path ? [selection.path] : []) ?? [];
+					return this.auditQuyuanChatEgress({
+						providerId: input.runtimeId,
+						prompt: input.prompt,
+						...(input.history?.length ? { historyText: JSON.stringify(input.history) } : {}),
+						currentNotePath: input.context?.linkedContent?.path,
+						editorSourcePaths,
+						canvasSourcePaths,
+						externalContextPaths: input.context?.externalContextPaths,
+						hasImages: input.hasImages,
+						hasMcpMentions: Boolean(input.context?.enabledMcpServers?.length),
+						hasBrowserContext: input.context?.selections?.some((selection) => selection.source === "browser") ?? false,
+						sessionId: input.conversationId,
+					});
+				},
 				settingsStore: workbenchSettings,
 				onPersistenceError: (error) => this.recordQuyuanRuntimeError("AgentWorkbenchService.settings", error),
 				probeRuntime: (runtimeId, profile, signal) => discovery.probe(runtimeId, profile),
@@ -1916,27 +1903,24 @@ export default class TalosPlugin extends Plugin {
 				},
 				createRuntime: (runtimeId, input) => runtimeFactory.create(runtimeId, { ...input, configDir: this.app.vault.configDir }),
 			});
-			this.claudianCompatibility = compatibility;
 			this.agentWorkbenchService = service;
 			await service.initialize();
+			await this.syncCodexHarnessEnvironment();
 			await this.syncAgentWorkbenchProviderProfiles();
 			this.quyuanWorkbenchReady = true;
 			this.talosProviderFacade = null;
 			this.talosAskService = null;
 			this.quyuanWorkbenchError = "";
-			this.syncCodexHarnessEnvironment();
-			this.syncQuyuanSoulPrompt();
-			return { service, compatibility };
+			return { service };
 		} catch (error) {
 			this.agentWorkbenchService?.dispose();
 			this.agentWorkbenchService = null;
-			this.claudianCompatibility = null;
 			this.quyuanWorkbenchReady = false;
 			this.talosProviderFacade = null;
 			this.talosAskService = null;
 			this.quyuanWorkbenchError =
 				error instanceof Error ? error.message : String(error);
-			this.recordQuyuanRuntimeError("ClaudianWorkbenchPlugin.onload", error);
+			this.recordQuyuanRuntimeError("AgentWorkbenchService.initialize", error);
 			console.error("TALOS Quyuan workbench failed to initialize", error);
 			throw error;
 		}
@@ -1957,7 +1941,6 @@ export default class TalosPlugin extends Plugin {
 			this.talosProviderFacade = null;
 			this.talosAskService = null;
 			this.quyuanSoulError = "";
-			this.syncQuyuanSoulPrompt();
 		} catch (error) {
 			this.quyuanSoul = null;
 			this.quyuanSoulError =
@@ -1966,19 +1949,4 @@ export default class TalosPlugin extends Plugin {
 		}
 	}
 
-	private syncQuyuanSoulPrompt(): void {
-		const compatibility = this.claudianCompatibility;
-		if (!this.quyuanSoul || !compatibility?.settings) return;
-		const current = compatibility.settings.systemPrompt || "";
-		const escapedStart = QUYUAN_SOUL_START.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-		const escapedEnd = QUYUAN_SOUL_END.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-		const block = `${QUYUAN_SOUL_START}\n${this.quyuanSoul.systemContext}\n${QUYUAN_SOUL_END}`;
-		const blockPattern = new RegExp(
-			`\\n?${escapedStart}[\\s\\S]*?${escapedEnd}\\n?`,
-			"m"
-		);
-		compatibility.settings.systemPrompt = blockPattern.test(current)
-			? current.replace(blockPattern, `\n${block}\n`)
-			: `${current.trimEnd()}${current.trim() ? "\n\n" : ""}${block}`;
-	}
 }

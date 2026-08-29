@@ -21,22 +21,38 @@ class FrameSubscription implements AsyncIterable<ProtocolFrame> {
 	private waiters: FrameWaiter[] = [];
 	private ended = false;
 	private endedError: Error | null = null;
-	push(frame: ProtocolFrame): void { const waiter = this.waiters.shift(); if (waiter) waiter.resolve({ value: frame, done: false }); else this.queue.push(frame); }
+	constructor(private readonly onDispose: () => void) {}
+	push(frame: ProtocolFrame): void {
+		if (this.ended) return;
+		const waiter = this.waiters.shift();
+		if (waiter) waiter.resolve({ value: frame, done: false });
+		else this.queue.push(frame);
+	}
 	end(error?: Error): void {
+		if (this.ended) return;
 		this.ended = true;
 		this.endedError = error ?? null;
+		this.queue = [];
+		this.onDispose();
 		for (const waiter of this.waiters.splice(0)) {
 			if (error) waiter.reject(error);
 			else waiter.resolve({ value: undefined, done: true });
 		}
 	}
 	[Symbol.asyncIterator](): AsyncIterator<ProtocolFrame> {
-		return { next: async () => {
-			const frame = this.queue.shift(); if (frame) return { value: frame, done: false };
-			if (this.endedError) throw this.endedError;
-			if (this.ended) return { value: undefined, done: true };
-			return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
-		} };
+		return {
+			next: async () => {
+				const frame = this.queue.shift();
+				if (frame) return { value: frame, done: false };
+				if (this.endedError) throw this.endedError;
+				if (this.ended) return { value: undefined, done: true };
+				return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
+			},
+			return: async () => {
+				this.end();
+				return { value: undefined, done: true };
+			},
+		};
 	}
 }
 
@@ -83,7 +99,10 @@ export class JsonLineRpcConnection implements JsonRpcConnection {
 	async respond(id: string | number, result: unknown): Promise<void> { await this.write({ jsonrpc: "2.0", id, result }); }
 
 	subscribe(): AsyncIterable<ProtocolFrame> {
-		const subscription = new FrameSubscription(); this.subscribers.add(subscription); return subscription;
+		let subscription!: FrameSubscription;
+		subscription = new FrameSubscription(() => this.subscribers.delete(subscription));
+		this.subscribers.add(subscription);
+		return subscription;
 	}
 
 	private async write(value: unknown): Promise<void> {

@@ -77,6 +77,13 @@ export interface DshProcessRuntime {
 
 type StateListener = (state: DshRuntimeState, error: string) => void;
 
+// 官方 dsh rc.8 的 process-shutdown 合同最多保留 5 秒完成 dispose。
+const DSH_UPSTREAM_SHUTDOWN_TIMEOUT_MS = 5000;
+const DSH_SUPERVISOR_SHUTDOWN_GRACE_MS =
+	DSH_UPSTREAM_SHUTDOWN_TIMEOUT_MS + 500;
+const DSH_MANAGER_STOP_TIMEOUT_MS =
+	DSH_SUPERVISOR_SHUTDOWN_GRACE_MS + 1000;
+
 const INHERITED_ENV_ALLOWLIST = [
 	"PATH",
 	"HOME",
@@ -172,6 +179,140 @@ export function buildDshChildEnvironment(
 		result.DSH_HOME = planEnvironment.DSH_HOME;
 	}
 	return result;
+}
+
+export function resolveNodeExecutable(
+	inherited: NodeJS.ProcessEnv = process.env,
+	platform: NodeJS.Platform = process.platform,
+	isExecutable: ExecutableProbe = canExecute
+): string {
+	const directory = resolveNodeBinDirectory(
+		inherited,
+		platform,
+		isExecutable
+	);
+	if (!directory) {
+		throw new Error("无法启动 dsh：未找到可执行的 Node.js 运行时");
+	}
+	const pathApi = platform === "win32" ? path.win32 : path.posix;
+	return pathApi.join(
+		directory,
+		platform === "win32" ? "node.exe" : "node"
+	);
+}
+
+/**
+ * Electron 渲染进程退出时不保证 Obsidian 会等待插件的异步 onunload。
+ * 由一个只持有 dsh 的轻量 Node 监护进程观察宿主 PID；宿主消失、插件显式
+ * stop，或 dsh 自行退出时，监护进程都会收敛，不把随机端口服务留给 PID 1。
+ */
+export const DSH_PARENT_SUPERVISOR_SOURCE = String.raw`
+"use strict";
+const { spawn } = require("node:child_process");
+const [hostPidRaw, pollIntervalRaw, shutdownGraceRaw, executable, ...args] =
+	process.argv.slice(1);
+const hostPid = Number(hostPidRaw);
+const pollIntervalMs = Number(pollIntervalRaw);
+const shutdownGraceMs = Number(shutdownGraceRaw);
+if (
+	!Number.isInteger(hostPid) ||
+	hostPid <= 0 ||
+	!Number.isFinite(pollIntervalMs) ||
+	pollIntervalMs < 10 ||
+	!Number.isFinite(shutdownGraceMs) ||
+	shutdownGraceMs < 10 ||
+	!executable
+) {
+	console.error("Invalid TALOS dsh supervisor arguments");
+	process.exit(64);
+}
+const child = spawn(executable, args, {
+	cwd: process.cwd(),
+	env: process.env,
+	stdio: ["ignore", "inherit", "inherit"],
+});
+let stopping = false;
+let forceTimer = null;
+let hostTimer = null;
+const clearTimers = () => {
+	if (hostTimer) clearInterval(hostTimer);
+	if (forceTimer) clearTimeout(forceTimer);
+	hostTimer = null;
+	forceTimer = null;
+};
+const requestStop = () => {
+	if (stopping) return;
+	stopping = true;
+	if (hostTimer) clearInterval(hostTimer);
+	hostTimer = null;
+	if (child.exitCode !== null || child.signalCode !== null) return;
+	child.kill("SIGTERM");
+	forceTimer = setTimeout(() => {
+		if (child.exitCode === null && child.signalCode === null) {
+			child.kill("SIGKILL");
+		}
+	}, shutdownGraceMs);
+};
+const hostIsAlive = () => {
+	if (process.ppid === 1) return false;
+	try {
+		process.kill(hostPid, 0);
+		return true;
+	} catch (error) {
+		return error && error.code === "EPERM";
+	}
+};
+child.once("error", (error) => {
+	clearTimers();
+	console.error("TALOS dsh supervisor spawn failed:", error.message);
+	process.exit(1);
+});
+child.once("exit", (code, signal) => {
+	clearTimers();
+	process.exit(code ?? (signal === "SIGTERM" ? 0 : 1));
+});
+process.once("SIGTERM", requestStop);
+process.once("SIGINT", requestStop);
+hostTimer = setInterval(() => {
+	if (!hostIsAlive()) requestStop();
+}, pollIntervalMs);
+`;
+
+export interface DshSupervisorOptions {
+	hostPid?: number;
+	nodeExecutable?: string;
+	pollIntervalMs?: number;
+	shutdownGraceMs?: number;
+}
+
+export function spawnDshWithParentSupervisor(
+	plan: DshLaunchPlan,
+	env: Record<string, string>,
+	options: DshSupervisorOptions = {}
+): ChildProcess {
+	const nodeExecutable =
+		options.nodeExecutable ?? resolveNodeExecutable(env);
+	return spawn(
+		nodeExecutable,
+		[
+			"-e",
+			DSH_PARENT_SUPERVISOR_SOURCE,
+			"--",
+			String(options.hostPid ?? process.pid),
+			String(options.pollIntervalMs ?? 250),
+			String(
+				options.shutdownGraceMs ??
+					DSH_SUPERVISOR_SHUTDOWN_GRACE_MS
+			),
+			plan.executable,
+			...plan.args,
+		],
+		{
+			cwd: plan.cwd,
+			env,
+			stdio: ["ignore", "pipe", "pipe"],
+		}
+	);
 }
 
 export function hasDshProductIdentity(output: string): boolean {
@@ -301,11 +442,7 @@ function allocateBackendPort(): Promise<number> {
 
 const DEFAULT_RUNTIME: DshProcessRuntime = {
 	spawnProcess: (plan, env) =>
-		spawn(plan.executable, plan.args, {
-			cwd: plan.cwd,
-			env,
-			stdio: ["ignore", "pipe", "pipe"],
-		}),
+		spawnDshWithParentSupervisor(plan, env),
 	probeHealth: (baseUrl) => probeDshHealth(baseUrl),
 	probeBackend,
 	allocateBackendPort,
@@ -342,7 +479,8 @@ export class DshProcessManager {
 	constructor(private readonly options: DshProcessManagerOptions) {
 		this.readyTimeoutMs = options.readyTimeoutMs ?? 30_000;
 		this.pollIntervalMs = options.pollIntervalMs ?? 400;
-		this.stopTimeoutMs = options.stopTimeoutMs ?? 2500;
+		this.stopTimeoutMs =
+			options.stopTimeoutMs ?? DSH_MANAGER_STOP_TIMEOUT_MS;
 		this.runtime = { ...DEFAULT_RUNTIME, ...options.runtime };
 	}
 

@@ -7,6 +7,24 @@ export interface ModelSwitchPresentation {
 	badge?: string;
 }
 
+export function reasoningForModel(model: ModelDescriptor | undefined, current: string | undefined): string | undefined {
+	if (!model) return undefined;
+	const supported = new Set((model.reasoningOptions ?? []).map((option) => option.value.trim()).filter(Boolean));
+	if (current && supported.has(current)) return current;
+	const fallback = model.defaultReasoning?.trim();
+	if (!fallback) return undefined;
+	return supported.size === 0 || supported.has(fallback) ? fallback : undefined;
+}
+
+export function explicitDefaultModel(
+	runtimeId: RuntimeId,
+	models: ModelDescriptor[],
+	current: string | undefined,
+): string | undefined {
+	if (current || runtimeId !== "ohmypi") return current;
+	return models[0]?.id;
+}
+
 const CLAUDE_LABELS: Record<string, string> = {
 	sonnet: "Sonnet",
 	opus: "Opus",

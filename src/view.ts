@@ -1989,7 +1989,7 @@ export class TalosView extends ItemView {
 				// D-TLP-014/D-TLP-015：对话页为双通道滑动切换器——
 				// DeepSeek Harness（iframe 嵌入 dsh web 桌面界面）｜
 				// TALOS 智能体（序列化仍使用 codex 别名以支持二进制回滚）。
-				// claudian 工作台另保留独立恢复视图（命令 open-quyuan-v2-recovery）。
+				// TALOS 原生工作台另保留独立恢复视图（命令 open-quyuan-v2-recovery）。
 				const { HarnessWorkbench } = await import(
 					"./harness/harness-workbench"
 				);
@@ -2012,12 +2012,11 @@ export class TalosView extends ItemView {
 								id: "codex",
 								label: "TALOS 智能体",
 								workbench: new DeferredChatWorkbench(async () => {
-									const { service, compatibility } =
+									const { service } =
 										await this.plugin.waitForAgentWorkbench();
 									return new TalosAgentWorkbench({
 										leaf: this.leaf,
 										service,
-										compatibility,
 									});
 								}),
 							},
@@ -2060,7 +2059,7 @@ export class TalosView extends ItemView {
 				text: error instanceof Error ? error.message : String(error),
 			});
 			copy.createEl("small", {
-				text: "独立 Claudian 恢复视图仍保留，当前失败不会修改 Vault 内容。",
+				text: "TALOS 原生恢复视图仍可使用，当前失败不会修改 Vault 内容。",
 			});
 		}
 	}
@@ -2102,13 +2101,13 @@ export class TalosView extends ItemView {
 			page.empty();
 			page.createDiv({ cls: "empty", text: "屈原模块加载中…" });
 			const { QuyuanVoicePanel } = await import("./quyuan/voice-panel");
-			const { compatibility } = await this.plugin.waitForAgentWorkbench();
+			await this.plugin.waitForAgentWorkbench();
 			if (this.activePage !== "jarvis") return;
 			page.empty();
 			if (!this.jarvis) {
 				this.jarvis = new QuyuanVoicePanel(
 					this.app,
-					compatibility,
+					this.plugin,
 					this.plugin.talosSettings,
 					() => this.plugin.saveTalosSettings(),
 					(pageKey) => this.navigateToPage(pageKey)
@@ -4425,7 +4424,7 @@ export class TalosView extends ItemView {
 	}
 
 	// 主页「屈原」入口 → 控制台内的屈原语音页（QuyuanVoicePanel）。
-	// 文字对话使用独立 AI 对话页面；旧 Claudian ItemView 只保留为恢复入口。
+	// 文字对话使用独立 AI 对话页面；原生恢复视图只负责兼容已保存的 leaf 地址。
 	private async openQuyuan(): Promise<void> {
 		this.activePage = "jarvis";
 		this.renderNav();

@@ -19,7 +19,7 @@ const readSrc = (rel: string): string =>
 
 // D-TLP-014：对话页内嵌 DeepSeek Harness 桌面界面的结构契约。
 // 钉死三件事：loopback-only、工作区锁死 vault 根、凭证出 vault；
-// 以及 view/main/settings 的接线不再回到 ClaudianView 嵌入。
+// 以及 view/main/settings 的接线不再回到旧视图嵌入。
 describe("harness embed contract (D-TLP-014)", () => {
 	it("normalizes the loopback port with a safe fallback", () => {
 		expect(DEFAULT_DSH_PORT).toBe(3180);
@@ -89,20 +89,19 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(view).toContain("TalosAgentWorkbench");
 		expect(view).toContain("getHarnessManager");
 		// D-TLP-034（2026-08-26 改写）：对话页为 DeepSeek Harness｜TALOS 智能体双通道，
-		// ClaudianView 仅作为兼容 renderer，由 TALOS workbench 拥有，
+		// 恢复地址由 TALOS 原生 renderer 接管，
 		// 构造隔离代理不直接出现在 view.ts。
 		expect(view).not.toContain("chatWorkbenchView");
 		expect(view).not.toContain("createConstructorIsolatedProxy");
 		expect(view).not.toContain('import type { ClaudianView }');
 	});
 
-	it("keeps the Codex channel adapter wiring intact", () => {
-		const adapter = readSrc("src/harness/claudian-codex-workbench.ts");
-		expect(adapter).toContain("createConstructorIsolatedProxy");
-		expect(adapter).toContain("registerEmbeddedView");
-		expect(adapter).toContain("unregisterEmbeddedView");
-		expect(adapter).toContain("mountEmbedded");
-		expect(adapter).toContain("suspendEmbedded");
+	it("keeps the TALOS native channel wiring intact", () => {
+		const adapter = readSrc("src/agent-workbench/ui/talos-agent-workbench.ts");
+		expect(adapter).toContain("NativeConversationView");
+		expect(adapter).toContain("await this.native.mount");
+		expect(adapter).toContain("await this.native.suspend()");
+		expect(adapter).toContain("await this.native.destroy()");
 	});
 
 	it("stops the harness process on plugin unload", () => {

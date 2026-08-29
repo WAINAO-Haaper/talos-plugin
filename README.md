@@ -23,7 +23,7 @@
 - **10 个业务页**：每日执行、输出、TALOS、收件箱、健康、项目、知识、身份、能力、全库，统一模块首屏 + 真实状态采集。
 - **能力中心**：命令 / Agents / 工作流 三标签切换，读取 `.claude/commands`、`.claude/agents`、`.agents/skills`，点击复制调用。
 - **审批治理**：待审批项支持「批准 / 拒绝 / 批准+模型」写回决策并刷新队列，区分「审批已记录」与「实际变更已执行」。
-- **屈原 AI Agent**：开口或打字 → `@anthropic-ai/claude-agent-sdk` 流式跑全库 agentic 任务 → 流式分句朗读；带完整 Claudian 式权限审批 UI。
+- **屈原 AI Agent**：开口或打字 → TALOS 原生执行协调器路由 Claude / Codex / OhMyPi → 流式显示与分句朗读；带统一权限审批 UI。
 - **语音 I/O**：STT（WebSpeech / 本地 ASR）+ 三引擎 TTS（system / elevenlabs / aliyun），流式边生成边朗读。
 - **七套主题**：Aurora 原版、Nebula 深色宇宙、Animal Island 小岛、Macintosh 知识工作站、数据流·动态终端、柔光浮雕·Neumorphism、几何现代主义·Bauhaus。
 - **视觉系统**：屈原球形粒子 Logo 语音工作区（6727 粒子）、总览像素机器人巡航、全库笔记热力图、13 模块地图、健康趋势图。
@@ -36,7 +36,7 @@
 ### 前置要求
 
 - Obsidian **≥ 1.11.4**，桌面端（macOS / Windows / Linux，`isDesktopOnly`）。
-- 屈原 Agent 能力需要本机已安装 `claude` CLI（[Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) 会调用），并配置 `ANTHROPIC_*` 环境变量；或使用 BYOK 自带 API Key。
+- 屈原 Agent 能力至少需要一个本机运行时：Claude Code、Codex 或 OhMyPi；也可在 Provider 中配置由 SecretStorage 托管凭据的 BYOK 端点。
 - 可选：语音 TTS（ElevenLabs / 阿里云）与本地 ASR 对应的密钥与运行时。
 
 ### 手动安装
@@ -97,17 +97,17 @@ G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
 
 ## 🤖 屈原 AI Agent
 
-### 屈原 v2 · Claudian 技术融合（#73-B）
+### 屈原 · TALOS 原生 Agent 工作台
 
-目标不是把 TALOS 改名成 Claudian，也不是运行时依赖外部 Claudian 插件，而是把其成熟的通用 Agent 工作台内核固化进屈原。TALOS 仍是唯一主品牌，屈原是 TALOS 内的 Agent 模块。
+TALOS 是唯一主品牌，屈原是 TALOS 内的 Agent 模块。生产对话链路不依赖外部 Claudian 插件，也不包含 Claudian 旧版运行时、会话、Provider 或聊天实现。
 
-当前融合基线为 Claudian 2.0.25（固定提交见 `src/quyuan/upstream.ts`），已接入多 Provider 工作台、多标签会话、恢复/分叉/压缩/回退、工具调用与 diff、MCP、Skills、子智能体、上下文附件和行内编辑。TALOS 在外层追加三项不可替代能力：
+功能架构仅参照 Claudian 最新源码提交 `d190786d11cc0b067475dcffbf8c334ee565d208` 的结构化执行请求、事件流、会话协调与输入接收边界，由 `src/agent-workbench/` 自主实现。当前支持多运行时、多标签会话、恢复/分叉/压缩、工具调用与 diff、MCP、Skills、子智能体、上下文附件、图片、思考强度、服务层和行内编辑，并加入三项 TALOS 能力：
 
 - **人格先于工作台**：启动必须全文加载 `灵魂/PERSONA.md`、`灵魂/persona-memory.md` 与 `Identity/CONTEXT.md`；缺失即关闭屈原 v2，不降级成无人格通用助手。
 - **治理先于写入**：写操作走 TALOS 审批策略；Markdown 行内编辑会先读取目标目录 `_README.md`，`PROFILE.md`、`Identity/`、`灵魂/` 保留硬闸。
-- **TALOS 差异层**：沿用现有语音总开关与三种 TTS，屈原 v2 的流式回复可边生成边朗读；旧侧栏和 STT 暂留作回滚/迁移层。
+- **TALOS 差异层**：沿用现有语音总开关与 TTS，流式回复可边生成边朗读；文字与语音通道使用独立会话和权限边界。
 
-默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。完整 v2 工作台与旧版回滚入口保留在命令面板。TALOS 已内嵌 Claudian 工作台能力，不依赖外部 Claudian 插件；如用户仍保留独立插件，它继续使用自己的 `.claudian/` 会话，TALOS 内嵌工作台使用 `.talos/quyuan/`，两者不混写。
+默认入口：Obsidian 左侧栏只保留一个 TALOS 图标，打开统一控制台；控制台左侧导航「屈原」、动态 Logo 和底部命令条进入语音工作区。TALOS 原生会话写入 `.talos/agent-workbench/v1/`；升级时只读导入 `.talos/quyuan/` 旧历史，不改写或删除旧数据。
 
 ### WP7 升级迁移
 
@@ -115,17 +115,17 @@ G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
 
 ### 屈原 Agentic（B 方案 · v1 回滚层）
 
-导航第二项「屈原」。全双工 agentic：**开口/打字 → claude-agent-sdk 流式跑全库 agentic 任务（读写/命令/多步）→ 流式分句朗读**。先前以对齐 Claudian 为目标的自研实现，现保留为安全回滚层。
+导航第二项「屈原」。全双工 agentic：**开口/打字 → claude-agent-sdk 流式跑全库 agentic 任务（读写/命令/多步）→ 流式分句朗读**。这是 TALOS 早期自研的独立实现，现仅作为安全回滚层；它不是现行工作台的实现来源。
 
 > **命名（2026-06-28）**：原显示名「贾维斯/JARVIS」已统一改为「屈原」，与库内 `灵魂/PERSONA` 人格层对应。仅改面向用户的显示文案与导航徽标；内部标识符（`jarvis` 页 key、`JarvisEngine`/`JarvisAgentPanel` 类名、`src/jarvis/` 路径、`jv-` CSS 前缀）保持不变以免编译断裂。
 
 - **引擎**（`src/jarvis/engine.ts`）：`@anthropic-ai/claude-agent-sdk` 的 `query()`，流式输入 → 单会话多轮、可 `interrupt()`/`setPermissionMode()`。`pathToClaudeCodeExecutable` 指向本机 claude（设置留空则登录 shell `command -v claude` 自动探测；**必传**）。`env` 用登录 shell 捞回（GUI 启动的 Obsidian 拿不到 `~/.zshrc` 的 `ANTHROPIC_*`）。`settingSources:["user","project","local"]` → 加载库的 CLAUDE.md/.claude。
-- **权限审批 UI**（Claudian 式）：`canUseTool` 把每次工具调用挂起 → 审批卡片（允许 / 允许并记住 / 拒绝）。面板顶部「权限」下拉可切 `default` / `acceptEdits` / `plan`(只读) / `bypassPermissions`(危险)。
+- **权限审批 UI**（TALOS 原生）：`canUseTool` 把每次工具调用挂起 → 审批卡片（允许 / 允许并记住 / 拒绝）。面板顶部「权限」下拉可切 `default` / `acceptEdits` / `plan`(只读) / `bypassPermissions`(危险)。
 - **语音 I/O**（`src/jarvis/voiceio.ts`）：`StreamTts` 边收文本增量边按句切分入队朗读——首句生成完即开口；复用三引擎 system/elevenlabs/aliyun。`MicStt` 用 WebSpeech，开口说完 final 结果自动发送。
 - **设置**：`jarvisClaudeBin` / `jarvisModel` / `jarvisPermissionMode` / `jarvisSttEngine` / `jarvisSttLang`，TTS 用既有 `ttsEngine`/嗓音/语速/音调项。
 - **包体**：v1 曾为 851K；屈原 v2 融合完整工作台后当前生产包约 2.93MB，换取真实的会话编排、MCP、子智能体、diff 与多 Provider 能力。
 
-### 多通道执行链路对齐 Claudian
+### 多通道执行链路
 
 详细技术方案见 [`docs/multi-channel-execution.md`](docs/multi-channel-execution.md)（2026-06-28，P0–P5 全部落地）。
 
@@ -150,8 +150,9 @@ G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
 ## 📁 源码结构
 
 - `src/main.ts` 入口；`src/view.ts` ItemView + 全部 render；`src/settings.ts` 设置页
-- `src/quyuan/` **屈原 v2 融合层**：人格启动闸、能力契约、TALOS 治理适配、Claudian 2.0.25 固定快照与上游说明；第三方实现保留 MIT 溯源，面向用户统一使用 TALOS / 屈原命名
-- `src/quyuan/voice-panel.ts` + `voice-character-stage.ts` + `voice-particle-field.ts` + `voice-driver.ts` **屈原 Antigravity 球形粒子 Logo 语音工作区**：五组圆角实体模块构成实心窄边 T-Shield，6247 主体球形粒子 + 480 圆眼粒子共 6727，休眠/唤醒/聆听/识别/思考/回答各状态动效
+- `src/agent-workbench/` **TALOS 原生对话内核**：结构化执行、三运行时适配、输入账本、会话/绑定存储、安全审批、原生 UI、只读旧数据导入
+- `src/quyuan/` **屈原人格与语音层**：人格启动闸、能力契约、TALOS 治理适配和语音通道
+- `src/quyuan/voice-panel.ts` + `voice-character-stage.ts` + `voice-particle-field.ts` + `native-voice-driver.ts` **屈原 Antigravity 球形粒子 Logo 语音工作区**：五组圆角实体模块构成实心窄边 T-Shield，6247 主体球形粒子 + 480 圆眼粒子共 6727，休眠/唤醒/聆听/识别/思考/回答各状态动效
 - `src/data/stats.ts` 全库统计；`src/data/talos.ts` 发布作战室；`src/data/navigation.ts` 高频导航页数据采集；`src/actions.ts` 动作 + 模态框
 - `src/approval-actions.ts` / `approval-executor.ts` 待审批的纯文本变换内核与授权执行器（配 `approval-*.selftest.mjs` 沙盘自测）
 - `src/jarvis/` **屈原 v1 回滚层**：保留原自研多通道 Agent、会话、语音与权限实现；迁移期不删除
@@ -167,8 +168,8 @@ G4、G5、G7 为 `partial`，G3、G6 为 `pending`，0/7 为 `pass`，因此
 
 ## 📜 许可与第三方
 
-- **`LICENSE`**：TALOS 自有代码的**专有商业许可**；不覆盖 Claudian 与其他第三方材料。客户使用、席位、期限和再分发权须由单独商业协议/EULA 授予。
-- **`THIRD-PARTY-NOTICES.md`**：Claudian MIT、Claude Agent SDK 商业条款、BYOK 边界和直接运行时依赖摘要。
+- **`LICENSE`**：TALOS 自有代码的**专有商业许可**；不覆盖第三方材料。客户使用、席位、期限和再分发权须由单独商业协议/EULA 授予。
+- **`THIRD-PARTY-NOTICES.md`**：保留 UI 视觉基线的 Claudian MIT 溯源、Claude Agent SDK 商业条款、BYOK 边界和直接运行时依赖摘要。
 - **`THIRD-PARTY-LICENSES.txt`**：由 `third-party-licenses.mjs` 根据 lockfile 自动生成的生产依赖完整许可证包（当前覆盖 109 个已安装生产包）。
 - **`MaShanZheng-Regular.ttf` + `MaShanZheng-OFL.txt`**：屈原语音主标题使用的本地毛笔字体与 SIL OFL 1.1 许可证；随插件部署，离线可用。
 - **`TALOS-Favicon-64-v1.png`**：TALOS Modular T-Shield 定稿图标。**`TALOS-Mascot-Character-Transparent-v1.png`**：动画人物概念资产与回滚参考。

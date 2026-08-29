@@ -9,7 +9,12 @@ export interface LegacyReadAdapter {
 
 export interface LegacyImportState {
 	schemaVersion: 1;
-	imports: Record<string, { conversationId: string; sourceDigest: string; transcript: "full" | "partial" }>;
+	imports: Record<string, {
+		conversationId: string;
+		sourceDigest: string;
+		transcript: "full" | "partial";
+		legacyConversationId?: string;
+	}>;
 }
 
 export interface LegacyImportStateHost {
@@ -81,10 +86,24 @@ export class ClaudianReadonlyImporter {
 			const sidecarPath = path.replace(/\.meta\.json$/, ".messages.json");
 			const sidecar = before.files.get(sidecarPath);
 			const sourceDigest = digest(`${path}\0${raw}\0${sidecar ?? ""}`);
-			if (state.imports[sourceDigest] || existing.has(sourceDigest)) { report.skipped += 1; continue; }
 			let metadata: LegacyMetadata;
 			try { const value: unknown = JSON.parse(raw); if (!validMetadata(value)) throw new Error("invalid"); metadata = value; }
 			catch { report.corrupt += 1; continue; }
+			const previous = state.imports[sourceDigest];
+			const existingManifest = existing.get(sourceDigest);
+			if (previous || existingManifest) {
+				if (!previous || previous.legacyConversationId !== metadata.id) {
+					state.imports[sourceDigest] = {
+						conversationId: previous?.conversationId ?? existingManifest!.conversationId,
+						sourceDigest,
+						transcript: previous?.transcript ?? existingManifest!.importedFrom!.transcript,
+						legacyConversationId: metadata.id,
+					};
+					await this.stateHost.write(state);
+				}
+				report.skipped += 1;
+				continue;
+			}
 			let messages: LegacyMessage[] = [];
 			let transcript: "full" | "partial" = "partial";
 			if (sidecar !== undefined) {
@@ -119,7 +138,7 @@ export class ClaudianReadonlyImporter {
 				manifest.importedFrom = { ...manifest.importedFrom!, transcript };
 				await this.conversations.store.updateManifest(manifest);
 			}
-			state.imports[sourceDigest] = { conversationId, sourceDigest, transcript };
+			state.imports[sourceDigest] = { conversationId, sourceDigest, transcript, legacyConversationId: metadata.id };
 			await this.stateHost.write(state);
 			report[transcript] += 1;
 		}

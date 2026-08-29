@@ -8,8 +8,8 @@ import {
 import { createMiniHost } from "./helpers/mini-dom";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const claudianViewSource = readFileSync(
-	`${projectRoot}src/quyuan/claudian/features/chat/ClaudianView.ts`,
+const nativeViewSource = readFileSync(
+	`${projectRoot}src/agent-workbench/ui/native-conversation-view.ts`,
 	"utf8"
 );
 const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
@@ -92,14 +92,13 @@ describe("TalosChatSurface", () => {
 	});
 
 	it("keeps the real embedded suspend path non-destructive", () => {
-		const start = claudianViewSource.indexOf("async suspendEmbedded()");
-		const end = claudianViewSource.indexOf("focusComposer()", start);
-		const suspendSource = claudianViewSource.slice(start, end);
+		const start = nativeViewSource.indexOf("async suspend()");
+		const end = nativeViewSource.indexOf("async destroy()", start);
+		const suspendSource = nativeViewSource.slice(start, end);
 		expect(start).toBeGreaterThan(0);
-		expect(suspendSource).toContain("persistTabStateImmediate");
-		expect(suspendSource).toContain("viewContainerEl?.remove()");
-		expect(suspendSource).not.toContain("cancelStreaming");
-		expect(suspendSource).not.toContain("tabManager?.destroy");
+		expect(suspendSource).toContain("this.root?.remove()");
+		expect(suspendSource).not.toContain("cancelConversationTurn");
+		expect(suspendSource).not.toContain("destroy()");
 	});
 
 	it("keeps the old command id while routing it into the TALOS chat page", () => {

@@ -1,4 +1,4 @@
-import { open, rename } from "node:fs/promises";
+import { open, rename, rmdir as removeEmptyDirectory } from "node:fs/promises";
 import path from "node:path";
 import type { PortableFileAdapter } from "./portable-conversation-store";
 
@@ -7,6 +7,7 @@ export interface VaultDataAdapter {
 	read(path: string): Promise<string>;
 	write(path: string, value: string): Promise<void>;
 	remove(path: string): Promise<void>;
+	rmdir(path: string, recursive: boolean): Promise<void>;
 	mkdir(path: string): Promise<void>;
 	list(path: string): Promise<{ files: string[]; folders: string[] }>;
 }
@@ -70,6 +71,10 @@ export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	}
 
 	remove(file: string): Promise<void> { return this.adapter.remove(relativePath(file)); }
+	async rmdir(directory: string, recursive: boolean): Promise<void> {
+		if (recursive) throw new Error("工作台存储禁止递归删除目录");
+		await removeEmptyDirectory(this.absolute(directory));
+	}
 
 	async mkdir(directory: string): Promise<void> {
 		const relative = relativePath(directory);

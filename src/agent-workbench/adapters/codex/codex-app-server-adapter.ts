@@ -3,14 +3,18 @@ import type { AgentRuntimeAdapter, CreateSessionInput, ModelDescriptor, NativeSe
 import type { RuntimeCapabilities } from "../../contracts/runtime-capabilities";
 import { RuntimeEventFactory } from "../shared/event-factory";
 import { textField, type ProtocolFrame } from "../shared/protocol-frame";
-import { assertCodexPermissionProfile, TALOS_AGENT_WORKBENCH_CODEX_PROFILE } from "../../security/codex-permission-profile";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { runtimePrompt } from "../../contracts/execution-request";
+import { decodeRuntimeImages } from "../shared/image-input";
 
 export interface CodexAppServerPort {
 	probe(signal?: AbortSignal): Promise<RuntimeProbe>;
 	request<T>(method: string, params: Record<string, unknown>): Promise<T>;
 	turn(params: Record<string, unknown>, signal?: AbortSignal): AsyncIterable<ProtocolFrame>;
 	respond?(requestId: string | number, result: unknown): Promise<void>;
-	cancel(threadId: string, turnId?: string, reason?: string): Promise<void>;
+	steer(threadId: string, text: string): Promise<void>;
+	cancel(threadId: string, reason?: string): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -30,9 +34,71 @@ function completedAgentMessageText(payload: Record<string, unknown>): string | u
 	return undefined;
 }
 
-function eventType(method: string, payload: Record<string, unknown>): AgentEventType {
+const CODEX_TOOL_ITEM_TYPES = new Set([
+	"commandExecution",
+	"fileChange",
+	"imageView",
+	"webSearch",
+	"collabAgentToolCall",
+	"mcpToolCall",
+	"dynamicToolCall",
+]);
+
+function canonicalToolItem(payload: Record<string, unknown>): Record<string, unknown> | null {
+	const item = nestedRecord(payload.item);
+	return item && typeof item.type === "string" && CODEX_TOOL_ITEM_TYPES.has(item.type) ? item : null;
+}
+
+function canonicalToolName(item: Record<string, unknown>): string {
+	const explicit = [item.tool, item.name].find((value): value is string => typeof value === "string" && value.length > 0);
+	if (explicit) return explicit;
+	const names: Record<string, string> = {
+		commandExecution: "Bash",
+		fileChange: "Edit",
+		imageView: "ImageView",
+		webSearch: "WebSearch",
+		collabAgentToolCall: "Agent",
+		mcpToolCall: "MCP",
+		dynamicToolCall: "Tool",
+	};
+	return typeof item.type === "string" ? names[item.type] ?? "工具" : "工具";
+}
+
+function canonicalToolPayload(method: string, payload: Record<string, unknown>): Record<string, unknown> {
+	if (method === "item/commandExecution/outputDelta" || method === "item/fileChange/outputDelta") {
+		return {
+			...(typeof payload.itemId === "string" ? { id: payload.itemId } : {}),
+			...(typeof payload.delta === "string" ? { output: payload.delta } : {}),
+		};
+	}
+	const item = canonicalToolItem(payload);
+	if (!item) return {};
+	const status = typeof item.status === "string" ? item.status.toLocaleLowerCase("en-US") : "";
+	const exitCode = typeof item.exitCode === "number" ? item.exitCode : null;
+	const input = item.type === "commandExecution"
+		? { command: item.command, cwd: item.cwd }
+		: item.input ?? item.arguments ?? item.changes ?? item.query ?? item.path ?? {};
+	const output = item.aggregatedOutput ?? item.result ?? item.output ?? "";
+	return {
+		...(typeof item.id === "string" ? { id: item.id } : {}),
+		name: canonicalToolName(item),
+		input,
+		output,
+		error: exitCode !== null ? exitCode !== 0 : status === "failed" || status === "error",
+	};
+}
+
+function completedTurnError(payload: Record<string, unknown>): string | undefined {
+	const turn = nestedRecord(payload.turn);
+	const error = nestedRecord(turn?.error);
+	return typeof error?.message === "string" ? error.message : undefined;
+}
+
+function eventType(method: string, payload: Record<string, unknown>): AgentEventType | null {
 	if (method === "item/agentMessage/delta") return "assistant.delta";
 	if (method === "item/completed" && completedAgentMessageText(payload) !== undefined) return "assistant.final";
+	if (method === "item/started" && canonicalToolItem(payload)) return "tool.started";
+	if (method === "item/completed" && canonicalToolItem(payload)) return "tool.finished";
 	if (method.includes("reasoning")) return "thinking.delta";
 	if (method.includes("plan")) return "plan.updated";
 	if (method === "item/fileChange/patchUpdated") return "file.diff";
@@ -48,67 +114,132 @@ function eventType(method: string, payload: Record<string, unknown>): AgentEvent
 		return method.endsWith("/completed") ? "tool.finished" : method.endsWith("/started") ? "tool.started" : "tool.updated";
 	}
 	if (method === "error") return payload.willRetry === true ? "runtime.status" : "error";
-	return "notice";
+	if (method === "notice" && typeof payload.message === "string") return "notice";
+	return null;
 }
 
 export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	readonly id = "codex" as const;
 	private binding: NativeSessionBinding | null = null;
-	private activeTurnId: string | undefined;
 	private activeModel: string | undefined;
 	private pendingContext: string | undefined;
 	private readonly events = new RuntimeEventFactory(this.id);
-	constructor(private readonly port: CodexAppServerPort, private readonly onDispose: () => Promise<void> = async () => {}) {}
+	constructor(
+		private readonly port: CodexAppServerPort,
+		private readonly onDispose: () => Promise<void> = async () => {},
+		private readonly imageTempRoot?: string,
+	) {}
 
 	probe(signal?: AbortSignal) { return this.port.probe(signal); }
 	async listModels(): Promise<ModelDescriptor[]> {
-		const result = await this.port.request<{ data?: Array<{ id: string; displayName?: string }> }>("model/list", {});
-		return (result.data ?? []).map((model) => ({ id: model.id, label: model.displayName ?? model.id }));
+		const result = await this.port.request<{ data?: Array<{
+			id: string;
+			model?: string;
+			displayName?: string;
+			description?: string;
+			hidden?: boolean;
+			isDefault?: boolean;
+			supportedReasoningEfforts?: Array<{ reasoningEffort?: string; value?: string; description?: string }>;
+			defaultReasoningEffort?: string;
+			serviceTiers?: Array<{ id: string; name?: string; description?: string }>;
+			defaultServiceTier?: string | null;
+		}> }>("model/list", {});
+		return (result.data ?? []).flatMap((model) => {
+			if (model.hidden) return [];
+			const id = model.model?.trim() || model.id;
+			const reasoningOptions = (model.supportedReasoningEfforts ?? []).flatMap((option) => {
+				const value = option.reasoningEffort?.trim() || option.value?.trim();
+				return value ? [{ value, label: value, ...(option.description ? { description: option.description } : {}) }] : [];
+			});
+			const serviceTiers = (model.serviceTiers ?? []).filter((tier) => tier.id.trim()).map((tier) => ({
+				id: tier.id,
+				label: tier.name?.trim() || tier.id,
+				...(tier.description ? { description: tier.description } : {}),
+			}));
+			return [{
+				id,
+				label: model.displayName ?? id,
+				...(model.description ? { description: model.description } : {}),
+				...(model.isDefault ? { isDefault: true } : {}),
+				...(reasoningOptions.length ? { reasoningOptions } : {}),
+				...(model.defaultReasoningEffort ? { defaultReasoning: model.defaultReasoningEffort } : {}),
+				...(serviceTiers.length ? { serviceTiers } : {}),
+				...(model.defaultServiceTier ? { defaultServiceTier: model.defaultServiceTier } : {}),
+			}];
+		});
 	}
 	async createSession(input: CreateSessionInput): Promise<NativeSessionBinding> {
-		const result = await this.port.request<{ thread: { id: string }; model?: string; activePermissionProfile?: { id?: string } }>("thread/start", {
+		const result = await this.port.request<{ thread: { id: string }; model?: string }>("thread/start", {
 			cwd: input.vaultRoot, model: input.model, provider: input.providerProfileId,
-			approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE,
+			approvalPolicy: "on-request", sandbox: "danger-full-access",
 			runtimeWorkspaceRoots: [input.vaultRoot], persistExtendedHistory: true, experimentalRawEvents: true,
 		});
-		assertCodexPermissionProfile(result);
 		this.activeModel = result.model ?? input.model;
 		this.pendingContext = input.initialContext;
 		return this.binding = { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2", ...(input.providerProfileId ? { providerProfileId: input.providerProfileId } : {}) };
 	}
 	async resumeSession(binding: NativeSessionBinding): Promise<void> {
-		const result = await this.port.request<{ model?: string; activePermissionProfile?: { id?: string } }>("thread/resume", { threadId: binding.sessionId, approvalPolicy: "on-request", permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE, persistExtendedHistory: true });
-		assertCodexPermissionProfile(result);
+		const result = await this.port.request<{ model?: string }>("thread/resume", {
+			threadId: binding.sessionId,
+			approvalPolicy: "on-request",
+			sandbox: "danger-full-access",
+			persistExtendedHistory: true,
+		});
 		this.activeModel = result.model;
 		this.binding = binding;
 	}
 	async synchronizeContext(input: { context: string }): Promise<void> { this.pendingContext = input.context; }
 	async *send(turn: RuntimeTurn): AsyncIterable<AgentEvent> {
 		if (!this.binding) throw new Error("Codex native session 尚未绑定");
-		this.activeTurnId = turn.turnId;
+		const imageDirectory = this.imageTempRoot ? path.join(this.imageTempRoot, `turn-${turn.turnId}`) : null;
+		const input: Array<Record<string, unknown>> = [];
+		try {
+			const images = decodeRuntimeImages(turn.input);
+			if (images.length && !imageDirectory) throw new Error("Codex 图片临时目录未配置");
+			if (imageDirectory) await mkdir(imageDirectory, { recursive: true });
+			for (const [index, image] of images.entries()) {
+				const safeName = image.name.replace(/[^a-zA-Z0-9._-]/g, "-") || `image-${index + 1}`;
+				const filePath = path.join(imageDirectory!, `${index + 1}-${safeName}`);
+				await writeFile(filePath, Buffer.from(image.base64, "base64"), { mode: 0o600 });
+				input.push({ type: "localImage", path: filePath });
+			}
+			const prompt = this.pendingContext ? `${this.pendingContext}\n\n${runtimePrompt(turn)}` : runtimePrompt(turn);
+			if (prompt) input.push({ type: "text", text: prompt, text_elements: [] });
 		const params = {
 			threadId: this.binding.sessionId,
-			input: [{ type: "text", text: this.pendingContext ? `${this.pendingContext}\n\n${turn.text}` : turn.text }],
+			input,
 			model: turn.model,
+			serviceTier: turn.serviceTier,
 			approvalPolicy: "on-request",
-			permissions: TALOS_AGENT_WORKBENCH_CODEX_PROFILE,
+			sandboxPolicy: { type: "externalSandbox", networkAccess: "restricted" },
 			collaborationMode: {
 				mode: turn.workflow === "plan" ? "plan" : "default",
 				settings: {
 					model: turn.model ?? this.activeModel ?? "gpt-5.5",
-					reasoning_effort: null,
+					reasoning_effort: turn.reasoning ?? null,
 					developer_instructions: null,
 				},
 			},
 		};
 		for await (const frame of this.port.turn(params, turn.signal)) {
 			const completedText = completedAgentMessageText(frame.params);
-			const payload = { ...frame.params, ...(completedText !== undefined ? { text: completedText } : {}), protocolMethod: frame.method };
+			const completedError = completedTurnError(frame.params);
+			const payload = {
+				...frame.params,
+				...canonicalToolPayload(frame.method, frame.params),
+				...(completedText !== undefined ? { text: completedText } : {}),
+				...(completedError ? { message: completedError } : {}),
+				protocolMethod: frame.method,
+			};
 			const nativeId = textField(frame.params, "itemId", "id") ?? String(frame.id ?? "");
-			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type: eventType(frame.method, frame.params), payload, nativeId });
+			const type = eventType(frame.method, frame.params);
+			if (!type) continue;
+			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type, payload, nativeId });
 		}
 		this.pendingContext = undefined;
-		this.activeTurnId = undefined;
+		} finally {
+			if (imageDirectory) await rm(imageDirectory, { recursive: true, force: true }).catch(() => undefined);
+		}
 	}
 	async resolveApproval(requestId: string | number, decision: TalosApproval, kind: "command" | "file" | "permissions" = "command", permissions: Record<string, unknown> = {}): Promise<void> {
 		if (!this.port.respond) throw new Error("Codex transport 不支持 server request response");
@@ -126,11 +257,14 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	async respondApproval(input: { requestId: string | number; decision: TalosApproval; kind?: "command" | "file" | "permissions"; details?: Record<string, unknown> }): Promise<void> {
 		await this.resolveApproval(input.requestId, input.decision, input.kind, input.details);
 	}
-	async respondUserInput(input: { requestId: string | number; answers: Record<string, string | string[]> }): Promise<void> {
-		await this.answerUser(input.requestId, Object.fromEntries(Object.entries(input.answers).map(([key, value]) => [key, { answers: Array.isArray(value) ? value : [value] }])));
+	async respondUserInput(input: { requestId: string | number; answers: Record<string, string | string[]> | null }): Promise<void> {
+		await this.answerUser(input.requestId, Object.fromEntries(Object.entries(input.answers ?? {}).map(([key, value]) => [key, { answers: Array.isArray(value) ? value : [value] }])));
 	}
-	async steer(input: RuntimeSteer): Promise<void> { await this.port.request("turn/steer", { threadId: this.binding?.sessionId, turnId: input.turnId, input: [{ type: "text", text: input.text }] }); }
-	async cancel(reason?: string): Promise<void> { if (this.binding) await this.port.cancel(this.binding.sessionId, this.activeTurnId, reason); }
+	async steer(input: RuntimeSteer): Promise<void> {
+		if (!this.binding) throw new Error("Codex native session 尚未绑定");
+		await this.port.steer(this.binding.sessionId, input.text);
+	}
+	async cancel(reason?: string): Promise<void> { if (this.binding) await this.port.cancel(this.binding.sessionId, reason); }
 	async fork(input: { binding: NativeSessionBinding }): Promise<NativeSessionBinding> {
 		const result = await this.port.request<{ thread: { id: string } }>("thread/fork", { threadId: input.binding.sessionId });
 		return { runtimeId: this.id, sessionId: result.thread.id, protocolVersion: "app-server-v2", ...(input.binding.providerProfileId ? { providerProfileId: input.binding.providerProfileId } : {}) };
@@ -141,10 +275,10 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 	capabilities(): RuntimeCapabilities {
 		return {
 			session: { resume: "native", fork: "native", compact: "native", rewind: "native", steer: "native" },
-			input: { text: "native", image: "native", vaultFile: "native", selection: "talos-emulated" },
+			input: { text: "native", image: "native", vaultFile: "talos-emulated", selection: "talos-emulated" },
 			tools: { shell: "native", edit: "native", mcp: "native", skills: "native", subagents: "native", askUser: "native" },
 			control: { plan: "native", reasoning: "native", serviceTier: "native", usage: "native" },
-			security: { nativeApproval: "native", nativeSandbox: "native", networkPolicy: "native", externalPathGrant: "talos-emulated" },
+			security: { nativeApproval: "native", nativeSandbox: "talos-emulated", networkPolicy: "talos-emulated", externalPathGrant: "talos-emulated" },
 		};
 	}
 }

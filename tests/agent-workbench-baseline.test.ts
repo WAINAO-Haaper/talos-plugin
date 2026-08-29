@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const main = readFileSync(`${root}src/main.ts`, "utf8");
 const view = readFileSync(`${root}src/view.ts`, "utf8");
-const legacy = readFileSync(`${root}src/quyuan/claudian/main.ts`, "utf8");
+const importer = readFileSync(`${root}src/agent-workbench/legacy/claudian-readonly-importer.ts`, "utf8");
 
 describe("D-TLP-034 ownership baseline", () => {
 	it("makes the TALOS plugin own the workbench by composition", () => {
@@ -21,7 +21,8 @@ describe("D-TLP-034 ownership baseline", () => {
 	});
 
 	it("never rewrites legacy Claudian sessions during startup", () => {
-		expect(legacy).not.toContain("migratedLegacyConversations");
-		expect(legacy).not.toContain("migratedFromLegacyProvider");
+		expect(importer).toContain("sourceAggregateBefore");
+		expect(importer).toContain("sourceAggregateAfter");
+		expect(importer).not.toContain("legacy.write");
 	});
 });

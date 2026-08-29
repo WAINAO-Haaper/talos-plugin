@@ -8,15 +8,13 @@ import {
 	OPENAI_PROVIDER_ICON,
 	PI_PROVIDER_ICON,
 	createProviderIconSvg,
-} from "../../quyuan/claudian/shared/icons";
-import type { ClaudianCompatibilityHost } from "./claudian-compatibility-host";
-import { CompatibilityChatView } from "./compatibility-chat-view";
-import { automaticModelPresentation, presentRuntimeModel } from "./model-switcher-presentation";
+} from "./provider-icons";
+import { NativeConversationView } from "./native-conversation-view";
+import { automaticModelPresentation, explicitDefaultModel, presentRuntimeModel, reasoningForModel } from "./model-switcher-presentation";
 
 export interface TalosAgentWorkbenchOptions {
 	leaf: WorkspaceLeaf;
 	service: AgentWorkbenchService;
-	compatibility: ClaudianCompatibilityHost;
 }
 
 const NATIVE_PROVIDER_LABELS: Record<RuntimeId, string> = {
@@ -69,7 +67,7 @@ function nativeProviderLabel(runtimeId: RuntimeId): string {
 }
 
 export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
-	private readonly compatibility: CompatibilityChatView;
+	private readonly native: NativeConversationView;
 	private root: HTMLElement | null = null;
 	private body: HTMLElement | null = null;
 	private status: HTMLElement | null = null;
@@ -83,6 +81,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private modelAnnouncement: HTMLElement | null = null;
 	private modelDescriptors: ModelDescriptor[] = [];
 	private modelRuntimeId: RuntimeId = "codex";
+	private reasoningControl: HTMLElement | null = null;
+	private reasoning: HTMLSelectElement | null = null;
+	private serviceTierControl: HTMLElement | null = null;
+	private serviceTier: HTMLButtonElement | null = null;
 	private provider: HTMLSelectElement | null = null;
 	private readonly runtimeButtons = new Map<RuntimeId, HTMLButtonElement>();
 	private install: HTMLAnchorElement | null = null;
@@ -98,8 +100,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private handoffRemovalTimer: number | null = null;
 
 	constructor(private readonly options: TalosAgentWorkbenchOptions) {
-		this.compatibility = new CompatibilityChatView(options.leaf, options.compatibility);
-		this.compatibility.onRuntimeChanged((runtimeId, modelId) => {
+		this.native = new NativeConversationView({
+			leaf: options.leaf,
+			service: options.service,
+			onSelectionChanged: (runtimeId, modelId) => {
 			const current = this.options.service.getSelection();
 			this.options.service.selectRuntime(
 				runtimeId,
@@ -107,6 +111,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			);
 			this.updateRuntimeButtons(runtimeId);
 			void this.refreshRuntime(runtimeId);
+			},
 		});
 	}
 
@@ -115,7 +120,7 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		if (!this.root) this.build(container.ownerDocument);
 		if (!this.root || !this.body) throw new Error("TALOS 智能体展示层未建立");
 		if (this.root.parentElement !== container) container.appendChild(this.root);
-		await this.compatibility.mount(this.body, namespace);
+		await this.native.mount(this.body, namespace);
 	}
 
 	private build(doc: Document): void {
@@ -149,9 +154,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			button.addEventListener("click", () => {
 				const previous = this.options.service.getSelectedRuntimeId();
 				if (previous === runtime.id) return;
+				this.updateRuntimeButtons(runtime.id);
 				this.setRuntimeButtonsDisabled(true);
-				void this.compatibility.selectRuntime(runtime.id).then(() => {
-					this.appendHandoffMarker(root, previous, runtime.id);
+				void this.native.selectRuntime(runtime.id).then((handoffCreated) => {
+					if (handoffCreated) this.appendHandoffMarker(root, previous, runtime.id);
 				}).catch((error: unknown) => {
 					this.updateRuntimeButtons(previous);
 					if (this.status) {
@@ -175,14 +181,17 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		provider.appendChild(native);
 		this.provider = provider;
 		provider.addEventListener("change", () => {
-			try {
+			const previous = this.options.service.getSelection();
+			void (async () => {
 				this.options.service.selectProviderProfile(provider.value === "native" ? undefined : provider.value);
 				this.options.service.selectModel(undefined);
-				void this.refreshRuntime(this.options.service.getSelectedRuntimeId());
-			} catch (error) {
-				provider.value = this.options.service.getSelection().providerProfileId ?? "native";
+				await this.native.persistCurrentSelection();
+				await this.refreshRuntime(this.options.service.getSelectedRuntimeId());
+			})().catch((error: unknown) => {
+				this.options.service.restoreSelection(previous);
+				provider.value = previous.providerProfileId ?? "native";
 				if (this.status) this.status.textContent = `Provider 切换失败 · ${error instanceof Error ? error.message : String(error)}`;
-			}
+			});
 		});
 		controls.appendChild(provider);
 
@@ -252,6 +261,38 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 			}
 		});
 		modelMenu.addEventListener("keydown", (event) => this.handleModelMenuKeydown(event));
+
+		const reasoningControl = doc.createElement("div");
+		reasoningControl.className = "claudian-thinking-selector talos-agent-reasoning-control";
+		const reasoningLabel = doc.createElement("span");
+		reasoningLabel.className = "claudian-thinking-label-text";
+		reasoningLabel.textContent = "思考";
+		const reasoning = doc.createElement("select");
+		reasoning.className = "talos-agent-reasoning-picker";
+		reasoning.setAttribute("aria-label", "思考强度");
+		reasoning.addEventListener("change", () => void this.selectReasoning(reasoning.value));
+		reasoningControl.append(reasoningLabel, reasoning);
+		reasoningControl.hidden = true;
+		controls.appendChild(reasoningControl);
+		this.reasoningControl = reasoningControl;
+		this.reasoning = reasoning;
+
+		const serviceTierControl = doc.createElement("div");
+		serviceTierControl.className = "claudian-service-tier-toggle talos-agent-service-tier-control";
+		const serviceTier = doc.createElement("button");
+		serviceTier.type = "button";
+		serviceTier.className = "claudian-service-tier-button";
+		serviceTier.setAttribute("aria-label", "快速服务层");
+		const serviceTierIcon = doc.createElement("span");
+		serviceTierIcon.className = "claudian-service-tier-icon";
+		setIcon(serviceTierIcon, "zap");
+		serviceTier.appendChild(serviceTierIcon);
+		serviceTier.addEventListener("click", () => void this.toggleServiceTier());
+		serviceTierControl.appendChild(serviceTier);
+		serviceTierControl.hidden = true;
+		controls.appendChild(serviceTierControl);
+		this.serviceTierControl = serviceTierControl;
+		this.serviceTier = serviceTier;
 
 		const workflow = doc.createElement("div");
 		workflow.className = "talos-agent-workflow";
@@ -607,11 +648,12 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 	private async selectModel(value: string): Promise<void> {
 		if (!this.model || !this.modelTrigger || this.modelTrigger.disabled) return;
 		const runtimeId = this.options.service.getSelectedRuntimeId();
-		const previous = this.options.service.getSelection().model;
+		const previous = this.options.service.getSelection();
 		const descriptor = this.modelDescriptors.find((candidate) => candidate.id === value);
 		const label = descriptor ? presentRuntimeModel(runtimeId, descriptor).label : "自动选择";
 		try {
 			this.options.service.selectModel(value || undefined);
+			this.reconcileReasoningForActiveModel();
 		} catch (error) {
 			if (this.status) this.status.textContent = `模型切换失败 · ${error instanceof Error ? error.message : String(error)}`;
 			return;
@@ -623,14 +665,15 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		if (this.modelAnnouncement) this.modelAnnouncement.textContent = `正在切换到 ${label}`;
 		this.updateModelTrigger();
 		try {
-			await this.compatibility.selectRuntime(runtimeId, value || undefined);
+			await this.native.selectRuntime(runtimeId, value || undefined);
 			this.modelControl?.setAttribute("data-state", "selected");
 			if (this.modelAnnouncement) this.modelAnnouncement.textContent = `已选择 ${label}，从下一回合生效`;
 			this.renderModelMenu();
+			this.renderExecutionOptions();
 			this.setModelMenuOpen(false);
 		} catch (error) {
-			this.options.service.selectModel(previous);
-			this.model.value = previous ?? "";
+			this.options.service.restoreSelection(previous);
+			this.model.value = previous.model ?? "";
 			this.modelControl?.setAttribute("data-state", "error");
 			this.updateModelTrigger();
 			if (this.status) this.status.textContent = `模型切换失败 · ${error instanceof Error ? error.message : String(error)}`;
@@ -641,12 +684,90 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		}
 	}
 
+	private activeModelDescriptor(): ModelDescriptor | undefined {
+		const selected = this.options.service.getSelection().model;
+		if (selected) return this.modelDescriptors.find((candidate) => candidate.id === selected);
+		return this.modelDescriptors.find((candidate) => candidate.isDefault);
+	}
+
+	private reconcileReasoningForActiveModel(): boolean {
+		const selection = this.options.service.getSelection();
+		const reasoning = reasoningForModel(this.activeModelDescriptor(), selection.reasoning);
+		if (reasoning === selection.reasoning) return false;
+		this.options.service.selectReasoning(reasoning);
+		return true;
+	}
+
+	private renderExecutionOptions(): void {
+		if (!this.reasoningControl || !this.reasoning || !this.serviceTierControl || !this.serviceTier) return;
+		const descriptor = this.activeModelDescriptor();
+		const selection = this.options.service.getSelection();
+		const reasoningOptions = descriptor?.reasoningOptions ?? [];
+		this.reasoning.replaceChildren();
+		const automatic = this.reasoning.ownerDocument.createElement("option");
+		automatic.value = "";
+		automatic.textContent = descriptor?.defaultReasoning ? `默认 · ${descriptor.defaultReasoning}` : "运行时默认";
+		this.reasoning.appendChild(automatic);
+		for (const option of reasoningOptions) {
+			const item = this.reasoning.ownerDocument.createElement("option");
+			item.value = option.value;
+			item.textContent = option.label;
+			item.title = option.description ?? "";
+			this.reasoning.appendChild(item);
+		}
+		this.reasoning.value = selection.reasoning && reasoningOptions.some((option) => option.value === selection.reasoning)
+			? selection.reasoning
+			: "";
+		this.reasoningControl.hidden = reasoningOptions.length === 0;
+
+		const fastTier = descriptor?.serviceTiers?.find((tier) => tier.label.trim().toLowerCase() === "fast")
+			?? descriptor?.serviceTiers?.find((tier) => tier.id.trim().toLowerCase() === "fast");
+		this.serviceTierControl.hidden = !fastTier;
+		this.serviceTier.classList.toggle("active", Boolean(fastTier && selection.serviceTier === fastTier.id));
+		this.serviceTier.setAttribute("aria-pressed", String(Boolean(fastTier && selection.serviceTier === fastTier.id)));
+		this.serviceTier.title = fastTier
+			? `${fastTier.label}：${fastTier.description ?? "切换快速服务层"}`
+			: "当前模型不提供快速服务层";
+	}
+
+	private async selectReasoning(value: string): Promise<void> {
+		const previous = this.options.service.getSelection().reasoning;
+		try {
+			this.options.service.selectReasoning(value || undefined);
+			await this.native.persistCurrentSelection();
+		} catch (error) {
+			this.options.service.selectReasoning(previous);
+			if (this.reasoning) this.reasoning.value = previous ?? "";
+			if (this.status) this.status.textContent = `思考强度切换失败 · ${error instanceof Error ? error.message : String(error)}`;
+		}
+	}
+
+	private async toggleServiceTier(): Promise<void> {
+		const descriptor = this.activeModelDescriptor();
+		const fastTier = descriptor?.serviceTiers?.find((tier) => tier.label.trim().toLowerCase() === "fast")
+			?? descriptor?.serviceTiers?.find((tier) => tier.id.trim().toLowerCase() === "fast");
+		if (!fastTier) return;
+		const previous = this.options.service.getSelection().serviceTier;
+		try {
+			const fallback = descriptor?.defaultServiceTier && descriptor.defaultServiceTier !== fastTier.id
+				? descriptor.defaultServiceTier
+				: undefined;
+			this.options.service.selectServiceTier(previous === fastTier.id ? fallback : fastTier.id);
+			await this.native.persistCurrentSelection();
+			this.renderExecutionOptions();
+		} catch (error) {
+			this.options.service.selectServiceTier(previous);
+			if (this.status) this.status.textContent = `服务层切换失败 · ${error instanceof Error ? error.message : String(error)}`;
+		}
+	}
+
 	private async refreshRuntime(runtimeId: RuntimeId): Promise<void> {
 		if (!this.status || !this.model || !this.provider || !this.install) return;
 		const refreshVersion = ++this.refreshVersion;
 		this.updateRuntimeButtons(runtimeId);
 		this.modelRuntimeId = runtimeId;
 		this.modelDescriptors = [];
+		this.renderExecutionOptions();
 		this.setModelMenuOpen(false);
 		this.renderModelTriggerIcon(runtimeId);
 		this.status.dataset.state = "checking";
@@ -679,33 +800,43 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 				for (const descriptor of descriptors) {
 					const option = this.model.ownerDocument.createElement("option"); option.value = descriptor.id; option.textContent = descriptor.label; this.model.appendChild(option);
 				}
+				let selectionChanged = false;
+				const defaultModel = explicitDefaultModel(runtimeId, descriptors, this.options.service.getSelection().model);
+				if (defaultModel !== this.options.service.getSelection().model) {
+					this.options.service.selectModel(defaultModel);
+					selectionChanged = true;
+				}
+				if (this.reconcileReasoningForActiveModel()) selectionChanged = true;
+				if (selectionChanged) await this.native.persistCurrentSelection();
 				const selectedModel = this.options.service.getSelection().model;
 				if (selectedModel && Array.from(this.model.options).some((option) => option.value === selectedModel)) this.model.value = selectedModel;
 				this.updateModelTrigger();
 				this.renderModelMenu();
+				this.renderExecutionOptions();
 			} catch (error) {
 				this.status.dataset.state = "degraded";
 				this.status.textContent = `${RUNTIME_PRESENTATION.find((runtime) => runtime.id === runtimeId)?.label ?? runtimeId} · 模型列表不可用 · ${error instanceof Error ? error.message : "unknown"}`;
 			}
 		}
 		this.updateModelTrigger();
+		this.renderExecutionOptions();
 	}
 
 	async suspend(): Promise<void> {
 		this.setModelMenuOpen(false);
 		this.setPermissionMenuOpen(false);
 		this.clearHandoffToast();
-		await this.compatibility.suspend();
+		await this.native.suspend();
 		this.root?.remove();
 	}
-	focusComposer(): void { this.compatibility.focusComposer(); }
+	focusComposer(): void { this.native.focusComposer(); }
 	async destroy(): Promise<void> {
 		this.setModelMenuOpen(false);
 		this.setPermissionMenuOpen(false);
 		this.clearHandoffToast();
 		this.outsideModelMenuListener = null;
 		this.outsidePermissionMenuListener = null;
-		await this.compatibility.destroy();
+		await this.native.destroy();
 		this.root?.remove();
 		this.root = null;
 		this.body = null;
@@ -719,6 +850,10 @@ export class TalosAgentWorkbench implements ChatSurfaceWorkbench {
 		this.modelMenu = null;
 		this.modelAnnouncement = null;
 		this.modelDescriptors = [];
+		this.reasoningControl = null;
+		this.reasoning = null;
+		this.serviceTierControl = null;
+		this.serviceTier = null;
 		this.permissionControl = null;
 		this.permissionTrigger = null;
 		this.permissionTriggerLabel = null;

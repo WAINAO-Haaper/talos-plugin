@@ -7,7 +7,8 @@ export interface EgressDestination {
 	port: number;
 }
 
-export type EgressAuthorizer = (destination: EgressDestination) => Promise<boolean>;
+export type EgressAuthorization = boolean | "allow" | "allow-always" | "deny";
+export type EgressAuthorizer = (destination: EgressDestination) => Promise<EgressAuthorization>;
 
 function parseAuthority(authority: string | undefined): EgressDestination {
 	if (!authority || authority.length > 512) throw new Error("代理目标无效");
@@ -27,6 +28,8 @@ function parseAuthority(authority: string | undefined): EgressDestination {
 export class LoopbackEgressProxy {
 	private server: Server | null = null;
 	private readonly sockets = new Set<Duplex>();
+	private readonly pendingAuthorizations = new Map<string, Promise<boolean>>();
+	private readonly rememberedDestinations = new Set<string>();
 
 	constructor(private readonly authorize: EgressAuthorizer) {}
 
@@ -58,12 +61,30 @@ export class LoopbackEgressProxy {
 		socket.once("close", () => this.sockets.delete(socket));
 	}
 
+	private authorizeDestination(destination: EgressDestination): Promise<boolean> {
+		const key = destination.host + ":" + destination.port;
+		if (this.rememberedDestinations.has(key)) return Promise.resolve(true);
+		const pending = this.pendingAuthorizations.get(key);
+		if (pending) return pending;
+		const authorization = Promise.resolve()
+			.then(() => this.authorize(destination))
+			.then((decision) => {
+				if (decision === "allow-always") this.rememberedDestinations.add(key);
+				return decision === true || decision === "allow" || decision === "allow-always";
+			})
+			.finally(() => {
+				if (this.pendingAuthorizations.get(key) === authorization) this.pendingAuthorizations.delete(key);
+			});
+		this.pendingAuthorizations.set(key, authorization);
+		return authorization;
+	}
+
 	private async connectTunnel(authority: string | undefined, client: Duplex, head: Buffer): Promise<void> {
 		this.track(client);
 		let destination: EgressDestination;
 		try {
 			destination = parseAuthority(authority);
-			if (!(await this.authorize(destination))) throw new Error("目标未授权");
+			if (!(await this.authorizeDestination(destination))) throw new Error("目标未授权");
 		} catch {
 			client.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
 			return;
@@ -81,6 +102,8 @@ export class LoopbackEgressProxy {
 	}
 
 	async close(): Promise<void> {
+		this.pendingAuthorizations.clear();
+		this.rememberedDestinations.clear();
 		for (const socket of this.sockets) socket.destroy();
 		this.sockets.clear();
 		const server = this.server;

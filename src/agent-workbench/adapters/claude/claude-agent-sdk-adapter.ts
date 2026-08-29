@@ -3,10 +3,13 @@ import type { AgentRuntimeAdapter, CreateSessionInput, ModelDescriptor, NativeSe
 import type { RuntimeCapabilities } from "../../contracts/runtime-capabilities";
 import { RuntimeEventFactory } from "../shared/event-factory";
 import type { ProtocolFrame } from "../shared/protocol-frame";
+import { runtimePrompt } from "../../contracts/execution-request";
+import { decodeRuntimeImages, type DecodedRuntimeImage } from "../shared/image-input";
 
 export interface ClaudeTurnInput {
 	sessionId: string;
 	prompt: string;
+	images?: DecodedRuntimeImage[];
 	model?: string;
 	workflow: RuntimeTurn["workflow"];
 	signal?: AbortSignal;
@@ -25,7 +28,7 @@ export interface ClaudeAgentSdkPort {
 	close(): Promise<void>;
 }
 
-function claudeEventType(method: string): AgentEventType {
+function claudeEventType(method: string, payload: Record<string, unknown>): AgentEventType | null {
 	if (method === "assistant.delta") return "assistant.delta";
 	if (method === "assistant.final") return "assistant.final";
 	if (method.includes("thinking")) return "thinking.delta";
@@ -33,10 +36,14 @@ function claudeEventType(method: string): AgentEventType {
 	if (method === "tool.finished") return "tool.finished";
 	if (method === "file.diff") return "file.diff";
 	if (method === "approval.requested") return "approval.requested";
+	if (method === "approval.resolved") return "approval.resolved";
 	if (method === "ask-user") return "user.question";
+	if (method === "task.progress") return "task.progress";
 	if (method === "usage") return "usage.updated";
 	if (method === "turn.finished") return "turn.finished";
-	return method === "error" ? "error" : "notice";
+	if (method === "error") return "error";
+	if (method === "notice" && typeof payload.message === "string") return "notice";
+	return null;
 }
 
 export class ClaudeAgentSdkAdapter implements AgentRuntimeAdapter {
@@ -57,9 +64,12 @@ export class ClaudeAgentSdkAdapter implements AgentRuntimeAdapter {
 	async *send(turn: RuntimeTurn): AsyncIterable<AgentEvent> {
 		if (!this.binding) throw new Error("Claude native session 尚未绑定");
 		if (turn.workflow === "execute" && !this.sandboxReady()) throw new Error("Claude sandbox 未 ready，Execute 已失败关闭");
-		const prompt = this.pendingContext ? `${this.pendingContext}\n\n${turn.text}` : turn.text;
-		for await (const frame of this.port.turn({ sessionId: this.binding.sessionId, prompt, model: turn.model, workflow: turn.workflow, signal: turn.signal, permissionMode: "default", sandbox: { enabled: true, failIfUnavailable: true } })) {
-			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type: claudeEventType(frame.method), payload: { ...frame.params, protocolMethod: frame.method }, nativeId: String(frame.id ?? "") });
+		const requestPrompt = runtimePrompt(turn);
+		const prompt = this.pendingContext ? `${this.pendingContext}\n\n${requestPrompt}` : requestPrompt;
+		for await (const frame of this.port.turn({ sessionId: this.binding.sessionId, prompt, images: decodeRuntimeImages(turn.input), model: turn.model, workflow: turn.workflow, signal: turn.signal, permissionMode: "default", sandbox: { enabled: true, failIfUnavailable: true } })) {
+			const type = claudeEventType(frame.method, frame.params);
+			if (!type) continue;
+			yield this.events.create({ conversationId: turn.conversationId, turnId: turn.turnId, type, payload: { ...frame.params, protocolMethod: frame.method }, nativeId: String(frame.id ?? "") });
 		}
 		this.pendingContext = undefined;
 	}
@@ -73,10 +83,10 @@ export class ClaudeAgentSdkAdapter implements AgentRuntimeAdapter {
 	async dispose(): Promise<void> { await this.cancel(); await this.port.close(); this.binding = null; }
 	capabilities(): RuntimeCapabilities {
 		return {
-			session: { resume: "native", fork: "native", compact: "native", rewind: "unavailable", steer: "unavailable" },
-			input: { text: "native", image: "native", vaultFile: "native", selection: "talos-emulated" },
+			session: { resume: "native", fork: "native", compact: "unavailable", rewind: "unavailable", steer: "unavailable" },
+			input: { text: "native", image: "native", vaultFile: "talos-emulated", selection: "talos-emulated" },
 			tools: { shell: "native", edit: "native", mcp: "native", skills: "native", subagents: "native", askUser: "native" },
-			control: { plan: "native", reasoning: "native", serviceTier: "unavailable", usage: "native" },
+			control: { plan: "native", reasoning: "unavailable", serviceTier: "unavailable", usage: "native" },
 			security: { nativeApproval: "native", nativeSandbox: "native", networkPolicy: "talos-emulated", externalPathGrant: "talos-emulated" },
 		};
 	}

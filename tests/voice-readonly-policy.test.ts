@@ -33,22 +33,22 @@ describe("voice read-only and bounded Qwen search policy", () => {
 	});
 
 	it("gates the approval callback by channel before any confirm prompt", () => {
-		const driver = readSrc("src/quyuan/voice-driver.ts");
+		const driver = readSrc("src/quyuan/native-voice-driver.ts");
 		// 通道分流必须位于治理/风险合并之前，且只作用于 voice 通道
 		expect(driver).toContain(
-			'if (channel === "voice" && !isVoiceReadOnlyTool(toolName))'
+			'if (channel === "voice" && !isVoiceReadOnlyTool(name))'
 		);
 		const gateIndex = driver.indexOf(
-			'if (channel === "voice" && !isVoiceReadOnlyTool(toolName))'
+			'if (channel === "voice" && !isVoiceReadOnlyTool(name))'
 		);
-		const govIndex = driver.indexOf("gov.evaluateQuyuanToolPolicy");
+		const govIndex = driver.indexOf("this.plugin.evaluateQuyuanToolPolicy");
 		expect(gateIndex).toBeGreaterThan(-1);
 		expect(govIndex).toBeGreaterThan(-1);
 		expect(gateIndex).toBeLessThan(govIndex);
 	});
 
 	it("carries the read-only spoken contract in the voice response policy", () => {
-		const driver = readSrc("src/quyuan/voice-driver.ts");
+		const driver = readSrc("src/quyuan/native-voice-driver.ts");
 		expect(driver).toContain("语音通道是只读的");
 		expect(driver).toContain("请到文字对话");
 		// 文字通道契约不受只读门影响
@@ -57,9 +57,9 @@ describe("voice read-only and bounded Qwen search policy", () => {
 	});
 
 	it("injects the TALOS data map into voice turns only", () => {
-		const driver = readSrc("src/quyuan/voice-driver.ts");
+		const driver = readSrc("src/quyuan/native-voice-driver.ts");
 		expect(driver).toContain("getDataContext?.()");
-		expect(driver).toContain('channel === "voice" ? this.voiceRuntime.getDataContext');
+		expect(driver).toContain('turn.channel === "voice" ? this.config.getDataContext');
 		const dataMap = readSrc("src/quyuan/voice-data-map.ts");
 		expect(dataMap).toContain("<talos_data_map>");
 		for (const field of [

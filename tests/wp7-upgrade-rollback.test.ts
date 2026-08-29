@@ -198,7 +198,8 @@ describe("WP6 to WP7 upgrade and rollback preflight", () => {
 		expect(mainSource).toContain('id: "open-quyuan-v2"');
 		// C-3b（D-TLP-016）：旧右侧栏 JarvisView 与 open-jarvis 回滚命令随旧引擎栈移除
 		expect(mainSource).not.toContain('id: "open-jarvis"');
-		expect(mainSource).toContain("VIEW_TYPE_CLAUDIAN");
+		expect(mainSource).toContain("VIEW_TYPE_TALOS_AGENT_RECOVERY");
+		expect(mainSource).not.toContain("VIEW_TYPE_CLAUDIAN");
 
 		for (const [path, content] of backups) {
 			writeFileSync(join(vaultRoot, path), content, "utf8");

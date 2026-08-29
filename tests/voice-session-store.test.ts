@@ -13,7 +13,7 @@ const voicePanelSource = readFileSync(
 	"utf8"
 );
 const voiceDriverSource = readFileSync(
-	`${projectRoot}src/quyuan/voice-driver.ts`,
+	`${projectRoot}src/quyuan/native-voice-driver.ts`,
 	"utf8"
 );
 const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");

@@ -1,4 +1,4 @@
-import { mkdir, realpath } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 import type { AgentRuntimeAdapter, RuntimeId } from "../contracts/runtime-adapter";
 import type { ProviderProfile, RuntimeProfile } from "../contracts/provider-profile";
@@ -15,10 +15,35 @@ import { spawnOmpRpc } from "../transports/omp-rpc-connection";
 import { resolveCertificateEnvironment } from "./certificate-environment";
 import { desktopRuntimePath } from "./node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "./runtime-discovery-service";
-import { codexPermissionProfileArgs } from "../security/codex-permission-profile";
+import { codexProtectedVaultSubpaths } from "../security/codex-permission-profile";
 import { LoopbackEgressProxy } from "../security/loopback-egress-proxy";
 
 export { resolveCertificateEnvironment } from "./certificate-environment";
+
+export async function cleanupRuntimeStatusFiles(runtimeTemp: string, now = Date.now()): Promise<number> {
+	const statusRoot = path.join(runtimeTemp, ".agent-cockpit", "status");
+	let entries;
+	try {
+		entries = await readdir(statusRoot, { withFileTypes: true });
+	} catch {
+		return 0;
+	}
+	let removed = 0;
+	for (const entry of entries) {
+		if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+		const file = path.join(statusRoot, entry.name);
+		try {
+			const value = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+			const expiresAt = typeof value.expiresAt === "string" ? Date.parse(value.expiresAt) : Number.NaN;
+			if (!Number.isFinite(expiresAt) || expiresAt > now) continue;
+			await rm(file, { force: true });
+			removed += 1;
+		} catch {
+			// Unknown or concurrently changing files remain available for recovery.
+		}
+	}
+	return removed;
+}
 
 export interface RuntimeFactoryInput {
 	vaultRoot: string;
@@ -26,7 +51,9 @@ export interface RuntimeFactoryInput {
 	permissionMode?: PermissionMode;
 	runtimeProfile?: RuntimeProfile;
 	providerProfile?: ProviderProfile;
+	model?: string;
 	approve: (toolName: string, input: Record<string, unknown>, metadata?: Record<string, unknown>) => Promise<"allow" | "allow-always" | "deny">;
+	answerQuestion?: (input: Record<string, unknown>, metadata: { requestId: string; toolUseId: string; signal?: AbortSignal }) => Promise<Record<string, string | string[]> | null>;
 }
 
 export type ProviderSecretResolver = (secretRef: string) => string | null;
@@ -72,6 +99,17 @@ function runtimeInstallationRoot(executable: string): string {
 	return path.dirname(executable);
 }
 
+function claudeQuestionInput(input: Record<string, unknown>): Record<string, unknown> {
+	if (!Array.isArray(input.questions)) return { ...input };
+	const questions: unknown[] = input.questions;
+	return {
+		...input,
+		questions: questions.map((question) => question && typeof question === "object" && !Array.isArray(question) && !("isOther" in question)
+			? { ...question, isOther: true }
+			: question),
+	};
+}
+
 export class DesktopRuntimeFactory {
 	constructor(
 		private readonly discovery: RuntimeDiscoveryService,
@@ -91,6 +129,13 @@ export class DesktopRuntimeFactory {
 		if (runtimeId === "claude") {
 			const port = new ClaudeSdkQueryPort(input.vaultRoot, probeRuntime, {
 				decide: async (toolName, toolInput, metadata) => {
+					if (toolName === "AskUserQuestion") {
+						const questionInput = claudeQuestionInput(toolInput);
+						const answers = await input.answerQuestion?.(questionInput, metadata) ?? null;
+						return answers
+							? { allow: true, updatedInput: { ...questionInput, answers } }
+							: { allow: false, message: "用户取消回答", interrupt: true };
+					}
 					const decision = await input.approve(toolName, toolInput, metadata);
 					return { allow: decision === "allow" || decision === "allow-always", message: decision === "deny" ? "TALOS 权限策略拒绝" : undefined };
 				},
@@ -107,10 +152,11 @@ export class DesktopRuntimeFactory {
 		const sessionRoot = home ? path.join(home, runtimeId === "codex" ? ".codex" : ".omp") : input.vaultRoot;
 		if (runtimeId === "codex" && !input.configDir) throw new Error("缺少 Vault configDir，Codex 已失败关闭");
 		const runtimeTemp = path.join(input.vaultRoot, ".talos", "agent-workbench", "v1", "runtime-tmp", runtimeId);
+		await cleanupRuntimeStatusFiles(runtimeTemp);
 		await Promise.all([mkdir(runtimeTemp, { recursive: true }), mkdir(sessionRoot, { recursive: true })]);
 		const proxy = new LoopbackEgressProxy(async ({ host, port }) => {
 			const decision = await input.approve("NetworkRequest", { url: "https://" + host + ":" + port }, { reason: "provider-egress-proxy", host, port });
-			return decision === "allow" || decision === "allow-always";
+			return decision;
 		});
 		const proxyPort = await proxy.start();
 		const proxyUrl = "http://localhost:" + proxyPort;
@@ -126,15 +172,25 @@ export class DesktopRuntimeFactory {
 		};
 		try {
 		if (runtimeId === "codex") {
-			const launch = await this.sandbox.prepare({ executable: runtimeExecutable, args: ["app-server", ...codexPermissionProfileArgs(input.configDir!)], cwd: input.vaultRoot, environment, readOnlyRoots: [packageRoot, ...certificateRoots], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
+			const launch = await this.sandbox.prepare({
+				executable: runtimeExecutable,
+				args: ["app-server", "--listen", "stdio://"],
+				cwd: input.vaultRoot,
+				environment,
+				readOnlyRoots: [packageRoot, ...certificateRoots],
+				readWriteRoots: [sessionRoot, runtimeTemp],
+				loopbackProxyPort: proxyPort,
+				deniedVaultSubpaths: codexProtectedVaultSubpaths(input.configDir!),
+				denyDotEnvFiles: true,
+			}, input.vaultRoot);
 			const connection = spawnJsonLineRpc(launch);
 			try {
 				await connection.request("initialize", { clientInfo: { name: "talos-agent-workbench", version: "1.0.0" }, capabilities: { experimentalApi: true } });
 				await connection.notify("initialized");
 			} catch (error) { await connection.close(); throw error; }
-			return new CodexAppServerAdapter(new CodexProcessPort(connection, probeRuntime), () => proxy.close());
+			return new CodexAppServerAdapter(new CodexProcessPort(connection, probeRuntime), () => proxy.close(), runtimeTemp);
 		}
-		const raw = buildOhMyPiLaunch(runtimeExecutable, input.vaultRoot, input.permissionMode ?? "ask");
+		const raw = buildOhMyPiLaunch(runtimeExecutable, input.vaultRoot, input.permissionMode ?? "ask", input.model);
 		const launch = await this.sandbox.prepare({ ...raw, environment, readOnlyRoots: [packageRoot, ...certificateRoots], readWriteRoots: [sessionRoot, runtimeTemp], loopbackProxyPort: proxyPort }, input.vaultRoot);
 		const connection = spawnOmpRpc(launch);
 		try {

@@ -1,6 +1,15 @@
 import { EventEmitter } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+import {
+	mkdtemp,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	clearTimeout as nodeClearTimeout,
 	setTimeout as nodeSetTimeout,
@@ -22,11 +31,16 @@ import {
 	hasDshProductIdentity,
 	parseDshVersion,
 	resolveNodeBinDirectory,
+	resolveNodeExecutable,
+	spawnDshWithParentSupervisor,
 	type DshGatewayInput,
 	type DshProcessRuntime,
 } from "../src/harness/dsh-process-manager";
-import { buildDshLaunchPlan, dshBaseUrl } from "../src/harness/dsh-runtime";
-import type { ChildProcess } from "node:child_process";
+import {
+	buildDshLaunchPlan,
+	dshBaseUrl,
+	type DshLaunchPlan,
+} from "../src/harness/dsh-runtime";
 
 const WORKSPACE_A = "a".repeat(64);
 const WORKSPACE_B = "b".repeat(64);
@@ -65,6 +79,45 @@ async function listen(
 				server.close(() => resolve());
 			}),
 	};
+}
+
+async function waitUntil(
+	predicate: () => boolean | Promise<boolean>,
+	timeoutMs = 3000
+): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (await predicate()) return true;
+		await new Promise<void>((resolve) => nodeSetTimeout(resolve, 25));
+	}
+	return predicate();
+}
+
+function processExists(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+async function waitForExit(
+	child: ChildProcess,
+	timeoutMs = 3000
+): Promise<boolean> {
+	if (child.exitCode !== null || child.signalCode !== null) return true;
+	return new Promise((resolve) => {
+		const timer = nodeSetTimeout(() => {
+			child.off("exit", onExit);
+			resolve(false);
+		}, timeoutMs);
+		const onExit = (): void => {
+			nodeClearTimeout(timer);
+			resolve(true);
+		};
+		child.once("exit", onExit);
+	});
 }
 
 class FakeChild extends EventEmitter {
@@ -237,6 +290,88 @@ describe("Harness identity and process isolation", () => {
 			DSH_HOME: "/synthetic-home",
 		});
 		expect(environment).not.toHaveProperty("NODE_OPTIONS");
+	});
+
+	it("resolves the verified Node binary used by the parent supervisor", () => {
+		expect(
+			resolveNodeExecutable(
+				{ PATH: "/usr/bin:/bin" },
+				"darwin",
+				(candidate) => candidate === "/usr/local/bin/node"
+			)
+		).toBe("/usr/local/bin/node");
+	});
+
+	it("terminates the dsh child when its host process disappears", async () => {
+		const directory = await mkdtemp(
+			join(tmpdir(), "talos-dsh-supervisor-")
+		);
+		const childScript = join(directory, "stubborn-child.mjs");
+		const pidFile = join(directory, "child.pid");
+		await writeFile(
+			childScript,
+			[
+				'import { writeFileSync } from "node:fs";',
+				"writeFileSync(process.argv[2], String(process.pid));",
+				'process.on("SIGTERM", () => {});',
+				"setInterval(() => {}, 1000);",
+			].join("\n"),
+			"utf8"
+		);
+		const host = spawn(
+			process.execPath,
+			["-e", "setInterval(() => {}, 1000)"],
+			{ stdio: "ignore" }
+		);
+		if (!host.pid) throw new Error("expected synthetic host pid");
+		const plan: DshLaunchPlan = {
+			executable: process.execPath,
+			args: [childScript, pidFile],
+			cwd: directory,
+			env: {},
+		};
+		const supervisor = spawnDshWithParentSupervisor(
+			plan,
+			buildDshChildEnvironment({}),
+			{
+				hostPid: host.pid,
+				nodeExecutable: process.execPath,
+				pollIntervalMs: 25,
+				shutdownGraceMs: 75,
+			}
+		);
+		let childPid = 0;
+		try {
+			const childStarted = await waitUntil(async () => {
+				try {
+					childPid = Number(await readFile(pidFile, "utf8"));
+					return Number.isInteger(childPid) && childPid > 0;
+				} catch {
+					return false;
+				}
+			});
+			expect(childStarted).toBe(true);
+			expect(processExists(childPid)).toBe(true);
+
+			host.kill("SIGTERM");
+			expect(await waitForExit(host)).toBe(true);
+			expect(await waitForExit(supervisor)).toBe(true);
+			expect(await waitUntil(() => !processExists(childPid))).toBe(true);
+		} finally {
+			if (host.exitCode === null && host.signalCode === null) {
+				host.kill("SIGKILL");
+			}
+			if (
+				supervisor.exitCode === null &&
+				supervisor.signalCode === null
+			) {
+				supervisor.kill("SIGKILL");
+			}
+			if (childPid > 0 && processExists(childPid)) {
+				process.kill(childPid, "SIGKILL");
+			}
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 
 	it("does not duplicate a Node directory already present on PATH", () => {

@@ -10,6 +10,7 @@ export interface PortableFileAdapter {
 	/** Atomically replaces `to` with `from` on the same filesystem. */
 	replace(from: string, to: string): Promise<void>;
 	remove(path: string): Promise<void>;
+	rmdir?(path: string, recursive: boolean): Promise<void>;
 	mkdir(path: string): Promise<void>;
 	list(path: string): Promise<{ files: string[]; folders: string[] }>;
 	flush?(): Promise<void>;
@@ -89,11 +90,31 @@ function safeConversationId(id: string): string {
 	return id;
 }
 function manifestPath(id: string): string { return `${ROOT}/conversations/${safeConversationId(id)}/manifest.json`; }
+function conversationPath(id: string): string { return `${ROOT}/conversations/${safeConversationId(id)}`; }
 function eventsPath(id: string): string { return `${ROOT}/conversations/${safeConversationId(id)}/events`; }
 function eventPath(id: string, eventId: string): string {
 	if (!eventId || eventId.length > 512) throw new Error("eventId 无效");
 	const digest = createHash("sha256").update(eventId).digest("hex");
 	return `${eventsPath(id)}/${digest}.json`;
+}
+
+function eventPriority(event: AgentEvent): number {
+	if (event.type === "user.message") return 0;
+	if (event.type === "assistant.start") return 1;
+	return 2;
+}
+
+function orderEvents(events: AgentEvent[]): void {
+	const turnAnchors = new Map<string, string>();
+	for (const event of events) {
+		const candidate = `${event.timestamp}\u0000${event.eventId}`;
+		const current = turnAnchors.get(event.turnId);
+		if (!current || candidate < current) turnAnchors.set(event.turnId, candidate);
+	}
+	events.sort((left, right) => (turnAnchors.get(left.turnId) ?? "").localeCompare(turnAnchors.get(right.turnId) ?? "")
+		|| eventPriority(left) - eventPriority(right)
+		|| left.timestamp.localeCompare(right.timestamp)
+		|| left.eventId.localeCompare(right.eventId));
 }
 
 export class PortableConversationStore {
@@ -117,6 +138,12 @@ export class PortableConversationStore {
 		await this.files.write(temporary, stableJson(portable));
 		await this.files.flush?.();
 		await this.files.replace(temporary, path);
+	}
+
+	private async removeEmptyDirectory(path: string): Promise<void> {
+		if (!(await this.files.exists(path))) return;
+		if (!this.files.rmdir) throw new Error("工作台存储不支持安全空目录删除");
+		await this.files.rmdir(path, false);
 	}
 
 	async create(manifest: ConversationManifest): Promise<void> {
@@ -161,8 +188,7 @@ export class PortableConversationStore {
 		for (const file of listing.files.filter((name) => name.endsWith(".json")).sort()) {
 			events.push(JSON.parse(await this.files.read(`${eventsPath(conversationId)}/${file}`)) as AgentEvent);
 		}
-		events.sort((left, right) => left.timestamp.localeCompare(right.timestamp)
-			|| left.eventId.localeCompare(right.eventId));
+		orderEvents(events);
 		return {
 			manifest,
 			events,
@@ -170,6 +196,28 @@ export class PortableConversationStore {
 			lastTurnId: events.at(-1)?.turnId,
 			nativeBindings: {},
 		};
+	}
+
+	async discardEmpty(conversationId: string): Promise<boolean> {
+		const projection = await this.load(conversationId);
+		if (
+			projection.manifest.lifecycle !== "active"
+			|| projection.manifest.title !== "新会话"
+			|| projection.manifest.importedFrom
+			|| projection.events.length > 0
+		) return false;
+		const listing = await this.files.list(eventsPath(conversationId));
+		if (listing.files.length > 0 || listing.folders.length > 0) return false;
+		const conversationListing = await this.files.list(conversationPath(conversationId));
+		if (
+			conversationListing.files.some((name) => name !== "manifest.json")
+			|| conversationListing.folders.some((name) => name !== "events")
+		) return false;
+		await this.removeEmptyDirectory(eventsPath(conversationId));
+		await this.files.remove(manifestPath(conversationId));
+		await this.removeEmptyDirectory(conversationPath(conversationId));
+		await this.writeIndex(await this.rebuildIndex());
+		return true;
 	}
 
 	async rebuildIndex(): Promise<PortableIndex> {

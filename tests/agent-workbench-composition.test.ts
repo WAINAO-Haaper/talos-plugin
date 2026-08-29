@@ -23,6 +23,9 @@ class NodeVaultAdapter implements VaultDataAdapter {
 	async read(relative: string): Promise<string> { return readFile(this.resolve(relative), "utf8"); }
 	async write(relative: string, value: string): Promise<void> { await writeFile(this.resolve(relative), value); }
 	async remove(relative: string): Promise<void> { await rm(this.resolve(relative), { force: true }); }
+	async rmdir(relative: string, recursive: boolean): Promise<void> {
+		await rm(this.resolve(relative), { recursive, force: recursive });
+	}
 	async mkdir(relative: string): Promise<void> { await mkdir(this.resolve(relative)); }
 	async list(relative: string): Promise<{ files: string[]; folders: string[] }> {
 		const entries = await readdir(this.resolve(relative), { withFileTypes: true });
@@ -36,6 +39,7 @@ class NodeVaultAdapter implements VaultDataAdapter {
 describe("AgentWorkbench composition persistence", () => {
 	it("imports legacy bytes read-only and keeps portable events separate from native bindings", async () => {
 		const vault = await mkdtemp(path.join(tmpdir(), "talos-composition-"));
+		const syntheticHome = path.join(path.sep, "synthetic-home");
 		created.push(vault);
 		const legacyDirectory = path.join(vault, ".talos", "quyuan", "sessions");
 		await mkdir(legacyDirectory, { recursive: true });
@@ -100,7 +104,7 @@ describe("AgentWorkbench composition persistence", () => {
 			runtimeId: "codex",
 			type: "tool.started",
 			timestamp: "2026-08-26T00:00:00.000Z",
-			nativeId: "/Users/synthetic/.codex/native/request.json",
+			nativeId: path.join(syntheticHome, ".codex/native/request.json"),
 			payload: { path: vault + "/note.md", vaultRoot: vault, authorization: "Bearer synthetic" },
 		}, vault);
 		await coordinator.setBinding(manifest.conversationId, {
@@ -108,7 +112,7 @@ describe("AgentWorkbench composition persistence", () => {
 			sessionId: "native-session",
 			nativeResumeToken: vault + "/native/session.jsonl",
 		});
-		await coordinator.switchRuntime(manifest.conversationId, "ohmypi");
+		expect(await coordinator.switchRuntime(manifest.conversationId, "ohmypi")).toBe(true);
 
 		const projection = await conversations.store.load(manifest.conversationId);
 		expect(projection.events).toHaveLength(3);
@@ -119,7 +123,7 @@ describe("AgentWorkbench composition persistence", () => {
 		]));
 		const portableBytes = JSON.stringify(projection);
 		expect(portableBytes).not.toContain(vault);
-		expect(portableBytes).not.toContain("/Users/synthetic");
+		expect(portableBytes).not.toContain(syntheticHome);
 		expect(portableBytes).not.toContain("sk-synthetic");
 		expect(portableBytes).not.toContain("authorization");
 		expect(await coordinator.getBinding(manifest.conversationId, "codex")).toMatchObject({
@@ -127,5 +131,58 @@ describe("AgentWorkbench composition persistence", () => {
 			nativeResumeToken: vault + "/native/session.jsonl",
 		});
 		await expect(portable.write("../escape.json", "{}")).rejects.toThrow("越过 Vault");
+	});
+
+	it("switches an empty new conversation without creating or inheriting handoff context", async () => {
+		const vault = await mkdtemp(path.join(tmpdir(), "talos-empty-conversation-"));
+		created.push(vault);
+		const adapter = new NodeVaultAdapter(vault);
+		const portable = new ObsidianWorkbenchStorage(adapter, vault);
+		const conversations = new ConversationService(new PortableConversationStore(portable));
+		const coordinator = new WorkbenchConversationCoordinator(
+			conversations,
+			new RuntimeBindingStore({
+				read: async () => null,
+				write: async () => undefined,
+			}),
+		);
+		const manifest = await conversations.create("新会话", "codex");
+		expect(await coordinator.switchRuntime(manifest.conversationId, "claude")).toBe(false);
+		const projection = await conversations.store.load(manifest.conversationId);
+		expect(projection.events).toEqual([]);
+		expect(projection.manifest.selection).toEqual({ runtimeId: "claude" });
+		expect(await coordinator.getBinding(manifest.conversationId, "codex")).toBeNull();
+		expect(await coordinator.getBinding(manifest.conversationId, "claude")).toBeNull();
+
+		const discardable = await conversations.create("新会话", "codex");
+		expect(await coordinator.switchRuntime(discardable.conversationId, "ohmypi")).toBe(false);
+		await expect(adapter.rmdir(
+			`.talos/agent-workbench/v1/conversations/${discardable.conversationId}/events`,
+			false,
+		)).rejects.toThrow();
+		await expect(conversations.discardEmpty(discardable.conversationId)).resolves.toBe(true);
+		await expect(access(path.join(
+			vault,
+			".talos/agent-workbench/v1/conversations",
+			discardable.conversationId,
+		))).rejects.toMatchObject({ code: "ENOENT" });
+
+		await conversations.append({
+			conversationId: manifest.conversationId,
+			turnId: "legacy-empty-handoff",
+			runtimeId: "claude",
+			type: "handoff.created",
+			payload: {
+				goal: "",
+				recentMessages: [],
+				incompleteTasks: [],
+				toolResultSummaries: [],
+				vaultRelativeReferences: [],
+			},
+		});
+		expect(await coordinator.switchRuntime(manifest.conversationId, "codex")).toBe(false);
+		const legacyProjection = await conversations.store.load(manifest.conversationId);
+		expect(legacyProjection.events).toHaveLength(1);
+		expect(legacyProjection.manifest.selection).toEqual({ runtimeId: "codex" });
 	});
 });

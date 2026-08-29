@@ -15,6 +15,16 @@ export interface ApprovalContext {
 
 const MUTATING = new Set(["write", "delete", "shell", "network", "export", "mcp"]);
 
+function networkRuleTarget(request: ActionRequest): string | null {
+	if (request.kind !== "network" || !request.network) return null;
+	const rawHost = request.network.host.trim().toLowerCase().replace(/^\[|\]$/g, "");
+	if (!rawHost) return null;
+	const defaultPort = request.network.protocol === "https" ? 443 : request.network.protocol === "http" ? 80 : undefined;
+	const port = request.network.port ?? defaultPort;
+	const host = rawHost.includes(":") ? `[${rawHost}]` : rawHost;
+	return port ? `${host}:${port}` : host;
+}
+
 function isProviderEgress(request: ActionRequest, context: ApprovalContext): boolean {
 	return request.kind === "network"
 		&& context.providerEgressRequest === true
@@ -54,17 +64,18 @@ export class ApprovalBroker {
 		}
 	}
 
-	async rememberExactRule(request: ActionRequest, context: ApprovalContext): Promise<string | null> {
+	async rememberExactRule(request: ActionRequest, _context: ApprovalContext): Promise<string | null> {
 		if (request.kind === "network" && request.network) {
+			const target = networkRuleTarget(request);
+			if (!target) return null;
 			const id = crypto.randomUUID();
-			this.grants.add({
+			await this.rules.add({
 				id,
-				type: "host",
-				value: request.network.host,
-				direction: "network",
-				actionId: request.actionId,
-				lifetime: "conversation",
-				conversationId: context.conversationId,
+				runtimeId: request.runtimeId,
+				kind: "network",
+				target,
+				scope: "persistent",
+				createdAt: new Date().toISOString(),
 			});
 			return id;
 		}
@@ -90,6 +101,11 @@ export class ApprovalBroker {
 		if (request.kind === "network" && request.network) {
 			if (isProviderEgress(request, context)) {
 				return { actionId: request.actionId, decision: "allow", reason: "已确认 Provider endpoint" };
+			}
+			const target = networkRuleTarget(request);
+			if (target) {
+				const rule = await this.rules.match({ runtimeId: request.runtimeId, kind: "network", target, conversationId: context.conversationId });
+				if (rule) return { actionId: request.actionId, decision: "allow", reason: "命中精确持久网络授权", ruleId: rule.id };
 			}
 			const grant = this.grants.consume({ type: "host", value: request.network.host, direction: "network", actionId: request.actionId, conversationId: context.conversationId });
 			if (grant) return { actionId: request.actionId, decision: "allow", reason: "命中精确网络授权", ruleId: grant.id };

@@ -26,9 +26,9 @@ describe("assistant layout regression", () => {
 	});
 
 	it("embeds the DeepSeek Harness surface without mutating the TALOS leaf", () => {
-		// D-TLP-014（2026-08-22 改写）：对话页从嵌入 ClaudianView 改为
+		// D-TLP-014（2026-08-22 改写）：对话页从嵌入旧视图改为
 		// iframe 嵌入 dsh web 桌面界面（loopback），构造隔离代理与
-		// workbench.leaf 改写随之退役；ClaudianView 仅保留为独立恢复视图
+		// workbench.leaf 改写随之退役；独立恢复地址由 TALOS 原生视图接管
 		// （命令 open-quyuan-v2-recovery），orphan 清理逻辑仍钉死。
 		expect(viewSource).toContain("HarnessWorkbench");
 		expect(viewSource).toContain("getHarnessManager");

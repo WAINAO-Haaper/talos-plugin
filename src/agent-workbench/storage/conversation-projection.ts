@@ -8,6 +8,29 @@ export interface ProjectedMessage {
 
 function text(value: unknown): string { return typeof value === "string" ? value : ""; }
 
+function hasNonEmptyValue(value: unknown): boolean {
+	if (typeof value === "string") return value.trim().length > 0;
+	if (Array.isArray(value)) return value.some(hasNonEmptyValue);
+	if (value && typeof value === "object") return Object.values(value).some(hasNonEmptyValue);
+	return false;
+}
+
+export function hasMeaningfulHandoffPayload(payload: unknown): boolean {
+	if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+	const value = payload as Record<string, unknown>;
+	return [
+		value.goal,
+		value.recentMessages,
+		value.incompleteTasks,
+		value.toolResultSummaries,
+		value.vaultRelativeReferences,
+	].some(hasNonEmptyValue);
+}
+
+export function hasMeaningfulHandoffContext(event: AgentEvent): boolean {
+	return event.type === "handoff.created" && hasMeaningfulHandoffPayload(event.payload);
+}
+
 export function projectMessages(events: AgentEvent[]): ProjectedMessage[] {
 	const messages: ProjectedMessage[] = [];
 	const assistantByTurn = new Map<string, ProjectedMessage>();
@@ -25,7 +48,7 @@ export function projectMessages(events: AgentEvent[]): ProjectedMessage[] {
 			const content = text(event.payload.text);
 			message.text = event.type === "assistant.final" ? content : `${message.text}${content}`;
 		}
-		if (event.type === "handoff.created") {
+		if (event.type === "handoff.created" && hasMeaningfulHandoffContext(event)) {
 			messages.push({ role: "system", text: "Runtime handoff", eventId: event.eventId });
 		}
 	}

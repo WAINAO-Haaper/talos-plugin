@@ -1,6 +1,6 @@
 /**
  * D-TLP-015：对话页双通道滑动切换器。
- * DeepSeek Harness（iframe 桌面界面）与 Codex 工作台（claudian codex 内核）
+ * DeepSeek Harness（iframe 桌面界面）与 TALOS 原生智能体工作台
  * 双通道保活：切换只切可见性，不丢会话与进程；选中通道由调用方持久化。
  */
 

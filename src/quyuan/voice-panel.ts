@@ -1,13 +1,15 @@
-import { App, Component, MarkdownRenderer, normalizePath, Notice, setIcon } from "obsidian";
+import { App, Component, MarkdownRenderer, normalizePath, Notice, setIcon, type PluginManifest } from "obsidian";
 import type { TalosSettings } from "../settings";
 import type { ProviderUsageMetrics } from "../ai/privacy/provider-usage-audit-store";
 import { StreamTts } from "../jarvis/voiceio";
 import type { VadMic, VadMicHandlers } from "./vad-mic";
 import { LocalAsr } from "./local-asr";
 import { createBundledLocalAsrPackage } from "./bundled-local-voice-runtime";
-import type ClaudianPlugin from "./claudian/main";
-import { QuyuanVoiceDriver } from "./voice-driver";
-import type { InteractionChannel } from "./voice-driver";
+import {
+	QuyuanVoiceDriver,
+	type InteractionChannel,
+	type TalosVoiceRuntimeHost,
+} from "./native-voice-driver";
 import { resolveEffectiveRuntimePolicy } from "./runtime-policy";
 import { buildTalosDataMap } from "./voice-data-map";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
@@ -30,7 +32,8 @@ import {
 } from "./qwen-realtime-voice";
 import type { VoiceVaultToolName } from "./voice-vault-tools";
 
-interface TalosQuyuanPlugin extends ClaudianPlugin {
+interface TalosQuyuanPlugin extends TalosVoiceRuntimeHost {
+	readonly manifest: PluginManifest;
 	activateQuyuanV2View(): Promise<void>;
 	exchangeQuyuanRealtimeSdp(input: {
 		model: string;

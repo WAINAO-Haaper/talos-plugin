@@ -1,8 +1,7 @@
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 
-// Claudian 的 SHARED_ENVIRONMENT_KEYS 早已把这些键视为用户可配置的证书逃生口。
-// 沙箱化运行时同样继承它们，但只继承 CA 相关键：代理键由 TALOS 独占，
+// 沙箱化运行时只继承用户显式配置的 CA 相关键：代理键由 TALOS 独占，
 // 用户环境不得覆盖 loopback egress 的目的地。
 const INHERITED_CERTIFICATE_KEYS = [
 	"SSL_CERT_FILE",

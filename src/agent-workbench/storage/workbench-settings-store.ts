@@ -7,6 +7,8 @@ export interface RuntimeSelection {
 	runtimeId: RuntimeId;
 	providerProfileId?: string;
 	model?: string;
+	reasoning?: string;
+	serviceTier?: string;
 }
 
 export interface WorkbenchSettings {
@@ -42,10 +44,14 @@ function defaults(): WorkbenchSettings {
 
 function normalizeSelection(selection: RuntimeSelection, providers: ProviderProfile[]): RuntimeSelection {
 	if (!selection || !["claude", "codex", "ohmypi"].includes(selection.runtimeId)) throw new Error("runtime selection 无效");
+	const reasoning = typeof selection.reasoning === "string" && selection.reasoning.trim() ? selection.reasoning.trim() : undefined;
+	const serviceTier = typeof selection.serviceTier === "string" && selection.serviceTier.trim() ? selection.serviceTier.trim() : undefined;
 	if (!selection.providerProfileId) {
 		return {
 			runtimeId: selection.runtimeId,
 			...(selection.model ? { model: selection.model } : {}),
+			...(reasoning ? { reasoning } : {}),
+			...(serviceTier ? { serviceTier } : {}),
 		};
 	}
 	const provider = providers.find((candidate) => candidate.enabled && candidate.id === selection.providerProfileId && candidate.runtimeId === selection.runtimeId);
@@ -54,6 +60,8 @@ function normalizeSelection(selection: RuntimeSelection, providers: ProviderProf
 		runtimeId: selection.runtimeId,
 		providerProfileId: provider.id,
 		...(selection.model && provider.models.includes(selection.model) ? { model: selection.model } : {}),
+		...(reasoning ? { reasoning } : {}),
+		...(serviceTier ? { serviceTier } : {}),
 	};
 }
 

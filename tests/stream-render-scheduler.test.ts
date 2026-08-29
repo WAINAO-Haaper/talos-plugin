@@ -23,7 +23,7 @@ const frameQueue = vi.hoisted(() => {
   };
 });
 
-vi.mock("../src/quyuan/claudian/utils/animationFrame", () => ({
+vi.mock("../src/agent-workbench/ui/animation-frame", () => ({
   scheduleAnimationFrame: (cb: () => void) => {
     frameQueue.callbacks.push(cb);
     return { kind: "raf" as const, id: 0, ownerWindow: null };
@@ -35,7 +35,7 @@ vi.mock("../src/quyuan/claudian/utils/animationFrame", () => ({
   },
 }));
 
-import { StreamRenderScheduler } from "../src/quyuan/claudian/features/chat/controllers/StreamRenderScheduler";
+import { StreamRenderScheduler } from "../src/agent-workbench/ui/stream-render-scheduler";
 
 /** 等待微任务队列排空 */
 function tick(): Promise<void> {

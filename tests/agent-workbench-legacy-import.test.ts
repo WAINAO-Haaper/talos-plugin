@@ -47,11 +47,16 @@ describe("ClaudianReadonlyImporter", () => {
 		const legacy = syntheticLegacy(); const before = legacy.digest();
 		const conversations = new ConversationService(new PortableConversationStore(new MemoryPortableFiles()), { now: () => "2026-08-26T00:00:00.000Z", id: () => "generated" });
 		let state: LegacyImportState | null = null;
-		const importer = new ClaudianReadonlyImporter(legacy, conversations, { read: async () => state, write: async (value) => { state = structuredClone(value); } });
+		const stateWrites: LegacyImportState[] = [];
+		const importer = new ClaudianReadonlyImporter(legacy, conversations, { read: async () => state, write: async (value) => {
+			state = structuredClone(value);
+			stateWrites.push(structuredClone(value));
+		} });
 		const first = await importer.import();
 		expect(first).toMatchObject({ full: 1, partial: 1, corrupt: 1, skipped: 0 });
 		expect(first.sourceAggregateAfter).toBe(first.sourceAggregateBefore);
 		expect(legacy.digest()).toBe(before);
+		expect(Object.values(stateWrites.at(-1)?.imports ?? {}).map((entry) => entry.legacyConversationId).sort()).toEqual(["full", "partial"]);
 		const second = await importer.import();
 		expect(second).toMatchObject({ full: 0, partial: 0, corrupt: 1, skipped: 2 });
 		expect(await conversations.store.list()).toHaveLength(2);

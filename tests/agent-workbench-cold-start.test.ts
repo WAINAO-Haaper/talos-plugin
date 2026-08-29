@@ -96,7 +96,9 @@ describe("agent workbench cold-start lifecycle", () => {
 		).toHaveLength(1);
 		expect(viewSource).toContain("new DeferredChatWorkbench");
 		expect(viewSource).toContain("await this.plugin.waitForAgentWorkbench()");
-		expect(viewSource).toContain("const { compatibility } = await this.plugin.waitForAgentWorkbench()");
+		expect(viewSource).toMatch(
+			/const \{ service \}\s*=\s*await this\.plugin\.waitForAgentWorkbench\(\)/,
+		);
 		expect(viewSource).toContain('this.activePage !== "chat" || !page.isConnected');
 		expect(viewSource).toContain("...encodeTalosViewState(this.activePage)");
 		expect(viewSource).toContain("this.pageRouter.navigate(decodeTalosViewState(state))");
