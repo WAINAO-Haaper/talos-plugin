@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, setIcon, type App, type TFile } from "obsidian";
+import { MarkdownView, Notice, setIcon, TFile, type App } from "obsidian";
 import type {
 	RuntimeExecutionContext,
 	RuntimeInputBlock,
@@ -437,6 +437,26 @@ export class NativeComposer {
 	setQueueMessage(message?: string): void {
 		this.queueRow.hidden = !message;
 		this.queueRow.textContent = message ?? "";
+	}
+
+	restoreAfterFailure(draft: NativeComposerDraft): void {
+		this.textarea.value = draft.input
+			.flatMap((block) => block.type === "text" ? [block.text] : [])
+			.join("\n\n");
+		this.images = draft.input.flatMap((block): ImageDraft[] => block.type === "image" ? [{
+			id: block.id,
+			name: block.name,
+			mimeType: block.mimeType as ImageDraft["mimeType"],
+			dataUrl: block.dataUrl,
+			byteLength: 0,
+		}] : []);
+		const files = (draft.context?.selections ?? [])
+			.flatMap((selection) => selection.path ? [this.options.app.vault.getAbstractFileByPath(selection.path)] : [])
+			.filter((file): file is TFile => file instanceof TFile);
+		this.selectedFiles = uniquePaths(files);
+		this.enabledMcpServers = new Set(draft.context?.enabledMcpServers ?? []);
+		this.renderContextChips();
+		this.updateSuggestions();
 	}
 
 	clearAfterSend(): void {

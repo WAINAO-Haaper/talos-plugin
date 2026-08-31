@@ -12,6 +12,14 @@ export interface VaultDataAdapter {
 	list(path: string): Promise<{ files: string[]; folders: string[] }>;
 }
 
+export function storageSyncOpenFlags(platform: NodeJS.Platform): "r" | "r+" {
+	return platform === "win32" ? "r+" : "r";
+}
+
+export function supportsDirectoryFsync(platform: NodeJS.Platform): boolean {
+	return platform !== "win32";
+}
+
 function relativePath(value: string): string {
 	if (!value || path.posix.isAbsolute(value) || path.win32.isAbsolute(value)) {
 		throw new Error("工作台存储路径必须是 Vault 相对路径");
@@ -27,7 +35,11 @@ export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	private readonly basePath: string;
 	private readonly pendingFlush = new Set<string>();
 
-	constructor(private readonly adapter: VaultDataAdapter, basePath: string) {
+	constructor(
+		private readonly adapter: VaultDataAdapter,
+		basePath: string,
+		private readonly platform = process.platform,
+	) {
 		if (!path.isAbsolute(basePath)) throw new Error("Vault 根目录必须是绝对路径");
 		this.basePath = path.resolve(basePath);
 	}
@@ -90,15 +102,18 @@ export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	}
 
 	async flush(): Promise<void> {
-		const pending = [...this.pendingFlush];
-		this.pendingFlush.clear();
-		for (const file of pending) {
-			const handle = await open(file, "r");
+		for (const file of [...this.pendingFlush]) {
+			// Windows permits fsync only on a writable handle. "r+" preserves
+			// the existing bytes while retaining the atomic-write durability gate.
+			const handle = await open(file, storageSyncOpenFlags(this.platform));
 			try { await handle.sync(); } finally { await handle.close(); }
+			this.pendingFlush.delete(file);
 		}
 	}
 
 	private async flushDirectory(file: string): Promise<void> {
+		// Windows does not expose directory fsync through Node file handles.
+		if (!supportsDirectoryFsync(this.platform)) return;
 		const handle = await open(path.dirname(this.absolute(file)), "r");
 		try { await handle.sync(); } finally { await handle.close(); }
 	}

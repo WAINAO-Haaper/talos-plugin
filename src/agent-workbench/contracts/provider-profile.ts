@@ -2,6 +2,7 @@ import type { RuntimeId } from "./runtime-adapter";
 
 export type ProviderProtocol =
 	| "anthropic-agent"
+	| "anthropic-messages"
 	| "openai-responses"
 	| "openai-chat"
 	| "ohmypi-native";
@@ -25,6 +26,13 @@ export interface ProviderProfile {
 	enabled: boolean;
 }
 
+export function isDirectApiProviderProfile(
+	profile: ProviderProfile | undefined,
+): boolean {
+	return profile?.protocol === "anthropic-messages"
+		|| profile?.protocol === "openai-chat";
+}
+
 export function validateProviderProfile(profile: ProviderProfile): ProviderProfile {
 	if (!/^[a-z0-9][a-z0-9._-]{1,63}$/i.test(profile.id)) {
 		throw new Error("Provider profile id 无效");
@@ -36,11 +44,11 @@ export function validateProviderProfile(profile: ProviderProfile): ProviderProfi
 		}
 		profile = { ...profile, endpoint: url.toString().replace(/\/$/, "") };
 	}
-	if (profile.runtimeId === "codex" && profile.protocol !== "openai-responses") {
-		throw new Error("Codex 自定义 Provider 必须兼容 OpenAI Responses");
+	if (profile.runtimeId === "codex" && !["openai-responses", "openai-chat"].includes(profile.protocol)) {
+		throw new Error("Codex 自定义 Provider 必须兼容 OpenAI Responses 或 Chat Completions");
 	}
-	if (profile.runtimeId === "claude" && profile.protocol !== "anthropic-agent") {
-		throw new Error("Claude runtime 必须使用 anthropic-agent 协议");
+	if (profile.runtimeId === "claude" && !["anthropic-agent", "anthropic-messages"].includes(profile.protocol)) {
+		throw new Error("Claude runtime 必须使用 anthropic-agent 或 anthropic-messages 协议");
 	}
 	if (profile.runtimeId === "ohmypi" && !["ohmypi-native", "openai-chat", "openai-responses", "anthropic-agent"].includes(profile.protocol)) {
 		throw new Error("OhMyPi Provider 协议不兼容");

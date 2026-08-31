@@ -39,7 +39,7 @@ describe("WorkbenchSettingsStore", () => {
 		const wrongProtocol = settings();
 		const wrongProtocolProvider = wrongProtocol.providers.at(0);
 		if (!wrongProtocolProvider) throw new Error("expected provider fixture");
-		wrongProtocolProvider.protocol = "openai-chat";
+		wrongProtocolProvider.protocol = "anthropic-agent";
 		await expect(store.save(wrongProtocol)).rejects.toThrow("Responses");
 		const wrongRef = settings();
 		const wrongRefProvider = wrongRef.providers.at(0);

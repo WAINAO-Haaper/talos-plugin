@@ -6,6 +6,7 @@ import type {
 import type { ToolResult } from "../../jarvis/agent/vault-tools";
 import { OPENAI_TOOLS } from "../../jarvis/agent/tool-schema";
 import { openAiChatCompletionsEndpoint } from "./openai-endpoints";
+import { providerResponseFormat, readSseJson } from "./sse-response";
 
 function reasoningEffort(level: string, model: string): string | null {
 	if (level === "off") return null;
@@ -47,6 +48,24 @@ interface OpenAiChunk {
 	usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
+interface OpenAiJsonResponse {
+	choices?: Array<{
+		message?: {
+			content?: string | Array<{ type?: string; text?: string }>;
+		};
+	}>;
+	usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
+function openAiJsonText(value: OpenAiJsonResponse): string {
+	const content = value.choices?.[0]?.message?.content;
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.flatMap((item) => typeof item?.text === "string" ? [item.text] : [])
+		.join("");
+}
+
 interface ToolCallAccumulator {
 	id: string;
 	name: string;
@@ -56,6 +75,7 @@ interface ToolCallAccumulator {
 export interface OpenAiModelClientConfig {
 	endpoint: string;
 	thinkingLevel: string;
+	toolsEnabled?: boolean;
 }
 
 export class OpenAiModelClient implements ModelClient {
@@ -124,7 +144,7 @@ export class OpenAiModelClient implements ModelClient {
 		const payload: Record<string, unknown> = {
 			model: this.model,
 			messages: this.messages,
-			tools: OPENAI_TOOLS,
+			...(this.config.toolsEnabled === false ? {} : { tools: OPENAI_TOOLS }),
 			stream: true,
 			stream_options: { include_usage: true },
 		};
@@ -144,75 +164,67 @@ export class OpenAiModelClient implements ModelClient {
 				},
 				body: JSON.stringify(payload),
 			});
-			if (!response.ok || !response.body) {
+			if (!response.ok) {
 				handlers.onError(new Error(`OpenAI HTTP ${response.status}`));
 				return;
 			}
-
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = "";
-			for (;;) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				let separator: number;
-				while ((separator = buffer.indexOf("\n\n")) >= 0) {
-					const chunk = buffer.slice(0, separator);
-					buffer = buffer.slice(separator + 2);
-					const data = chunk
-						.split("\n")
-						.filter((line) => line.startsWith("data:"))
-						.map((line) => line.slice(5).trim())
-						.join("");
-					if (!data || data === "[DONE]") continue;
-					let event: OpenAiChunk;
-					try {
-						event = JSON.parse(data) as OpenAiChunk;
-					} catch {
-						continue;
-					}
-					if (event.usage) {
-						handlers.onUsage({
-							inputTokens: event.usage.prompt_tokens ?? 0,
-							outputTokens:
-								event.usage.completion_tokens ?? 0,
-							contextWindow: contextWindowFor(this.model),
-						});
-					}
-					const choice = event.choices?.[0];
-					if (!choice) continue;
-					if (choice.delta?.content) {
-						assistantText += choice.delta.content;
-						handlers.onTextDelta(choice.delta.content);
-					}
-					for (const toolCall of choice.delta?.tool_calls ?? []) {
-						const index = toolCall.index ?? 0;
-						const accumulator = (calls[index] ??= {
-							id: "",
-							name: "",
-							args: "",
-						});
-						if (toolCall.id) accumulator.id = toolCall.id;
-						if (toolCall.function?.name) {
-							accumulator.name = toolCall.function.name;
-						}
-						if (toolCall.function?.arguments) {
-							accumulator.args +=
-								toolCall.function.arguments;
-						}
-					}
-					if (choice.finish_reason) {
-						finishReason = choice.finish_reason;
+			const format = providerResponseFormat(response);
+			if (format === "unsupported") {
+				handlers.onError(new Error("OpenAI 响应格式不受支持；需要 SSE 或 JSON"));
+				return;
+			}
+			if (format === "json") {
+				const event = await response.json() as OpenAiJsonResponse;
+				const text = openAiJsonText(event);
+				if (!text) {
+					handlers.onError(new Error("OpenAI JSON 响应没有可显示文本"));
+					return;
+				}
+				handlers.onTextDelta(text);
+				if (event.usage) {
+					handlers.onUsage({
+						inputTokens: event.usage.prompt_tokens ?? 0,
+						outputTokens: event.usage.completion_tokens ?? 0,
+						contextWindow: contextWindowFor(this.model),
+					});
+				}
+				this.finalize(handlers, text, calls, "stop");
+				return;
+			}
+			const parsed = await readSseJson<OpenAiChunk>(response, (event) => {
+				if (event.usage) {
+					handlers.onUsage({
+						inputTokens: event.usage.prompt_tokens ?? 0,
+						outputTokens: event.usage.completion_tokens ?? 0,
+						contextWindow: contextWindowFor(this.model),
+					});
+				}
+				const choice = event.choices?.[0];
+				if (!choice) return;
+				if (choice.delta?.content) {
+					assistantText += choice.delta.content;
+					handlers.onTextDelta(choice.delta.content);
+				}
+				for (const toolCall of choice.delta?.tool_calls ?? []) {
+					const index = toolCall.index ?? 0;
+					const accumulator = (calls[index] ??= {
+						id: "",
+						name: "",
+						args: "",
+					});
+					if (toolCall.id) accumulator.id = toolCall.id;
+					if (toolCall.function?.name) accumulator.name = toolCall.function.name;
+					if (toolCall.function?.arguments) {
+						accumulator.args += toolCall.function.arguments;
 					}
 				}
+				if (choice.finish_reason) finishReason = choice.finish_reason;
+			});
+			if (parsed === 0) {
+				handlers.onError(new Error("OpenAI SSE 响应没有可解析事件"));
+				return;
 			}
-			this.finalize(
-				handlers,
-				assistantText,
-				calls,
-				finishReason
-			);
+			this.finalize(handlers, assistantText, calls, finishReason);
 		} catch (error) {
 			if (this.controller?.signal.aborted) {
 				this.finalize(handlers, assistantText, calls, "stop");

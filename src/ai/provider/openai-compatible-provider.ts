@@ -4,6 +4,7 @@ import {
 } from "./openai-model-client";
 import {
 	ApiAgentRuntime,
+	apiHistoryTurns,
 	type ApiToolRunner,
 } from "./api-agent-runtime";
 import type { ProviderSecretStore } from "./provider-secret-store";
@@ -40,14 +41,20 @@ export class OpenAiCompatibleProvider implements TalosProvider {
 		this.runtime = new ApiAgentRuntime({
 			id: options.id,
 			toolRunner: options.toolRunner,
-			modelFactory: () =>
-				new OpenAiModelClient(
-					config,
+			modelFactory: (request) => {
+				const client = new OpenAiModelClient(
+					{
+						...config,
+						toolsEnabled: request.toolsAllowed !== false,
+					},
 					options.model,
 					options.systemPrompt,
 					() => options.secrets.get(options.secretRef),
-					options.fetcher
-				),
+					options.fetcher,
+				);
+				client.seed(apiHistoryTurns(request.historyRef));
+				return client;
+			},
 		});
 	}
 

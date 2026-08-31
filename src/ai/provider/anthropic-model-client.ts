@@ -5,6 +5,7 @@ import type {
 } from "../../jarvis/agent/loop";
 import type { ToolResult } from "../../jarvis/agent/vault-tools";
 import { ANTHROPIC_TOOLS } from "../../jarvis/agent/tool-schema";
+import { providerResponseFormat, readSseJson } from "./sse-response";
 
 function thinkingBudget(level: string): number {
 	switch (level) {
@@ -35,6 +36,17 @@ interface SseEvent {
 	usage?: { output_tokens?: number };
 }
 
+interface AnthropicJsonResponse {
+	content?: Array<{ type?: string; text?: string; thinking?: string }>;
+	usage?: { input_tokens?: number; output_tokens?: number };
+}
+
+function anthropicJsonText(value: AnthropicJsonResponse): string {
+	return (value.content ?? [])
+		.flatMap((block) => block.type === "text" && typeof block.text === "string" ? [block.text] : [])
+		.join("");
+}
+
 interface BlockAcc {
 	type: string;
 	text: string;
@@ -46,6 +58,7 @@ interface BlockAcc {
 export interface AnthropicModelClientConfig {
 	endpoint: string;
 	thinkingLevel: string;
+	toolsEnabled?: boolean;
 }
 
 export class AnthropicModelClient implements ModelClient {
@@ -127,7 +140,7 @@ export class AnthropicModelClient implements ModelClient {
 			max_tokens: budget > 0 ? budget + 8192 : 8192,
 			system: this.system,
 			messages: this.messages,
-			tools: ANTHROPIC_TOOLS,
+			...(this.config.toolsEnabled === false ? {} : { tools: ANTHROPIC_TOOLS }),
 			stream: true,
 		};
 		if (budget > 0) {
@@ -146,61 +159,63 @@ export class AnthropicModelClient implements ModelClient {
 				},
 				body: JSON.stringify(payload),
 			});
-			if (!response.ok || !response.body) {
-				handlers.onError(
-					new Error(`Anthropic HTTP ${response.status}`)
-				);
+			if (!response.ok) {
+				handlers.onError(new Error(`Anthropic HTTP ${response.status}`));
 				return;
 			}
-
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = "";
-			for (;;) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				let separator: number;
-				while ((separator = buffer.indexOf("\n\n")) >= 0) {
-					const chunk = buffer.slice(0, separator);
-					buffer = buffer.slice(separator + 2);
-					const data = chunk
-						.split("\n")
-						.filter((line) => line.startsWith("data:"))
-						.map((line) => line.slice(5).trim())
-						.join("\n");
-					if (!data || data === "[DONE]") continue;
-					let event: SseEvent;
-					try {
-						event = JSON.parse(data) as SseEvent;
-					} catch {
-						continue;
-					}
-					if (
-						event.type === "message_start" &&
-						event.message?.usage?.input_tokens != null
-					) {
-						inputTokens =
-							event.message.usage.input_tokens;
-					}
-					if (
-						event.type === "message_delta" &&
-						event.usage?.output_tokens != null
-					) {
-						handlers.onUsage({
-							inputTokens,
-							outputTokens: event.usage.output_tokens,
-							contextWindow,
-						});
-					}
-					this.handle(
-						event,
-						handlers,
-						assistant,
-						current,
-						(reason) => (stopReason = reason)
-					);
+			const format = providerResponseFormat(response);
+			if (format === "unsupported") {
+				handlers.onError(new Error("Anthropic 响应格式不受支持；需要 SSE 或 JSON"));
+				return;
+			}
+			if (format === "json") {
+				const event = await response.json() as AnthropicJsonResponse;
+				const text = anthropicJsonText(event);
+				if (!text) {
+					handlers.onError(new Error("Anthropic JSON 响应没有可显示文本"));
+					return;
 				}
+				handlers.onTextDelta(text);
+				handlers.onUsage({
+					inputTokens: event.usage?.input_tokens ?? 0,
+					outputTokens: event.usage?.output_tokens ?? 0,
+					contextWindow,
+				});
+				this.messages.push({
+					role: "assistant",
+					content: [{ type: "text", text }],
+				});
+				handlers.onDone("end");
+				return;
+			}
+			const parsed = await readSseJson<SseEvent>(response, (event) => {
+				if (
+					event.type === "message_start"
+					&& event.message?.usage?.input_tokens != null
+				) {
+					inputTokens = event.message.usage.input_tokens;
+				}
+				if (
+					event.type === "message_delta"
+					&& event.usage?.output_tokens != null
+				) {
+					handlers.onUsage({
+						inputTokens,
+						outputTokens: event.usage.output_tokens,
+						contextWindow,
+					});
+				}
+				this.handle(
+					event,
+					handlers,
+					assistant,
+					current,
+					(reason) => (stopReason = reason),
+				);
+			});
+			if (parsed === 0) {
+				handlers.onError(new Error("Anthropic SSE 响应没有可解析事件"));
+				return;
 			}
 			if (assistant.length > 0) {
 				this.messages.push({
@@ -208,9 +223,7 @@ export class AnthropicModelClient implements ModelClient {
 					content: assistant,
 				});
 			}
-			handlers.onDone(
-				stopReason === "tool_use" ? "tool_use" : "end"
-			);
+			handlers.onDone(stopReason === "tool_use" ? "tool_use" : "end");
 		} catch (error) {
 			if (this.controller?.signal.aborted) {
 				const textOnly = assistant.filter(

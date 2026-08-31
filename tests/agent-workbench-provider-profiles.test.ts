@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildTalosProviderProfiles,
 	parseModelCatalog,
+	preferredDirectApiProfile,
 } from "../src/agent-workbench/config/talos-provider-profiles";
 import {
 	providerEnvironmentForRuntime,
@@ -11,13 +12,16 @@ import { RuntimeBindingStore } from "../src/agent-workbench/storage/runtime-bind
 
 const settings = {
 	anthropicBaseUrl: "https://anthropic.example.test",
+	openaiBaseUrl: "https://chat.example.test/v1",
 	codexBaseUrl: "https://responses.example.test/v1",
 	jarvisModel: "claude-legacy",
+	openaiModel: "chat-legacy",
 	codexModel: "codex-legacy",
 	agentWorkbenchClaudeModels: "claude-a\nclaude-b\nclaude-a",
 	agentWorkbenchCodexModels: "codex-a, codex-b",
 	providerSecretRefs: {
 		anthropicApiKey: "talos-anthropic-api-key",
+		openaiApiKey: "talos-openai-api-key",
 		codexApiKey: "talos-codex-api-key",
 	},
 };
@@ -36,8 +40,40 @@ describe("TALOS provider profile projection", () => {
 				secretRef: "talos-anthropic-api-key",
 				models: ["claude-a", "claude-b", "claude-legacy"],
 			}),
+			expect.objectContaining({
+				id: "anthropic-api",
+				runtimeId: "claude",
+				protocol: "anthropic-messages",
+				secretRef: "talos-anthropic-api-key",
+			}),
 		]);
 		expect(JSON.stringify(onlyAnthropic)).not.toContain("synthetic-secret-value");
+	});
+
+	it("projects OpenAI Chat as an explicit direct profile", () => {
+		const profiles = buildTalosProviderProfiles(
+			settings,
+			(reference) => reference === "talos-openai-api-key",
+		);
+		expect(profiles).toEqual([
+			expect.objectContaining({
+				id: "openai-compatible",
+				runtimeId: "codex",
+				protocol: "openai-chat",
+				endpoint: "https://chat.example.test/v1",
+				models: ["chat-legacy"],
+			}),
+		]);
+	});
+
+	it("prefers the console-selected direct profile and falls back deterministically", () => {
+		const profiles = buildTalosProviderProfiles(settings, () => true);
+		expect(preferredDirectApiProfile(profiles, "claude-api")?.id).toBe("anthropic-api");
+		expect(preferredDirectApiProfile(profiles, "codex-cli")?.id).toBe("openai-compatible");
+		expect(preferredDirectApiProfile(
+			profiles.filter((profile) => profile.id !== "openai-compatible"),
+			"codex-cli",
+		)?.id).toBe("anthropic-api");
 	});
 
 	it("deduplicates newline and comma model catalogs while retaining a legacy model", () => {

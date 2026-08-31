@@ -424,19 +424,19 @@ export class TalosView extends ItemView {
 		const rain = bg.createDiv({ cls: "data-rain" });
 		rain.setAttribute("aria-hidden", "true");
 		const streams = [
-			"01\n10\nCTX\n01\nSYS\n10\nMEM\n01\n11\nNODE\n00",
-			"10\n01\nTALOS\n11\nDATA\n00\n01\nCORE\n10\n01",
-			"11\n00\nSIGNAL\n01\n10\nSYNC\n11\n01\nINDEX\n00",
-			"01\nNODE\n10\n00\nLINK\n11\n01\nTRACE\n10\n01",
-			"10\nMEM\n01\n11\nFLOW\n00\n10\nGRAPH\n01\n11",
-			"00\n01\nVAULT\n10\n11\nSCAN\n01\nINDEX\n00\n10",
-			"11\n10\nAGENT\n01\n00\nLOOP\n11\n01\nSTATE\n10",
-			"01\nSIGNAL\n00\n10\nCTX\n11\n01\nMEM\n10\n00",
+			"CTX\nSYS\nMEM",
+			"TALOS\nDATA\nCORE",
+			"SIGNAL\nSYNC\nINDEX",
+			"NODE\nLINK\nTRACE",
+			"FLOW\nGRAPH\nSTATE",
+			"VAULT\nSCAN\nREADY",
+			"AGENT\nLOOP\nSAFE",
+			"01\n10\n11",
 		];
-		for (let i = 0; i < 20; i++) {
+		for (let i = 0; i < 8; i++) {
 			const col = rain.createEl("i", { text: streams[i % streams.length] });
 			col.setCssProps({
-				"--rain-x": `${3 + i * 5}%`,
+				"--rain-x": `${6 + i * 12}%`,
 				"--rain-delay": `${-(i % 9) * 1.7}s`,
 				"--rain-duration": `${16 + (i % 7) * 2}s`,
 			});

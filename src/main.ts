@@ -27,6 +27,7 @@ import {
 } from "./agent-workbench/ui/talos-agent-recovery-view";
 import {
 	buildTalosProviderProfiles,
+	preferredDirectApiProfile,
 	TALOS_MANAGED_PROVIDER_PROFILE_IDS,
 } from "./agent-workbench/config/talos-provider-profiles";
 import {
@@ -64,6 +65,7 @@ import { ProviderFacade } from "./ai/provider/provider-facade";
 import { createAgentWorkbenchProviderAdapters } from "./ai/provider/agent-workbench-provider-adapter";
 import { AnthropicApiProvider } from "./ai/provider/anthropic-api-provider";
 import { OpenAiCompatibleProvider } from "./ai/provider/openai-compatible-provider";
+import { createRequestUrlFetch } from "./ai/provider/request-url-fetch";
 import { VaultRetriever } from "./ai/context/vault-retrieval";
 import { inspectToolTargetPaths } from "./ai/context/tool-path-policy";
 import { TalosAskService } from "./ai/ask-service";
@@ -94,6 +96,10 @@ import {
 	createVaultCanonicalRequestWriter,
 } from "./canonical/request-writer";
 import { TalosAskCommand } from "./canonical/talos-ask-command";
+import {
+	bootstrapTalosVault,
+	createObsidianVaultBootstrapHost,
+} from "./bootstrap/vault-bootstrap";
 import { migrateWp7Data } from "./migrations/wp7-migration";
 import {
 	buildProviderCenterSnapshot,
@@ -119,6 +125,7 @@ import {
 // （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
 export const TALOS_ICON = "talos-logo";
 const QUYUAN_RUNTIME_ERROR_LIMIT = 24;
+const TRUSTED_PROVIDER_FETCH = createRequestUrlFetch((input) => requestUrl(input));
 
 type QuyuanRuntimeErrorRecord = {
 	at: string;
@@ -228,6 +235,7 @@ export default class TalosPlugin extends Plugin {
 	private quyuanTts: StreamTts | null = null;
 	private quyuanWorkbenchReady = false;
 	private quyuanWorkbenchInitialization: Promise<{ service: AgentWorkbenchService }> | null = null;
+	private firstRunContextInitialization: Promise<void> | null = null;
 	private talosAskService: TalosAskService | null = null;
 	private talosAskCommand: TalosAskCommand | null = null;
 	private talosProviderFacade: ProviderFacade | null = null;
@@ -310,16 +318,15 @@ export default class TalosPlugin extends Plugin {
 		this.registerDomEvent(window, "error", this.handleWindowError);
 		this.registerDomEvent(window, "unhandledrejection", this.handleWindowRejection);
 
-		void this.initializeQuyuanSoul();
 		void this.startQuyuanWorkbenchInitialization().catch(() => {
 			// The recorded initialization error is delivered to a waiting view.
 		});
 
 		this.app.workspace.onLayoutReady(() => {
-			// 部署即自适应：首次加载（尚无目录映射）时自动识别客户库结构并落盘。
-			// 必须等 onLayoutReady——此时 vault 索引才完整，否则扫不到目录。
-			void this.autoDetectVaultSchemaOnFirstRun();
-			if (this.talosSettings.openOnStartup) void this.activateHomeView();
+			// Schema discovery must settle before bootstrap resolves persona paths.
+			void this.startFirstRunContextInitialization().finally(() => {
+				if (this.talosSettings.openOnStartup) void this.activateHomeView();
+			});
 		});
 
 		const refresh = debounce(() => this.refreshViews(), 1500, true);
@@ -474,6 +481,41 @@ export default class TalosPlugin extends Plugin {
 	 * 识别结果同时写入目录映射与统计来源文件路径，并弹一次可见提示，
 	 * 让客户知道插件已按他的库结构对齐（也知道去哪儿改）。
 	 */
+	private startFirstRunContextInitialization(): Promise<void> {
+		this.firstRunContextInitialization ??= this.initializeFirstRunContext();
+		return this.firstRunContextInitialization;
+	}
+
+	private async initializeFirstRunContext(): Promise<void> {
+		await this.autoDetectVaultSchemaOnFirstRun();
+		const P = this.paths;
+		try {
+			const result = await bootstrapTalosVault({
+				host: createObsidianVaultBootstrapHost(this.app),
+				primaryPersonaPaths: [P.personaFile, P.personaMemoryFile, P.contextFile],
+				fallbackPersonaPaths: [
+					P.join("identity", "身份.md"),
+					P.join("identity", "偏好与边界.md"),
+					P.join("identity", "目标.md"),
+				],
+			});
+			if (result.invalidExisting.length > 0) {
+				this.recordQuyuanRuntimeError(
+					"vaultBootstrap.invalidExisting",
+					new Error(`已有脚手架为空或不可读，未覆盖：${result.invalidExisting.join("、")}`),
+				);
+			}
+			try {
+				await createVaultCanonicalRegistryReader(this.app).read();
+			} catch (error) {
+				this.recordQuyuanRuntimeError("vaultBootstrap.registry", error);
+			}
+		} catch (error) {
+			this.recordQuyuanRuntimeError("vaultBootstrap", error);
+		}
+		await this.initializeQuyuanSoul();
+	}
+
 	private async autoDetectVaultSchemaOnFirstRun(): Promise<void> {
 		try {
 			const configured = this.talosSettings.vaultSchema;
@@ -786,6 +828,23 @@ export default class TalosPlugin extends Plugin {
 		await this.syncAgentWorkbenchProviderProfiles();
 	}
 
+	private async applyWindowsDirectApiFallback(
+		service: AgentWorkbenchService,
+	): Promise<void> {
+		if (process.platform !== "win32" || service.getSelection().providerProfileId) return;
+		const selected = preferredDirectApiProfile([
+			...service.getProviderProfiles("codex"),
+			...service.getProviderProfiles("claude"),
+		], this.talosSettings.engineProvider);
+		if (!selected) return;
+		service.selectRuntime(selected.runtimeId);
+		service.selectProviderProfile(selected.id);
+		service.selectModel(selected.models[0]);
+		service.setWorkflowMode("plan");
+		await service.flushSettings();
+		new Notice(`Windows 已切换到 ${selected.displayName}；Direct API 为 Plan-only，不会启动本机 CLI。`);
+	}
+
 	/** One-way legacy credential bridge; native runtime profiles own all new settings. */
 	private async syncCodexHarnessEnvironment(): Promise<void> {
 		try {
@@ -816,6 +875,7 @@ export default class TalosPlugin extends Plugin {
 				),
 				TALOS_MANAGED_PROVIDER_PROFILE_IDS
 			);
+			await this.applyWindowsDirectApiFallback(service);
 		} catch (error) {
 			this.recordQuyuanRuntimeError(
 				"AgentWorkbenchService.providerProfiles",
@@ -876,6 +936,7 @@ export default class TalosPlugin extends Plugin {
 					secrets,
 					toolRunner: governedToolRunner,
 					thinkingLevel: this.talosSettings.jarvisThinkingLevel,
+					fetcher: TRUSTED_PROVIDER_FETCH,
 				})
 			);
 			facade.register(
@@ -892,6 +953,7 @@ export default class TalosPlugin extends Plugin {
 					secrets,
 					toolRunner: governedToolRunner,
 					thinkingLevel: this.talosSettings.jarvisThinkingLevel,
+					fetcher: TRUSTED_PROVIDER_FETCH,
 				})
 			);
 		}
@@ -1025,6 +1087,7 @@ export default class TalosPlugin extends Plugin {
 	}
 
 	private async executeTalosAskCommand(): Promise<void> {
+		await this.startFirstRunContextInitialization();
 		const query = await new TalosAskPromptModal(this.app).openAndWait();
 		if (!query) return;
 		try {
@@ -1811,6 +1874,7 @@ export default class TalosPlugin extends Plugin {
 				discovery,
 				new ProcessSandbox(new NodeSandboxProbeHost()),
 				(reference) => secretStore?.get(reference) ?? null,
+				TRUSTED_PROVIDER_FETCH,
 			);
 			const portableStorage = new ObsidianWorkbenchStorage(this.app.vault.adapter, vaultRoot);
 			const workbenchStateRoot = ".talos/agent-workbench/v1";
@@ -1881,7 +1945,7 @@ export default class TalosPlugin extends Plugin {
 					const editorSourcePaths = input.context?.selections?.flatMap((selection) => selection.source === "editor" && selection.path ? [selection.path] : []) ?? [];
 					const canvasSourcePaths = input.context?.selections?.flatMap((selection) => selection.source === "canvas" && selection.path ? [selection.path] : []) ?? [];
 					return this.auditQuyuanChatEgress({
-						providerId: input.runtimeId,
+						providerId: input.providerProfileId ?? input.runtimeId,
 						prompt: input.prompt,
 						...(input.history?.length ? { historyText: JSON.stringify(input.history) } : {}),
 						currentNotePath: input.context?.linkedContent?.path,
@@ -1896,7 +1960,16 @@ export default class TalosPlugin extends Plugin {
 				},
 				settingsStore: workbenchSettings,
 				onPersistenceError: (error) => this.recordQuyuanRuntimeError("AgentWorkbenchService.settings", error),
-				probeRuntime: (runtimeId, profile, signal) => discovery.probe(runtimeId, profile),
+				probeRuntime: (runtimeId, profile, signal) => {
+					if (signal?.aborted) {
+						return Promise.resolve({
+							runtimeId,
+							status: "crashed" as const,
+							reason: "运行时探测已取消",
+						});
+					}
+					return runtimeFactory.probe(runtimeId, profile);
+				},
 				listModels: async (runtimeId) => {
 					const runtime = await runtimeFactory.create(runtimeId, { vaultRoot, configDir: this.app.vault.configDir, approve: async () => "deny" });
 					try { return await runtime.listModels(); } finally { await runtime.dispose(); }

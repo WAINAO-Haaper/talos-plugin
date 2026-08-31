@@ -1,6 +1,9 @@
 import type { PermissionMode, WorkflowMode } from "../contracts/approval";
 import type { ProviderProfile, RuntimeProfile } from "../contracts/provider-profile";
-import { validateProviderProfile } from "../contracts/provider-profile";
+import {
+	isDirectApiProviderProfile,
+	validateProviderProfile,
+} from "../contracts/provider-profile";
 import type { AgentRuntimeAdapter, ModelDescriptor, RuntimeId, RuntimeProbe } from "../contracts/runtime-adapter";
 import { RuntimeRegistry } from "./runtime-registry";
 import type { ApprovalBroker } from "../security/approval-broker";
@@ -376,13 +379,36 @@ export class AgentWorkbenchService {
 				}) ?? Promise.resolve("deny"),
 				answer: (event) => service.interactionPort?.answerQuestion(event) ?? Promise.resolve(null),
 			};
-			yield* service.requireExecution().execute(projection.manifest, {
-				...request,
-				conversationId,
-				history,
-				workflow: service.workflow,
-				permissionMode: service.permission,
-			}, interactions);
+			try {
+				yield* service.requireExecution().execute(projection.manifest, {
+					...request,
+					conversationId,
+					history,
+					workflow: service.workflow,
+					permissionMode: service.permission,
+				}, interactions);
+			} catch (error) {
+				const id = crypto.randomUUID();
+				const failure = await service.getConversationCoordinator().appendRuntimeEvent(
+					conversationId,
+					createAgentEvent({
+						eventId: `talos-preparation-error-${id}`,
+						conversationId,
+						turnId: `talos-preparation-error-${id}`,
+						runtimeId: projection.manifest.selection.runtimeId,
+						type: "error",
+						timestamp: new Date().toISOString(),
+						payload: {
+							message: error instanceof Error ? error.message : String(error),
+							recoverable: true,
+							accepted: false,
+							action: "检查当前 Provider 配置后重试",
+						},
+					}),
+					service.getVaultRoot(),
+				);
+				yield failure;
+			}
 		};
 		return run(this);
 	}
@@ -501,6 +527,14 @@ export class AgentWorkbenchService {
 	async flushSettings(): Promise<void> { await this.persistence; }
 
 	async probeRuntime(runtimeId: RuntimeId, signal?: AbortSignal): Promise<RuntimeProbe> {
+		const provider = this.getSelectedProviderProfile(runtimeId);
+		if (isDirectApiProviderProfile(provider)) {
+			return {
+				runtimeId,
+				status: "ready",
+				reason: `${provider!.displayName} · Direct API · Plan-only`,
+			};
+		}
 		const registered = this.runtimes.has(runtimeId) ? this.runtimes.get(runtimeId) : null;
 		if (registered) return registered.probe(signal);
 		return this.options.probeRuntime?.(runtimeId, this.getRuntimeProfile(runtimeId), signal) ?? { runtimeId, status: "not-installed", reason: "运行时未配置" };

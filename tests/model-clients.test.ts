@@ -361,3 +361,78 @@ describe("OpenAiModelClient", () => {
 		expect(rec.errors.map((e) => e.message)).toEqual(["OpenAI HTTP 429"]);
 	});
 });
+describe("Provider response format compatibility", () => {
+	it("accepts buffered OpenAI JSON and omits tools in API-only mode", async () => {
+		const recorded: RecordedRequest[] = [];
+		const client = new OpenAiModelClient(
+			{ endpoint: "", thinkingLevel: "off", toolsEnabled: false },
+			"gpt-5",
+			"sys",
+			WITH_KEY,
+			recordingFetcher(() => new Response(JSON.stringify({
+				choices: [{ message: { content: "JSON reply" } }],
+				usage: { prompt_tokens: 2, completion_tokens: 3 },
+			}), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			}), recorded),
+		);
+		const rec = recorder();
+		await client.stream(rec.handlers);
+		expect(rec.text).toEqual(["JSON reply"]);
+		expect(rec.done).toEqual(["end"]);
+		expect(recorded[0]?.payload.tools).toBeUndefined();
+	});
+
+	it("parses CRLF Anthropic SSE framing", async () => {
+		const body = [
+			{ type: "content_block_start", index: 0, content_block: { type: "text" } },
+			{ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "CRLF" } },
+			{ type: "content_block_stop", index: 0 },
+			{ type: "message_delta", delta: { stop_reason: "end_turn" } },
+		].map((event) => `data: ${JSON.stringify(event)}\r\n\r\n`).join("");
+		const client = new AnthropicModelClient(
+			{ endpoint: "", thinkingLevel: "off" },
+			"claude-sonnet-4",
+			"sys",
+			WITH_KEY,
+			recordingFetcher(() => new Response(body, {
+				status: 200,
+				headers: { "content-type": "text/event-stream" },
+			}), []),
+		);
+		const rec = recorder();
+		await client.stream(rec.handlers);
+		expect(rec.text).toEqual(["CRLF"]);
+		expect(rec.done).toEqual(["end"]);
+	});
+
+	it("reports unsupported and empty responses instead of silent success", async () => {
+		const unsupported = new OpenAiModelClient(
+			{ endpoint: "", thinkingLevel: "off" },
+			"gpt-5",
+			"sys",
+			WITH_KEY,
+			recordingFetcher(() => new Response("<html>proxy error</html>", {
+				status: 200,
+				headers: { "content-type": "text/html" },
+			}), []),
+		);
+		const unsupportedRec = recorder();
+		await unsupported.stream(unsupportedRec.handlers);
+		expect(unsupportedRec.errors[0]?.message).toContain("响应格式不受支持");
+		expect(unsupportedRec.done).toEqual([]);
+
+		const empty = new AnthropicModelClient(
+			{ endpoint: "", thinkingLevel: "off" },
+			"claude-sonnet-4",
+			"sys",
+			WITH_KEY,
+			recordingFetcher(() => sseResponse([]), []),
+		);
+		const emptyRec = recorder();
+		await empty.stream(emptyRec.handlers);
+		expect(emptyRec.errors[0]?.message).toContain("没有可解析事件");
+		expect(emptyRec.done).toEqual([]);
+	});
+});

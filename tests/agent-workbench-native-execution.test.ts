@@ -217,6 +217,41 @@ describe("TALOS native execution coordinator", () => {
 		expect(stored.events.some((event) => event.type === "error")).toBe(false);
 	});
 
+	it("passes the selected Provider profile identity into egress preflight", async () => {
+		const audit = vi.fn(async () => ({ allowed: true }));
+		const fixture = fixtures(async function* (turn) {
+			yield createAgentEvent({
+				eventId: "profile-done",
+				conversationId: turn.conversationId,
+				turnId: turn.turnId,
+				runtimeId: "codex",
+				type: "turn.finished",
+				timestamp: new Date().toISOString(),
+				payload: {},
+			});
+		}, audit);
+		const created = await fixture.conversations.create();
+		const conversation = {
+			...created,
+			selection: {
+				runtimeId: "codex" as const,
+				providerProfileId: "openai-compatible",
+			},
+		};
+		await fixture.conversations.store.updateManifest(conversation);
+		for await (const event of fixture.execution.execute(conversation, {
+			conversationId: conversation.conversationId,
+			input: [{ type: "text", text: "profile audit" }],
+			workflow: "plan",
+			permissionMode: "ask",
+			toolPolicy: { kind: "read-only" },
+		})) void event;
+		expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+			runtimeId: "codex",
+			providerProfileId: "openai-compatible",
+		}));
+	});
+
 	it("reserves a conversation before asynchronous preflight completes", async () => {
 		let releaseAudit!: (value: { allowed: boolean }) => void;
 		const auditGate = new Promise<{ allowed: boolean }>((resolve) => { releaseAudit = resolve; });

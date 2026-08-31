@@ -31,6 +31,7 @@ export interface AgentExecutionCoordinatorOptions {
 	initialContext?(): string | undefined;
 	preflightEgress?(input: {
 		runtimeId: RuntimeId;
+		providerProfileId?: string;
 		conversationId: string;
 		prompt: string;
 		history?: RuntimeTurn["history"];
@@ -242,6 +243,7 @@ export class AgentExecutionCoordinator {
 				};
 				const preflight = await this.options.preflightEgress?.({
 					runtimeId: selection.runtimeId,
+					providerProfileId: selection.providerProfileId,
 					conversationId,
 					prompt: runtimePrompt(turn),
 					history: request.history,
@@ -439,10 +441,12 @@ export class AgentExecutionCoordinator {
 
 	async steer(conversationId: string, text: string): Promise<boolean> {
 		const active = this.active.get(conversationId);
-		const runtime = active ? this.leases.get(active.leaseKey)?.runtime : null;
+		const lease = active ? this.leases.get(active.leaseKey) : null;
+		const runtime = lease?.runtime;
 		if (!active || !runtime?.steer) return false;
 		const preflight = await this.options.preflightEgress?.({
 			runtimeId: runtime.id,
+			providerProfileId: lease?.providerProfileId,
 			conversationId,
 			prompt: text,
 			hasImages: false,

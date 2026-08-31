@@ -3,7 +3,7 @@ import {
 	type AgentToolRunner,
 	type ModelClient,
 } from "../../jarvis/agent/loop";
-import type { JarvisEvents } from "../../jarvis/engine-types";
+import type { JarvisEvents, SeedTurn } from "../../jarvis/engine-types";
 import type {
 	ToolCall,
 	ToolOutcome,
@@ -17,6 +17,25 @@ import type {
 } from "./types";
 
 export type ApiToolRunner = AgentToolRunner;
+
+export function apiHistoryTurns(value: unknown): SeedTurn[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((item): SeedTurn[] => {
+		if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+		const record = item as Record<string, unknown>;
+		const role = record.role === "user"
+			? "user"
+			: record.role === "assistant"
+				? "assistant"
+				: null;
+		const text = typeof record.text === "string"
+			? record.text
+			: typeof record.content === "string"
+				? record.content
+				: "";
+		return role && text ? [{ role, text }] : [];
+	});
+}
 
 export interface ApiAgentRuntimeOptions {
 	id: string;

@@ -16,17 +16,66 @@ export interface SandboxLaunchSpec {
 
 export interface SandboxProbeHost { available(executable: string): Promise<boolean>; }
 
+export type SandboxAvailability =
+	| { available: true; backend: "macos-seatbelt"; platform: NodeJS.Platform }
+	| {
+		available: false;
+		reason: "unsupported-platform" | "backend-missing";
+		platform: NodeJS.Platform;
+		message: string;
+	};
+
 export class NodeSandboxProbeHost implements SandboxProbeHost {
 	async available(executable: string): Promise<boolean> { try { await access(executable, constants.X_OK); return true; } catch { return false; } }
 }
 
 export class ProcessSandbox {
-	constructor(private readonly probe: SandboxProbeHost, private readonly platform = process.platform) {}
+	private availabilityPromise: Promise<SandboxAvailability> | null = null;
+
+	constructor(
+		private readonly probe: SandboxProbeHost,
+		private readonly platform: NodeJS.Platform = process.platform,
+	) {}
+
+	availability(): Promise<SandboxAvailability> {
+		this.availabilityPromise ??= this.inspectAvailability();
+		return this.availabilityPromise;
+	}
+
+	private async inspectAvailability(): Promise<SandboxAvailability> {
+		if (this.platform !== "darwin") {
+			const message = this.platform === "win32"
+				? "Windows 当前缺少可验证的 CLI 隔离，本机智能体 Execute 已失败关闭。请在“智能体与模型”中选择已配置的 API Provider。"
+				: `${this.platform} 当前缺少可验证的 CLI 隔离，本机智能体 Execute 已失败关闭。`;
+			return {
+				available: false,
+				reason: "unsupported-platform",
+				platform: this.platform,
+				message,
+			};
+		}
+		if (!(await this.probe.available("/usr/bin/sandbox-exec"))) {
+			return {
+				available: false,
+				reason: "backend-missing",
+				platform: this.platform,
+				message: "macOS Seatbelt sandbox 不可用，Execute 已失败关闭。请确认 /usr/bin/sandbox-exec 可执行。",
+			};
+		}
+		return {
+			available: true,
+			backend: "macos-seatbelt",
+			platform: this.platform,
+		};
+	}
+
+	async assertAvailable(): Promise<void> {
+		const availability = await this.availability();
+		if (!availability.available) throw new Error(availability.message);
+	}
 
 	async prepare(runtime: SandboxLaunchSpec, vaultRoot: string): Promise<SandboxLaunchSpec> {
-		if (this.platform !== "darwin" || !(await this.probe.available("/usr/bin/sandbox-exec"))) {
-			throw new Error("OS sandbox 不可用，Execute 已失败关闭");
-		}
+		await this.assertAvailable();
 		if (!vaultRoot || !runtime.executable) throw new Error("sandbox 边界参数不完整");
 		const quote = (value: string) => value.replace(/[\\"]/g, "\\$&");
 		const requestedWriteRoots = [vaultRoot, ...(runtime.readWriteRoots ?? [])];

@@ -59,6 +59,12 @@ describe("workbench dashboard and approval layout", () => {
 		expect(view).not.toContain("workbench-module-grid");
 	});
 
+	it("keeps decorative data-rain work within the low-end hardware budget", () => {
+		expect(view).toContain("for (let i = 0; i < 8; i++)");
+		expect(view).not.toContain("for (let i = 0; i < 20; i++)");
+		expect(view).not.toContain('"01\\n10\\nCTX\\n01\\nSYS\\n10\\nMEM');
+	});
+
 	it("reflows by container while preserving natural page height", () => {
 		expect(uiCss).toContain("container: overview-v2 / inline-size");
 		expect(uiCss).toContain("@container overview-v2 (max-width: 760px)");

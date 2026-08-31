@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 import type { AgentRuntimeAdapter, RuntimeId } from "../contracts/runtime-adapter";
 import type { ProviderProfile, RuntimeProfile } from "../contracts/provider-profile";
+import { isDirectApiProviderProfile } from "../contracts/provider-profile";
 import type { PermissionMode } from "../contracts/approval";
 import { CodexAppServerAdapter } from "../adapters/codex/codex-app-server-adapter";
 import { ClaudeAgentSdkAdapter } from "../adapters/claude/claude-agent-sdk-adapter";
@@ -17,6 +18,7 @@ import { desktopRuntimePath } from "./node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "./runtime-discovery-service";
 import { codexProtectedVaultSubpaths } from "../security/codex-permission-profile";
 import { LoopbackEgressProxy } from "../security/loopback-egress-proxy";
+import { DirectApiRuntimeAdapter } from "../adapters/api/direct-api-runtime-adapter";
 
 export { resolveCertificateEnvironment } from "./certificate-environment";
 
@@ -114,12 +116,38 @@ export class DesktopRuntimeFactory {
 	constructor(
 		private readonly discovery: RuntimeDiscoveryService,
 		private readonly sandbox: ProcessSandbox,
-		private readonly resolveSecret: ProviderSecretResolver = () => null
+		private readonly resolveSecret: ProviderSecretResolver = () => null,
+		private readonly fetcher?: typeof fetch,
 	) {}
 
+	async probe(runtimeId: RuntimeId, profile?: RuntimeProfile) {
+		const probe = await this.discovery.probe(runtimeId, profile);
+		if (probe.status !== "ready") return probe;
+		const isolation = await this.sandbox.availability();
+		if (!isolation.available) {
+			return {
+				...probe,
+				status: "degraded" as const,
+				reason: isolation.message,
+			};
+		}
+		return probe;
+	}
+
 	async create(runtimeId: RuntimeId, input: RuntimeFactoryInput): Promise<AgentRuntimeAdapter> {
-		const probe = await this.discovery.probe(runtimeId, input.runtimeProfile);
+		if (isDirectApiProviderProfile(input.providerProfile)) {
+			if (input.providerProfile!.runtimeId !== runtimeId) {
+				throw new Error("Direct API Provider profile 与 runtime 不匹配");
+			}
+			return new DirectApiRuntimeAdapter({
+				profile: input.providerProfile!,
+				resolveSecret: this.resolveSecret,
+				fetcher: this.fetcher,
+			});
+		}
+		const probe = await this.probe(runtimeId, input.runtimeProfile);
 		if (probe.status !== "ready" || !probe.executable) throw new Error(probe.reason ?? `${runtimeId} 运行时不可用`);
+		await this.sandbox.assertAvailable();
 		const probeRuntime = (signal?: AbortSignal) => this.discovery.probe(runtimeId, input.runtimeProfile);
 		const providerEnvironment = providerEnvironmentForRuntime(
 			runtimeId,

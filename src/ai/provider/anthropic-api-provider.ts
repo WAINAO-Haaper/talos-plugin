@@ -4,6 +4,7 @@ import {
 } from "./anthropic-model-client";
 import {
 	ApiAgentRuntime,
+	apiHistoryTurns,
 	type ApiToolRunner,
 } from "./api-agent-runtime";
 import type { ProviderSecretStore } from "./provider-secret-store";
@@ -40,14 +41,20 @@ export class AnthropicApiProvider implements TalosProvider {
 		this.runtime = new ApiAgentRuntime({
 			id: options.id,
 			toolRunner: options.toolRunner,
-			modelFactory: () =>
-				new AnthropicModelClient(
-					config,
+			modelFactory: (request) => {
+				const client = new AnthropicModelClient(
+					{
+						...config,
+						toolsEnabled: request.toolsAllowed !== false,
+					},
 					options.model,
 					options.systemPrompt,
 					() => options.secrets.get(options.secretRef),
-					options.fetcher
-				),
+					options.fetcher,
+				);
+				client.seed(apiHistoryTurns(request.historyRef));
+				return client;
+			},
 		});
 	}
 

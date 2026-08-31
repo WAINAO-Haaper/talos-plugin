@@ -473,6 +473,7 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 		this.pendingUserEvents.set(conversationId, pendingUser);
 		if (this.activeConversationId === conversationId) this.renderer?.appendPendingUser(pendingUser);
 		let userMessageAccepted = false;
+		let preparationFailed = false;
 		this.runningConversationIds.add(conversationId);
 		if (this.activeConversationId === conversationId) {
 			this.composer?.clearAfterSend();
@@ -483,6 +484,9 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 				if (event.type === "user.message") {
 					userMessageAccepted = true;
 					this.pendingUserEvents.delete(conversationId);
+				}
+				if (event.type === "error" && event.payload.accepted === false) {
+					preparationFailed = true;
 				}
 				if (event.type === "assistant.final" || event.type === "turn.finished") {
 					const remaining = (this.liveEvents.get(conversationId) ?? []).filter((candidate) => candidate.turnId !== event.turnId);
@@ -498,10 +502,14 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 			await this.refreshManifests();
 			this.renderTabs();
 		} catch (error) {
+			preparationFailed = true;
 			new Notice(`消息未发送：${error instanceof Error ? error.message : String(error)}`);
 		} finally {
 			this.dismissPendingInteractions(conversationId);
-			if (!userMessageAccepted && this.activeConversationId === conversationId) this.renderer?.markPendingUserFailed();
+			if (!userMessageAccepted && this.activeConversationId === conversationId) {
+				this.renderer?.markPendingUserFailed();
+				if (preparationFailed) this.composer?.restoreAfterFailure(draft);
+			}
 			this.pendingUserEvents.delete(conversationId);
 			this.runningConversationIds.delete(conversationId);
 			this.liveEvents.delete(conversationId);
