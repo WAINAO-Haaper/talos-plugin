@@ -33,6 +33,26 @@ describe("evaluateQuyuanGovernance — 只读操作", () => {
     expect(result.decision).toBe("allow");
   });
 
+  it.each(["Glob", "Grep", "Search"])(
+    "%s 把 Vault 根目录作为显式只读作用域时放行",
+    (toolName) => {
+      const result = evaluateQuyuanGovernance(
+        request({ toolName, input: { path: "." } })
+      );
+      expect(result).toMatchObject({
+        decision: "allow",
+        reason: "只读操作",
+      });
+    }
+  );
+
+  it("Read 不把 Vault 根目录当作文件读取目标", () => {
+    const result = evaluateQuyuanGovernance(
+      request({ toolName: "Read", input: { path: "." } })
+    );
+    expect(result.decision).toBe("deny");
+  });
+
   it("未分类工具不能伪装成 A 类只读并自动放行", () => {
     const result = evaluateQuyuanGovernance(
       request({ toolName: "ExecuteUnknown", input: {} })

@@ -5,6 +5,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	QwenRealtimeVoiceSession,
+	type QwenRealtimeConfig,
 	type QwenRealtimeEnvironment,
 	type RealtimeAudioPort,
 	type RealtimeDataChannelPort,
@@ -85,6 +86,10 @@ class FakeChannel implements RealtimeDataChannelPort {
 		this.emit("message", { data: JSON.stringify(payload) });
 	}
 
+	rawMessage(data: unknown): void {
+		this.emit("message", { data });
+	}
+
 	private emit(type: ChannelEvent, event: { data?: unknown }): void {
 		for (const listener of this.listeners.get(type) ?? []) listener(event);
 	}
@@ -146,7 +151,9 @@ class FakePeer implements RealtimePeerConnectionPort {
 	}
 }
 
-function createHarness() {
+const activeSessions: QwenRealtimeVoiceSession[] = [];
+
+function createHarness(timeouts?: QwenRealtimeConfig["timeouts"]) {
 	const stream = new FakeStream();
 	const peer = new FakePeer();
 	const audio: RealtimeAudioPort = {
@@ -181,6 +188,9 @@ function createHarness() {
 	const wake = vi.fn();
 	const barge = vi.fn();
 	const connection = vi.fn();
+	const state = vi.fn();
+	const audit = vi.fn();
+	const error = vi.fn();
 	const session = new QwenRealtimeVoiceSession({
 		model: "qwen3.5-omni-flash-realtime",
 		voice: "Tina",
@@ -188,6 +198,7 @@ function createHarness() {
 		instructions: "You are Quyuan.",
 		wakeAliases: ["屈原", "曲原"],
 		sleepWord: "退下",
+		...(timeouts ? { timeouts } : {}),
 		exchangeSdp,
 		executeVaultTool,
 		executeWebSearch,
@@ -198,7 +209,11 @@ function createHarness() {
 		onWakeChange: wake,
 		onBargeIn: barge,
 		onConnectionChange: connection,
+		onState: state,
+		onAudit: audit,
+		onError: error,
 	}, env);
+	activeSessions.push(session);
 	return {
 		session,
 		stream,
@@ -213,6 +228,9 @@ function createHarness() {
 		wake,
 		barge,
 		connection,
+		state,
+		audit,
+		error,
 	};
 }
 
@@ -228,6 +246,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	for (const session of activeSessions.splice(0)) session.stop();
 	vi.unstubAllGlobals();
 });
 
@@ -301,11 +320,11 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 				"联网搜索今天的杭州天气",
 				"call-web-1"
 			);
+			expect(sentTypes(h.peer.channel)).toEqual([
+				"conversation.item.create",
+				"response.create",
+			]);
 		});
-		expect(sentTypes(h.peer.channel)).toEqual([
-			"conversation.item.create",
-			"response.create",
-		]);
 
 		h.peer.channel.sent.length = 0;
 		h.peer.channel.message({
@@ -452,6 +471,10 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 				{ query: "TPI-111", module: "projects" },
 				"call-vault-1"
 			);
+			expect(sentTypes(h.peer.channel)).toEqual([
+				"conversation.item.create",
+				"response.create",
+			]);
 		});
 		const toolOutput = h.peer.channel.sent.find((event) =>
 			event.type === "conversation.item.create"
@@ -466,6 +489,39 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 			"conversation.item.create",
 			"response.create",
 		]);
+
+		h.peer.channel.sent.length = 0;
+		h.peer.channel.message({
+			type: "response.function_call_arguments.done",
+			name: "grep_vault",
+			call_id: "call-vault-1",
+			arguments: JSON.stringify({ query: "duplicate", module: "projects" }),
+		});
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(h.executeVaultTool).toHaveBeenCalledTimes(1);
+		expect(h.peer.channel.sent).toEqual([]);
+
+		h.peer.channel.message({
+			type: "conversation.item.input_audio_transcription.delta",
+			item_id: "terminal-input",
+			delta: "不应残留",
+		});
+		h.peer.channel.message({
+			type: "response.audio_transcript.delta",
+			response_id: "terminal-output",
+			delta: "不应残留",
+		});
+		h.peer.channel.message({
+			type: "response.done",
+			response: { status: "completed" },
+		});
+		expect(h.session.debugSnapshot()).toMatchObject({
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+			inputTranscripts: 0,
+			outputTranscripts: 0,
+		});
 	});
 
 	it("drops a pending Vault result when the user starts a newer turn", async () => {
@@ -495,10 +551,267 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 
 		expect(sentTypes(h.peer.channel)).not.toContain("conversation.item.create");
 		expect(sentTypes(h.peer.channel)).not.toContain("response.create");
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "stale-tool-result",
+			callId: "stale-call",
+		}));
 	});
 
-	it("ignores ambient turns, wakes by alias, and manually creates each awake response", async () => {
+	it("drops pending tool results after sleep and disconnect with redacted audit reasons", async () => {
+		const sleeping = createHarness();
+		let resolveSleeping: ((value: string) => void) | undefined;
+		sleeping.executeVaultTool.mockImplementationOnce(() => new Promise<string>((resolve) => {
+			resolveSleeping = resolve;
+		}));
+		await sleeping.session.start();
+		sleeping.session.setAwake(true);
+		sleeping.peer.channel.sent.length = 0;
+		sleeping.peer.channel.message({
+			type: "response.function_call_arguments.done",
+			name: "search_vault",
+			call_id: "sleep-stale",
+			arguments: JSON.stringify({ query: "旧问题", module: "projects" }),
+		});
+		await vi.waitFor(() => expect(sleeping.executeVaultTool).toHaveBeenCalledOnce());
+		sleeping.session.setAwake(false);
+		resolveSleeping?.("旧结果");
+		await vi.waitFor(() => {
+			expect(sleeping.audit).toHaveBeenCalledWith(expect.objectContaining({
+				reasonCode: "stale-tool-result",
+				callId: "sleep-stale",
+			}));
+		});
+		expect(sentTypes(sleeping.peer.channel)).not.toContain("conversation.item.create");
+
+		const disconnected = createHarness();
+		let resolveDisconnected: ((value: string) => void) | undefined;
+		disconnected.executeVaultTool.mockImplementationOnce(() => new Promise<string>((resolve) => {
+			resolveDisconnected = resolve;
+		}));
+		await disconnected.session.start();
+		disconnected.session.setAwake(true);
+		disconnected.peer.channel.sent.length = 0;
+		disconnected.peer.channel.message({
+			type: "response.function_call_arguments.done",
+			name: "search_vault",
+			call_id: "disconnect-stale",
+			arguments: JSON.stringify({ query: "旧问题", module: "projects" }),
+		});
+		await vi.waitFor(() => expect(disconnected.executeVaultTool).toHaveBeenCalledOnce());
+		disconnected.peer.channel.close();
+		resolveDisconnected?.("旧结果");
+		await vi.waitFor(() => {
+			expect(disconnected.audit).toHaveBeenCalledWith(expect.objectContaining({
+				reasonCode: "stale-tool-result",
+				callId: "disconnect-stale",
+			}));
+		});
+		expect(sentTypes(disconnected.peer.channel)).not.toContain("conversation.item.create");
+	});
+
+	it("recovers to listening after empty or failed transcription without stale buffers", async () => {
 		const h = createHarness();
+		await h.session.start();
+		h.session.setAwake(true);
+		h.peer.channel.message({ type: "input_audio_buffer.speech_started" });
+		h.peer.channel.message({ type: "input_audio_buffer.speech_stopped" });
+		h.peer.channel.message({
+			type: "conversation.item.input_audio_transcription.completed",
+			item_id: "empty-turn",
+			transcript: "",
+		});
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "empty-transcript",
+		}));
+		expect(h.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			inputTranscripts: 0,
+			outputTranscripts: 0,
+		});
+
+		h.peer.channel.message({
+			type: "conversation.item.input_audio_transcription.delta",
+			item_id: "failed-turn",
+			delta: "未完成",
+		});
+		h.peer.channel.message({
+			type: "conversation.item.input_audio_transcription.failed",
+			item_id: "failed-turn",
+		});
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "transcription-failed",
+		}));
+		expect(h.error).toHaveBeenCalledWith(expect.stringContaining("转写失败"));
+		expect(h.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			inputTranscripts: 0,
+			pendingToolCalls: 0,
+		});
+	});
+
+	it("cleans turn state and visibly recovers from incomplete responses", async () => {
+		const h = createHarness();
+		await h.session.start();
+		h.session.setAwake(true);
+		h.session.sendText("请回答这个问题");
+		h.peer.channel.message({ type: "response.created" });
+		h.peer.channel.message({
+			type: "response.audio_transcript.delta",
+			response_id: "partial-response",
+			delta: "一半",
+		});
+		h.peer.channel.message({
+			type: "conversation.item.input_audio_transcription.delta",
+			item_id: "partial-input",
+			delta: "残留",
+		});
+		h.peer.channel.message({
+			type: "response.done",
+			response: { status: "incomplete" },
+		});
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "response-incomplete",
+		}));
+		expect(h.state).toHaveBeenCalledWith("error");
+		expect(h.state).toHaveBeenCalledWith("recovering");
+		expect(h.state).toHaveBeenCalledWith("listening");
+		expect(h.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+			inputTranscripts: 0,
+			outputTranscripts: 0,
+		});
+
+		h.session.sendText("失败回复");
+		h.peer.channel.message({
+			type: "response.done",
+			response: { status: "failed" },
+		});
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "response-failed",
+		}));
+
+		h.session.sendText("独立错误");
+		h.peer.channel.message({
+			type: "response.audio_transcript.delta",
+			response_id: "server-error-output",
+			delta: "残留",
+		});
+		h.peer.channel.message({
+			type: "error",
+			error: { code: "provider_failure", message: "synthetic provider failure" },
+		});
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "server-provider_failure",
+		}));
+		expect(h.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+			inputTranscripts: 0,
+			outputTranscripts: 0,
+		});
+	});
+
+	it("clears cancelled protocol errors and malformed events without leaving a stuck turn", async () => {
+		const cancelled = createHarness();
+		cancelled.executeVaultTool.mockImplementationOnce(() => new Promise<string>(() => {}));
+		await cancelled.session.start();
+		cancelled.session.setAwake(true);
+		cancelled.session.sendText("触发取消");
+		cancelled.peer.channel.message({
+			type: "response.function_call_arguments.done",
+			name: "search_vault",
+			call_id: "cancelled-tool",
+			arguments: JSON.stringify({ query: "状态", module: "projects" }),
+		});
+		expect(cancelled.session.debugSnapshot().pendingToolCalls).toBe(1);
+		cancelled.peer.channel.message({
+			type: "error",
+			error: { code: "response_cancel_not_active", message: "synthetic cancellation" },
+		});
+		expect(cancelled.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+			inputTranscripts: 0,
+			outputTranscripts: 0,
+		});
+		expect(cancelled.error).not.toHaveBeenCalledWith("synthetic cancellation");
+
+		const malformed = createHarness();
+		await malformed.session.start();
+		malformed.session.setAwake(true);
+		malformed.session.sendText("畸形协议");
+		malformed.peer.channel.rawMessage("{not-json");
+		expect(malformed.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "protocol-event-invalid",
+		}));
+		expect(malformed.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+		});
+	});
+
+	it("times out Vault tools and returns an explicit tool error without leaking pending state", async () => {
+		const h = createHarness({ toolMs: 5, firstResponseMs: 100, turnMs: 100 });
+		h.executeVaultTool.mockImplementationOnce(() => new Promise<string>(() => {}));
+		await h.session.start();
+		h.session.setAwake(true);
+		h.session.sendText("查一下项目状态");
+		h.peer.channel.sent.length = 0;
+		h.peer.channel.message({
+			type: "response.function_call_arguments.done",
+			name: "search_vault",
+			call_id: "tool-timeout",
+			arguments: JSON.stringify({ query: "项目状态", module: "projects" }),
+		});
+		await vi.waitFor(() => {
+			const output = h.peer.channel.sent.find((event) =>
+				event.type === "conversation.item.create"
+			) as { item?: { output?: string } } | undefined;
+			expect(output?.item?.output).toContain("工具执行超时");
+		});
+		expect(h.session.debugSnapshot().pendingToolCalls).toBe(0);
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			type: "tool-timeout",
+			reasonCode: "tool-timeout",
+			callId: "tool-timeout",
+		}));
+	});
+
+	it("bounds first response and whole-turn latency with visible recovery", async () => {
+		const first = createHarness({ firstResponseMs: 5, turnMs: 100 });
+		await first.session.start();
+		first.session.setAwake(true);
+		first.session.sendText("首次回复超时");
+		await vi.waitFor(() => {
+			expect(first.audit).toHaveBeenCalledWith(expect.objectContaining({
+				reasonCode: "first-response-timeout",
+			}));
+		});
+		expect(first.session.debugSnapshot().state).toBe("listening");
+
+		const turn = createHarness({ firstResponseMs: 100, turnMs: 5 });
+		await turn.session.start();
+		turn.session.setAwake(true);
+		turn.session.sendText("整轮超时");
+		await vi.waitFor(() => {
+			expect(turn.audit).toHaveBeenCalledWith(expect.objectContaining({
+				reasonCode: "turn-timeout",
+			}));
+		});
+		expect(turn.session.debugSnapshot()).toMatchObject({
+			state: "listening",
+			pendingToolCalls: 0,
+			handledToolCalls: 0,
+		});
+	});
+
+	it("ignores ambient turns without a ghost timeout, wakes by alias, and manually creates each awake response", async () => {
+		const h = createHarness({ turnMs: 5 });
 		await h.session.start();
 		h.peer.channel.sent.length = 0;
 
@@ -509,6 +822,8 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 		});
 		expect(h.session.isAwake()).toBe(false);
 		expect(sentTypes(h.peer.channel)).not.toContain("response.create");
+		await new Promise((resolve) => nodeSetTimeout(resolve, 10));
+		expect(h.audit).not.toHaveBeenCalledWith(expect.objectContaining({ reasonCode: "turn-timeout" }));
 
 		h.peer.channel.message({
 			type: "conversation.item.input_audio_transcription.completed",
@@ -571,6 +886,38 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 		expect(sentTypes(h.peer.channel)).not.toContain("response.create");
 	});
 
+	it("times out connection setup and releases all provisional resources", async () => {
+		const h = createHarness({ connectMs: 5 });
+		h.exchangeSdp.mockImplementationOnce(() => new Promise<never>(() => {}));
+
+		await expect(h.session.start()).rejects.toThrow("SDP exchange timed out");
+
+		expect(h.stream.track.stopped).toBe(true);
+		expect(h.peer.closed).toBe(true);
+		expect(h.session.debugSnapshot().state).toBe("error");
+		expect(h.error).toHaveBeenCalledWith(expect.stringContaining("timed out"));
+	});
+
+	it("keeps a newer connection alive when an older start fails late", async () => {
+		const h = createHarness();
+		let rejectFirst: ((error: Error) => void) | undefined;
+		h.exchangeSdp.mockImplementationOnce(() => new Promise((_, reject) => {
+			rejectFirst = reject;
+		}));
+		const staleStart = h.session.start();
+		await vi.waitFor(() => expect(h.exchangeSdp).toHaveBeenCalledOnce());
+
+		h.session.stop();
+		const currentStart = h.session.start();
+		await currentStart;
+		rejectFirst?.(new Error("late stale failure"));
+		await expect(staleStart).resolves.toBeUndefined();
+
+		expect(h.session.isConnected()).toBe(true);
+		expect(h.session.debugSnapshot().state).toBe("sleeping");
+		expect(h.error).not.toHaveBeenCalledWith("late stale failure");
+	});
+
 	it("mutes output independently and releases peer, channel, and microphone on stop", async () => {
 		const h = createHarness();
 		await h.session.start();
@@ -596,5 +943,9 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 		expect(h.peer.closed).toBe(true);
 		expect(h.session.isConnected()).toBe(false);
 		expect(h.connection).toHaveBeenLastCalledWith(false);
+		expect(h.session.debugSnapshot().state).toBe("disconnected");
+		expect(h.audit).toHaveBeenCalledWith(expect.objectContaining({
+			reasonCode: "data-channel-closed",
+		}));
 	});
 });

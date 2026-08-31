@@ -144,6 +144,17 @@ describe("TALOS native agent workbench UI", () => {
 		expect(conversation).toContain("card.dataset.conversationId");
 	});
 
+	it("renders policy-owned approval phases without persistent C or unknown approval", () => {
+		expect(serviceSource).toContain("return service.authorizeTool");
+		expect(serviceSource).toContain("proposalAvailable");
+		expect(conversation).toContain("提案预览");
+		expect(conversation).toContain("独立执行批准");
+		expect(conversation).toContain("确认提案");
+		expect(conversation).toContain("批准执行");
+		expect(conversation).toContain("risk === \"B\" && actionKind !== \"unknown\"");
+		expect(conversation).toContain("recovery: policy.recovery");
+	});
+
 	it("retains the exact visual CSS module graph under TALOS ownership", () => {
 		for (const module of [
 			"components/messages.css", "components/input.css", "components/tabs.css", "components/toolcalls.css",

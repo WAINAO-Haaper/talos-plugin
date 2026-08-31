@@ -248,11 +248,12 @@ describe("voice focus workspace v2", () => {
 
 	it("reuses the live chat route after stopping capture, playback, and processing", () => {
 		const route = panel.slice(panel.indexOf("private goToChat(): void"), panel.indexOf("private stopCurrentWork(): void"));
-		expect(route.indexOf("this.navigatingToChat = true")).toBeLessThan(route.indexOf("this.asr?.stop()"));
-		expect(route.indexOf("this.asr?.stop()")).toBeLessThan(route.indexOf("this.driver?.cancel()"));
+		expect(route.indexOf("this.navigatingToChat = true")).toBeLessThan(route.indexOf("++this.lifecycleGeneration"));
+		expect(route.indexOf("++this.lifecycleGeneration")).toBeLessThan(route.indexOf("this.realtime?.stop()"));
+		expect(route.indexOf("this.realtime?.stop()")).toBeLessThan(route.indexOf("this.driver?.cancel()"));
 		expect(route.indexOf("this.driver?.cancel()")).toBeLessThan(route.indexOf("this.tts?.stop()"));
 		expect(route.indexOf("this.tts?.stop()")).toBeLessThan(route.indexOf('this.navigateToPage("chat")'));
-		expect(panel).toContain("if (this.navigatingToChat) return;");
+		expect(panel).toContain("if (!current() || this.navigatingToChat) return;");
 		const view = readFileSync(`${root}src/view.ts`, "utf8");
 		expect(view).toContain("(pageKey) => this.navigateToPage(pageKey)");
 	});

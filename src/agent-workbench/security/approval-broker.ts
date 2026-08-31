@@ -8,12 +8,24 @@ export interface ApprovalContext {
 	workflow: WorkflowMode;
 	permission: PermissionMode;
 	conversationId: string;
+	channel?: "text" | "voice";
+	governance?: { decision: "allow" | "ask" | "deny"; reason: string };
+	voiceExplicitNetwork?: boolean;
 	providerEgressHosts?: string[];
 	providerEgressRequest?: boolean;
 	approvalUiAttached: boolean;
 }
 
-const MUTATING = new Set(["write", "delete", "shell", "network", "export", "mcp"]);
+const MUTATING = new Set(["write", "delete", "shell", "network", "export", "mcp", "subagent", "unknown"]);
+const VOICE_READ_TOOLS = new Set(["talos.read", "talos.glob", "talos.grep", "talos.search"]);
+
+function result(request: ActionRequest, decision: ApprovalDecision["decision"], reason: string, reasonCode: string, ruleId?: string): ApprovalDecision {
+	return { actionId: request.actionId, decision, reason, reasonCode, ...(ruleId ? { ruleId } : {}) };
+}
+
+function requestRisk(request: ActionRequest): "A" | "B" | "C" {
+	return request.risk ?? (request.kind === "read" ? "A" : request.kind === "write" || request.kind === "unknown" ? "B" : "C");
+}
 
 function networkRuleTarget(request: ActionRequest): string | null {
 	if (request.kind !== "network" || !request.network) return null;
@@ -32,6 +44,18 @@ function isProviderEgress(request: ActionRequest, context: ApprovalContext): boo
 		&& Boolean(context.providerEgressHosts?.includes(request.network!.host));
 }
 
+function isVoiceExplicitNetwork(request: ActionRequest, context: ApprovalContext): boolean {
+	return context.channel === "voice"
+		&& context.voiceExplicitNetwork === true
+		&& request.kind === "network"
+		&& request.canonicalToolId === "talos.voice-web-search";
+}
+
+function isAllowedVoiceAction(request: ActionRequest, context: ApprovalContext): boolean {
+	return (request.kind === "read" && VOICE_READ_TOOLS.has(request.canonicalToolId ?? ""))
+		|| isVoiceExplicitNetwork(request, context);
+}
+
 export class ApprovalBroker {
 	constructor(
 		private readonly boundary: VaultBoundary,
@@ -43,28 +67,35 @@ export class ApprovalBroker {
 	async evaluate(request: ActionRequest, context: ApprovalContext): Promise<ApprovalDecision> {
 		let decision: ApprovalDecision;
 		try {
-			const boundary = await this.boundary.assess(request);
-			if (boundary.hasPermanentDenial) {
-				decision = { actionId: request.actionId, decision: "deny", reason: "永久禁区不可授权" };
-			} else if (context.workflow === "plan" && MUTATING.has(request.kind) && !isProviderEgress(request, context)) {
-				decision = { actionId: request.actionId, decision: "deny", reason: "Plan 模式禁止执行变更" };
-			} else if (!context.approvalUiAttached && this.requiresApproval(request, boundary.hasExternalTarget, boundary.bulkDestructive) && !isProviderEgress(request, context)) {
-				decision = { actionId: request.actionId, decision: "deny", reason: "审批界面不可用" };
+			if (context.channel === "voice" && !isAllowedVoiceAction(request, context)) {
+				decision = result(request, "deny", "语音通道仅允许本地只读工具", "voice-hard-gate");
 			} else {
-				decision = await this.decide(request, context, boundary.targets, boundary.hasExternalTarget, boundary.bulkDestructive);
+				const boundary = await this.boundary.assess(request);
+				if (boundary.hasPermanentDenial) {
+					decision = result(request, "deny", "永久禁区不可授权", "permanent-boundary");
+				} else if (context.governance?.decision === "deny") {
+					decision = result(request, "deny", context.governance.reason, "governance-deny");
+				} else if (context.workflow === "plan" && MUTATING.has(request.kind) && !isProviderEgress(request, context) && !isVoiceExplicitNetwork(request, context)) {
+					decision = result(request, "deny", "Plan 模式禁止执行变更", "plan-mutation");
+				} else if (!context.approvalUiAttached && (context.governance?.decision === "ask" || this.requiresApproval(request, boundary.hasExternalTarget, boundary.bulkDestructive)) && !isProviderEgress(request, context) && !isVoiceExplicitNetwork(request, context)) {
+					decision = result(request, "deny", "审批界面不可用", "approval-ui-detached");
+				} else {
+					decision = await this.decide(request, context, boundary.targets, boundary.hasExternalTarget, boundary.bulkDestructive);
+				}
 			}
 		} catch (error) {
-			decision = { actionId: request.actionId, decision: "deny", reason: `边界检查失败：${error instanceof Error ? error.message : "unknown"}` };
+			decision = result(request, "deny", `边界检查失败：${error instanceof Error ? error.message : "unknown"}`, "boundary-error");
 		}
 		try {
 			await this.audit.append(auditRecord(request, decision));
 			return decision;
 		} catch {
-			return { actionId: request.actionId, decision: "deny", reason: "审计写入失败，已失败关闭" };
+			return result(request, "deny", "审计写入失败，已失败关闭", "audit-write-failed");
 		}
 	}
 
 	async rememberExactRule(request: ActionRequest, _context: ApprovalContext): Promise<string | null> {
+		if (requestRisk(request) === "C" || request.kind === "unknown") return null;
 		if (request.kind === "network" && request.network) {
 			const target = networkRuleTarget(request);
 			if (!target) return null;
@@ -98,6 +129,11 @@ export class ApprovalBroker {
 		external: boolean,
 		bulk: boolean,
 	): Promise<ApprovalDecision> {
+		if (isProviderEgress(request, context)) return result(request, "allow", "已确认 Provider endpoint", "provider-egress");
+		if (isVoiceExplicitNetwork(request, context)) return result(request, "allow", "当前语音轮已明确授权固定联网搜索", "voice-explicit-web-search");
+		if (context.governance?.decision === "ask") return result(request, "ask", context.governance.reason, "governance-approval-required");
+		if (requestRisk(request) === "C") return result(request, "ask", "C 类动作必须先展示提案并再次确认执行", "risk-c-two-phase");
+		if (request.kind === "unknown") return result(request, "ask", "未知工具只允许本次显式审批", "unknown-tool-ask-once");
 		if (request.kind === "network" && request.network) {
 			if (isProviderEgress(request, context)) {
 				return { actionId: request.actionId, decision: "allow", reason: "已确认 Provider endpoint" };

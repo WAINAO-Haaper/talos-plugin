@@ -74,6 +74,12 @@ function normalizePayload(frame: ProtocolFrame): Record<string, unknown> {
 	if (frame.method === "turn_end") {
 		const message = nestedRecord(frame.params.message); payload.usage = nestedRecord(message?.usage) ?? {};
 	}
+	if (frame.method === "extension_ui_request") {
+		payload.name = typeof frame.params.title === "string" ? frame.params.title : "OhMyPi UI Request";
+		payload.input = frame.params;
+		payload.canonicalActionKind = "unknown";
+		payload.canonicalToolId = "ohmypi.extension-ui-request";
+	}
 	return payload;
 }
 

@@ -42,6 +42,7 @@ export interface AgentWorkbenchServiceOptions {
 	uiStateStore?: WorkbenchUiStateStore;
 	vaultRoot?: string;
 	preflightEgress?: AgentExecutionCoordinatorOptions["preflightEgress"];
+	evaluateToolGovernance?: (toolName: string, input: Record<string, unknown>) => { decision: "allow" | "ask" | "deny"; reason: string };
 	onPersistenceError?: (error: unknown) => void;
 }
 
@@ -103,16 +104,18 @@ export class AgentWorkbenchService {
 							providerProfileId: selection.providerProfileId,
 							toolName,
 							toolInput,
+							toolMetadata: metadata,
 							providerEgressRequest: metadata.reason === "provider-egress-proxy",
+							channel: "text",
 							approvalUiAttached,
-							prompt: async () => {
+							prompt: async (approval) => {
 								const decision = await this.interactionPort?.approveAction({
 									conversationId,
 									runtimeId,
 									toolName,
 									toolInput,
 									reason: typeof metadata.reason === "string" ? metadata.reason : toolName,
-									options: metadata,
+									options: { ...metadata, ...approval },
 								});
 								return decision === "cancel" ? "deny" : decision ?? "deny";
 							},
@@ -369,14 +372,36 @@ export class AgentWorkbenchService {
 				.filter((message) => message.role !== "system")
 				.map((message) => ({ role: message.role as "user" | "assistant", text: message.text }));
 			const interactions: AgentExecutionInteractions = {
-				approve: (event) => service.interactionPort?.approveAction({
-					conversationId,
-					runtimeId: event.runtimeId,
-					toolName: typeof event.payload.tool === "string" ? event.payload.tool : "tool",
-					toolInput: event.payload,
-					reason: typeof event.payload.reason === "string" ? event.payload.reason : "智能体请求执行工具",
-					options: event.payload,
-				}) ?? Promise.resolve("deny"),
+				approve: async (event) => {
+					const toolName = typeof event.payload.name === "string"
+						? event.payload.name
+						: typeof event.payload.tool === "string" ? event.payload.tool : "tool";
+					const nestedInput = event.payload.input;
+					const toolInput = nestedInput && typeof nestedInput === "object" && !Array.isArray(nestedInput)
+						? nestedInput as Record<string, unknown>
+						: event.payload;
+					return service.authorizeTool({
+						conversationId,
+						runtimeId: event.runtimeId,
+						vaultRoot: service.getVaultRoot(),
+						toolName,
+						toolInput,
+						toolMetadata: event.payload,
+						channel: "text",
+						approvalUiAttached: Boolean(service.interactionPort),
+						prompt: async (approval) => {
+							const decision = await service.interactionPort?.approveAction({
+								conversationId,
+								runtimeId: event.runtimeId,
+								toolName,
+								toolInput,
+								reason: typeof event.payload.reason === "string" ? event.payload.reason : "智能体请求执行工具",
+								options: { ...event.payload, ...approval },
+							});
+							return decision === "cancel" ? "deny" : decision ?? "deny";
+						},
+					});
+				},
 				answer: (event) => service.interactionPort?.answerQuestion(event) ?? Promise.resolve(null),
 			};
 			try {
@@ -572,27 +597,67 @@ export class AgentWorkbenchService {
 		toolName: string;
 		providerProfileId?: string;
 		toolInput: Record<string, unknown>;
+		toolMetadata?: Record<string, unknown>;
 		providerEgressRequest?: boolean;
+		channel?: "text" | "voice";
+		voiceExplicitNetwork?: boolean;
 		approvalUiAttached: boolean;
-		prompt: () => Promise<"allow" | "allow-always" | "deny">;
+		prompt: (approval: { phase: "proposal" | "execute"; risk: "A" | "B" | "C"; canonicalToolId: string; actionKind: string; targets: Array<{ raw: string; role: string }>; recovery: string; proposalAvailable: boolean }) => Promise<"allow" | "allow-always" | "deny">;
 	}): Promise<"allow" | "allow-always" | "deny"> {
 		if (!this.options.approvalBroker) return "deny";
 		const request = normalizeToolAction(input);
+		const governance = input.providerEgressRequest
+			? { decision: "allow" as const, reason: "固定 Provider endpoint" }
+			: this.options.evaluateToolGovernance?.(input.toolName, input.toolInput);
 		const decision = await this.options.approvalBroker.evaluate(request, {
 			workflow: this.workflow,
 			permission: this.permission,
 			conversationId: input.conversationId,
+			channel: input.channel ?? "text",
+			voiceExplicitNetwork: input.voiceExplicitNetwork,
+			governance,
 			providerEgressHosts: this.providerEgressHosts(input.runtimeId, input.providerProfileId),
 			providerEgressRequest: input.providerEgressRequest,
 			approvalUiAttached: input.approvalUiAttached,
 		});
 		if (decision.decision === "allow") return "allow";
 		if (decision.decision === "deny") return "deny";
-		const selected = await input.prompt();
-		if (selected === "allow-always") await this.options.approvalBroker.rememberExactRule(request, {
+		const recovery = typeof input.toolMetadata?.recovery === "string"
+			? input.toolMetadata.recovery
+			: request.destructive || request.risk === "C"
+				? "runtime 未声明恢复方式"
+				: "固定范围；如需恢复须执行反向修改";
+		const approval = {
+			risk: request.risk ?? "C",
+			canonicalToolId: request.canonicalToolId ?? "talos.unknown",
+			actionKind: request.kind,
+			targets: request.targets.map(({ raw, role }) => ({ raw, role })),
+			recovery,
+			proposalAvailable: Boolean(
+				input.toolMetadata?.changes
+				?? input.toolMetadata?.diff
+				?? input.toolInput.diff
+				?? input.toolInput.patch
+				?? input.toolInput.command
+				?? (Object.keys(input.toolInput).length > 0)
+			),
+		};
+		if (approval.risk === "C") {
+			if (!approval.proposalAvailable) return "deny";
+			const proposed = await input.prompt({ ...approval, phase: "proposal" });
+			if (proposed === "deny") return "deny";
+			const executed = await input.prompt({ ...approval, phase: "execute" });
+			return executed === "deny" ? "deny" : "allow";
+		}
+		const selected = await input.prompt({ ...approval, phase: "execute" });
+		if (selected === "deny") return "deny";
+		if (selected === "allow-always" && request.kind !== "unknown" && approval.risk === "B") {
+			const remembered = await this.options.approvalBroker.rememberExactRule(request, {
 			workflow: this.workflow, permission: this.permission, conversationId: input.conversationId, approvalUiAttached: true,
 		});
-		return selected;
+			return remembered ? "allow-always" : "allow";
+		}
+		return "allow";
 	}
 
 	private providerEgressHosts(runtimeId: RuntimeId, providerProfileId?: string): string[] {

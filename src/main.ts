@@ -1557,6 +1557,37 @@ export default class TalosPlugin extends Plugin {
 		args: Record<string, unknown>;
 		sessionId?: string;
 	}): Promise<string> {
+		const service = this.getAgentWorkbenchService();
+		const modulePaths = Object.fromEntries(
+			MODULE_KEYS.map((key) => [key, this.paths.dir(key)])
+		) as Record<string, string>;
+		const moduleName = typeof input.args.module === "string"
+			? input.args.module
+			: "";
+		const requestedPath = input.name === "read_vault"
+			&& typeof input.args.path === "string"
+			&& input.args.path.trim()
+			? input.args.path
+			: modulePaths[moduleName] ?? ".";
+		const mapping: Record<VoiceVaultToolName, { toolName: string; canonicalToolId: string }> = {
+			glob_vault: { toolName: "Glob", canonicalToolId: "talos.glob" },
+			read_vault: { toolName: "Read", canonicalToolId: "talos.read" },
+			grep_vault: { toolName: "Grep", canonicalToolId: "talos.grep" },
+			search_vault: { toolName: "Search", canonicalToolId: "talos.search" },
+		};
+		const mapped = mapping[input.name];
+		const approval = await service.authorizeTool({
+			runtimeId: service.getSelectedRuntimeId(),
+			conversationId: input.sessionId || "qwen-realtime-vault",
+			vaultRoot: service.getVaultRoot(),
+			toolName: mapped.toolName,
+			toolInput: { ...input.args, path: requestedPath },
+			toolMetadata: { canonicalActionKind: "read", canonicalToolId: mapped.canonicalToolId },
+			channel: "voice",
+			approvalUiAttached: false,
+			prompt: async () => "deny",
+		});
+		if (approval === "deny") throw new Error("语音库内只读工具被统一安全策略拒绝");
 		const result = await executeVoiceVaultTool({
 			listPaths: async () =>
 				this.app.vault.getMarkdownFiles().map((file) => file.path),
@@ -1567,9 +1598,7 @@ export default class TalosPlugin extends Plugin {
 			},
 		}, input.name, input.args, {
 			configDir: this.app.vault.configDir,
-			modulePaths: Object.fromEntries(
-				MODULE_KEYS.map((key) => [key, this.paths.dir(key)])
-			),
+			modulePaths,
 			maxHits: 4,
 			maxExcerptChars: 900,
 			maxFiles: 3000,
@@ -1609,6 +1638,23 @@ export default class TalosPlugin extends Plugin {
 		if (!VOICE_QWEN_WEB_SEARCH_ALLOWED) {
 			throw new Error("语音 Qwen 联网搜索未获运行策略授权");
 		}
+		const service = this.getAgentWorkbenchService();
+		const approval = await service.authorizeTool({
+			runtimeId: service.getSelectedRuntimeId(),
+			conversationId: input.sessionId || "qwen-realtime-web-search",
+			vaultRoot: service.getVaultRoot(),
+			toolName: "web_search",
+			toolInput: {},
+			toolMetadata: {
+				canonicalActionKind: "network",
+				canonicalToolId: "talos.voice-web-search",
+			},
+			channel: "voice",
+			voiceExplicitNetwork: true,
+			approvalUiAttached: false,
+			prompt: async () => "deny",
+		});
+		if (approval === "deny") throw new Error("当前语音轮的联网搜索未通过统一授权入口");
 		const query = input.query.trim();
 		const requestBody = buildQwenWebSearchRequest(query);
 		const workspaceId = this.talosSettings.quyuanRealtimeWorkspaceId.trim();
@@ -1937,6 +1983,7 @@ export default class TalosPlugin extends Plugin {
 			);
 			const service = new AgentWorkbenchService({
 				approvalBroker,
+				evaluateToolGovernance: (toolName, input) => this.evaluateQuyuanToolPolicy(toolName, input),
 				conversationCoordinator,
 				inputLedger,
 				uiStateStore,

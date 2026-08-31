@@ -616,15 +616,26 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 			const card = this.approvalRegion.ownerDocument.createElement("section");
 			card.className = "claudian-ask-approval-agent";
 			card.dataset.conversationId = input.conversationId;
+			const policy = recordValue(input.options);
+			const risk = textValue(policy.risk, "C");
+			const phase = textValue(policy.phase, "execute");
+			const actionKind = textValue(policy.actionKind, "unknown");
+			const phaseLabel = phase === "proposal" ? "提案预览" : risk === "C" ? "独立执行批准" : "执行批准";
 			const title = card.ownerDocument.createElement("strong");
 			title.className = "claudian-ask-approval-tool-name";
-			title.textContent = `${input.runtimeId} · ${input.toolName}`;
+			title.textContent = input.runtimeId + " · " + input.toolName + " · " + phaseLabel;
 			const reason = card.ownerDocument.createElement("p");
 			reason.className = "claudian-ask-approval-reason";
-			reason.textContent = input.reason;
+			reason.textContent = "风险 " + risk + " · " + input.reason;
 			const target = card.ownerDocument.createElement("pre");
 			target.className = "claudian-ask-approval-desc";
-			target.textContent = JSON.stringify(approvalDisplayValue(input.toolInput), null, 2);
+			target.textContent = JSON.stringify(approvalDisplayValue({
+				canonicalToolId: policy.canonicalToolId,
+				targets: policy.targets,
+				recovery: policy.recovery,
+				proposalAvailable: policy.proposalAvailable,
+				proposal: input.toolInput,
+			}), null, 2);
 			const actions = card.ownerDocument.createElement("div");
 			actions.className = "claudian-input-nav-actions";
 			const cancels = this.interactionCancels(input.conversationId);
@@ -636,10 +647,15 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 			const cancel = () => finish("cancel");
 			cancels.add(cancel);
 			actions.append(
-				this.actionButton("允许一次", () => finish("allow")),
-				this.actionButton("允许并记住", () => finish("allow-always")),
-				this.actionButton("拒绝", () => finish("deny")),
+				this.actionButton(
+					phase === "proposal" ? "确认提案" : risk === "C" ? "批准执行" : "允许一次",
+					() => finish("allow")
+				),
 			);
+			if (risk === "B" && actionKind !== "unknown") {
+				actions.append(this.actionButton("允许并记住", () => finish("allow-always")));
+			}
+			actions.append(this.actionButton("拒绝", () => finish("deny")));
 			card.append(title, reason, target, actions);
 			this.approvalRegion.appendChild(card);
 			this.syncInteractionVisibility();

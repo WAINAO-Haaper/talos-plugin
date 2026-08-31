@@ -200,6 +200,14 @@ export class VoiceSessionStore {
 		await this.persist();
 	}
 
+	async appendFinalTranscript(message: VoiceSessionMessage): Promise<void> {
+		this.state.transcriptDraft = message.text;
+		this.state.messages = [...this.state.messages, { ...message }].slice(
+			-MAX_MESSAGES
+		);
+		await this.persist();
+	}
+
 	async setTranscriptDraft(transcriptDraft: string): Promise<void> {
 		this.state.transcriptDraft = transcriptDraft;
 		await this.persist();

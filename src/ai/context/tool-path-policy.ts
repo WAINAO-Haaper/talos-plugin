@@ -32,6 +32,7 @@ const VAULT_PATH_TOOLS = new Set([
 	"grep",
 	"search",
 ]);
+const VAULT_ROOT_SCOPED_READ_TOOLS = new Set(["glob", "grep", "search"]);
 
 const PATH_KEYS = [
 	"file_path",
@@ -139,8 +140,14 @@ export function inspectToolTargetPaths(
 		};
 	}
 
+	// "." is the canonical post-boundary marker for the Vault root. Only
+	// directory-scoped read tools may consume it; file reads and mutations fail closed.
 	const reasons = [
-		...new Set(paths.flatMap((path) => inspectVaultPath(path, options).reasons)),
+		...new Set(paths.flatMap((path) =>
+			path === "." && VAULT_ROOT_SCOPED_READ_TOOLS.has(normalizedTool)
+				? []
+				: inspectVaultPath(path, options).reasons
+		)),
 	];
 	return { blocked: reasons.length > 0, reasons, paths };
 }

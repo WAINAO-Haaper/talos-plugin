@@ -16,7 +16,13 @@ export type RealtimeVoiceState =
 	| "listening"
 	| "user-speaking"
 	| "thinking"
-	| "assistant-speaking";
+	| "assistant-speaking"
+	| "tool-running"
+	| "recovering"
+	| "error"
+	| "disconnected";
+
+export interface QwenRealtimeAuditEvent { type: string; reasonCode: string; generation: number; callId?: string; }
 
 export interface QwenRealtimeHandlers {
 	onConnectionChange?(connected: boolean): void;
@@ -27,6 +33,7 @@ export interface QwenRealtimeHandlers {
 	onUsage?(usage: ProviderUsageMetrics): void;
 	onBargeIn?(): void;
 	onError?(message: string): void;
+	onAudit?(event: QwenRealtimeAuditEvent): void;
 }
 
 export interface QwenRealtimeConfig {
@@ -36,6 +43,12 @@ export interface QwenRealtimeConfig {
 	instructions: string;
 	wakeAliases: readonly string[];
 	sleepWord: string;
+	timeouts?: Partial<{
+		connectMs: number;
+		toolMs: number;
+		firstResponseMs: number;
+		turnMs: number;
+	}>;
 	exchangeSdp(input: {
 		model: string;
 		instructions: string;
@@ -348,9 +361,21 @@ function normalizeAnswerSdp(value: string): string {
 
 class CancelledRealtimeStart extends Error {}
 
+const DEFAULT_TIMEOUTS = {
+	connectMs: 12_000,
+	toolMs: 20_000,
+	firstResponseMs: 30_000,
+	turnMs: 60_000,
+} as const;
+
 export class QwenRealtimeVoiceSession {
 	private readonly env: QwenRealtimeEnvironment;
 	private readonly channels = new Set<RealtimeDataChannelPort>();
+	private readonly channelHandlers = new Map<RealtimeDataChannelPort, {
+		message: (event: { data?: unknown }) => void;
+		close: () => void;
+		error: () => void;
+	}>();
 	private readonly inputTranscripts = new Map<string, string>();
 	private readonly outputTranscripts = new Map<string, string>();
 	private peer: RealtimePeerConnectionPort | null = null;
@@ -376,6 +401,10 @@ export class QwenRealtimeVoiceSession {
 	private readonly handledToolCalls = new Set<string>();
 	private inputEnabled = true;
 	private outputEnabled = true;
+	private state: RealtimeVoiceState = "idle";
+	private firstResponseTimer: number | null = null;
+	private turnTimer: number | null = null;
+	private peerStateHandler: (() => void) | null = null;
 
 	constructor(
 		private readonly config: QwenRealtimeConfig,
@@ -393,15 +422,27 @@ export class QwenRealtimeVoiceSession {
 		return this.awake;
 	}
 
+	debugSnapshot(): { state: RealtimeVoiceState; lifecycle: number; turnGeneration: number; pendingToolCalls: number; handledToolCalls: number; inputTranscripts: number; outputTranscripts: number } {
+		return {
+			state: this.state,
+			lifecycle: this.lifecycle,
+			turnGeneration: this.turnGeneration,
+			pendingToolCalls: this.pendingToolCalls.size,
+			handledToolCalls: this.handledToolCalls.size,
+			inputTranscripts: this.inputTranscripts.size,
+			outputTranscripts: this.outputTranscripts.size,
+		};
+	}
+
 	async start(): Promise<void> {
 		if (this.connected) return;
 		if (this.startPromise) return this.startPromise;
 		const generation = ++this.lifecycle;
-		this.emitState("connecting");
+		this.emitState(this.state === "error" || this.state === "disconnected" ? "recovering" : "connecting");
 		this.startPromise = this.startInternal(generation)
 			.catch((error: unknown) => {
-				if (error instanceof CancelledRealtimeStart) return;
-				this.cleanup(false);
+				if (error instanceof CancelledRealtimeStart || generation !== this.lifecycle) return;
+				this.cleanup(false, "error");
 				const message = error instanceof Error ? error.message : String(error);
 				this.handlers.onError?.(message);
 				throw error;
@@ -415,7 +456,7 @@ export class QwenRealtimeVoiceSession {
 	stop(): void {
 		++this.lifecycle;
 		this.startPromise = null;
-		this.cleanup(true);
+		this.cleanup(true, "idle");
 	}
 
 	setInputEnabled(enabled: boolean): void {
@@ -433,6 +474,19 @@ export class QwenRealtimeVoiceSession {
 
 	setAwake(awake: boolean): void {
 		if (this.awake === awake) return;
+		if (!awake) {
+			if (this.responseActive) this.send({ type: "response.cancel" });
+			this.turnGeneration += 1;
+			this.responseActive = false;
+			this.pendingToolCalls.clear();
+			this.handledToolCalls.clear();
+			this.inputTranscripts.clear();
+			this.outputTranscripts.clear();
+			this.authorizedWebSearch = null;
+			this.vaultToolGeneration = -1;
+			this.webSearchToolGeneration = -1;
+			this.clearTimers();
+		}
 		this.awake = awake;
 		this.handlers.onWakeChange?.(awake);
 		this.emitState(awake ? "listening" : "sleeping");
@@ -445,6 +499,7 @@ export class QwenRealtimeVoiceSession {
 			this.send({ type: "response.cancel" });
 		}
 		this.responseActive = false;
+		this.clearTimers();
 		this.emitState(this.awake ? "listening" : "sleeping");
 	}
 
@@ -461,7 +516,7 @@ export class QwenRealtimeVoiceSession {
 				content: [{ type: "input_text", text: value }],
 			},
 		});
-		this.send({ type: "response.create" });
+		this.requestResponse();
 	}
 
 	private async startInternal(generation: number): Promise<void> {
@@ -488,26 +543,36 @@ export class QwenRealtimeVoiceSession {
 				this.handlers.onError?.("浏览器阻止了语音自动播放，请再次点击语音按钮");
 			});
 		};
-		peer.ondatachannel = (event) => this.registerChannel(event.channel);
-		peer.addEventListener?.("connectionstatechange", this.handlePeerStateChange);
+		peer.ondatachannel = (event) => {
+			if (generation === this.lifecycle) this.registerChannel(event.channel, generation);
+		};
+		this.peerStateHandler = () => this.handlePeerStateChange(peer, generation);
+		peer.addEventListener?.("connectionstatechange", this.peerStateHandler);
 		for (const track of stream.getAudioTracks()) peer.addTrack(track, stream);
-		this.registerChannel(peer.createDataChannel("oai-events"));
+		this.registerChannel(peer.createDataChannel("oai-events"), generation);
 
 		const ready = new Promise<void>((resolve, reject) => {
 			this.readyResolve = resolve;
 			this.readyReject = reject;
 		});
+		// start() may fail before awaiting readiness; attach a handler immediately
+		// so cleanup rejection never becomes an unhandled promise.
+		void ready.catch(() => {});
 		const offer = await peer.createOffer();
 		await peer.setLocalDescription(offer);
 		await this.waitForIce(peer, generation);
 		this.assertCurrent(generation);
 		const offerSdp = peer.localDescription?.sdp ?? offer.sdp ?? "";
 		if (!offerSdp) throw new Error("Qwen Realtime WebRTC offer is empty");
-		const result = await this.config.exchangeSdp({
-			model: this.config.model,
-			instructions: this.config.instructions,
-			offerSdp,
-		});
+		const result = await this.withTimeout(
+			this.config.exchangeSdp({
+				model: this.config.model,
+				instructions: this.config.instructions,
+				offerSdp,
+			}),
+			this.timeout("connectMs"),
+			"Qwen Realtime SDP exchange timed out"
+		);
 		this.assertCurrent(generation);
 		if (!result.answerSdp.trim()) {
 			throw new Error("Qwen Realtime WebRTC answer is empty");
@@ -518,7 +583,7 @@ export class QwenRealtimeVoiceSession {
 		});
 		await this.withTimeout(
 			ready,
-			20_000,
+			this.timeout("connectMs"),
 			"Qwen Realtime session configuration timed out"
 		);
 		this.assertCurrent(generation);
@@ -537,8 +602,15 @@ export class QwenRealtimeVoiceSession {
 				}
 			};
 			peer.addEventListener?.("icegatheringstatechange", listener);
-		}), 8_000, "Qwen Realtime ICE gathering timed out");
+		}), Math.min(8_000, this.timeout("connectMs")), "Qwen Realtime ICE gathering timed out");
 		this.assertCurrent(generation);
+	}
+
+	private timeout(name: keyof typeof DEFAULT_TIMEOUTS): number {
+		const configured = this.config.timeouts?.[name];
+		return typeof configured === "number" && Number.isFinite(configured) && configured > 0
+			? configured
+			: DEFAULT_TIMEOUTS[name];
 	}
 
 	private withTimeout<T>(
@@ -568,54 +640,70 @@ export class QwenRealtimeVoiceSession {
 		if (generation !== this.lifecycle) throw new CancelledRealtimeStart();
 	}
 
-	private registerChannel(channel: RealtimeDataChannelPort): void {
+	private registerChannel(channel: RealtimeDataChannelPort, generation: number): void {
 		if (this.channels.has(channel)) return;
 		this.channels.add(channel);
-		channel.addEventListener("message", this.handleChannelMessage);
-		channel.addEventListener("close", this.handleChannelClose);
-		channel.addEventListener("error", this.handleChannelError);
+		const handlers = {
+			message: (event: { data?: unknown }) => this.handleChannelMessage(event, channel, generation),
+			close: () => this.handleChannelClose(generation),
+			error: () => this.handleChannelError(generation),
+		};
+		this.channelHandlers.set(channel, handlers);
+		channel.addEventListener("message", handlers.message);
+		channel.addEventListener("close", handlers.close);
+		channel.addEventListener("error", handlers.error);
 	}
 
-	private readonly handleChannelMessage = (event: { data?: unknown }): void => {
+	private handleChannelMessage(event: { data?: unknown }, channel: RealtimeDataChannelPort, generation: number): void {
+		if (generation !== this.lifecycle) return;
 		if (typeof event.data !== "string") return;
 		try {
 			const payload = record(JSON.parse(event.data));
 			if (!payload) return;
-			const source = [...this.channels].find((candidate) =>
-				candidate.readyState === "open"
-			);
-			if (source) this.channel = source;
+			if (channel.readyState === "open") this.channel = channel;
 			this.handleServerEvent(payload);
 		} catch {
-			this.handlers.onError?.("千问 Realtime 返回了无法解析的事件");
+			if (this.connected) {
+				this.failTurn("千问 Realtime 返回了无法解析的事件", "protocol-event-invalid");
+			} else {
+				this.handlers.onError?.("千问 Realtime 返回了无法解析的事件");
+			}
 		}
-	};
+	}
 
-	private readonly handleChannelClose = (): void => {
+	private handleChannelClose(generation: number): void {
+		if (generation !== this.lifecycle) return;
 		const error = new Error("Qwen Realtime data channel closed");
 		this.readyReject?.(error);
 		if (!this.connected) return;
-		this.handlers.onError?.("千问 Realtime 连接已关闭，请重新开启语音");
-		this.stop();
-	};
+		this.disconnect("千问 Realtime 连接已关闭，请重新开启语音", "data-channel-closed");
+	}
 
-	private readonly handleChannelError = (): void => {
+	private handleChannelError(generation: number): void {
+		if (generation !== this.lifecycle) return;
 		const error = new Error("Qwen Realtime data channel failed");
 		this.readyReject?.(error);
 		if (!this.connected) return;
-		this.handlers.onError?.("千问 Realtime 数据通道异常，请重新开启语音");
-		this.stop();
-	};
+		this.disconnect("千问 Realtime 数据通道异常，请重新开启语音", "data-channel-error");
+	}
 
-	private readonly handlePeerStateChange = (): void => {
-		const state = this.peer?.connectionState;
+	private handlePeerStateChange(peer: RealtimePeerConnectionPort, generation: number): void {
+		if (generation !== this.lifecycle) return;
+		const state = peer.connectionState;
 		if (!state || !["failed", "disconnected", "closed"].includes(state)) return;
 		const error = new Error(`Qwen Realtime WebRTC connection ${state}`);
 		this.readyReject?.(error);
 		if (!this.connected) return;
-		this.handlers.onError?.(`千问 Realtime WebRTC 已断开（${state}），请重新开启语音`);
-		this.stop();
-	};
+		this.disconnect(`千问 Realtime WebRTC 已断开（${state}），请重新开启语音`, `peer-${state}`);
+	}
+
+	private disconnect(message: string, reasonCode: string): void {
+		this.handlers.onAudit?.({ type: "connection", reasonCode, generation: this.turnGeneration });
+		this.handlers.onError?.(message);
+		++this.lifecycle;
+		this.startPromise = null;
+		this.cleanup(true, "disconnected");
+	}
 
 	private handleServerEvent(event: Record<string, unknown>): void {
 		const type = stringValue(event.type);
@@ -675,7 +763,13 @@ export class QwenRealtimeVoiceSession {
 			this.handleCompletedInput(value);
 			return;
 		}
+		if (type === "conversation.item.input_audio_transcription.failed") {
+			this.inputTranscripts.delete(eventKey(event));
+			this.failTurn("千问 Realtime 语音转写失败，请再说一次", "transcription-failed");
+			return;
+		}
 		if (type === "response.created") {
+			this.clearFirstResponseTimer();
 			this.responseActive = true;
 			if (this.awake) this.emitState("thinking");
 			return;
@@ -685,6 +779,7 @@ export class QwenRealtimeVoiceSession {
 			return;
 		}
 		if (type === "response.audio_transcript.delta") {
+			this.clearFirstResponseTimer();
 			const key = eventKey(event);
 			const value = (this.outputTranscripts.get(key) ?? "") + stringValue(event.delta);
 			this.outputTranscripts.set(key, value);
@@ -705,16 +800,27 @@ export class QwenRealtimeVoiceSession {
 		}
 		if (type === "response.done") {
 			this.responseActive = false;
+			this.clearFirstResponseTimer();
 			const response = record(event.response);
 			const status = stringValue(response?.status);
-			if (status === "failed") {
-				this.handlers.onError?.("千问 Realtime 回复失败");
-			}
 			const usage = parseQwenRealtimeUsage(response?.usage);
 			if (usage) this.handlers.onUsage?.(usage);
+			if (status === "failed" || status === "incomplete" || status === "cancelled") {
+				this.failTurn(
+					status === "failed" ? "千问 Realtime 回复失败" : "千问 Realtime 回复未完整结束，请重试",
+					`response-${status}`
+				);
+				return;
+			}
+			if (this.pendingToolCalls.size === 0) {
+				this.clearTimers();
+				this.handledToolCalls.clear();
+				this.inputTranscripts.clear();
+				this.outputTranscripts.clear();
+			}
 			this.emitState(
 				this.pendingToolCalls.size > 0
-					? "thinking"
+					? "tool-running"
 					: this.awake ? "listening" : "sleeping"
 			);
 			return;
@@ -723,9 +829,23 @@ export class QwenRealtimeVoiceSession {
 			const error = record(event.error);
 			const code = stringValue(error?.code);
 			const message = stringValue(error?.message) || "Qwen Realtime session error";
-			if (/cancel|not_active/i.test(code)) return;
-			this.readyReject?.(new Error(message));
-			this.handlers.onError?.(message);
+			if (/cancel|not_active/i.test(code)) {
+				this.turnGeneration += 1;
+				this.responseActive = false;
+				this.pendingToolCalls.clear();
+				this.handledToolCalls.clear();
+				this.inputTranscripts.clear();
+				this.outputTranscripts.clear();
+				this.authorizedWebSearch = null;
+				this.vaultToolGeneration = -1;
+				this.webSearchToolGeneration = -1;
+				this.clearTimers();
+				this.emitState(this.awake ? "listening" : "sleeping");
+				return;
+			}
+			if (!this.connected) this.readyReject?.(new Error(message));
+			else this.failTurn(message, code ? `server-${code}` : "server-error");
+			return;
 		}
 	}
 
@@ -736,7 +856,7 @@ export class QwenRealtimeVoiceSession {
 		this.handledToolCalls.add(callId);
 		const generation = this.turnGeneration;
 		this.pendingToolCalls.add(callId);
-		this.emitState("thinking");
+		this.emitState("tool-running");
 		let output: string;
 		try {
 			if (!this.awake) throw new Error("语音尚未唤醒");
@@ -748,7 +868,11 @@ export class QwenRealtimeVoiceSession {
 					throw new Error("同一轮不能混用库内工具与联网搜索");
 				}
 				this.vaultToolGeneration = generation;
-				output = await this.config.executeVaultTool(name, parsed, callId);
+				output = await this.withTimeout(
+					this.config.executeVaultTool(name, parsed, callId),
+					this.timeout("toolMs"),
+					"语音库内工具执行超时"
+				);
 			} else if (isVoiceWebSearchToolName(name)) {
 				if (!this.config.executeWebSearch) throw new Error("联网搜索未获授权");
 				const authorization = this.authorizedWebSearch;
@@ -764,12 +888,19 @@ export class QwenRealtimeVoiceSession {
 				}
 				authorization.used = true;
 				this.webSearchToolGeneration = generation;
-				output = await this.config.executeWebSearch(authorization.query, callId);
+				output = await this.withTimeout(
+					this.config.executeWebSearch(authorization.query, callId),
+					this.timeout("toolMs"),
+					"语音联网工具执行超时"
+				);
 			} else {
 				throw new Error("该语音工具未获授权");
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
+			if (/超时|timed out/i.test(message)) {
+				this.handlers.onAudit?.({ type: "tool-timeout", reasonCode: "tool-timeout", generation, callId });
+			}
 			output = JSON.stringify({
 				ok: false,
 				error: message.slice(0, 240),
@@ -783,7 +914,10 @@ export class QwenRealtimeVoiceSession {
 			generation !== this.turnGeneration
 			|| !this.connected
 			|| !this.awake
-		) return;
+		) {
+			this.handlers.onAudit?.({ type: "tool-result", reasonCode: "stale-tool-result", generation, callId });
+			return;
+		}
 		this.send({
 			type: "conversation.item.create",
 			item: {
@@ -792,21 +926,35 @@ export class QwenRealtimeVoiceSession {
 				output,
 			},
 		});
-		this.send({ type: "response.create" });
+		this.requestResponse();
 		this.emitState("thinking");
 	}
 
 	private handleCompletedInput(text: string): void {
-		if (!text) return;
+		if (!text) {
+			if (this.responseActive) this.send({ type: "response.cancel" });
+			this.responseActive = false;
+			this.pendingToolCalls.clear();
+			this.handledToolCalls.clear();
+			this.inputTranscripts.clear();
+			this.outputTranscripts.clear();
+			this.authorizedWebSearch = null;
+			this.clearTimers();
+			this.handlers.onAudit?.({ type: "transcription", reasonCode: "empty-transcript", generation: this.turnGeneration });
+			this.emitState(this.awake ? "listening" : "sleeping");
+			return;
+		}
 		this.beginUserTurn(text);
 		if (!this.awake) {
 			if (!this.matchesWake(text)) {
+				this.authorizedWebSearch = null;
+				this.clearTimers();
 				this.emitState("sleeping");
 				return;
 			}
 			this.setAwake(true);
 			this.handlers.onInputTranscript?.(text, true);
-			this.send({ type: "response.create" });
+			this.requestResponse();
 			return;
 		}
 
@@ -816,7 +964,7 @@ export class QwenRealtimeVoiceSession {
 			this.setAwake(false);
 			return;
 		}
-		this.send({ type: "response.create" });
+		this.requestResponse();
 	}
 
 	private matchesWake(text: string): boolean {
@@ -828,6 +976,11 @@ export class QwenRealtimeVoiceSession {
 
 	private beginUserTurn(text = ""): void {
 		this.turnGeneration += 1;
+		this.clearTimers();
+		this.pendingToolCalls.clear();
+		this.handledToolCalls.clear();
+		this.inputTranscripts.clear();
+		this.outputTranscripts.clear();
 		this.authorizedWebSearch = null;
 		this.vaultToolGeneration = -1;
 		this.webSearchToolGeneration = -1;
@@ -838,6 +991,50 @@ export class QwenRealtimeVoiceSession {
 				query,
 				used: false,
 			};
+		}
+		const generation = this.turnGeneration;
+		this.turnTimer = window.setTimeout(() => {
+			if (generation === this.turnGeneration) this.failTurn("千问 Realtime 本轮处理超时，请重试", "turn-timeout");
+		}, this.timeout("turnMs"));
+	}
+
+	private requestResponse(): void {
+		this.send({ type: "response.create" });
+		if (this.firstResponseTimer !== null) window.clearTimeout(this.firstResponseTimer);
+		const generation = this.turnGeneration;
+		this.firstResponseTimer = window.setTimeout(() => {
+			if (generation === this.turnGeneration && !this.responseActive) {
+				this.failTurn("千问 Realtime 首次回复超时，请重试", "first-response-timeout");
+			}
+		}, this.timeout("firstResponseMs"));
+	}
+
+	private clearFirstResponseTimer(): void {
+		if (this.firstResponseTimer !== null) window.clearTimeout(this.firstResponseTimer);
+		this.firstResponseTimer = null;
+	}
+
+	private clearTimers(): void {
+		this.clearFirstResponseTimer();
+		if (this.turnTimer !== null) window.clearTimeout(this.turnTimer);
+		this.turnTimer = null;
+	}
+
+	private failTurn(message: string, reasonCode: string): void {
+		this.handlers.onAudit?.({ type: "turn-recovery", reasonCode, generation: this.turnGeneration });
+		this.handlers.onError?.(message);
+		this.emitState("error");
+		this.turnGeneration += 1;
+		this.responseActive = false;
+		this.pendingToolCalls.clear();
+		this.handledToolCalls.clear();
+		this.inputTranscripts.clear();
+		this.outputTranscripts.clear();
+		this.authorizedWebSearch = null;
+		this.clearTimers();
+		if (this.connected) {
+			this.emitState("recovering");
+			this.emitState(this.awake ? "listening" : "sleeping");
 		}
 	}
 
@@ -876,11 +1073,14 @@ export class QwenRealtimeVoiceSession {
 	}
 
 	private emitState(state: RealtimeVoiceState): void {
+		if (this.state === state) return;
+		this.state = state;
 		this.handlers.onState?.(state);
 	}
 
-	private cleanup(notify: boolean): void {
+	private cleanup(notify: boolean, finalState: "idle" | "error" | "disconnected"): void {
 		const wasConnected = this.connected;
+		this.clearTimers();
 		this.connected = false;
 		this.awake = false;
 		this.responseActive = false;
@@ -896,9 +1096,12 @@ export class QwenRealtimeVoiceSession {
 		this.inputTranscripts.clear();
 		this.outputTranscripts.clear();
 		for (const channel of this.channels) {
-			channel.removeEventListener?.("message", this.handleChannelMessage);
-			channel.removeEventListener?.("close", this.handleChannelClose);
-			channel.removeEventListener?.("error", this.handleChannelError);
+			const handlers = this.channelHandlers.get(channel);
+			if (handlers) {
+				channel.removeEventListener?.("message", handlers.message);
+				channel.removeEventListener?.("close", handlers.close);
+				channel.removeEventListener?.("error", handlers.error);
+			}
 			try {
 				channel.close();
 			} catch {
@@ -906,15 +1109,17 @@ export class QwenRealtimeVoiceSession {
 			}
 		}
 		this.channels.clear();
+		this.channelHandlers.clear();
 		this.channel = null;
 		if (this.peer) {
-			this.peer.removeEventListener?.("connectionstatechange", this.handlePeerStateChange);
+			if (this.peerStateHandler) this.peer.removeEventListener?.("connectionstatechange", this.peerStateHandler);
 			try {
 				this.peer.close();
 			} catch {
 				// Best-effort WebRTC teardown.
 			}
 		}
+		this.peerStateHandler = null;
 		this.peer = null;
 		for (const track of this.stream?.getTracks() ?? []) {
 			try {
@@ -929,7 +1134,7 @@ export class QwenRealtimeVoiceSession {
 		if (notify || wasConnected) {
 			this.handlers.onConnectionChange?.(false);
 			this.handlers.onWakeChange?.(false);
-			this.emitState("idle");
 		}
+		this.emitState(finalState);
 	}
 }

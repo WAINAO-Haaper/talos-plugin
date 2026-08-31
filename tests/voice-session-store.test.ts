@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	VoiceSessionStore,
 	type VoiceSessionPersistence,
@@ -137,6 +137,29 @@ describe("VoiceSessionStore", () => {
 		});
 	});
 
+	it("persists a final transcript and its message in one atomic write", async () => {
+		let value = "";
+		const write = vi.fn((next: string) => { value = next; });
+		const store = new VoiceSessionStore({
+			read: () => value,
+			write,
+		}, () => 200);
+
+		await store.appendFinalTranscript({
+			id: "final-transcript",
+			role: "user",
+			text: "只写一次的最终转录",
+			modality: "speech",
+			createdAt: 200,
+		});
+
+		expect(write).toHaveBeenCalledOnce();
+		expect(JSON.parse(value)).toMatchObject({
+			transcriptDraft: "只写一次的最终转录",
+			messages: [{ id: "final-transcript", text: "只写一次的最终转录" }],
+		});
+	});
+
 	it("serializes snapshot writes so an older slow write cannot overwrite a newer state", async () => {
 		const writes: string[] = [];
 		let activeWrites = 0;
@@ -249,11 +272,23 @@ describe("VoiceSessionStore", () => {
 			"readLegacy: () => this.settings.jarvisTabsJson"
 		);
 		expect(voicePanelSource).toContain("fallbackToPushToTalk");
-		expect(voiceDriverSource).toContain("evaluateVoiceToolRisk");
-		expect(voiceDriverSource).toContain("resolveVoiceToolApproval");
+		expect(voiceDriverSource).toContain("service.authorizeTool");
+		expect(voiceDriverSource).not.toContain("evaluateVoiceToolRisk");
+		expect(voiceDriverSource).not.toContain("resolveVoiceToolApproval");
+		expect(voicePanelSource).toContain("appendFinalTranscript");
+		expect(voicePanelSource).toContain("onAudit: (event)");
+        expect(voicePanelSource).toContain('"realtime-" + event.type + "-" + event.reasonCode');
+		const goToChat = voicePanelSource.slice(
+			voicePanelSource.indexOf("private goToChat"),
+			voicePanelSource.indexOf("private stopCurrentWork")
+		);
+		expect(goToChat).toContain("++this.lifecycleGeneration");
+		expect(voicePanelSource).not.toMatch(/LocalAsr|VadMic|buildAsr|asrHandlers|bundled-local-voice-runtime/);
 		expect(voiceDriverSource).not.toContain(
 			"histories: Record<InteractionChannel"
 		);
+		expect(voiceDriverSource).toContain("conversationId: session.conversationId");
+		expect(voiceDriverSource).not.toContain("this.approve(turn.channel, session.binding.sessionId");
 		expect(viewSource).toContain("new QuyuanVoicePanel");
 	});
 });

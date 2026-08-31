@@ -437,14 +437,42 @@ describe("adapter protocol semantics", () => {
 	it("maps Codex server events and preserves persistent approval", async () => {
 		const port = new CodexPort(); const adapter = new CodexAppServerAdapter(port);
 		await adapter.createSession({ ...createInput, model: "synthetic/omp-test" });
-		const types = [];
-		for await (const event of adapter.send(turn)) types.push(event.type);
+		const events = [];
+		for await (const event of adapter.send(turn)) events.push(event);
+		const types = events.map((event) => event.type);
 		expect(types).toEqual(["assistant.delta", "thinking.delta", "approval.requested", "user.question", "usage.updated", "turn.finished"]);
 		expect(types).not.toContain("notice");
+		expect(events.find((event) => event.type === "approval.requested")?.payload).toMatchObject({
+			name: "Bash",
+			canonicalActionKind: "shell",
+			canonicalToolId: "codex.command-execution",
+		});
 		await adapter.resolveApproval(7, "allow-always");
 		expect(port.responses.at(-1)).toEqual([7, { decision: "acceptForSession" }]);
 		await adapter.resolveApproval(8, "allow-always", "permissions", { fileSystem: { read: ["vault"] } });
 		expect(port.responses.at(-1)?.[1]).toMatchObject({ scope: "session" });
+	});
+
+	it("maps Codex file-change approvals to the explicit write contract", async () => {
+		class FileChangePort extends CodexPort {
+			async *turn(): AsyncIterable<ProtocolFrame> {
+				yield {
+					id: 9,
+					method: "item/fileChange/requestApproval",
+					params: { changes: [{ path: "note.md", diff: "+safe" }] },
+				};
+				yield { method: "turn/completed", params: { status: "completed" } };
+			}
+		}
+		const adapter = new CodexAppServerAdapter(new FileChangePort());
+		await adapter.createSession(createInput);
+		const events = [];
+		for await (const event of adapter.send(turn)) events.push(event);
+		expect(events.find((event) => event.type === "approval.requested")?.payload).toMatchObject({
+			name: "Edit",
+			canonicalActionKind: "write",
+			canonicalToolId: "codex.file-change",
+		});
 	});
 
 	it("drops unknown provider lifecycle frames instead of rendering protocol notices", async () => {
@@ -528,6 +556,10 @@ describe("adapter protocol semantics", () => {
 			}
 		}
 		expect(events.map((event) => event.type)).toContain("approval.requested");
+		expect(events.find((event) => event.type === "approval.requested")?.payload).toMatchObject({
+			canonicalActionKind: "unknown",
+			canonicalToolId: "ohmypi.extension-ui-request",
+		});
 		expect(port.responses.at(-1)).toEqual(["approval-1", { value: "Approve" }]);
 	});
 });

@@ -161,7 +161,7 @@ describe("voice microphone lifecycle", () => {
 		);
 		expect(panel).not.toContain("wakeWindowMs");
 		expect(panel).not.toContain("wakeTimer");
-		expect(panel).toContain("There is intentionally no legacy 30-second timer");
+		expect(panel).toContain("QwenRealtimeVoiceSession");
 		expect(realtime).toContain("this.setAwake(false)");
 		expect(realtime).not.toContain("wakeWindowMs");
 	});

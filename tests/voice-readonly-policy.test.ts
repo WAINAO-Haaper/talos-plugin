@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isVoiceReadOnlyTool } from "../src/quyuan/voice-tool-gateway";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -11,41 +10,24 @@ const readSrc = (rel: string): string =>
 // 钉死四件事：①通用 voice 工具仍只放行读类工具；②审批回调前置 deny；
 // ③每轮注入 TALOS 只读契约；④只有当前轮明确口令可走可信侧 web_search。
 describe("voice read-only and bounded Qwen search policy", () => {
-	it("classifies read tools as voice-safe and everything else as blocked", () => {
-		for (const ok of ["read", "glob", "grep", "search"]) {
-			expect(isVoiceReadOnlyTool(ok)).toBe(true);
-			expect(isVoiceReadOnlyTool(ok.toUpperCase())).toBe(true);
-		}
-		for (const blocked of [
-			"websearch",
-			"webfetch",
-			"write",
-			"edit",
-			"delete",
-			"move",
-			"bash",
-			"publish",
-			"send",
-			"applypatch",
-		]) {
-			expect(isVoiceReadOnlyTool(blocked)).toBe(false);
-		}
+	it("keeps the exact voice read allowlist in the shared broker", () => {
+		const broker = readSrc("src/agent-workbench/security/approval-broker.ts");
+		expect(broker).toContain("const VOICE_READ_TOOLS = new Set([\"talos.read\", \"talos.glob\", \"talos.grep\", \"talos.search\"])");
+		expect(broker).not.toContain("voice-tool-gateway");
 	});
 
-	it("gates the approval callback by channel before any confirm prompt", () => {
+	it("routes voice approval through the shared gateway before any confirm prompt", () => {
 		const driver = readSrc("src/quyuan/native-voice-driver.ts");
-		// 通道分流必须位于治理/风险合并之前，且只作用于 voice 通道
-		expect(driver).toContain(
-			'if (channel === "voice" && !isVoiceReadOnlyTool(name))'
-		);
-		const gateIndex = driver.indexOf(
-			'if (channel === "voice" && !isVoiceReadOnlyTool(name))'
-		);
-		const govIndex = driver.indexOf("this.plugin.evaluateQuyuanToolPolicy");
+		const broker = readSrc("src/agent-workbench/security/approval-broker.ts");
+		expect(driver).toContain("service.authorizeTool");
+		expect(driver).not.toContain("evaluateVoiceToolRisk");
+		expect(driver).not.toContain("resolveVoiceToolApproval");
+		const gateIndex = broker.indexOf("if (context.channel === \"voice\"");
+		const boundaryIndex = broker.indexOf("const boundary = await this.boundary.assess(request)");
 		expect(gateIndex).toBeGreaterThan(-1);
-		expect(govIndex).toBeGreaterThan(-1);
-		expect(gateIndex).toBeLessThan(govIndex);
+		expect(boundaryIndex).toBeGreaterThan(gateIndex);
 	});
+
 
 	it("carries the read-only spoken contract in the voice response policy", () => {
 		const driver = readSrc("src/quyuan/native-voice-driver.ts");
@@ -83,6 +65,26 @@ describe("voice read-only and bounded Qwen search policy", () => {
 			"getDataContext: () => buildTalosDataMap(this.settings, this.app.vault.configDir)"
 		);
 		expect(panel).toContain("语音工具只读；仅明确说“联网搜索”或“上网查”才发送当前问题");
+	});
+
+	it("routes Qwen Realtime Vault and explicit web-search execution through authorizeTool", () => {
+		const main = readSrc("src/main.ts");
+		const vaultStart = main.indexOf("async executeQuyuanVoiceVaultTool");
+		const webStart = main.indexOf("async executeQuyuanVoiceWebSearch");
+		const exchangeStart = main.indexOf("async exchangeQuyuanRealtimeSdp");
+		const vaultExecution = main.slice(vaultStart, webStart);
+		const webExecution = main.slice(webStart, exchangeStart);
+		expect(vaultExecution).toContain("service.authorizeTool");
+		expect(vaultExecution.indexOf("service.authorizeTool")).toBeLessThan(
+			vaultExecution.indexOf("executeVoiceVaultTool")
+		);
+		expect(vaultExecution).toContain("语音库内只读工具被统一安全策略拒绝");
+		expect(vaultExecution).not.toContain("语音库内只读工具未通过统一授权入口");
+		expect(webExecution).toContain("service.authorizeTool");
+		expect(webExecution).toContain("voiceExplicitNetwork: true");
+		expect(webExecution.indexOf("service.authorizeTool")).toBeLessThan(
+			webExecution.indexOf("requestUrl")
+		);
 	});
 
 	it("preserves the audited Vault tools and adds only the bounded Qwen search tool", () => {

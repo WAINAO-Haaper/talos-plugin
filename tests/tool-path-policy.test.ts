@@ -41,6 +41,27 @@ describe("tool target path policy", () => {
 		});
 	});
 
+	it.each(["Glob", "Grep", "Search"])(
+		"allows %s to use the Vault root as an explicit read-only scope",
+		(toolName) => {
+			expect(inspectToolTargetPaths(toolName, { path: "." })).toEqual({
+				blocked: false,
+				reasons: [],
+				paths: ["."],
+			});
+		}
+	);
+
+	it.each(["Read", "Write", "Delete"])(
+		"does not broaden the Vault root exception to %s",
+		(toolName) => {
+			expect(inspectToolTargetPaths(toolName, { path: "." })).toMatchObject({
+				blocked: true,
+				reasons: ["unsafe-path"],
+			});
+		}
+	);
+
 	it("does not treat a glob expression as a trusted target root", () => {
 		expect(extractToolTargetPaths("Glob", { pattern: "30 洞察/**/*" }))
 			.toEqual([]);

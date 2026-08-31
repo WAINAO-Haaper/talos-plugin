@@ -64,6 +64,26 @@ function canonicalToolName(item: Record<string, unknown>): string {
 	return typeof item.type === "string" ? names[item.type] ?? "工具" : "工具";
 }
 
+function canonicalAction(method: string, item: Record<string, unknown> | null): { canonicalActionKind: string; canonicalToolId: string; name: string } | null {
+	const itemType = typeof item?.type === "string" ? item.type : "";
+	const byType: Record<string, { canonicalActionKind: string; canonicalToolId: string; name: string }> = {
+		commandExecution: { canonicalActionKind: "shell", canonicalToolId: "codex.command-execution", name: "Bash" },
+		fileChange: { canonicalActionKind: "write", canonicalToolId: "codex.file-change", name: "Edit" },
+		imageView: { canonicalActionKind: "read", canonicalToolId: "codex.image-view", name: "ImageView" },
+		webSearch: { canonicalActionKind: "network", canonicalToolId: "codex.web-search", name: "WebSearch" },
+		collabAgentToolCall: { canonicalActionKind: "subagent", canonicalToolId: "codex.collab-agent", name: "Agent" },
+		mcpToolCall: { canonicalActionKind: "mcp", canonicalToolId: "codex.mcp", name: "MCP" },
+		dynamicToolCall: { canonicalActionKind: "unknown", canonicalToolId: "codex.dynamic-tool", name: canonicalToolName(item ?? {}) },
+	};
+	if (byType[itemType]) return byType[itemType];
+	const byMethod: Record<string, { canonicalActionKind: string; canonicalToolId: string; name: string }> = {
+		"item/commandExecution/requestApproval": { canonicalActionKind: "shell", canonicalToolId: "codex.command-execution", name: "Bash" },
+		"item/fileChange/requestApproval": { canonicalActionKind: "write", canonicalToolId: "codex.file-change", name: "Edit" },
+		"item/permissions/requestApproval": { canonicalActionKind: "unknown", canonicalToolId: "codex.permissions", name: "Permissions" },
+	};
+	return byMethod[method] ?? null;
+}
+
 function canonicalToolPayload(method: string, payload: Record<string, unknown>): Record<string, unknown> {
 	if (method === "item/commandExecution/outputDelta" || method === "item/fileChange/outputDelta") {
 		return {
@@ -72,16 +92,18 @@ function canonicalToolPayload(method: string, payload: Record<string, unknown>):
 		};
 	}
 	const item = canonicalToolItem(payload);
-	if (!item) return {};
-	const status = typeof item.status === "string" ? item.status.toLocaleLowerCase("en-US") : "";
-	const exitCode = typeof item.exitCode === "number" ? item.exitCode : null;
-	const input = item.type === "commandExecution"
+	const action = canonicalAction(method, item);
+	if (!item && !action) return {};
+	const status = typeof item?.status === "string" ? item.status.toLocaleLowerCase("en-US") : "";
+	const exitCode = typeof item?.exitCode === "number" ? item.exitCode : null;
+	const input = item?.type === "commandExecution"
 		? { command: item.command, cwd: item.cwd }
-		: item.input ?? item.arguments ?? item.changes ?? item.query ?? item.path ?? {};
-	const output = item.aggregatedOutput ?? item.result ?? item.output ?? "";
+		: item?.input ?? item?.arguments ?? item?.changes ?? item?.query ?? item?.path ?? payload;
+	const output = item?.aggregatedOutput ?? item?.result ?? item?.output ?? "";
 	return {
-		...(typeof item.id === "string" ? { id: item.id } : {}),
-		name: canonicalToolName(item),
+		...(typeof item?.id === "string" ? { id: item.id } : {}),
+		name: action?.name ?? canonicalToolName(item ?? {}),
+		...(action ?? {}),
 		input,
 		output,
 		error: exitCode !== null ? exitCode !== 0 : status === "failed" || status === "error",

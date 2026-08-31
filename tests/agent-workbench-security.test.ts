@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { connect } from "node:net";
 import { spawnSync } from "node:child_process";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ActionRequest } from "../src/agent-workbench/contracts/approval";
 import { ApprovalBroker } from "../src/agent-workbench/security/approval-broker";
 import { ExternalAccessGrantStore } from "../src/agent-workbench/security/external-access-grant";
@@ -121,24 +121,24 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		expect((await fixtureBroker.value.evaluate(externalRead, context)).decision).toBe("ask");
 	});
 
-	it("persists exact network approval across conversations and restart while scoping runtime and port", async () => {
+	it("never persists risk-C network approval and requires a fresh two-phase decision", async () => {
 		const { vault } = await fixture();
 		const host = new RuleHost();
 		const first = broker(vault, host);
 		const network = request({ actionId: "network-1", kind: "network", targets: [], network: { protocol: "https", host: "example.test" } });
 		const ruleId = await first.value.rememberExactRule(network, context);
-		expect(ruleId).not.toBeNull();
+		expect(ruleId).toBeNull();
 		const restarted = broker(vault, host);
 		const reconnect = request({ ...network, actionId: "network-2" });
-		expect((await restarted.value.evaluate(reconnect, { ...context, conversationId: "conversation-2" })).ruleId).toBe(ruleId);
-		expect((await restarted.value.evaluate(request({
+		expect(await restarted.value.evaluate(reconnect, { ...context, conversationId: "conversation-2" })).toMatchObject({
+			decision: "ask", reasonCode: "risk-c-two-phase",
+		});
+		expect(await restarted.value.evaluate(request({
 			...reconnect, actionId: "network-3", network: { protocol: "https", host: "example.test", port: 8443 },
-		}), context)).decision).toBe("ask");
-		expect((await restarted.value.evaluate(request({
+		}), context)).toMatchObject({ decision: "ask", reasonCode: "risk-c-two-phase" });
+		expect(await restarted.value.evaluate(request({
 			...reconnect, actionId: "network-4", runtimeId: "ohmypi",
-		}), context)).decision).toBe("ask");
-		await new PermissionRuleStore(host).revoke(ruleId!);
-		expect((await broker(vault, host).value.evaluate(reconnect, context)).decision).toBe("ask");
+		}), context)).toMatchObject({ decision: "ask", reasonCode: "risk-c-two-phase" });
 	});
 
 	it("fails closed when audit persistence fails and stores only target digests", async () => {
@@ -159,15 +159,27 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		});
 		service.setWorkflowMode("execute");
 		let prompts = 0;
+		const approvals: Array<Record<string, unknown>> = [];
 		const decide = () => service.authorizeTool({
 			runtimeId: "codex", conversationId: "conversation-1", vaultRoot: vault,
 			toolName: "Write", toolInput: { file_path: "note.md" }, approvalUiAttached: true,
-			prompt: async () => { prompts += 1; return "allow-always"; },
+			prompt: async (approval) => {
+				prompts += 1;
+				approvals.push(approval);
+				return "allow-always";
+			},
 		});
 		expect(await decide()).toBe("allow-always");
 		service.setPermissionMode("scoped");
 		expect(await decide()).toBe("allow");
 		expect(prompts).toBe(1);
+		expect(approvals[0]).toMatchObject({
+			phase: "execute",
+			risk: "B",
+			actionKind: "write",
+			targets: [{ raw: "note.md", role: "destination" }],
+		});
+		expect(String(approvals[0]?.recovery)).toContain("恢复");
 		expect(fixtureBroker.audits).toHaveLength(2);
 	});
 
@@ -177,6 +189,149 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		const network = normalizeToolAction({ runtimeId: "codex", toolName: "WebFetch", toolInput: { url: "https://example.test/path" }, vaultRoot: "/synthetic/vault", actionId: "b" });
 		expect(network.network).toEqual({ protocol: "https", host: "example.test", port: undefined });
 	});
+
+	it("fails closed for unknown tools and classifies subagents as risk C", () => {
+		const unknown = normalizeToolAction({
+			runtimeId: "ohmypi", toolName: "mystery_extension", toolInput: {},
+			vaultRoot: "/synthetic/vault", actionId: "unknown",
+		});
+		expect(unknown).toMatchObject({ kind: "unknown", risk: "B", canonicalToolId: "talos.unknown" });
+		const subagent = normalizeToolAction({
+			runtimeId: "claude", toolName: "Task", toolInput: { description: "delegate" },
+			vaultRoot: "/synthetic/vault", actionId: "subagent",
+		});
+		expect(subagent).toMatchObject({ kind: "subagent", risk: "C", canonicalToolId: "talos.subagent" });
+		const unboundedWrite = normalizeToolAction({
+			runtimeId: "codex", toolName: "Write", toolInput: { content: "no target" },
+			vaultRoot: "/synthetic/vault", actionId: "unbounded-write",
+		});
+		expect(unboundedWrite).toMatchObject({ kind: "write", risk: "C" });
+	});
+
+	it("enforces voice, governance, and two-phase risk-C gates in the shared service", async () => {
+		const { vault } = await fixture();
+		const prompts = vi.fn(async () => "allow" as const);
+		const service = new AgentWorkbenchService({ approvalBroker: broker(vault).value });
+		service.setWorkflowMode("execute");
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "voice-1", vaultRoot: vault,
+			toolName: "Write", toolInput: { file_path: "note.md" }, channel: "voice",
+			approvalUiAttached: true, prompt: prompts,
+		})).resolves.toBe("deny");
+		expect(prompts).not.toHaveBeenCalled();
+
+		const governed = new AgentWorkbenchService({
+			approvalBroker: broker(vault).value,
+			evaluateToolGovernance: () => ({ decision: "deny", reason: "policy-blocked" }),
+		});
+		governed.setWorkflowMode("execute");
+		await expect(governed.authorizeTool({
+			runtimeId: "codex", conversationId: "governance-1", vaultRoot: vault,
+			toolName: "Read", toolInput: { file_path: "note.md" }, channel: "text",
+			approvalUiAttached: true, prompt: prompts,
+		})).resolves.toBe("deny");
+		expect(prompts).not.toHaveBeenCalled();
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "voice-read-1", vaultRoot: vault,
+			toolName: "Read", toolInput: { file_path: "note.md" }, channel: "voice",
+			approvalUiAttached: false, prompt: prompts,
+		})).resolves.toBe("allow");
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "permanent-alias-1", vaultRoot: vault,
+			toolName: "Edit", toolInput: { payload: { file_path: ".talos/private/unsafe.json" } },
+			channel: "text", approvalUiAttached: true, prompt: prompts,
+		})).resolves.toBe("deny");
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "no-ui-1", vaultRoot: vault,
+			toolName: "Write", toolInput: { file_path: "other.md" }, channel: "text",
+			approvalUiAttached: false, prompt: prompts,
+		})).resolves.toBe("deny");
+		expect(prompts).not.toHaveBeenCalled();
+
+		const unknownPrompt = vi.fn(async () => "allow-always" as const);
+		const unknownInput = {
+			runtimeId: "codex" as const,
+			conversationId: "unknown-1",
+			vaultRoot: vault,
+			toolName: "UnmappedProviderTool",
+			toolInput: {},
+			channel: "text" as const,
+			approvalUiAttached: true,
+			prompt: unknownPrompt,
+		};
+		await expect(service.authorizeTool(unknownInput)).resolves.toBe("allow");
+		await expect(service.authorizeTool(unknownInput)).resolves.toBe("allow");
+		expect(unknownPrompt).toHaveBeenCalledTimes(2);
+
+		const phases: string[] = [];
+		const riskCApprovals: Array<Record<string, unknown>> = [];
+		const missingProposalPrompt = vi.fn(async () => "allow" as const);
+		await expect(service.authorizeTool({
+			runtimeId: "claude", conversationId: "risk-c-no-proposal", vaultRoot: vault,
+			toolName: "Task", toolInput: {}, channel: "text",
+			approvalUiAttached: true, prompt: missingProposalPrompt,
+		})).resolves.toBe("deny");
+		expect(missingProposalPrompt).not.toHaveBeenCalled();
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "risk-c-1", vaultRoot: vault,
+			toolName: "Bash", toolInput: { command: "pwd" }, channel: "text",
+			approvalUiAttached: true,
+			prompt: async (approval) => {
+				phases.push(approval.phase ?? "single");
+				riskCApprovals.push(approval);
+				return "allow";
+			},
+		})).resolves.toBe("allow");
+		expect(phases).toEqual(["proposal", "execute"]);
+		expect(riskCApprovals).toHaveLength(2);
+		expect(riskCApprovals[0]).toMatchObject({
+			risk: "C",
+			actionKind: "shell",
+			canonicalToolId: "talos.shell",
+			proposalAvailable: true,
+		});
+
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "voice-web-denied", vaultRoot: vault,
+			toolName: "web_search", toolInput: {},
+			toolMetadata: {
+				canonicalActionKind: "network",
+				canonicalToolId: "talos.voice-web-search",
+			},
+			channel: "voice", approvalUiAttached: false, prompt: prompts,
+		})).resolves.toBe("deny");
+		await expect(service.authorizeTool({
+			runtimeId: "codex", conversationId: "voice-web-explicit", vaultRoot: vault,
+			toolName: "web_search", toolInput: {},
+			toolMetadata: {
+				canonicalActionKind: "network",
+				canonicalToolId: "talos.voice-web-search",
+			},
+			channel: "voice",
+			voiceExplicitNetwork: true,
+			approvalUiAttached: false,
+			prompt: prompts,
+		})).resolves.toBe("allow");
+		await expect(governed.authorizeTool({
+			runtimeId: "codex", conversationId: "voice-web-governance-deny", vaultRoot: vault,
+			toolName: "web_search", toolInput: {},
+			toolMetadata: {
+				canonicalActionKind: "network",
+				canonicalToolId: "talos.voice-web-search",
+			},
+			channel: "voice",
+			voiceExplicitNetwork: true,
+			approvalUiAttached: false,
+			prompt: prompts,
+		})).resolves.toBe("deny");
+		expect(prompts).not.toHaveBeenCalled();
+	});
+
 });
 
 async function proxyResponse(port: number, request: string): Promise<string> {

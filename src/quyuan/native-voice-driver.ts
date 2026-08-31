@@ -1,7 +1,6 @@
 import type { AgentEvent } from "../agent-workbench/contracts/agent-events";
 import type { AgentRuntimeAdapter, NativeSessionBinding, RuntimeHistoryItem } from "../agent-workbench/contracts/runtime-adapter";
 import type { AgentWorkbenchService } from "../agent-workbench/core/agent-workbench-service";
-import { evaluateVoiceToolRisk, isVoiceReadOnlyTool, resolveVoiceToolApproval, type VoiceToolPolicy } from "./voice-tool-gateway";
 
 export type InteractionChannel = "voice" | "text";
 export interface QuyuanTurn { text: string; channel: InteractionChannel; }
@@ -49,9 +48,8 @@ export interface TalosVoiceRuntimeHost {
 		sourceKinds: Array<"prompt" | "history" | "voice-data-map">;
 		sessionId?: string;
 	}): Promise<{ allowed: boolean; message?: string }>;
-	evaluateQuyuanToolPolicy?(toolName: string, input: Record<string, unknown>): { decision: "allow" | "ask" | "deny"; reason: string };
 }
-interface VoiceRuntimeSession { runtime: AgentRuntimeAdapter; binding: NativeSessionBinding; }
+interface VoiceRuntimeSession { runtime: AgentRuntimeAdapter; binding: NativeSessionBinding; conversationId: string; }
 
 function value(input: unknown): string { return typeof input === "string" ? input : ""; }
 function toolName(event: AgentEvent): string { return value(event.payload.name) || value(event.payload.tool) || "tool"; }
@@ -73,15 +71,25 @@ export class QuyuanVoiceDriver {
 	isBusy(): boolean { return this.busy; }
 	setConfirmHandler(fn: (toolName: string, description: string) => Promise<boolean>): void { this.confirm = fn; }
 
-	private async approve(channel: InteractionChannel, name: string, input: Record<string, unknown>, description = name): Promise<"allow" | "deny"> {
-		if (channel === "voice" && !isVoiceReadOnlyTool(name)) return "deny";
-		const governance = this.plugin.evaluateQuyuanToolPolicy?.(name, input);
-		const risk = evaluateVoiceToolRisk(name, input);
-		let policy: VoiceToolPolicy;
-		if (governance?.decision === "deny") policy = governance;
-		else if (governance?.decision === "allow" && risk.decision === "allow") policy = governance;
-		else policy = { decision: "ask", reason: [governance?.reason, risk.reason].filter(Boolean).join("；") };
-		return resolveVoiceToolApproval(policy, async () => this.confirm?.(name, description) ?? false);
+	private approve(
+		channel: InteractionChannel,
+		conversationId: string,
+		name: string,
+		input: Record<string, unknown>,
+		metadata: Record<string, unknown> = {},
+	): Promise<"allow" | "allow-always" | "deny"> {
+		const service = this.plugin.getAgentWorkbenchService();
+		return service.authorizeTool({
+			runtimeId: service.getSelectedRuntimeId(),
+			conversationId,
+			vaultRoot: service.getVaultRoot(),
+			toolName: name,
+			toolInput: input,
+			toolMetadata: metadata,
+			channel,
+			approvalUiAttached: Boolean(this.confirm),
+			prompt: async (approval) => (await this.confirm?.(name, `${(value(metadata.description) || name)} · ${approval.phase === "proposal" ? "查看提案" : "确认执行"}`)) ? "allow" : "deny",
+		});
 	}
 
 	private async ensureRuntime(channel: InteractionChannel): Promise<VoiceRuntimeSession> {
@@ -90,19 +98,20 @@ export class QuyuanVoiceDriver {
 		const service = this.plugin.getAgentWorkbenchService();
 		const runtimeId = service.getSelectedRuntimeId();
 		const vaultRoot = service.getVaultRoot();
+		const conversationId = `voice-${channel}-${crypto.randomUUID()}`;
 		const runtime = await service.createRuntime(runtimeId, {
 			vaultRoot,
 			permissionMode: "ask",
-			approve: (name, input, metadata) => this.approve(channel, name, input, value(metadata?.description) || name),
+			approve: (name, input, metadata = {}) => this.approve(channel, conversationId, name, input, metadata),
 		});
 		try {
 			const binding = await runtime.createSession({
-				conversationId: `voice-${channel}-${crypto.randomUUID()}`,
+				conversationId,
 				vaultRoot,
 				model: runtimeId === "claude" ? this.config.model || undefined : undefined,
 				initialContext: channel === "voice" ? VOICE_RESPONSE_POLICY : TEXT_RESPONSE_POLICY,
 			});
-			return this.runtimes[channel] = { runtime, binding };
+			return this.runtimes[channel] = { runtime, binding, conversationId };
 		} catch (error) {
 			await runtime.dispose().catch(() => undefined);
 			throw error;
@@ -150,7 +159,7 @@ export class QuyuanVoiceDriver {
 			if (!audit.allowed) throw new Error(audit.message ?? "Provider 出库隐私审计未通过");
 			if (generation !== this.generation) return;
 			for await (const event of session.runtime.send({
-				conversationId: session.binding.sessionId,
+				conversationId: session.conversationId,
 				turnId: crypto.randomUUID(),
 				input: [{ type: "text", text: prompt }],
 				text: prompt,
@@ -179,7 +188,7 @@ export class QuyuanVoiceDriver {
 					callbacks.onTool?.({ taskId: id, name: tools.get(id) ?? toolName(event), status, auditEvidence: `voice-tool:${id}:${status}` });
 				} else if (event.type === "approval.requested" && event.nativeId && session.runtime.respondApproval) {
 					const name = toolName(event);
-					await session.runtime.respondApproval({ requestId: event.nativeId, decision: await this.approve(turn.channel, name, event.payload, value(event.payload.reason) || name) });
+					await session.runtime.respondApproval({ requestId: event.nativeId, decision: await this.approve(turn.channel, session.conversationId, name, event.payload, event.payload) });
 				} else if (event.type === "error") {
 					sawError = true; callbacks.onError(value(event.payload.message) || "运行时错误"); return;
 				} else if (event.type === "turn.finished") sawDone = true;
