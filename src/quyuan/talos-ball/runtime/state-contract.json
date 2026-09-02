@@ -1,0 +1,62 @@
+{
+  "idle": {
+    "emotionId": "02",
+    "label": "待机",
+    "upstreamName": "待机放空"
+  },
+  "listening": {
+    "emotionId": "35",
+    "label": "倾听",
+    "upstreamName": "等待输入"
+  },
+  "receiving": {
+    "emotionId": "31",
+    "label": "接收",
+    "upstreamName": "接收任务"
+  },
+  "working": {
+    "emotionId": "32",
+    "label": "工作",
+    "upstreamName": "处理中忙碌"
+  },
+  "thinking": {
+    "emotionId": "30",
+    "label": "思考",
+    "upstreamName": "思考中"
+  },
+  "searching": {
+    "emotionId": "40",
+    "label": "搜索",
+    "upstreamName": "检索资料"
+  },
+  "responding": {
+    "emotionId": "39",
+    "label": "回复",
+    "upstreamName": "输出回复"
+  },
+  "success": {
+    "emotionId": "33",
+    "label": "成功",
+    "upstreamName": "任务完成"
+  },
+  "warning": {
+    "emotionId": "11",
+    "label": "提醒",
+    "upstreamName": "疑惑"
+  },
+  "error": {
+    "emotionId": "34",
+    "label": "错误",
+    "upstreamName": "出错"
+  },
+  "restricted": {
+    "emotionId": "38",
+    "label": "受限",
+    "upstreamName": "拒绝/受限"
+  },
+  "stopped": {
+    "emotionId": "41",
+    "label": "停止",
+    "upstreamName": "停止终止"
+  }
+}

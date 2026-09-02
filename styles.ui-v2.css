@@ -1924,7 +1924,7 @@
 }
 
 /* Voice focus workspace chrome · D-TLP-019 / D-TLP-022
-   The Emotion Ball stage, weak particle atmosphere, lower controls, theme
+   The TalosBall stage, weak particle atmosphere, lower controls, theme
    mappings, and motion remain owned by styles.quyuan-shell.css. */
 .talos-console[data-talos-page="jarvis"] .tq-workspace-bar {
 	position: absolute;

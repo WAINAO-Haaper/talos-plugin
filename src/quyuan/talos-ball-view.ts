@@ -1,11 +1,7 @@
-import { OrbRuntime } from "./talos-ball/runtime/orb-runtime";
-import type {
-	MotionPreference,
-	OrbController,
-	OrbOptions,
-	OrbState,
-	OrbThemeInput,
-} from "./talos-ball/semantics/types";
+import {
+	createTalosBall,
+	type TalosBallState as TalosBallRuntimeState,
+} from "./talos-ball";
 
 
 export type TalosBallState =
@@ -20,7 +16,7 @@ export type TalosBallState =
 	| "restricted"
 	| "stop";
 
-export const TALOS_BALL_STATE_MAP: Readonly<Record<TalosBallState, OrbState>> = {
+export const TALOS_BALL_STATE_MAP: Readonly<Record<TalosBallState, TalosBallRuntimeState>> = {
 	waiting: "idle",
 	receiving: "listening",
 	busy: "receiving",
@@ -48,20 +44,34 @@ const STATE_LABELS: Readonly<Record<TalosBallState, string>> = {
 
 export interface TalosBallTheme {
 	id: string;
-	mode: OrbThemeInput;
+	mode: "light" | "dark";
 }
 
-export type TalosBallController = Pick<
-	OrbController,
-	"setState" | "setActive" | "renderStatic" | "setTheme" | "destroy"
->;
+export interface TalosBallController {
+	setState(state: TalosBallRuntimeState): unknown;
+	setActive(active: boolean): unknown;
+	renderStatic(): unknown;
+	setTheme(theme: "light" | "dark"): unknown;
+	destroy(): void;
+}
+
+export type TalosBallMotionPreference = "system" | "reduced";
+
+export interface TalosBallFactoryOptions {
+	state?: TalosBallRuntimeState;
+	size?: string | number;
+	active?: boolean;
+	motion?: TalosBallMotionPreference;
+	theme?: "light" | "dark";
+	ariaLabel?: string;
+	seed?: number;
+}
 
 export type TalosBallFactory = (
 	host: HTMLElement,
-	options: OrbOptions
+	options: TalosBallFactoryOptions
 ) => TalosBallController;
 
-let runtimeInstanceCount = 0;
 
 const defaultFactory: TalosBallFactory = (host, options) => {
 	const element = host.ownerDocument.createElement("div");
@@ -69,31 +79,32 @@ const defaultFactory: TalosBallFactory = (host, options) => {
 	const rawSize = options.size ?? "100%";
 	const size = typeof rawSize === "number" ? rawSize + "px" : rawSize;
 	element.style.setProperty("--talos-orb-size", size);
+	if (options.ariaLabel) element.setAttribute("aria-label", options.ariaLabel);
 	host.appendChild(element);
-	const shadowRoot = element.attachShadow({ mode: "open" });
-	const runtime = new OrbRuntime(element, shadowRoot, {
+	const controller = createTalosBall(element, {
 		state: options.state ?? "idle",
-		active: options.active ?? true,
-		motion: options.motion ?? "system",
-		theme: options.theme ?? "light",
-		ariaLabel: options.ariaLabel,
-		seed: options.seed ?? 0x54414c4f,
-		idPrefix: "talos-ball-instance-" + ++runtimeInstanceCount,
+		autostart: options.active ?? true,
+		idle: true,
+		label: options.ariaLabel,
 	});
+	if (options.motion === "reduced") {
+		controller.setActive(false);
+		controller.renderStatic();
+	}
 	return {
-		setState: (state) => runtime.setState(state),
-		setActive: (active) => runtime.setActive(active),
-		renderStatic: () => runtime.renderStatic(),
-		setTheme: (theme) => runtime.setTheme(theme),
+		setState: (state) => controller.setState(state),
+		setActive: (active) => controller.setActive(active),
+		renderStatic: () => controller.renderStatic(),
+		setTheme: () => controller.setTheme({}),
 		destroy: () => {
-			runtime.destroy();
+			controller.destroy();
 			element.remove();
 		},
 	};
 };
 
 /**
- * Presentation-only adapter around the TALOS-owned orb runtime.
+ * Presentation-only adapter around the TalosBall 0.3.0 runtime.
  * It consumes normalized voice state and never receives provider, permission,
  * approval, credential, Vault content, or tool-execution capabilities.
  */
@@ -195,7 +206,7 @@ export class TalosBallView {
 		if (!this.engineHost) return;
 		this.engineHost.replaceChildren();
 		try {
-			const motion: MotionPreference = this.reducedMotion
+			const motion: TalosBallMotionPreference = this.reducedMotion
 				? "reduced"
 				: "system";
 			this.engine = this.factory(this.engineHost, {

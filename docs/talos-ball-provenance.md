@@ -1,60 +1,48 @@
-# TALOS Ball provenance
+# TalosBall 0.3.0 Integration Provenance
 
 **classification:** PUBLIC
-**created:** 2026-08-30
 **integrated:** 2026-09-02
-**status:** TALOS-owned implementation candidate; independent legal review remains required
+**status:** authorized TalosBall integration candidate; external release gates remain separate
 
-## Ownership boundary
+## Product identity
 
-TALOS Ball is the production replacement for the previously vendored Emotion Ball
-runtime, state data and character visual. The implementation in
-`src/quyuan/talos-ball/` was created for the TALOS product line from an abstract
-functional brief and TALOS brand constraints.
+The production voice-stage visual is TalosBall 0.3.0. The local directory, runtime
+global, TypeScript API, DOM attributes, tests and bundle-facing identifiers use the
+TalosBall name. The integration does not expose the previous product identity through
+production APIs.
 
-The production implementation contains no third-party character source, copied SVG,
-bitmap, font, audio, model, pose table, expression ID table, body coordinate array or
-animation configuration.
+## Source and attribution boundary
 
-## Original design system
+TalosBall 0.3.0 is an authorized derivative of a fixed source implementation. The
+repository owner confirmed authorization for this engineering use. Original source
+license, commercial terms, Notice and source attribution remain under
+`src/quyuan/talos-ball/runtime/vendor/talos-ball-runtime/` and are summarized in
+`THIRD-PARTY-NOTICES.md`.
 
-- Body: mathematically generated Crown-Keel superellipse with an elevated crown and
-  soft short floor.
-- Eyes: pupil-free flexible valve paths generated from aperture, tension, tilt and
-  gaze vectors.
-- States: twelve named TALOS states mapped to continuous visual vectors.
-- Motion: independent timing constants, deterministic seeded blink, interruptible
-  interpolation and a shared requestAnimationFrame scheduler.
-- Palette: Apple White, Deep Ink, Cloud Blue and Signal Yellow.
-- Accessibility: named state labels, reduced-motion, page/viewport suspension,
-  static fallback and deterministic destroy cleanup.
+The TalosBall wrapper, ten voice-state adapter, lifecycle integration, tests, CSS and
+Plugin host code are TALOS project additions. This record does not claim independent
+original authorship of the source geometry, state data, renderer or animation engine.
 
-## Clean-room record
+## Animation-equivalence contract
 
-The original creation stream recorded that it did not access third-party character
-source, assets, screenshots, measurements, coordinates, parameters, naming or page
-layout. It used only the requested product behavior, common mathematical methods and
-TALOS brand colors. The implementation and previews were generated from the recorded
-formulas and state vectors.
+The integration preserves the fixed source geometry, 32 state definitions, SVG render
+math, animation primitives, springs, transition timings, random strategy and default
+visual parameters. Local changes are limited to TalosBall identifiers, module paths,
+logging and a `globalThis` host adaptation for browser and Node test compatibility.
 
-AI assistance was used to draft code and documentation. The repository owner directed
-the product requirements and explicitly requested integration of the TALOS-owned
-implementation. This record does not replace an independent copyright, trademark,
-design or commercial-dress review.
+The locked regression samples all 32 states at 9 fixed timestamps with a seeded random
+source. All 288 deterministic pose traces must match the existing baseline exactly.
+Runtime files and attribution materials also have pinned SHA-256 checks.
 
-## Removed dependency
+## Plugin integration
 
-The integration deletes the prior `src/quyuan/vendor/emotion-ball/` snapshot,
-its runtime adapter, numeric state data and public visual screenshot. Production source,
-bundle and distribution notices must remain free of that dependency and identity.
+- `src/quyuan/talos-ball/runtime/` contains the embedded TalosBall runtime and state contract.
+- `src/quyuan/talos-ball-view.ts` maps normalized voice states to TalosBall states.
+- page visibility, viewport suspension, reduced-motion, static rendering and destroy cleanup remain active.
+- Provider, credential, Vault, approval and tool-execution capabilities never enter the visual layer.
 
-## Release gate
+## Release boundary
 
-Before a commercial Release:
-
-1. run the complete test, type, lint, license and production-build gates;
-2. prove the generated bundle contains no removed runtime or vendor identity;
-3. generate a real Obsidian screenshot of the TALOS-owned visual;
-4. complete human visual review at 48, 96 and full workspace sizes;
-5. obtain independent legal review of copyright ownership, trademark naming and
-   visual similarity for the intended markets.
+This change does not publish, push, merge, tag, install or deploy a Release. Before an
+external commercial release, the product must still pass its registered build, license,
+real Obsidian, visual acceptance and applicable rights/legal gates.

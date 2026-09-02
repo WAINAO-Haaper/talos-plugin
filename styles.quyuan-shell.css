@@ -3551,6 +3551,13 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   overflow: visible;
 }
 
+.tq-talos-ball-runtime > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .tq-talos-ball[data-talos-ball-fallback="true"] .tq-talos-ball__engine {
   display: none;
 }

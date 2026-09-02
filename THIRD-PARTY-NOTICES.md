@@ -12,6 +12,18 @@
 
 `THIRD-PARTY-LICENSES.txt` 由 `npm run licenses:generate` 根据生产依赖自动生成；`npm run build` 会拒绝使用过期清单构建。
 
+## TalosBall 0.3.0 runtime attribution
+
+Plugin 语音中心视觉嵌入 TalosBall 0.3.0。产品目录、API 与运行时标识统一为 TalosBall；几何、32 态数据、SVG renderer 与动画参数保持授权固定来源的确定性等价。
+
+- Local runtime: `src/quyuan/talos-ball/runtime/`
+- Source attribution and license materials: `src/quyuan/talos-ball/runtime/vendor/talos-ball-runtime/`
+- Fixed source repository: `https://github.com/sam70361/emotion-ball`
+- Fixed source commit: `b406eeb20a1b1ae0084d4006e77cc74e28be009d`
+- Verification: 32 states × 9 timestamps, 288 deterministic pose traces
+
+TalosBall 包装、Plugin 状态适配和生命周期代码属于 TALOS 新增层；来源几何、状态数据、renderer 与 animation engine 不声明为独立原创。对外发布仍受项目现有 rights/legal 与 Release gates 约束。
+
 ## 可选本地语音运行时与模型
 
 本地 ASR 使用构建时静态嵌入的 Sherpa-ONNX 浏览器封装、独立 Web Worker、固定 WASM

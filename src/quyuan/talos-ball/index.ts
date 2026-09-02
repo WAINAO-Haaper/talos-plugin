@@ -1,47 +1,32 @@
 export {
-  adaptTalosActivity,
-  TALOS_ACTIVITY_SIGNALS,
-  TALOS_ACTIVITY_STATE_MAP
-} from "./bridges/talos-activity";
-export type { TalosActivitySignal } from "./bridges/talos-activity";
+  TALOS_BALL_RUNTIME_SOURCE,
+  TALOS_BALL_COMPATIBILITY_DEFAULTS,
+  createTalosBallRuntime,
+  getTalosBallRuntimeNamespace,
+  listTalosBallDefinitions,
+} from "./runtime/runtime";
 export {
-  CROWN_KEEL_FORM,
-  generateCrownKeelPath,
-  generateCrownKeelPoints,
-  generateOrbitPath
-} from "./form/crown-keel";
+  TALOS_BALL_STATE_CONTRACT,
+  TALOS_BALL_STATE_IDS,
+  TALOS_BALL_STATES,
+  emotionIdForState,
+  isTalosBallState,
+  type TalosBallState,
+  type TalosBallStateDefinition,
+} from "./runtime/state-contract";
 export {
-  generateValveEyes,
-  VALVE_EYE_FORM
-} from "./expression/valve-eye";
-export { MOTION_TIMINGS, transitionDuration } from "./kinetics/timings";
-export { TransitionEngine } from "./orchestration/transition-engine";
-export {
-  isOrbState,
-  renderLogoSvg,
-  renderStaticSvg
-} from "./scene/static-svg";
-export { STATE_DESCRIPTIONS } from "./semantics/descriptions";
-export {
-  STATE_VECTORS,
-  interpolateVector
-} from "./semantics/state-vectors";
-export type { VisualVector } from "./semantics/state-vectors";
-export {
-  ORB_STATES
-} from "./semantics/types";
+  TalosBall,
+  createTalosBall,
+  type TalosBallOptions,
+  type TalosBallTheme,
+} from "./runtime/controller";
 export type {
-  GazePoint,
-  MotionPreference,
-  OrbController,
-  OrbEventCallback,
-  OrbEventMap,
-  OrbEventName,
-  OrbOptions,
-  OrbState,
-  OrbTheme,
-  OrbThemeInput,
-  OrbThemeName,
-  StaticOrbOptions,
-} from "./semantics/types";
-export { TALOS_COLORS } from "./surface/tokens";
+  TalosBallDefinition,
+  TalosBallEngine,
+  TalosBallEngineOptions,
+  TalosBallEvent,
+  TalosBallIdleOptions,
+  TalosBallListener,
+  TalosBallRuntimeNamespace,
+  TalosBallShape,
+} from "./runtime/talos-ball-runtime-types";

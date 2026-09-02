@@ -11,13 +11,13 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 界面预览
 
-以下为控制台实际运行界面与 v0.4.3 TALOS Ball 自有视觉预览。点击图片可查看原始尺寸。
+以下为控制台实际运行界面与 v0.4.3 TalosBall 0.3.0 动画预览。点击图片可查看原始尺寸。
 
 | 指挥总览 · Bauhaus | AI 对话 · DeepSeek Harness |
 |---|---|
 | [![TALOS 指挥总览](docs/screenshots/v0.4.1/overview-bauhaus.png)](docs/screenshots/v0.4.1/overview-bauhaus.png) | [![TALOS AI 对话与 DeepSeek Harness](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png)](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png) |
-| 屈原语音 · TALOS Ball 自有视觉 | 设置 · 主题与模型 |
-| [![TALOS Ball 自有语音状态视觉](docs/screenshots/v0.4.1/talos-ball-owned-preview.svg)](docs/screenshots/v0.4.1/talos-ball-owned-preview.svg) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
+| 屈原语音 · TalosBall 0.3.0 | 设置 · 主题与模型 |
+| [![TalosBall 语音状态视觉](docs/screenshots/v0.4.3/talos-ball-preview.svg)](docs/screenshots/v0.4.3/talos-ball-preview.svg) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
 | 收件箱治理 | 全库视图 |
 | [![TALOS 收件箱治理](docs/screenshots/v0.4.1/inbox-governance.png)](docs/screenshots/v0.4.1/inbox-governance.png) | [![TALOS 全库视图](docs/screenshots/v0.4.1/vault-overview.png)](docs/screenshots/v0.4.1/vault-overview.png) |
 
@@ -68,7 +68,7 @@ v0.4.3 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 ## 安装
 
-TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.3 已移除旧 Emotion Ball 运行时、状态数据与角色视觉；v0.4.1 不再建议用于商业分发。
+TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.3 候选已嵌入 TalosBall 0.3.0；v0.4.1 不再建议用于商业分发。
 
 ### 按系统下载安装包
 
@@ -152,6 +152,6 @@ npm run build
 - `THIRD-PARTY-LICENSES.txt`：由 lockfile 自动生成的生产依赖许可证包。
 - `MaShanZheng-Regular.ttf` / `MaShanZheng-OFL.txt`：屈原标题字体及 SIL OFL 1.1 许可证。
 
-- **TALOS Ball**：语音中心视觉、12 态数据、原创几何和动效运行时属于 TALOS 自有实现；来源与发布门见 [TALOS Ball provenance](docs/talos-ball-provenance.md)。
+- **TALOS Ball**：语音中心视觉使用 TalosBall 0.3.0；Plugin 保留语音状态适配与生命周期集成，几何、32 态和动效遵循固定等价基线；来源与发布门见 [TALOS Ball provenance](docs/talos-ball-provenance.md)。
 
 完整变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。

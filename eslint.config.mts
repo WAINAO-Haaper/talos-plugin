@@ -8,8 +8,11 @@ export default tseslint.config(
 		'node_modules',
 		'dist',
 		'prototype',
-		// 固定上游版本与哈希的 Emotion Ball 快照；由来源与哈希测试验证，不做本地改写
-		'src/quyuan/vendor/emotion-ball/**',
+		// TalosBallRuntime 固定来源副本由哈希与 288 帧测试验证，不做 lint 重写
+		'src/quyuan/talos-ball/runtime/vendor/talos-ball-runtime/**',
+		// Node .mjs 合同由 Vitest 执行；产品 TypeScript 与 view 测试仍完整 lint
+		'tests/talos-ball-*.test.mjs',
+		'tests/helpers/*talos-ball*.mjs',
 		// 修复前的原始文件备份，不是源码，不参与检查
 		'backups',
 		'*.selftest.mjs',
