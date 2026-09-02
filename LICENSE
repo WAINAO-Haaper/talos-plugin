@@ -20,6 +20,31 @@ scope, term, seat count, and other conditions stated in their applicable
 commercial agreement or end-user license agreement. Possession of a copy does
 not itself grant redistribution, resale, white-label, or sublicensing rights.
 
+2.1 Prohibited uses
+
+Except where a separate written agreement expressly permits it, and subject
+to any rights that cannot lawfully be waived, no person may:
+
+- copy, modify, republish, repackage, distribute, rent, lease, resell, or
+  sublicense TALOS Materials;
+- remove or obscure copyright, attribution, license, or product identity
+  notices;
+- offer TALOS Materials as a hosted service, managed service, white-label
+  product, or other commercial service for third parties;
+- create or distribute a derivative product whose source code, interface,
+  visual assets, documentation, or branding is substantially based on TALOS
+  Materials; or
+- bypass, disable, falsify, or interfere with any TALOS license or entitlement
+  control.
+
+2.2 Termination and enforcement
+
+Any use outside an applicable written license is unauthorized. A material
+breach terminates the breaching party's permission to use TALOS Materials.
+The copyright holder reserves all remedies available under applicable law,
+including requests to stop distribution, remove infringing copies, preserve
+evidence, and recover damages where available.
+
 3. Third-party materials
 
 This project contains or interoperates with third-party software that is not

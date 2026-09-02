@@ -8,6 +8,7 @@ import {
 	setIcon,
 } from "obsidian";
 import type TalosPlugin from "./main";
+import { TALOS_SETTINGS_COPYRIGHT_DESC } from "./legal";
 import {
 	MODULE_KEYS,
 	SCHEMA_LABELS,
@@ -584,6 +585,10 @@ export class TalosSettingTab extends PluginSettingTab {
 					await this.plugin.saveTalosSettings();
 				})
 			);
+		new Setting(c).setName("版权与授权").setHeading();
+		new Setting(c)
+			.setName("TALOS 专有软件")
+			.setDesc(TALOS_SETTINGS_COPYRIGHT_DESC);
 	}
 
 	// ---------- Tab：目录映射 ----------

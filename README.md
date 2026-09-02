@@ -1,6 +1,6 @@
 # TALOS for Obsidian
 
-![version](https://img.shields.io/badge/version-v0.4.2-2f6feb)
+![version](https://img.shields.io/badge/version-v0.4.3-2f6feb)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-7c3aed)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827)
 ![license](https://img.shields.io/badge/license-Proprietary-dc2626)
@@ -11,7 +11,7 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 界面预览
 
-以下为控制台实际运行界面与 v0.4.2 TALOS Ball 自有视觉预览。点击图片可查看原始尺寸。
+以下为控制台实际运行界面与 v0.4.3 TALOS Ball 自有视觉预览。点击图片可查看原始尺寸。
 
 | 指挥总览 · Bauhaus | AI 对话 · DeepSeek Harness |
 |---|---|
@@ -46,12 +46,12 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 平台状态
 
-v0.4.2 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
+v0.4.3 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
 
 | 平台 | 当前状态 | AI 执行边界 |
 |---|---|---|
 | **macOS** | 主要支持平台 | 本机 Claude / Codex / OhMyPi 可在可验证的 macOS Seatbelt 沙箱内运行；沙箱不可用时 Execute 失败关闭。 |
-| **Windows 10/11 x64** | v0.4.2 已加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
+| **Windows 10/11 x64** | v0.4.3 已加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
 | **其他桌面系统** | 非当前交付重点 | 没有可验证 OS 沙箱时，本机智能体 Execute 失败关闭。 |
 
 ### 目标硬件
@@ -68,16 +68,16 @@ v0.4.2 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 ## 安装
 
-TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.2 已移除旧 Emotion Ball 运行时、状态数据与角色视觉；v0.4.1 不再建议用于商业分发。
+TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.3 已移除旧 Emotion Ball 运行时、状态数据与角色视觉；v0.4.1 不再建议用于商业分发。
 
 ### 按系统下载安装包
 
 | 操作系统 | 安装包名称 |
 |---|---|
-| **macOS** | `TALOS-v0.4.2-macOS.zip` |
-| **Windows 10/11 x64** | `TALOS-v0.4.2-Windows.zip` |
+| **macOS** | `TALOS-v0.4.3-macOS.zip` |
+| **Windows 10/11 x64** | `TALOS-v0.4.3-Windows.zip` |
 
-两个压缩包使用同一套 v0.4.2 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
+两个压缩包使用同一套 v0.4.3 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
 
 1. 从最新 Release 下载与你的操作系统对应的 ZIP。
 2. 解压后将其中的 `talos` 文件夹放到 `<你的 Vault>/.obsidian/plugins/`。
@@ -144,6 +144,8 @@ npm run build
 - `tests/`：跨平台、安全、迁移、语音、Provider 和 UI 契约回归。
 
 ## 许可
+
+> Copyright © 2026 外脑玩家 Haaper. All rights reserved. 未经书面许可，不得复制、修改、重新打包、分发、转售、白标、托管或用于商业服务。
 
 - `LICENSE`：TALOS 自有代码的专有商业许可；客户使用、席位、期限和再分发权由单独协议授予。
 - `THIRD-PARTY-NOTICES.md`：第三方组件、视觉参考和商业条款摘要。

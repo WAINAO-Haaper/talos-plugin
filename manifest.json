@@ -1,7 +1,7 @@
 {
 	"id": "talos",
 	"name": "TALOS",
-	"version": "0.4.2",
+	"version": "0.4.3",
 	"minAppVersion": "1.11.4",
 	"description": "TALOS — 超级大脑控制台与屈原 AI Agent 工作台。扫全库实时统计、审批治理与语音交互。",
 	"author": "外脑玩家 Haaper",
