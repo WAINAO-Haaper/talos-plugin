@@ -70,14 +70,21 @@ v0.4.1 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。
 
-### Windows 推荐安装
+### 按系统下载安装包
 
-1. 下载最新 Release 中的 `TALOS-v0.4.1-Windows.zip`。
+| 操作系统 | 安装包名称 |
+|---|---|
+| **macOS** | `TALOS-v0.4.1-macOS.zip` |
+| **Windows 10/11 x64** | `TALOS-v0.4.1-Windows.zip` |
+
+两个压缩包使用同一套 v0.4.1 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
+
+1. 从最新 Release 下载与你的操作系统对应的 ZIP。
 2. 解压后将其中的 `talos` 文件夹放到 `<你的 Vault>/.obsidian/plugins/`。
 3. 重启 Obsidian，打开「设置 → 社区插件」，启用 TALOS。
-4. 进入「TALOS 设置 → 智能体与模型」，把 API 密钥保存到 SecretStorage，并选择 Provider 与模型。
+4. 进入「TALOS 设置 → 智能体与模型」，配置本机运行时或把 API 密钥保存到 SecretStorage，并选择 Provider 与模型。
 
-### macOS / 手动安装
+### 手动安装（macOS / Windows）
 
 把 Release 中的以下文件放入 `<你的 Vault>/.obsidian/plugins/talos/`：
 
