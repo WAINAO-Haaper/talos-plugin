@@ -11,11 +11,10 @@ import { resolveEffectiveRuntimePolicy } from "./runtime-policy";
 import { buildTalosDataMap } from "./voice-data-map";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
 import {
-	EmotionBallView,
-	type EmotionBallState,
-	type EmotionBallTheme,
-} from "./emotion-ball-view";
-import { createPinnedEmotionBall } from "./emotion-ball-runtime";
+	TalosBallView,
+	type TalosBallState,
+	type TalosBallTheme,
+} from "./talos-ball-view";
 import type { VaultPaths } from "../data/schema";
 import { VoiceSessionStore } from "./voice-session-store";
 import {
@@ -111,8 +110,8 @@ export class QuyuanVoicePanel {
 	private micBtn: HTMLButtonElement | null = null;
 	private sendBtn: HTMLButtonElement | null = null;
 	private characterStage: QuyuanVoiceCharacterStage | null = null;
-	private emotionBall: EmotionBallView | null = null;
-	private emotionThemeObserver: MutationObserver | null = null;
+	private talosBall: TalosBallView | null = null;
+	private talosThemeObserver: MutationObserver | null = null;
 	private ballStateTimer: number | null = null;
 	private markdownComponent: Component | null = null;
 	private replyBuffer = "";
@@ -213,7 +212,7 @@ export class QuyuanVoicePanel {
 				this.ttsSpeaking = false;
 				this.characterStage?.setOutputLevel(0);
 				this.setState(this.responseActive ? "speak" : this.restingState());
-				if (completedPlayback) this.setEmotionBallState("done", 1800);
+				if (completedPlayback) this.setTalosBallState("done", 1800);
 				this.ttsWasCancelled = false;
 			} else if (s === "error") {
 				this.voiceMode.onTtsFailure("朗读服务不可用，文字回复已保留");
@@ -221,7 +220,7 @@ export class QuyuanVoicePanel {
 				this.ttsSpeaking = false;
 				this.characterStage?.setOutputLevel(0);
 				this.setState(this.responseActive ? "speak" : this.restingState());
-				this.setEmotionBallState("error", 2400);
+				this.setTalosBallState("error", 2400);
 				this.controlStatusEl?.setText("播报服务错误 · 文字回复仍可用");
 			}
 		}, (level) => {
@@ -254,7 +253,7 @@ export class QuyuanVoicePanel {
 			cls: "tq-stage",
 			attr: {
 				role: "region",
-				"aria-label": "Emotion Ball 语音舞台",
+				"aria-label": "TALOS Ball 语音舞台",
 				"data-workspace-section": "voice-stage",
 			},
 		});
@@ -289,14 +288,14 @@ export class QuyuanVoicePanel {
 		chatButton.createSpan({ text: "转到 AI 对话" });
 		chatButton.addEventListener("click", () => this.goToChat());
 
-		// 既有粒子人物保留为弱氛围层；Emotion Ball 是唯一中心主视觉。
+		// 既有粒子人物保留为弱氛围层；TALOS Ball 是唯一中心主视觉。
 		this.characterStage = new QuyuanVoiceCharacterStage(stage);
 		const visual = stage.createDiv({
-			cls: "tq-emotion-stage",
-			attr: { "aria-label": "Emotion Ball 状态视觉" },
+			cls: "tq-talos-stage",
+			attr: { "aria-label": "TALOS Ball 状态视觉" },
 		});
-		const ballHost = visual.createDiv({ cls: "tq-emotion-ball-host" });
-		this.mountEmotionBall(ballHost);
+		const ballHost = visual.createDiv({ cls: "tq-talos-ball-host" });
+		this.mountTalosBall(ballHost);
 
 		const overlay = stage.createDiv({
 			cls: "tq-overlay-text",
@@ -473,33 +472,33 @@ export class QuyuanVoicePanel {
 		app.setting?.openTabById(this.plugin.manifest.id);
 	}
 
-	private mountEmotionBall(host: HTMLElement): void {
-		this.emotionBall?.destroy();
-		this.emotionBall = new EmotionBallView(createPinnedEmotionBall);
-		this.emotionBall.mount(host, this.readEmotionBallTheme());
-		this.emotionBall.updateState(this.voiceStateToEmotionState(this.state));
+	private mountTalosBall(host: HTMLElement): void {
+		this.talosBall?.destroy();
+		this.talosBall = new TalosBallView();
+		this.talosBall.mount(host, this.readTalosBallTheme());
+		this.talosBall.updateState(this.voiceStateToTalosState(this.state));
 
 		const document = host.ownerDocument;
 		const Observer = document.defaultView?.MutationObserver;
 		if (!Observer) return;
-		this.emotionThemeObserver?.disconnect();
-		this.emotionThemeObserver = new Observer(() => {
-			this.emotionBall?.updateTheme(this.readEmotionBallTheme());
+		this.talosThemeObserver?.disconnect();
+		this.talosThemeObserver = new Observer(() => {
+			this.talosBall?.updateTheme(this.readTalosBallTheme());
 		});
-		this.emotionThemeObserver.observe(document.body, {
+		this.talosThemeObserver.observe(document.body, {
 			attributes: true,
 			attributeFilter: ["class"],
 		});
 		const consoleShell = this.rootEl?.closest(".talos-console");
 		if (consoleShell && consoleShell !== document.body) {
-			this.emotionThemeObserver.observe(consoleShell, {
+			this.talosThemeObserver.observe(consoleShell, {
 				attributes: true,
 				attributeFilter: ["class"],
 			});
 		}
 	}
 
-	private readEmotionBallTheme(): EmotionBallTheme {
+	private readTalosBallTheme(): TalosBallTheme {
 		const root = this.rootEl;
 		const document = root?.ownerDocument;
 		const computed = root && document?.defaultView
@@ -508,13 +507,12 @@ export class QuyuanVoicePanel {
 		const key = computed?.getPropertyValue("--tq-theme-key").trim() || "aurora";
 		const mode = document?.body.classList.contains("theme-light") ? "light" : "dark";
 		return {
-			id: `${key}:${mode}`,
-			// 球体保持白色实体；页面主题只影响状态光晕与外围模块。
-			sketch: false,
+			id: key + ":" + mode,
+			mode,
 		};
 	}
 
-	private voiceStateToEmotionState(state: VoiceState): EmotionBallState {
+	private voiceStateToTalosState(state: VoiceState): TalosBallState {
 		switch (state) {
 			case "listen": return "receiving";
 			case "reco": return "busy";
@@ -524,15 +522,15 @@ export class QuyuanVoicePanel {
 		}
 	}
 
-	private setEmotionBallState(state: EmotionBallState, resetAfterMs = 0): void {
+	private setTalosBallState(state: TalosBallState, resetAfterMs = 0): void {
 		if (this.ballStateTimer != null) window.clearTimeout(this.ballStateTimer);
 		this.ballStateTimer = null;
-		this.emotionBall?.updateState(state);
+		this.talosBall?.updateState(state);
 		if (resetAfterMs <= 0) return;
 		this.ballStateTimer = window.setTimeout(() => {
 			this.ballStateTimer = null;
 			if (!this.mounted) return;
-			this.emotionBall?.updateState(this.voiceStateToEmotionState(this.state));
+			this.talosBall?.updateState(this.voiceStateToTalosState(this.state));
 		}, resetAfterMs);
 	}
 
@@ -552,7 +550,7 @@ export class QuyuanVoicePanel {
 		this.tts?.stop();
 		this.ttsPending = false;
 		this.ttsSpeaking = false;
-		this.setEmotionBallState("stop");
+		this.setTalosBallState("stop");
 		this.navigateToPage("chat");
 	}
 
@@ -568,7 +566,7 @@ export class QuyuanVoicePanel {
 		this.ttsSpeaking = false;
 		this.characterStage?.setOutputLevel(0);
 		this.setState(this.restingState());
-		this.setEmotionBallState("stop", 1200);
+		this.setTalosBallState("stop", 1200);
 		this.controlStatusEl?.setText("已停止当前处理与播报");
 	}
 
@@ -863,13 +861,13 @@ export class QuyuanVoicePanel {
 			onBargeIn: () => {
 				if (!current()) return;
 				this.responseActive = false;
-				this.setEmotionBallState("stop", 700);
+				this.setTalosBallState("stop", 700);
 				this.controlStatusEl?.setText("已接住打断，继续听你说");
 			},
 			onError: (message) => {
 				if (!current()) return;
 				this.controlStatusEl?.setText(`实时语音错误 · ${message}`);
-				this.setEmotionBallState("error", 2600);
+				this.setTalosBallState("error", 2600);
 				if (this.overlayReply) this.setOverlayMessage(`语音连接失败：${message}`);
 				new Notice(`千问实时语音：${message}`, 10000);
 			},
@@ -987,7 +985,7 @@ export class QuyuanVoicePanel {
 		this.renderMicBtn(false);
 		this.wakeStatusEl?.setText("语音已退出 · 点击开启语音");
 		this.controlStatusEl?.setText("语音识别已退出");
-		this.setEmotionBallState("restricted");
+		this.setTalosBallState("restricted");
 		if (this.overlayReply) this.setOverlayMessage("语音识别已退出，文字输入仍可使用。");
 	}
 
@@ -1064,7 +1062,7 @@ export class QuyuanVoicePanel {
 			this.tts?.stop();
 			this.ttsPending = false;
 			this.ttsSpeaking = false;
-			this.setEmotionBallState("stop", 900);
+			this.setTalosBallState("stop", 900);
 		}
 	}
 
@@ -1078,7 +1076,7 @@ export class QuyuanVoicePanel {
 		this.rootEl?.style.setProperty("--tq-state", meta.color);
 		this.rootEl?.style.setProperty("--tq-spd", meta.speed);
 		this.characterStage?.setState(state, this.wakeActive);
-		this.setEmotionBallState(this.voiceStateToEmotionState(state));
+		this.setTalosBallState(this.voiceStateToTalosState(state));
 		this.controlStatusEl?.setText(meta.caption);
 		this.workspaceStatusEl?.setText(meta.caption);
 	}
@@ -1289,7 +1287,7 @@ export class QuyuanVoicePanel {
 			onTool: (event) => {
 				if (!current() || terminal) return;
 				if (event.status === "running" && this.mounted) {
-					this.setEmotionBallState("searching");
+					this.setTalosBallState("searching");
 					this.controlStatusEl?.setText(`只读检索 · ${event.name}`);
 				}
 				if (event.status !== "running") {
@@ -1304,7 +1302,7 @@ export class QuyuanVoicePanel {
 						auditEvidence: event.auditEvidence,
 					});
 					if (this.responseActive) {
-						this.setEmotionBallState(this.voiceStateToEmotionState(this.state));
+						this.setTalosBallState(this.voiceStateToTalosState(this.state));
 					}
 				}
 			},
@@ -1335,7 +1333,7 @@ export class QuyuanVoicePanel {
 				this.responseActive = false;
 				if (this.mounted && !this.ttsPending) {
 					this.setState(this.restingState());
-					this.setEmotionBallState("done", 1800);
+					this.setTalosBallState("done", 1800);
 				}
 				this.controlStatusEl?.setText("查询已完成");
 			},
@@ -1349,7 +1347,7 @@ export class QuyuanVoicePanel {
 				this.ttsSpeaking = false;
 				this.setState(this.restingState());
 				const restricted = /只读|拒绝|禁止|权限/.test(message);
-				this.setEmotionBallState(restricted ? "restricted" : "error", 2600);
+				this.setTalosBallState(restricted ? "restricted" : "error", 2600);
 				this.controlStatusEl?.setText(restricted ? "请求被安全边界拒绝" : "引擎错误");
 				if (this.overlayReply) this.setOverlayMessage(`出错了：${message}`);
 			},
@@ -1381,7 +1379,7 @@ export class QuyuanVoicePanel {
 				attr: { type: "button" },
 			});
 			no.createSpan({ text: "取消" });
-			this.setEmotionBallState("restricted");
+			this.setTalosBallState("restricted");
 			if (this.ttsEnabled) {
 				this.tts?.feed(`${ask}请点确认或取消。`);
 				this.tts?.flush();
@@ -1398,7 +1396,7 @@ export class QuyuanVoicePanel {
 				yes.disabled = true;
 				no.disabled = true;
 				card.toggleClass("is-resolved", true);
-				this.setEmotionBallState(v ? "done" : "stop", 1200);
+				this.setTalosBallState(v ? "done" : "stop", 1200);
 				resolve(v);
 			};
 			yes.addEventListener("click", () => finish(true));
@@ -1443,10 +1441,10 @@ export class QuyuanVoicePanel {
 		this.characterStage = null;
 		if (this.ballStateTimer != null) window.clearTimeout(this.ballStateTimer);
 		this.ballStateTimer = null;
-		this.emotionThemeObserver?.disconnect();
-		this.emotionThemeObserver = null;
-		this.emotionBall?.destroy();
-		this.emotionBall = null;
+		this.talosThemeObserver?.disconnect();
+		this.talosThemeObserver = null;
+		this.talosBall?.destroy();
+		this.talosBall = null;
 		this.markdownComponent?.unload();
 		this.markdownComponent = null;
 		this.rootEl = null;

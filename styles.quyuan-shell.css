@@ -3425,7 +3425,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 /* ============================================
-   Emotion Ball voice workspace · D-TLP-022
+   TALOS Ball voice workspace · D-TLP-022
    Single center stage + compact lower controls. The ball is presentation-only;
    permission, approval, provider, and execution behavior remain in TypeScript.
    ============================================ */
@@ -3475,11 +3475,11 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   background: var(--tq-surface);
 }
 
-.tq-emotion-stage {
+.tq-talos-stage {
   position: relative;
   z-index: 3;
   display: grid;
-  container: tq-emotion / size;
+  container: tq-talos / size;
   min-width: 0;
   min-height: 0;
   place-items: center;
@@ -3487,7 +3487,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   pointer-events: none;
 }
 
-.tq-emotion-ball-host {
+.tq-talos-ball-host {
   --tq-ball-render-size: min(var(--tq-ball-size), 100cqi, 100cqh);
   position: relative;
   isolation: isolate;
@@ -3504,7 +3504,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
     height 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.tq-emotion-ball-host::before {
+.tq-talos-ball-host::before {
   content: "";
   position: absolute;
   z-index: 0;
@@ -3515,78 +3515,78 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   box-shadow: 0 22px 48px color-mix(in srgb, var(--tq-state) 20%, transparent);
 }
 
-.tq-emotion-ball-host > * {
+.tq-talos-ball-host > * {
   position: relative;
   z-index: 1;
 }
 
-.tq-emotion-ball__engine,
-.tq-emotion-ball__fallback {
+.tq-talos-ball__engine,
+.tq-talos-ball__fallback {
   width: 100%;
   height: 100%;
 }
 
-.tq-emotion-ball {
+.tq-talos-ball {
   --tq-ball-accent: var(--tq-state);
   display: grid;
   overflow: visible;
   place-items: center;
 }
 
-.tq-emotion-ball__engine,
-.tq-emotion-ball__fallback {
+.tq-talos-ball__engine,
+.tq-talos-ball__fallback {
   grid-area: 1 / 1;
   min-width: 0;
   min-height: 0;
 }
 
-.tq-emotion-ball__engine {
+.tq-talos-ball__engine {
   overflow: visible;
 }
 
-.tq-emotion-ball__engine > svg {
+.tq-talos-ball__engine > .tq-talos-ball-runtime {
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
 }
 
-.tq-emotion-ball[data-emotion-ball-fallback="true"] .tq-emotion-ball__engine {
+.tq-talos-ball[data-talos-ball-fallback="true"] .tq-talos-ball__engine {
   display: none;
 }
 
-.tq-emotion-ball[data-emotion-ball-fallback="false"] .tq-emotion-ball__fallback {
+.tq-talos-ball[data-talos-ball-fallback="false"] .tq-talos-ball__fallback {
   display: none;
 }
 
-.tq-emotion-ball[data-emotion-ball-state="receiving"] {
+.tq-talos-ball[data-talos-ball-state="receiving"] {
   --tq-ball-accent: var(--tq-state-listen);
 }
 
-.tq-emotion-ball[data-emotion-ball-state="busy"] {
+.tq-talos-ball[data-talos-ball-state="busy"] {
   --tq-ball-accent: var(--tq-state-reco);
 }
 
-.tq-emotion-ball[data-emotion-ball-state="thinking"],
-.tq-emotion-ball[data-emotion-ball-state="searching"] {
+.tq-talos-ball[data-talos-ball-state="thinking"],
+.tq-talos-ball[data-talos-ball-state="searching"] {
   --tq-ball-accent: var(--tq-state-think);
 }
 
-.tq-emotion-ball[data-emotion-ball-state="replying"],
-.tq-emotion-ball[data-emotion-ball-state="done"] {
+.tq-talos-ball[data-talos-ball-state="replying"],
+.tq-talos-ball[data-talos-ball-state="done"] {
   --tq-ball-accent: var(--tq-state-speak);
 }
 
-.tq-emotion-ball[data-emotion-ball-state="error"],
-.tq-emotion-ball[data-emotion-ball-state="stop"] {
+.tq-talos-ball[data-talos-ball-state="error"],
+.tq-talos-ball[data-talos-ball-state="stop"] {
   --tq-ball-accent: #ef4444;
 }
 
-.tq-emotion-ball[data-emotion-ball-state="restricted"] {
+.tq-talos-ball[data-talos-ball-state="restricted"] {
   --tq-ball-accent: #f59e0b;
 }
 
-.tq-emotion-ball__fallback {
+.tq-talos-ball__fallback {
   position: relative;
   display: grid;
   align-content: center;
@@ -3594,7 +3594,7 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
   gap: 13%;
   overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--tq-ball-accent) 66%, transparent);
-  border-radius: 46% 54% 52% 48% / 50% 46% 54% 50%;
+  border-radius: 45% 55% 52% 48% / 43% 47% 58% 52%;
   color: var(--tq-text);
   background:
     radial-gradient(circle at 34% 28%, #ffffff, transparent 17%),
@@ -3608,34 +3608,36 @@ body.theme-light .talos-console.theme-geometric-modern .tq-voice {
     0 28px 70px color-mix(in srgb, var(--tq-ball-accent) 24%, transparent);
 }
 
-.tq-emotion-ball__fallback-eyes {
+.tq-talos-ball__fallback-eyes {
   position: relative;
   display: block;
   width: 42%;
   height: 17%;
 }
 
-.tq-emotion-ball__fallback-eyes::before,
-.tq-emotion-ball__fallback-eyes::after {
+.tq-talos-ball__fallback-eyes::before,
+.tq-talos-ball__fallback-eyes::after {
   position: absolute;
   top: 0;
   width: 34%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 58% 42% 55% 45% / 60% 52% 48% 40%;
   content: "";
   background: var(--tq-ball-eye);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tq-text) 12%, transparent);
 }
 
-.tq-emotion-ball__fallback-eyes::before {
+.tq-talos-ball__fallback-eyes::before {
   left: 0;
+  transform: rotate(-8deg);
 }
 
-.tq-emotion-ball__fallback-eyes::after {
+.tq-talos-ball__fallback-eyes::after {
   right: 0;
+  transform: rotate(8deg);
 }
 
-.tq-emotion-ball__fallback-copy {
+.tq-talos-ball__fallback-copy {
   max-width: 76%;
   font-size: clamp(10px, 1.4cqi, 13px);
   font-weight: 700;
@@ -4129,13 +4131,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 }
 
 @container tq-stage (max-width: 1200px) {
-  .tq-emotion-ball-host {
+  .tq-talos-ball-host {
     --tq-ball-size: clamp(380px, min(58cqi, 82cqh), 560px);
   }
 }
 
 @container tq-stage (max-width: 800px) {
-  .tq-emotion-ball-host {
+  .tq-talos-ball-host {
     --tq-ball-size: clamp(300px, min(46cqi, 78cqh), 340px);
   }
 }
@@ -4155,13 +4157,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 }
 
 @container tq-stage (max-width: 520px) {
-  .tq-emotion-ball-host {
+  .tq-talos-ball-host {
     --tq-ball-size: clamp(190px, min(44cqi, 74cqh), 230px);
   }
 }
 
 @container tq-stage (max-height: 520px) {
-  .tq-emotion-ball-host {
+  .tq-talos-ball-host {
     --tq-ball-size: clamp(260px, min(58cqi, 82cqh), 440px);
   }
 
@@ -4171,7 +4173,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 }
 
 @container tq-stage (max-width: 520px) and (max-height: 520px) {
-  .tq-emotion-ball-host {
+  .tq-talos-ball-host {
     --tq-ball-size: clamp(180px, min(44cqi, 76cqh), 230px);
   }
 }
@@ -4261,8 +4263,8 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tq-emotion-ball-host,
-  .tq-emotion-ball-host::before,
+  .tq-talos-ball-host,
+  .tq-talos-ball-host::before,
   .tq-overlay-line,
   .tq-transcript-line,
   .tq-control-btn,

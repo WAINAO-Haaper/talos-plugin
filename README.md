@@ -1,6 +1,6 @@
 # TALOS for Obsidian
 
-![version](https://img.shields.io/badge/version-v0.4.1-2f6feb)
+![version](https://img.shields.io/badge/version-v0.4.2-2f6feb)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-7c3aed)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827)
 ![license](https://img.shields.io/badge/license-Proprietary-dc2626)
@@ -11,13 +11,13 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 界面预览
 
-以下为 v0.4.1 实际运行界面。点击图片可查看原始尺寸。
+以下为控制台实际运行界面与 v0.4.2 TALOS Ball 自有视觉预览。点击图片可查看原始尺寸。
 
 | 指挥总览 · Bauhaus | AI 对话 · DeepSeek Harness |
 |---|---|
 | [![TALOS 指挥总览](docs/screenshots/v0.4.1/overview-bauhaus.png)](docs/screenshots/v0.4.1/overview-bauhaus.png) | [![TALOS AI 对话与 DeepSeek Harness](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png)](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png) |
-| 屈原语音 · Qwen Realtime | 设置 · 主题与模型 |
-| [![屈原 Qwen Realtime 语音工作区](docs/screenshots/v0.4.1/quyuan-voice-realtime.png)](docs/screenshots/v0.4.1/quyuan-voice-realtime.png) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
+| 屈原语音 · TALOS Ball 自有视觉 | 设置 · 主题与模型 |
+| [![TALOS Ball 自有语音状态视觉](docs/screenshots/v0.4.1/talos-ball-owned-preview.svg)](docs/screenshots/v0.4.1/talos-ball-owned-preview.svg) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
 | 收件箱治理 | 全库视图 |
 | [![TALOS 收件箱治理](docs/screenshots/v0.4.1/inbox-governance.png)](docs/screenshots/v0.4.1/inbox-governance.png) | [![TALOS 全库视图](docs/screenshots/v0.4.1/vault-overview.png)](docs/screenshots/v0.4.1/vault-overview.png) |
 
@@ -38,7 +38,7 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 - **行动与治理**：将焦点、待办、审批、偏好候选、发布门和健康信号放在同一个决策面板中。
 - **多智能体工作台**：支持 Claude、Codex、OhMyPi、本机登录态和兼容 Anthropic/OpenAI 协议的 Direct API Provider；提供会话恢复、分叉、压缩、附件、工具调用、diff、MCP、Skills 和子智能体界面。
 - **DeepSeek Harness**：在控制台内打开隔离的 Harness 工作区，保留项目与多会话导航，并由插件管理本地进程和健康状态。
-- **屈原 Qwen Realtime 语音**：支持语音唤醒、持续监听、实时转写、音频回复、文本只读查询和 Emotion Ball 状态舞台。
+- **屈原 Qwen Realtime 语音**：支持语音唤醒、持续监听、实时转写、音频回复、文本只读查询和 TALOS Ball 状态舞台。
 - **只读语音工具**：语音可查询 Vault 状态、统计和进度；不会暴露写库或命令执行工具。只有明确说出「联网搜索」或「上网查」时，才会发送当前问题进行联网检索。
 - **十套视觉主题**：Aurora、Nebula、Animal Island、Macintosh、数据流、柔光浮雕、Bauhaus、Executive Brief、Paper 和 Swiss Modernism；可选择只应用于控制台或同步到整个 Vault。
 - **安全默认值**：API 密钥只写入 Obsidian SecretStorage；审计记录脱敏；缺少可验证 OS 沙箱时，写入型 Execute 会失败关闭。
@@ -46,12 +46,12 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 平台状态
 
-v0.4.1 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
+v0.4.2 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
 
 | 平台 | 当前状态 | AI 执行边界 |
 |---|---|---|
 | **macOS** | 主要支持平台 | 本机 Claude / Codex / OhMyPi 可在可验证的 macOS Seatbelt 沙箱内运行；沙箱不可用时 Execute 失败关闭。 |
-| **Windows 10/11 x64** | v0.4.1 已加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
+| **Windows 10/11 x64** | v0.4.2 已加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
 | **其他桌面系统** | 非当前交付重点 | 没有可验证 OS 沙箱时，本机智能体 Execute 失败关闭。 |
 
 ### 目标硬件
@@ -68,16 +68,16 @@ v0.4.1 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 ## 安装
 
-TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。
+TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.2 已移除旧 Emotion Ball 运行时、状态数据与角色视觉；v0.4.1 不再建议用于商业分发。
 
 ### 按系统下载安装包
 
 | 操作系统 | 安装包名称 |
 |---|---|
-| **macOS** | `TALOS-v0.4.1-macOS.zip` |
-| **Windows 10/11 x64** | `TALOS-v0.4.1-Windows.zip` |
+| **macOS** | `TALOS-v0.4.2-macOS.zip` |
+| **Windows 10/11 x64** | `TALOS-v0.4.2-Windows.zip` |
 
-两个压缩包使用同一套 v0.4.1 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
+两个压缩包使用同一套 v0.4.2 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
 
 1. 从最新 Release 下载与你的操作系统对应的 ZIP。
 2. 解压后将其中的 `talos` 文件夹放到 `<你的 Vault>/.obsidian/plugins/`。
@@ -139,7 +139,7 @@ npm run build
 - `src/view.ts`：控制台 ItemView、导航和业务页面。
 - `src/agent-workbench/`：多智能体会话、运行时适配、审批、安全、存储和 UI。
 - `src/harness/`：DeepSeek Harness 嵌入、进程管理和健康检查。
-- `src/quyuan/`：人格、Qwen Realtime 语音、只读工具和 Emotion Ball 舞台。
+- `src/quyuan/`：人格、Qwen Realtime 语音、只读工具和 TALOS Ball 舞台。
 - `src/data/`：全库统计、导航、项目与发布状态采集。
 - `tests/`：跨平台、安全、迁移、语音、Provider 和 UI 契约回归。
 
@@ -149,5 +149,7 @@ npm run build
 - `THIRD-PARTY-NOTICES.md`：第三方组件、视觉参考和商业条款摘要。
 - `THIRD-PARTY-LICENSES.txt`：由 lockfile 自动生成的生产依赖许可证包。
 - `MaShanZheng-Regular.ttf` / `MaShanZheng-OFL.txt`：屈原标题字体及 SIL OFL 1.1 许可证。
+
+- **TALOS Ball**：语音中心视觉、12 态数据、原创几何和动效运行时属于 TALOS 自有实现；来源与发布门见 [TALOS Ball provenance](docs/talos-ball-provenance.md)。
 
 完整变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。

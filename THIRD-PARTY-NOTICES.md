@@ -73,7 +73,7 @@ SOFTWARE.
 TALOS 的 Claude CLI 通道使用 `@anthropic-ai/claude-agent-sdk`。
 
 - Package: `@anthropic-ai/claude-agent-sdk`
-- Version: 0.3.190
+- Version: 0.3.207
 - Copyright: Anthropic PBC
 - License model: 非开源许可证；使用受 Anthropic 法律协议约束
 - Legal and compliance: https://code.claude.com/docs/en/legal-and-compliance
@@ -108,30 +108,11 @@ TALOS 的 Claude CLI 通道使用 `@anthropic-ai/claude-agent-sdk`。
 
 适用许可为上文列出的 MIT License；本项目未改变其版权与许可归属。
 
-## Emotion Ball
-
-屈原语音界面的中心状态球使用了本地固定的 Emotion Ball 表情运行时、表情数据与
-`blob` 球形角色视觉。代码不从 CDN 加载；固定快照、上游提交与完整许可文件位于
-`src/quyuan/vendor/emotion-ball/`。
-
-- Project: Emotion Ball
-- Author: `sam70361`
-- Version: 1.0.0
-- Commit: `b406eeb20a1b1ae0084d4006e77cc74e28be009d`
-- Repository: https://github.com/sam70361/emotion-ball
-- License: Emotion Ball Community License
-
-许可边界：当前仅允许非商业的个人学习、研究和技术交流。表情引擎与表情数据的商业
-使用需要另行取得上游商业授权；随附的 `blob / wedge / gem` 球形角色视觉禁止任何
-商业用途，且上游声明不提供商业授权。因此本次集成只能形成本地候选，不构成对外
-分发、商业交付或发布授权。任何进入发布候选的动作都必须先替换为自有或另行合法
-授权的视觉，并完成独立许可复核。
-
 ## 直接运行时依赖
 
 | Package | Version | License / terms |
 |---|---:|---|
-| `@anthropic-ai/claude-agent-sdk` | 0.3.190 | Anthropic legal agreements |
+| `@anthropic-ai/claude-agent-sdk` | 0.3.207 | Anthropic legal agreements |
 | `@codemirror/state` | 6.5.0 | MIT |
 | `@codemirror/view` | 6.38.6 | MIT |
 | `@modelcontextprotocol/sdk` | 1.29.0 | MIT |

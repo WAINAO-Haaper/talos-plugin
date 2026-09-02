@@ -222,14 +222,14 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		);
 	});
 
-	it("locks Emotion Ball geometry to the accepted responsive bands", () => {
+	it("locks TALOS Ball geometry to the accepted responsive bands", () => {
 		const blockHas = (sel: string, needle: string) => {
 			const re = new RegExp(
 				sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\{[^}]*" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 			);
 			return re.test(qcss);
 		};
-		// The mounted host carries both tq-emotion-ball-host and tq-emotion-ball.
+		// The mounted host carries both tq-talos-ball-host and tq-talos-ball.
 		// A later 100% root rule expanded it to the full stage; selector separation
 		// plus height-driven descendant bands keeps the runtime geometry deterministic.
 		expect(blockHas(
@@ -271,7 +271,7 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		// 新 dock、转写与静态降级都只消费同一组 tq 主题/模块变量。
 		expect(blockHas(".tq-voice-dock", "var(--tq-surface)")).toBe(true);
 		expect(blockHas(".tq-transcript-editor", "var(--tq-module-surface)")).toBe(true);
-		expect(blockHas(".tq-emotion-ball__fallback", "var(--tq-text)")).toBe(true);
+		expect(blockHas(".tq-talos-ball__fallback", "var(--tq-text)")).toBe(true);
 		expect(blockHas(
 			"body.theme-light .talos-console.theme-geometric-modern .tq-voice",
 			"--tq-surface: #f3eedf !important"

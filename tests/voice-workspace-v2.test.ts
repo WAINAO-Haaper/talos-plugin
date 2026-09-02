@@ -9,13 +9,13 @@ const shellCss = readFileSync(`${root}styles.quyuan-shell.css`, "utf8");
 const uiCss = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 
 describe("voice focus workspace v2", () => {
-	it("mounts Emotion Ball as the single center visual with a lower control dock", () => {
+	it("mounts TALOS Ball as the single center visual with a lower control dock", () => {
 		expect(panel).toContain('root.dataset.talosComponent = "voice-workspace"');
 		expect(panel).toContain("tq-workspace-bar");
 		expect(panel).toContain("VOICE WORKSPACE");
 		expect(panel).toContain("屈原语音");
 		expect(panel).toContain("语音硬只读");
-		expect(panel).toContain("tq-emotion-ball-host");
+		expect(panel).toContain("tq-talos-ball-host");
 		expect(panel).toContain("tq-voice-dock");
 		expect(panel).toContain('"data-workspace-section": "voice-controls"');
 		expect(panel).toContain("this.workspaceStatusEl?.setText(meta.caption)");
@@ -42,7 +42,7 @@ describe("voice focus workspace v2", () => {
 	it("preserves voice capabilities, isolated session state, and security copy", () => {
 		for (const contract of [
 			"QuyuanVoiceCharacterStage",
-			"EmotionBallView",
+			"TalosBallView",
 			"tq-overlay-text",
 			"tq-transcript-editor",
 			"tq-readonly-query",
@@ -58,7 +58,7 @@ describe("voice focus workspace v2", () => {
 			expect(panel).toContain(contract);
 		}
 		for (const contract of [
-			".tq-emotion-ball-host",
+			".tq-talos-ball-host",
 			".tq-voice-dock",
 			".tq-overlay-line",
 			"@keyframes tq-button-shake",
@@ -95,24 +95,24 @@ describe("voice focus workspace v2", () => {
 
 	it("uses the accepted state mapping and responsive geometry bands", () => {
 		for (const mapping of [
-			'waiting: "35"',
-			'receiving: "31"',
-			'busy: "32"',
-			'thinking: "30"',
-			'searching: "40"',
-			'replying: "39"',
-			'done: "33"',
-			'error: "34"',
-			'restricted: "38"',
-			'stop: "41"',
-		]) expect(panel + readFileSync(`${root}src/quyuan/emotion-ball-view.ts`, "utf8")).toContain(mapping);
+			'waiting: "idle"',
+			'receiving: "listening"',
+			'busy: "receiving"',
+			'thinking: "thinking"',
+			'searching: "searching"',
+			'replying: "responding"',
+			'done: "success"',
+			'error: "error"',
+			'restricted: "restricted"',
+			'stop: "stopped"',
+		]) expect(panel + readFileSync(`${root}src/quyuan/talos-ball-view.ts`, "utf8")).toContain(mapping);
 		expect(shellCss).toContain("clamp(500px, min(60cqi, 86cqh), 820px)");
 		expect(shellCss).toContain("clamp(380px, min(58cqi, 82cqh), 560px)");
 		expect(shellCss).toContain("clamp(300px, min(46cqi, 78cqh), 340px)");
 		expect(shellCss).toContain("clamp(190px, min(44cqi, 74cqh), 230px)");
 		expect(shellCss).toContain("clamp(180px, min(44cqi, 76cqh), 230px)");
 		expect(shellCss).not.toMatch(
-			/\.tq-emotion-ball,\s*\.tq-emotion-ball__engine/
+			/\.tq-talos-ball,\s*\.tq-talos-ball__engine/
 		);
 		const chrome = uiCss.slice(
 			uiCss.indexOf("/* Voice focus workspace chrome · D-TLP-019 / D-TLP-022")
@@ -165,7 +165,7 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain("place-items: center");
 		expect(shellCss).toContain("max-width: 100%");
 		expect(shellCss).toContain("max-height: 100%");
-		expect(shellCss).toContain("container: tq-emotion / size");
+		expect(shellCss).toContain("container: tq-talos / size");
 		expect(shellCss).toContain("min(var(--tq-ball-size), 100cqi, 100cqh)");
 		expect(shellCss).toContain("overflow-x: hidden");
 		expect(shellCss).toContain("grid-template-columns: minmax(0, 1fr)");
@@ -173,7 +173,7 @@ describe("voice focus workspace v2", () => {
 			"@container tq-stage (max-width: 1200px)"
 		);
 		expect(shellCss).toMatch(
-			/@container tq-stage \(max-width: 800px\)[\s\S]*\.tq-emotion-ball-host/
+			/@container tq-stage \(max-width: 800px\)[\s\S]*\.tq-talos-ball-host/
 		);
 	});
 
@@ -189,7 +189,7 @@ describe("voice focus workspace v2", () => {
 		);
 		expect(particleLayer).toContain("filter: none");
 		expect(shellCss).not.toContain("filter: drop-shadow(0 22px 48px");
-		expect(shellCss).toMatch(/\.tq-emotion-ball-host::before\s*\{[\s\S]*box-shadow:/);
+		expect(shellCss).toMatch(/\.tq-talos-ball-host::before\s*\{[\s\S]*box-shadow:/);
 	});
 
 	it("uses theme-bound modular controls from the accepted visual direction", () => {
@@ -236,17 +236,16 @@ describe("voice focus workspace v2", () => {
 		expect(shellCss).toContain("@media (max-width: 1200px)");
 	});
 
-	it("keeps a solid white ball while themes style the surrounding workspace", () => {
-		const view = readFileSync(`${root}src/quyuan/emotion-ball-view.ts`, "utf8");
-		expect(panel).toContain("sketch: false");
-		expect(panel).not.toContain('sketch: key.includes("geometric-modern")');
-		expect(view).toContain('color: "#FFFFFF"');
-		expect(view).toContain('eyeColor: "#1A1A1A"');
+	it("uses the TALOS-owned surface while themes style the surrounding workspace", () => {
+		expect(panel).toContain("mode,");
+		expect(panel).not.toContain("sketch:");
+		expect(panel).toContain("TalosBallView");
 		expect(shellCss).toContain("--tq-ball-surface: #ffffff");
 		expect(shellCss).toContain("background: var(--tq-ball-eye)");
 	});
 
 	it("reuses the live chat route after stopping capture, playback, and processing", () => {
+
 		const route = panel.slice(panel.indexOf("private goToChat(): void"), panel.indexOf("private stopCurrentWork(): void"));
 		expect(route.indexOf("this.navigatingToChat = true")).toBeLessThan(route.indexOf("++this.lifecycleGeneration"));
 		expect(route.indexOf("++this.lifecycleGeneration")).toBeLessThan(route.indexOf("this.realtime?.stop()"));
