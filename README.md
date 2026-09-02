@@ -9,6 +9,18 @@
 
 TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任务、项目、知识、收件箱、健康记录和发布状态汇总为一个实时控制台，并把多智能体对话、审批治理和「屈原」实时语音放进同一套工作流。
 
+## 界面预览
+
+以下为 v0.4.1 实际运行界面。点击图片可查看原始尺寸。
+
+| 指挥总览 · Bauhaus | AI 对话 · DeepSeek Harness |
+|---|---|
+| [![TALOS 指挥总览](docs/screenshots/v0.4.1/overview-bauhaus.png)](docs/screenshots/v0.4.1/overview-bauhaus.png) | [![TALOS AI 对话与 DeepSeek Harness](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png)](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png) |
+| 屈原语音 · Qwen Realtime | 设置 · 主题与模型 |
+| [![屈原 Qwen Realtime 语音工作区](docs/screenshots/v0.4.1/quyuan-voice-realtime.png)](docs/screenshots/v0.4.1/quyuan-voice-realtime.png) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
+| 收件箱治理 | 全库视图 |
+| [![TALOS 收件箱治理](docs/screenshots/v0.4.1/inbox-governance.png)](docs/screenshots/v0.4.1/inbox-governance.png) | [![TALOS 全库视图](docs/screenshots/v0.4.1/vault-overview.png)](docs/screenshots/v0.4.1/vault-overview.png) |
+
 ## 产品全景
 
 | 工作区 | 你可以做什么 |
