@@ -3,6 +3,7 @@
 **classification:** PUBLIC
 **integrated:** 2026-09-02
 **status:** authorized TalosBall integration candidate; external release gates remain separate
+**release_candidate:** v0.4.4
 
 ## Product identity
 

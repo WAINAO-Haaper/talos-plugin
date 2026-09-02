@@ -1,5 +1,7 @@
 # Changelog
 
+- 2026-09-02 v0.4.4 TalosBall runtime 与主页语音工作区更新：生产插件以 TalosBall 0.3.0 固定运行时、32 态数据和 288 帧等价门替换此前自定义球体实现；README 的简化球体预览替换为仓库所有者提供的完整屈原语音工作区原始截图。版本元数据、macOS/Windows 双系统安装包和 9 个手动安装资产统一进入 v0.4.4；v0.4.3 及更早 Release 保留，不改写历史。
+
 - 2026-09-02 v0.4.3 TalosBall 0.3.0 runtime integration：生产语音舞台以清洗后的 TalosBallRuntime、32 态数据和固定动画引擎替换此前 Crown-Keel/valve-eye 候选；十个语音状态继续映射到 12 态合同，reduced-motion、页面/视口停帧、销毁和 fallback 保持。新增 288 帧确定性等价、几何/32 态、12 态和运行时哈希门；121 个测试文件/772 项、类型、lint、108 项许可证与 production build 通过。来源许可与归属继续保留；未安装、push、发布或部署。
 
 > 本文件记录 TALOS 插件的开发变更历史。
