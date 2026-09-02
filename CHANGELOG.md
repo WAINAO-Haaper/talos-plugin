@@ -2,9 +2,18 @@
 
 > 本文件记录 TALOS 插件的开发变更历史。
 >
-> 起始日期：2026-06-23（v0.1.0）— 最近：2026-07-21
+> 起始日期：2026-06-23（v0.1.0）— 最近：2026-09-02
 
 
+- 2026-09-02 v0.4.1 跨平台部署与公开主页更新：
+  macOS 与 Windows 统一为同一条代码线；macOS 本机智能体 Execute 继续受
+  可验证 Seatbelt 沙箱保护；Windows 新增安全的命令 shim 发现、文件存储兼容和
+  SecretStorage Direct API 自动回退。Windows Direct API 固定为 Plan-only，
+  本机 CLI Execute 在缺少可验证隔离时失败关闭。屈原语音更新为 Qwen Realtime
+  唤醒、持续监听、实时转写与音频回复，语音工具保持只读。
+  README 按最新界面重写为六个产品工作面，补齐十套主题、平台能力矩阵、
+  M1 Air / 同级 Windows 目标硬件、安全边界和 Windows 压缩包安装说明。
+  完整回归为 117 个测试文件 / 766 项测试；真机性能矩阵仍在持续验收。
 - 2026-07-21 v0.4.0 仓库门面与文档系统化优化：README 重排为面向访客的结构——新增「功能速览」「安装（前置要求 + 手动安装）」「快速上手」「测试」「许可与第三方」独立章节，加 version / Obsidian / platform / license / CI 徽章与截图占位，维护细节（取代了什么、统计口径校验）下沉到折叠区，原「命令」章节更名为「开发与构建」并补全常用脚本表；统一 manifest / package / README 描述口径。新增 `.github` CI（push 与 PR 自动跑 lint、typecheck、vitest、三个 selftest、许可证审计与生产构建，并上传构建产物）与中文 issue / PR 模板。GitHub 仓库 About 补一句话描述与 `obsidian` / `obsidian-plugin` / `agent-dashboard` / `ai-agent` / `claude-agent-sdk` / `pkm` 六个 topics。本地 lint / typecheck / test / 三个 selftest / 许可证审计 / 生产构建在干净 `npm ci` 环境全部通过；`THIRD-PARTY-LICENSES.txt` 同步重新生成（109 个生产包）以匹配 lockfile。v0.4.0 release 将随该版本定稿后发布。
 - 2026-07-09 TALOS 主控制台启动顺序二次修复：根据用户实机截图与当天修改链路复盘，确认当前空白页不是目录颜色本身、也不是总览模块对齐本身；`talos-console-view` 已写入 Obsidian workspace，但主插件恢复 `ClaudianWorkbenchPlugin` 继承后又把 `await super.onload()` 放回 TALOS 主视图注册之前，屈原/Claudian 初始化一旦卡住，Obsidian 只会恢复一个空白旧页签。现改为先加载 TALOS 设置、注册 `talos-console-view`/旧屈原回滚视图、Ribbon、命令、设置页与全库主题，再异步初始化屈原完整工作台；完整工作台未完成时只影响「打开屈原完整工作台」入口，不再拖垮 TALOS 控制台。诊断报告同步显示工作台“已完成 / 初始化中 / 失败”状态，`quyuan-v2.selftest.mjs` 增加启动顺序断言，防止回归。
 - 2026-07-09 屈原 Obsidian 内诊断链路：用户实机反馈完整工作台仍无法打开后，新增运行时诊断闭环。命令面板增加「生成屈原诊断报告」，会写入 `System/reports/talos-quyuan-diagnostics-*.md` 并记录插件版本、`talos-quyuan-view` leaf 状态、人格启动状态、工作台初始化错误、安全设置快照和最近 `window.error/unhandledrejection`。`activateQuyuanV2View()` 现在捕获打开异常并自动落诊断；打开后 1.2s 自检 shell/tabManager，若视图创建但内部未完成挂载也会写报告。`ClaudianView.onOpen()` 增加页面内错误面板，提供“重试”和“生成诊断”，避免完整工作台内部异常只落在开发者控制台里。`npm run typecheck`、`npm run test:quyuan`、生产构建、安装态语法检查和产物比对已通过，并部署回 `.obsidian/plugins/talos/`，`data.json` 未覆盖。
