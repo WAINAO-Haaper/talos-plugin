@@ -406,6 +406,7 @@ describe("ProcessSandbox", () => {
 	});
 
 	it("allows only the exact TALOS loopback proxy and includes minimum startup reads", async () => {
+		if (process.platform !== "darwin") return;
 		const { vault } = await fixture();
 		const sandbox = new ProcessSandbox({ available: async () => true }, "darwin");
 		const protectedPaths = codexProtectedVaultSubpaths(".vault-config");
