@@ -274,12 +274,10 @@ export class AgentWorkbenchService {
 		this.systemContext = value.trim();
 	}
 
-	loadUiState(): Promise<WorkbenchUiState> {
-		return this.options.uiStateStore?.load() ?? Promise.resolve({
-			schemaVersion: 1,
-			openConversationIds: [],
-			historyOpen: false,
-		});
+	loadUiState(): Promise<WorkbenchUiState | null> {
+		// null = 从未保存过（恢复时可回退到最近会话）；
+		// 已保存的空数组 = 用户关掉了全部标签，必须尊重。
+		return this.options.uiStateStore?.load() ?? Promise.resolve(null);
 	}
 
 	saveUiState(value: WorkbenchUiState): Promise<void> {

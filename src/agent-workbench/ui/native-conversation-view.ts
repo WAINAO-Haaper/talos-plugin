@@ -236,16 +236,22 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 		this.manifests = new Map(manifests.map((manifest) => [manifest.conversationId, manifest]));
 		const saved = await this.options.service.loadUiState();
 		const active = manifests.filter((manifest) => manifest.lifecycle === "active").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-		this.openConversationIds = saved.openConversationIds.filter((id) => this.manifests.get(id)?.lifecycle === "active").slice(-6);
-		if (!this.openConversationIds.length) this.openConversationIds = active.slice(0, 6).map((manifest) => manifest.conversationId).reverse();
-		if (this.history) this.history.hidden = !saved.historyOpen;
+		if (saved) {
+			// 有保存过的标签状态就严格按它恢复——包括「用户关掉了全部标签」的空数组，
+			// 不得回退成重开最近会话（否则每次重启都会自动弹出一堆旧窗口）。
+			this.openConversationIds = saved.openConversationIds.filter((id) => this.manifests.get(id)?.lifecycle === "active").slice(-6);
+		} else {
+			// 首次运行（从未保存过标签状态）：回退到最近的活跃会话
+			this.openConversationIds = active.slice(0, 6).map((manifest) => manifest.conversationId).reverse();
+		}
+		if (this.history) this.history.hidden = !(saved?.historyOpen ?? false);
 		if (!this.openConversationIds.length) {
 			this.activeConversationId = null;
 			this.renderTabs();
 			await this.renderer?.render([]);
 			return;
 		}
-		const selected = saved.activeConversationId && this.openConversationIds.includes(saved.activeConversationId)
+		const selected = saved?.activeConversationId && this.openConversationIds.includes(saved.activeConversationId)
 			? saved.activeConversationId
 			: this.openConversationIds.at(-1)!;
 		await this.openConversation(selected);

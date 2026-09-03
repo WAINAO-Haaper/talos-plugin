@@ -173,6 +173,22 @@ describe("TALOS native agent workbench UI", () => {
 		await expect(store.load()).resolves.toEqual({ schemaVersion: 1, openConversationIds: ["a", "b"], activeConversationId: "b", historyOpen: true });
 	});
 
+	it("distinguishes never-saved state from an explicitly saved empty tab list", async () => {
+		const neverSaved = new WorkbenchUiStateStore({
+			read: async () => null,
+			write: async () => undefined,
+		});
+		await expect(neverSaved.load()).resolves.toBeNull();
+
+		let persisted: unknown = null;
+		const allClosed = new WorkbenchUiStateStore({
+			read: async () => persisted,
+			write: async (value) => { persisted = structuredClone(value); },
+		});
+		await allClosed.save({ schemaVersion: 1, openConversationIds: [], historyOpen: false });
+		await expect(allClosed.load()).resolves.toEqual({ schemaVersion: 1, openConversationIds: [], historyOpen: false });
+	});
+
 	it("projects retired tab ids through the read-only import manifest", () => {
 		expect(migrateLegacyTabManagerState({
 			openTabs: [

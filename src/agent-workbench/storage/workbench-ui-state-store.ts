@@ -77,9 +77,14 @@ export class WorkbenchUiStateStore {
 
 	constructor(private readonly adapter: WorkbenchUiStateAdapter) {}
 
-	async load(): Promise<WorkbenchUiState> {
+	async load(): Promise<WorkbenchUiState | null> {
 		await this.tail;
-		return normalize(await this.adapter.read());
+		const raw = await this.adapter.read();
+		// null/undefined = 从未保存过标签状态（首次运行）；
+		// 已保存过的空数组必须原样返回——它代表「用户主动关掉了全部标签」，
+		// 恢复逻辑不得把它当成缺失而回退重开最近会话。
+		if (raw === null || raw === undefined) return null;
+		return normalize(raw);
 	}
 
 	save(value: WorkbenchUiState): Promise<void> {
