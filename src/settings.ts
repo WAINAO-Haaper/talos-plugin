@@ -3,8 +3,8 @@ import {
 	DropdownComponent,
 	Notice,
 	PluginSettingTab,
-	SecretComponent,
 	Setting,
+	TextComponent,
 	setIcon,
 } from "obsidian";
 import type TalosPlugin from "./main";
@@ -75,6 +75,8 @@ export interface TalosSettings {
 	freezeStartDate: string; // 重估期启动日，算冻结天数
 	agentCommand: string;
 	openOnStartup: boolean;
+	/** 打开控制台时播放头像彩蛋；「不再显示」按钮会把它关掉 */
+	welcomeEasterEgg: boolean;
 	// 屈原语音助手
 	voiceAgentCommand: string; // 语音大脑命令，如 claude -p
 	voicePermission: string; // 工具权限：readonly | acceptEdits | all | off
@@ -162,7 +164,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	settingsSchemaVersion: TALOS_SETTINGS_SCHEMA_VERSION,
 	eyebrow: "超级大脑 · CONTEXT OS",
 	mainTitle: "TALOS 系统控制台",
-	visualTheme: "aurora",
+	visualTheme: "geometric-modern",
 	syncVaultTheme: true,
 	inboxFolder: "00-收件箱",
 	dailyFolder: "01-日志",
@@ -175,6 +177,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	freezeStartDate: "2026-06-19",
 	agentCommand: "",
 	openOnStartup: true,
+	welcomeEasterEgg: true,
 	voiceAgentCommand: "",
 	voicePermission: "off",
 	voicePersona: "",
@@ -510,11 +513,15 @@ export class TalosSettingTab extends PluginSettingTab {
 		}
 
 		let pending = "";
-		const secret = new SecretComponent(this.app, setting.controlEl)
+		// 不用 SecretComponent：它的「添加密钥/ID/密钥值」modal 会拦截输入，
+		// 在 Windows 上触发弹窗 bug；改为普通密码输入框 + 「安全保存」按钮。
+		const secret = new TextComponent(setting.controlEl)
+			.setPlaceholder("粘贴密钥后点「安全保存」")
 			.setValue("")
 			.onChange((value) => {
 				pending = value;
 			});
+		secret.inputEl.type = "password";
 		setting.addButton((button) =>
 			button
 				.setButtonText("安全保存")
@@ -549,13 +556,13 @@ export class TalosSettingTab extends PluginSettingTab {
 			.setDesc("十套 TALOS 视觉风格；开启全库同步后也会驱动 Obsidian 主界面。")
 			.addDropdown((d) =>
 				d
-					.addOption("aurora", "Aurora 原版（默认）")
+					.addOption("aurora", "Aurora 原版")
 					.addOption("cosmos-dark", "Nebula 深色宇宙稿")
 					.addOption("animal-island", "Animal Island 小岛主题")
 					.addOption("system-classic", "Macintosh 知识工作站")
 					.addOption("data-stream", "数据流 · 动态终端")
 					.addOption("soft-relief", "柔光浮雕 · Neumorphism")
-					.addOption("geometric-modern", "几何现代主义 · Bauhaus")
+					.addOption("geometric-modern", "几何现代主义 · Bauhaus（默认）")
 					.addOption("executive-brief", "Executive Brief 商务简约（浅色）")
 					.addOption("paper-ink", "Paper 纸感墨水（浅色）")
 					.addOption("swiss-modern", "Swiss Modernism 瑞士现代主义（浅色）")
@@ -582,6 +589,15 @@ export class TalosSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.talosSettings.openOnStartup).onChange(async (v) => {
 					this.plugin.talosSettings.openOnStartup = v;
+					await this.plugin.saveTalosSettings();
+				})
+			);
+		new Setting(c)
+			.setName("开屏彩蛋")
+			.setDesc("打开 TALOS 控制台时播放头像彩蛋与插件说明；在彩蛋卡片上点「不再显示」会关闭此开关。")
+			.addToggle((t) =>
+				t.setValue(this.plugin.talosSettings.welcomeEasterEgg).onChange(async (v) => {
+					this.plugin.talosSettings.welcomeEasterEgg = v;
 					await this.plugin.saveTalosSettings();
 				})
 			);

@@ -59,6 +59,7 @@ import {
 import { TaskDrawer } from "./ui/task-drawer";
 import { ConsoleActionPanel } from "./ui/console-action-panel";
 import { taskStateLabel } from "./ui/task-state-label";
+import { showWelcomeEasterEgg } from "./ui/welcome-easter-egg";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
@@ -310,6 +311,19 @@ export class TalosView extends ItemView {
 			this.clockTimer = window.setInterval(() => this.updateClock(), 1000);
 			this.registerInterval(this.clockTimer);
 			await this.refresh();
+			// 彩蛋：每次打开控制台播放（用户确认的 1B 方案）；
+			// 设置页「开屏彩蛋」开关或卡片上的「不再显示」可永久关闭
+			if (this.plugin.talosSettings.welcomeEasterEgg !== false) {
+				void showWelcomeEasterEgg({
+					app: this.app,
+					pluginDir: this.plugin.manifest.dir,
+					container: this.contentEl,
+					onNeverShow: async () => {
+						this.plugin.talosSettings.welcomeEasterEgg = false;
+						await this.plugin.saveTalosSettings();
+					},
+				});
+			}
 		} catch (error) {
 			console.error("TALOS console view failed to open", error);
 			this.renderViewError(error);

@@ -230,6 +230,9 @@ const child = spawn(executable, args, {
 	cwd: process.cwd(),
 	env: process.env,
 	stdio: ["ignore", "inherit", "inherit"],
+	// Windows 上 npm 装出来的 dsh 是 .cmd 包装脚本，spawn 必须走 shell；
+	// macOS / Linux 上 dsh 是带 shebang 的可执行文件，shell=false 即可。
+	shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable),
 });
 let stopping = false;
 let forceTimer = null;
@@ -348,11 +351,27 @@ function probeDshOnPath(): string | null {
 	}
 }
 
+/**
+ * Windows 上 npm 装出来的 dsh 是 .cmd 包装脚本（不是真正的 .exe），
+ * Node 的 spawn / spawnSync 直接调用 .cmd / .bat 会抛 EINVAL，
+ * 必须显式走 shell；macOS / Linux 上 dsh 是带 shebang 的可执行文件。
+ */
+function needsShellOnWindows(executable: string): boolean {
+	return (
+		process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable)
+	);
+}
+
 function defaultResolveVersion(executable: string): string {
 	const environment = buildDshChildEnvironment({});
+	// Windows 上 npm 装出来的 dsh 是 .cmd 包装脚本（不是真正的 .exe），
+	// Node 的 spawn / spawnSync 直接调用 .cmd / .bat 会抛 EINVAL，
+	// 必须显式走 shell；macOS / Linux 上 dsh 是带 shebang 的可执行文件。
+	const shell = needsShellOnWindows(executable);
 	const versionResult = spawnSync(executable, ["--version"], {
 		encoding: "utf8",
 		env: environment,
+		shell,
 		timeout: 5000,
 	});
 	if (versionResult.status !== 0) {
@@ -370,6 +389,7 @@ function defaultResolveVersion(executable: string): string {
 	const helpResult = spawnSync(executable, ["--help"], {
 		encoding: "utf8",
 		env: environment,
+		shell,
 		timeout: 5000,
 	});
 	const helpOutput =
