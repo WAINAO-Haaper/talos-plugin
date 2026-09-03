@@ -12810,3 +12810,70 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before {
 	background: var(--gm-paper, var(--background-primary));
 }
+
+/* ---------- TALOS 状态桥（只读消费 lili 派生缓存） ---------- */
+.talos-console .talos-peer-status {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px 2px;
+}
+.talos-console .talos-peer-status-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.talos-console .talos-peer-status-label {
+	font-weight: 800;
+	font-size: 15px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.talos-console .talos-peer-status-pill {
+	flex: none;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 10px;
+	border-radius: 999px;
+	border: 1px solid transparent;
+}
+.talos-console .talos-peer-status-pill.is-good {
+	color: var(--talos-status-ok);
+	border-color: var(--talos-status-ok);
+}
+.talos-console .talos-peer-status-pill.is-warn {
+	color: var(--talos-status-warn);
+	border-color: var(--talos-status-warn);
+}
+.talos-console .talos-peer-status-pill.is-hot {
+	color: var(--talos-status-danger);
+	border-color: var(--talos-status-danger);
+}
+.talos-console .talos-peer-status-pill.is-muted {
+	color: var(--text-muted);
+	border-color: var(--text-muted);
+}
+.talos-console .talos-peer-status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px 14px;
+}
+.talos-console .talos-peer-status-key {
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.talos-console .talos-peer-status-value {
+	font-size: 13px;
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.talos-console .talos-peer-status-foot {
+	font-size: 11px;
+	color: var(--text-faint);
+}

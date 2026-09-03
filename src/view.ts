@@ -1,4 +1,5 @@
 import {
+	FileSystemAdapter,
 	ItemView,
 	Notice,
 	WorkspaceLeaf,
@@ -76,6 +77,12 @@ import {
 	renderTalosKpiStrip,
 	renderTalosPageHeader,
 } from "./ui/page-primitives";
+import {
+	NodePeerStatusFileHost,
+	readTalosPeerStatus,
+	talosPeerStatusDisplay,
+	type TalosPeerStatusState,
+} from "./peer-status/talos-peer-status";
 import { QuickNote } from "./ui/quick-note";
 import { DeferredChatWorkbench } from "./quyuan/deferred-chat-workbench";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
@@ -238,6 +245,7 @@ export class TalosView extends ItemView {
 	private lastPublished: number | undefined;
 
 	private data: Collected | null = null;
+	private peerStatus: TalosPeerStatusState | null = null;
 	private readonly pageRouter = new TalosPageRouter("overview");
 	private activeCap = "commands";
 	private selectedModuleByScope = new Map<string, string>();
@@ -923,6 +931,7 @@ export class TalosView extends ItemView {
 
 	// ---------- 刷新 ----------
 	async refresh(): Promise<void> {
+		await this.refreshPeerStatus();
 		const app = this.app;
 		const s = this.plugin.talosSettings;
 		const paths = this.paths;
@@ -1302,6 +1311,51 @@ export class TalosView extends ItemView {
 	}
 
 	// ---------- 页 ----------
+	// ---------- TALOS 状态桥（只读消费 lili 派生缓存） ----------
+	private async refreshPeerStatus(): Promise<void> {
+		try {
+			const adapter = this.app.vault.adapter;
+			const vaultRoot = adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
+			if (!vaultRoot) {
+				this.peerStatus = { state: "invalid", reason: "vault-not-filesystem" };
+				return;
+			}
+			this.peerStatus = await readTalosPeerStatus(new NodePeerStatusFileHost(vaultRoot), {
+				enabled: this.plugin.talosSettings.talosPeerStatusBridgeEnabled !== false,
+			});
+		} catch {
+			this.peerStatus = { state: "invalid", reason: "cache-unreachable" };
+		}
+	}
+
+	private renderPeerStatusPanel(parent: HTMLElement): void {
+		const status = this.peerStatus ?? { state: "missing" as const };
+		const view = talosPeerStatusDisplay(status);
+		const panel = this.panel(parent, "#76B0FA", "TALOS 状态", "lili 状态桥只读快照 · 不解析控制仓库");
+		panel.setAttribute("data-workbench-section", "peer-status");
+		const body = panel.createDiv({ cls: "talos-peer-status" });
+		const head = body.createDiv({ cls: "talos-peer-status-head" });
+		head.createDiv({ cls: "talos-peer-status-label", text: view.focusName });
+		const tone = status.state === "ready" ? "good" : status.state === "stale" ? "warn" : status.state === "disabled" ? "muted" : "hot";
+		head.createDiv({ cls: "talos-peer-status-pill is-" + tone, text: view.statusLabel });
+		const grid = body.createDiv({ cls: "talos-peer-status-grid" });
+		const rows: Array<[string, string]> = [
+			["当前主线", view.mainlineTitle],
+			["下一步", view.nextAction],
+			["阻塞", view.blockerCount ? view.blockerCount + " 项 · " + (view.blockerTop ?? "") : "无"],
+			["修订", view.revision],
+		];
+		for (const row of rows) {
+			const cell = grid.createDiv({ cls: "talos-peer-status-cell" });
+			cell.createDiv({ cls: "talos-peer-status-key", text: row[0] });
+			cell.createDiv({ cls: "talos-peer-status-value", text: row[1] });
+		}
+		body.createDiv({
+			cls: "talos-peer-status-foot",
+			text: "快照 " + view.generatedAtLabel + " · 序号 " + (view.sequence ?? "—") + " · 仅本地派生缓存",
+		});
+	}
+
 	private panel(parent: HTMLElement, ac: string, title: string, small: string): HTMLElement {
 		const p = parent.createDiv({ cls: "panel talos-ui-panel" });
 		p.setCssProps({ "--ac": ac });
@@ -1719,6 +1773,8 @@ export class TalosView extends ItemView {
 					void openFile(this.app, this.plugin.talosSettings.talosTasksPath),
 			},
 		]);
+
+		this.renderPeerStatusPanel(dataColumn);
 
 		const trendPanel = this.panel(
 			dataColumn,
