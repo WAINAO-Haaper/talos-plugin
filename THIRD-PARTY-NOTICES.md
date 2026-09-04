@@ -1,6 +1,6 @@
 # Third-party notices
 
-> 本文件界定 TALOS 自有代码与第三方技术的许可边界。TALOS 自有部分采用根目录 `LICENSE` 的专有商业许可；下列第三方材料继续受各自许可证和服务条款约束。
+> 本文件界定 TALOS 自有代码与第三方技术的许可边界。TALOS 自有部分采用根目录 `LICENSE` 的 TALOS Personal Use Source License 1.0：个人非商业用途开放，商业使用须书面授权；下列第三方材料继续受各自许可证和服务条款约束。
 
 ## 分发要求
 

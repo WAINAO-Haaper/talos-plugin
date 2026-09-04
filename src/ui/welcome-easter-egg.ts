@@ -19,8 +19,8 @@ const FALLBACK_MASCOT = "TALOS-Mascot-Character-Transparent-v1.png";
 const AUTO_DISMISS_MS = 15000;
 const LEAVE_ANIMATION_MS = 320;
 
-const GITHUB_URL = "https://github.com/Hanhan758/talos-framework";
-const GITHUB_LABEL = "github.com/Hanhan758/talos-framework";
+const GITHUB_URL = "https://github.com/WAINAO-Haaper/talos-plugin";
+const GITHUB_LABEL = "github.com/WAINAO-Haaper/talos-plugin";
 
 const CONFETTI_COLORS = [
 	"#f9705c",
@@ -51,9 +51,9 @@ const EASTER_EGG_SECTIONS: ReadonlyArray<{
 ];
 
 const CONTACT_LINES: ReadonlyArray<string> = [
-	"全网名称：外脑玩家 Happer",
+	"全网名称：外脑玩家 Haaper",
 	"微信：wadeonly",
-	"邮箱：han747266@gmail.com",
+	"邮箱：han747266@qq.com",
 ];
 
 export interface WelcomeEasterEggOptions {
@@ -124,7 +124,7 @@ export async function showWelcomeEasterEgg(
 			cls: "talos-welcome-avatar",
 			attr: {
 				src: app.vault.adapter.getResourcePath(avatarPath),
-				alt: "外脑玩家 Happer 的头像",
+				alt: "外脑玩家 Haaper 的头像",
 			},
 		});
 		avatar.draggable = false;

@@ -603,7 +603,7 @@ export class TalosSettingTab extends PluginSettingTab {
 			);
 		new Setting(c).setName("版权与授权").setHeading();
 		new Setting(c)
-			.setName("TALOS 专有软件")
+			.setName("TALOS 个人使用源码许可")
 			.setDesc(TALOS_SETTINGS_COPYRIGHT_DESC);
 	}
 

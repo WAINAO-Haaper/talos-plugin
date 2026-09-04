@@ -1,73 +1,111 @@
-TALOS PROPRIETARY SOFTWARE LICENSE
+TALOS PERSONAL USE SOURCE LICENSE 1.0
 
-Copyright (c) 2026 外脑玩家 Haaper. All rights reserved.
+Copyright (c) 2026 外脑玩家 Haaper. All rights reserved except for the
+permissions expressly granted by this License.
 
-1. Scope
+This is a source-available license for personal, non-commercial use. It is not
+an Open Source Initiative approved open-source license.
 
-This license applies only to the original TALOS source code, user interface,
-documentation, branding, and other materials authored for this project
-("TALOS Materials").
+1. Definitions
 
-TALOS Materials are proprietary and are not offered under an open-source
-license. Except under a separate written agreement from the copyright holder,
-no permission is granted to copy, modify, publish, distribute, sublicense,
-sell, host, or create derivative commercial products from TALOS Materials.
+"TALOS Materials" means the original TALOS source code, user interface,
+documentation, branding, artwork, and other materials authored for this
+project and distributed with this License.
 
-2. Commercial licenses
+"Personal Non-Commercial Use" means use by a natural person solely for that
+person's private learning, research, experimentation, productivity, or hobby
+purposes, without payment, revenue, commercial advantage, employer benefit,
+client benefit, organizational use, or other business purpose.
 
-Authorized customers may install and use TALOS Materials only within the
-scope, term, seat count, and other conditions stated in their applicable
-commercial agreement or end-user license agreement. Possession of a copy does
-not itself grant redistribution, resale, white-label, or sublicensing rights.
+"Commercial Use" includes, without limitation:
 
-2.1 Prohibited uses
+- use by or on behalf of a company, partnership, government body, nonprofit,
+  educational institution, or other organization;
+- use in internal business operations, employment, consulting, client work,
+  or professional service delivery;
+- inclusion in a paid product, service, subscription, course, support plan,
+  hosted service, managed service, or commercial distribution;
+- resale, paid redistribution, paid support, white-labeling, repackaging,
+  sublicensing, advertising, sponsorship, or other monetization; and
+- any use primarily intended for commercial advantage or monetary
+  compensation.
 
-Except where a separate written agreement expressly permits it, and subject
-to any rights that cannot lawfully be waived, no person may:
+2. Personal non-commercial grant
 
-- copy, modify, republish, repackage, distribute, rent, lease, resell, or
-  sublicense TALOS Materials;
-- remove or obscure copyright, attribution, license, or product identity
-  notices;
-- offer TALOS Materials as a hosted service, managed service, white-label
-  product, or other commercial service for third parties;
-- create or distribute a derivative product whose source code, interface,
-  visual assets, documentation, or branding is substantially based on TALOS
-  Materials; or
-- bypass, disable, falsify, or interfere with any TALOS license or entitlement
-  control.
+Subject to this License, the copyright holder grants each natural person a
+limited, worldwide, non-exclusive, non-transferable, royalty-free license to:
 
-2.2 Termination and enforcement
+- access, download, install, and run the TALOS Materials for Personal
+  Non-Commercial Use;
+- inspect, study, copy, and modify the TALOS Materials for Personal
+  Non-Commercial Use; and
+- redistribute unmodified or modified copies solely for Personal
+  Non-Commercial Use, provided that the complete source is made available,
+  this License and all copyright and attribution notices are retained,
+  modified files are clearly identified, no fee or other consideration is
+  charged, and recipients receive no fewer restrictions than this License.
 
-Any use outside an applicable written license is unauthorized. A material
-breach terminates the breaching party's permission to use TALOS Materials.
-The copyright holder reserves all remedies available under applicable law,
-including requests to stop distribution, remove infringing copies, preserve
-evidence, and recover damages where available.
+3. Commercial authorization required
 
-3. Third-party materials
+No Commercial Use is permitted under this License. Commercial Use requires a
+separate written authorization or commercial license from the copyright
+holder before the use begins.
 
-This project contains or interoperates with third-party software that is not
-covered by this proprietary license. Those materials remain governed by their
-respective licenses and service terms. Required attributions and license texts
-are listed in:
+Commercial licensing contact:
+
+- WeChat: wadeonly
+- Email: han747266@qq.com
+
+4. Conditions and restrictions
+
+You may not:
+
+- remove, obscure, or alter copyright, license, attribution, provenance, or
+  third-party notices;
+- represent the TALOS Materials or a modified version as your original work;
+- use the TALOS name, logo, trade dress, or other brand identifiers except as
+  reasonably necessary to identify the unmodified project and its origin;
+- impose additional terms that reduce the rights granted for Personal
+  Non-Commercial Use; or
+- use the TALOS Materials in violation of applicable law or third-party terms.
+
+5. Contributions
+
+By intentionally submitting a contribution to this project, you represent
+that you have the right to submit it and agree that the contribution may be
+distributed under this License. A separate written contributor agreement may
+apply when expressly requested before acceptance.
+
+6. Third-party materials
+
+This License applies only to TALOS Materials owned by the copyright holder.
+Third-party software, fonts, artwork, services, models, and other materials
+remain governed by their respective licenses and terms. Required notices and
+license texts are listed in:
 
 - THIRD-PARTY-NOTICES.md
 - THIRD-PARTY-LICENSES.txt
 
-Nothing in this license restricts rights granted directly by a third-party
-license, including the MIT-licensed Claudian portions identified in the
-notices.
+Nothing in this License restricts rights granted directly by a third-party
+license or expands rights granted by a third-party provider.
 
-4. Trademarks
+7. Termination
 
-No right to use the TALOS name, logo, trade dress, or other brand identifiers
-is granted without prior written permission.
+Your rights under this License terminate automatically if you violate its
+terms. Upon termination, you must stop using and distributing the TALOS
+Materials. Rights may be reinstated only by written confirmation from the
+copyright holder.
 
-5. Disclaimer
+8. No warranty and limitation of liability
 
-TALOS MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE, TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY LAW,
-THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-LIABILITY ARISING FROM USE OF TALOS MATERIALS.
+THE TALOS MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM OR RELATED TO THE TALOS MATERIALS OR
+THEIR USE.
+
+9. Reservation of rights
+
+All rights not expressly granted by this License are reserved. No patent,
+trademark, publicity, privacy, or other right is granted by implication.

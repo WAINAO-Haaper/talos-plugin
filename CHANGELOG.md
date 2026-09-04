@@ -1,5 +1,7 @@
 # Changelog
 
+- 2026-09-04 源码许可调整：TALOS 自有材料从完全专有许可切换为 `TALOS Personal Use Source License 1.0`，允许个人非商业使用、学习、修改及按同一许可非商业分享；公司内部使用、客户交付、收费服务、托管、转售、白标与其他商业用途仍须事先书面授权。README、许可证徽章、`package.json`、lockfile、第三方边界、设置页、欢迎页联系方式、构建许可审计与 bundle banner 同步更新；项目明确标记为 Source Available，而非 OSI Open Source。
+
 - 2026-09-04 v0.4.5 会话恢复与桌面体验修复：保存过的空标签数组现在与“从未保存过 UI 状态”严格区分，用户主动关闭全部会话后重启不会再回退打开最近 6 个会话；首次运行仍保留最近会话回退。同步包含当前主线的重点项目卡片、开屏彩蛋与 Windows 部署修复，并让 macOS Seatbelt 专属 profile 检查只在 Darwin 环境执行，避免 Ubuntu CI 访问不存在的 `/System`。版本元数据、macOS/Windows 双系统安装包和 9 个手动安装资产统一进入 v0.4.5；v0.4.4 及更早 Release 保留，不改写历史。
 
 - 2026-09-02 v0.4.4 TalosBall runtime 与主页语音工作区更新：生产插件以 TalosBall 0.3.0 固定运行时、32 态数据和 288 帧等价门替换此前自定义球体实现；README 的简化球体预览替换为仓库所有者提供的完整屈原语音工作区原始截图。版本元数据、macOS/Windows 双系统安装包和 9 个手动安装资产统一进入 v0.4.4；v0.4.3 及更早 Release 保留，不改写历史。

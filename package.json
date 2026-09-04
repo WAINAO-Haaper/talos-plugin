@@ -21,7 +21,7 @@
 		"test:chat-gate": "node agent-workbench-chat-gate.selftest.mjs"
 	},
 	"keywords": [],
-	"license": "UNLICENSED",
+	"license": "SEE LICENSE IN LICENSE",
 	"private": true,
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

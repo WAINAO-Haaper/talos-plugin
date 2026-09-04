@@ -3,11 +3,13 @@
 ![version](https://img.shields.io/badge/version-v0.4.5-2f6feb)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-7c3aed)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827)
-![license](https://img.shields.io/badge/license-Proprietary-dc2626)
+![license](https://img.shields.io/badge/license-Personal%20Use%20Source%20Available-FAD861)
 
 > 把 Obsidian Vault 变成可观察、可治理、可执行的个人 AI 工作台。
 
 TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任务、项目、知识、收件箱、健康记录和发布状态汇总为一个实时控制台，并把多智能体对话、审批治理和「屈原」实时语音放进同一套工作流。
+
+> **源码许可**：个人用户可免费用于非商业目的，包括学习、使用、修改和在同一许可下非商业分享；公司内部使用、客户交付、收费服务、托管、转售、白标及其他商业用途必须事先取得书面授权。本项目属于 **Source Available（源码开放）**，不是 OSI 定义的 Open Source。
 
 ## 界面预览
 
@@ -68,7 +70,7 @@ v0.4.5 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 ## 安装
 
-TALOS 使用专有商业许可，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。v0.4.5 候选已嵌入 TalosBall 0.3.0；v0.4.1 不再建议用于商业分发。
+TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。商业使用须先取得书面授权；完整边界见 [`LICENSE`](LICENSE)。v0.4.5 候选已嵌入 TalosBall 0.3.0；v0.4.1 不再建议用于商业分发。
 
 ### 按系统下载安装包
 
@@ -131,7 +133,7 @@ npm run licenses:check
 npm run build
 ```
 
-生产构建会执行许可证审计、TypeScript 检查、样式合并和 esbuild 打包。商业交付包必须包含安装章节列出的 9 个文件。
+生产构建会执行许可证审计、TypeScript 检查、样式合并和 esbuild 打包。任何分发包必须包含安装章节列出的 9 个文件。
 
 ### 源码结构
 
@@ -145,9 +147,10 @@ npm run build
 
 ## 许可
 
-> Copyright © 2026 外脑玩家 Haaper. All rights reserved. 未经书面许可，不得复制、修改、重新打包、分发、转售、白标、托管或用于商业服务。
+> Copyright © 2026 外脑玩家 Haaper. 源码对个人非商业用途开放；商业使用须事先获得书面授权。
 
-- `LICENSE`：TALOS 自有代码的专有商业许可；客户使用、席位、期限和再分发权由单独协议授予。
+- `LICENSE`：TALOS 自有材料采用 **TALOS Personal Use Source License 1.0**。个人非商业使用、学习、修改及按同一许可非商业分享无需付费；任何商业使用必须事先取得书面授权。该许可属于 Source Available，不是 OSI 批准的开源许可证。
+- 商业授权联系：微信 `wadeonly`；邮箱 `han747266@qq.com`。
 - `THIRD-PARTY-NOTICES.md`：第三方组件、视觉参考和商业条款摘要。
 - `THIRD-PARTY-LICENSES.txt`：由 lockfile 自动生成的生产依赖许可证包。
 - `MaShanZheng-Regular.ttf` / `MaShanZheng-OFL.txt`：屈原标题字体及 SIL OFL 1.1 许可证。
