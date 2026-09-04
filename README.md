@@ -150,7 +150,7 @@ npm run build
 > Copyright © 2026 外脑玩家 Haaper. 源码对个人非商业用途开放；商业使用须事先获得书面授权。
 
 - `LICENSE`：TALOS 自有材料采用 **TALOS Personal Use Source License 1.0**。个人非商业使用、学习、修改及按同一许可非商业分享无需付费；任何商业使用必须事先取得书面授权。该许可属于 Source Available，不是 OSI 批准的开源许可证。
-- 商业授权联系：微信 `wadeonly`；邮箱 `han747266@qq.com`。
+- 商业授权联系：微信 `wadeonly`；邮箱 `han747266@gmail.com`。
 - `THIRD-PARTY-NOTICES.md`：第三方组件、视觉参考和商业条款摘要。
 - `THIRD-PARTY-LICENSES.txt`：由 lockfile 自动生成的生产依赖许可证包。
 - `MaShanZheng-Regular.ttf` / `MaShanZheng-OFL.txt`：屈原标题字体及 SIL OFL 1.1 许可证。

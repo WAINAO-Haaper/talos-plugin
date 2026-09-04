@@ -53,7 +53,7 @@ const EASTER_EGG_SECTIONS: ReadonlyArray<{
 const CONTACT_LINES: ReadonlyArray<string> = [
 	"全网名称：外脑玩家 Haaper",
 	"微信：wadeonly",
-	"邮箱：han747266@qq.com",
+	"邮箱：han747266@gmail.com",
 ];
 
 export interface WelcomeEasterEggOptions {
