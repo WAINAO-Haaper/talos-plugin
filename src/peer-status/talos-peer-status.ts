@@ -1,4 +1,4 @@
-import { lstat, realpath } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -84,6 +84,28 @@ export interface PeerStatusFileHost {
 	readFile(candidate: string): Promise<string>;
 }
 
+/**
+ * 能力判断而非 instanceof：生产 bundle 中适配器模块实例与编译期
+ * FileSystemAdapter 不同源，instanceof 为 false；只信任可调用的 getBasePath。
+ * 不扩大到任意外部路径。
+ */
+export function resolveVaultRootFromAdapter(
+	adapter: unknown,
+): string | null {
+	if (adapter && typeof adapter === "object" && "getBasePath" in adapter) {
+		const getter = (adapter as { getBasePath?: unknown }).getBasePath;
+		if (typeof getter === "function") {
+			try {
+				const value = (getter as () => unknown).call(adapter);
+				if (typeof value === "string" && value.length > 0) return value;
+			} catch {
+				return null;
+			}
+		}
+	}
+	return null;
+}
+
 export class NodePeerStatusFileHost implements PeerStatusFileHost {
 	constructor(private readonly baseDir: string) {}
 
@@ -109,7 +131,9 @@ export class NodePeerStatusFileHost implements PeerStatusFileHost {
 	}
 
 	readFile(candidate: string): Promise<string> {
-		return import("node:fs/promises").then((fs) => fs.readFile(candidate, "utf8"));
+		// 静态引入 node:fs/promises：生产 bundle 中按需动态引入不可靠，
+		// 会使读取落入 cache-unreadable（真实宿主缺陷 2026-09-04）。
+		return readFile(candidate, "utf8");
 	}
 }
 
@@ -374,6 +398,16 @@ export interface TalosPeerStatusDisplay {
 	reason: string | null;
 }
 
+/** 只输出 PUBLIC-safe reason code；不透出绝对路径或原始异常文本。 */
+export function publicInvalidReason(reason: string | null): string | null {
+	if (!reason) return null;
+	if (reason === "cache-unreadable" || reason === "vault-not-filesystem" || reason === "cache-unreachable") {
+		return reason;
+	}
+	if (reason.startsWith("schema:")) return "schema";
+	return reason.startsWith("cache-") ? reason : null;
+}
+
 export function talosPeerStatusDisplay(status: TalosPeerStatusState, now: Date = new Date()): TalosPeerStatusDisplay {
 	if (status.state === "disabled") {
 		return { state: "disabled", statusLabel: "已停用", focusName: "—", mainlineTitle: "—", nextAction: "—", blockerCount: 0, blockerTop: null, revision: "—", generatedAtLabel: "—", sequence: null, reason: null };
@@ -382,7 +416,8 @@ export function talosPeerStatusDisplay(status: TalosPeerStatusState, now: Date =
 		return { state: "missing", statusLabel: "缺失", focusName: "—", mainlineTitle: "—", nextAction: "打开 lili 生成状态快照", blockerCount: 0, blockerTop: null, revision: "—", generatedAtLabel: "—", sequence: null, reason: "cache-missing" };
 	}
 	if (status.state === "invalid") {
-		return { state: "invalid", statusLabel: "损坏", focusName: "—", mainlineTitle: "—", nextAction: "在 lili 中刷新状态桥", blockerCount: 0, blockerTop: null, revision: "—", generatedAtLabel: "—", sequence: null, reason: status.reason };
+		const reason = publicInvalidReason(status.reason);
+		return { state: "invalid", statusLabel: "损坏", focusName: "—", mainlineTitle: "—", nextAction: "在 lili 中刷新状态桥", blockerCount: 0, blockerTop: null, revision: "—", generatedAtLabel: "—", sequence: null, reason };
 	}
 	const envelope = status.envelope;
 	const summary = envelope.summary;

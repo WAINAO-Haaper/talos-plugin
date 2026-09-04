@@ -237,3 +237,70 @@ describe("talos peer status cache reader", () => {
 		expect(envelope.source_revision.portfolio).toBe("1052");
 	});
 });
+
+describe("real-host defect fixes (2026-09-04)", () => {
+  it("NodePeerStatusFileHost reads a real temp file via static fs import", async () => {
+    const root = makeVault();
+    writeCache(root, validEnvelope());
+    const host = new NodePeerStatusFileHost(root);
+    const target = join(root, TALOS_PEER_STATUS_CACHE_PATH);
+    const text = await host.readFile(target);
+    const parsed = JSON.parse(text) as { snapshot_id: string };
+    expect(parsed.snapshot_id).toBe("talos-system-status");
+    const stat = await host.lstat(target);
+    expect(stat?.isFile()).toBe(true);
+    expect(stat?.isSymlink()).toBe(false);
+  });
+
+  it("resolveVaultRootFromAdapter trusts capability, not instanceof identity", async () => {
+    const { resolveVaultRootFromAdapter } = await import("../src/peer-status/talos-peer-status");
+    // 不同模块身份的“外部”对象，只要 getBasePath 可调用即被接受（生产 bundle 场景）
+    const foreignAdapter = { getBasePath: () => "/tmp/foreign-vault" };
+    expect(resolveVaultRootFromAdapter(foreignAdapter)).toBe("/tmp/foreign-vault");
+    class Unrelated { getBasePath() { return "/tmp/other"; } }
+    expect(resolveVaultRootFromAdapter(new Unrelated())).toBe("/tmp/other");
+    // 无能力 / 异常 / 非字符串 / 空串 / 越界类型一律拒绝
+    expect(resolveVaultRootFromAdapter({})).toBeNull();
+    expect(resolveVaultRootFromAdapter(null)).toBeNull();
+    expect(resolveVaultRootFromAdapter({ getBasePath: "not-a-function" })).toBeNull();
+    expect(resolveVaultRootFromAdapter({ getBasePath: () => { throw new Error("x"); } })).toBeNull();
+    expect(resolveVaultRootFromAdapter({ getBasePath: () => "" })).toBeNull();
+    expect(resolveVaultRootFromAdapter({ getBasePath: () => 42 })).toBeNull();
+  });
+
+  it("invalid reason projects to PUBLIC-safe codes without paths or raw exceptions", async () => {
+    const { publicInvalidReason, talosPeerStatusDisplay } = await import("../src/peer-status/talos-peer-status");
+    expect(publicInvalidReason("cache-unreadable")).toBe("cache-unreadable");
+    expect(publicInvalidReason("vault-not-filesystem")).toBe("vault-not-filesystem");
+    expect(publicInvalidReason("cache-unreachable")).toBe("cache-unreachable");
+    expect(publicInvalidReason("schema:信封含未声明字段 note_body")).toBe("schema");
+    expect(publicInvalidReason("cache-is-symlink")).toBe("cache-is-symlink");
+    expect(publicInvalidReason("cache-path-escape")).toBe("cache-path-escape");
+    expect(publicInvalidReason(null)).toBeNull();
+    expect(publicInvalidReason("/Users/someone/leak.txt")).toBeNull();
+    const display = talosPeerStatusDisplay({ state: "invalid", reason: "cache-unreadable" });
+    expect(display.statusLabel).toBe("损坏");
+    expect(display.reason).toBe("cache-unreadable");
+  });
+
+  it("production bundle must not keep dynamic import of node:fs/promises", async () => {
+    type BundleGuard = {
+      dynamicFsPromisesImports(bundleText: string): string[];
+      assertBundleSafe(bundleText: string): boolean;
+    };
+    const guard = (await import("../scripts/check-peer-status-bundle.mjs")) as unknown as BundleGuard;
+    const defective = 'x(); import("node:fs/promises").then((fs) => fs.readFile(p, "utf8"));';
+    expect(guard.dynamicFsPromisesImports(defective)).toEqual(['import("node:fs/promises")']);
+    expect(() => guard.assertBundleSafe(defective)).toThrow(/静态 import/);
+    expect(() => guard.assertBundleSafe('import("fs/promises");')).toThrow(/静态 import/);
+    // 静态 require（esbuild CJS 产物）与其他模块的 node:fs 懒加载不在禁用范围
+    expect(guard.assertBundleSafe('const fs = require("node:fs/promises");')).toBe(true);
+    expect(guard.assertBundleSafe('await import("node:fs");')).toBe(true);
+    expect(guard.assertBundleSafe('readFile(p, "utf8")')).toBe(true);
+    // 源码本身也不得回退为动态导入
+    const { readFileSync: read } = await import("node:fs");
+    const source = read(new URL("../src/peer-status/talos-peer-status.ts", import.meta.url), "utf8");
+    expect(guard.dynamicFsPromisesImports(source)).toEqual([]);
+    expect(source).toMatch(/^import \{ lstat, readFile, realpath \} from "node:fs\/promises";/m);
+  });
+});

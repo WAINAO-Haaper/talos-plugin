@@ -1,5 +1,4 @@
 import {
-	FileSystemAdapter,
 	ItemView,
 	Notice,
 	WorkspaceLeaf,
@@ -80,6 +79,7 @@ import {
 import {
 	NodePeerStatusFileHost,
 	readTalosPeerStatus,
+	resolveVaultRootFromAdapter,
 	talosPeerStatusDisplay,
 	type TalosPeerStatusState,
 } from "./peer-status/talos-peer-status";
@@ -1314,8 +1314,7 @@ export class TalosView extends ItemView {
 	// ---------- TALOS 状态桥（只读消费 lili 派生缓存） ----------
 	private async refreshPeerStatus(): Promise<void> {
 		try {
-			const adapter = this.app.vault.adapter;
-			const vaultRoot = adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
+			const vaultRoot = resolveVaultRootFromAdapter(this.app.vault.adapter);
 			if (!vaultRoot) {
 				this.peerStatus = { state: "invalid", reason: "vault-not-filesystem" };
 				return;
@@ -1352,7 +1351,8 @@ export class TalosView extends ItemView {
 		}
 		body.createDiv({
 			cls: "talos-peer-status-foot",
-			text: "快照 " + view.generatedAtLabel + " · 序号 " + (view.sequence ?? "—") + " · 仅本地派生缓存",
+			text: "快照 " + view.generatedAtLabel + " · 序号 " + (view.sequence ?? "—") + " · 仅本地派生缓存"
+				+ (view.state === "invalid" && view.reason ? " · " + view.reason : ""),
 		});
 	}
 
