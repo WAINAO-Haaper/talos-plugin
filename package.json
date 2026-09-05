@@ -17,6 +17,7 @@
 		"licenses:generate": "node third-party-licenses.mjs",
 		"licenses:check": "node third-party-licenses.mjs --check",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"postinstall": "node patches/apply-sdk-electron-patch.mjs",
 		"lint": "eslint .",
 		"test:chat-gate": "node agent-workbench-chat-gate.selftest.mjs"
 	},
