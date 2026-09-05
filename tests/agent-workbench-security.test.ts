@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile, realpath } from "node:fs/promis
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { connect } from "node:net";
+import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ActionRequest } from "../src/agent-workbench/contracts/approval";
@@ -380,7 +381,7 @@ describe("LoopbackEgressProxy", () => {
 		await proxy.close();
 	});
 
-	it("denies CONNECT before opening an upstream socket and rejects plaintext proxying", async () => {
+	it("denies CONNECT and plaintext proxying before opening an upstream socket", async () => {
 		const destinations: Array<{ host: string; port: number }> = [];
 		const proxy = new LoopbackEgressProxy(async (destination) => {
 			destinations.push(destination);
@@ -388,9 +389,71 @@ describe("LoopbackEgressProxy", () => {
 		});
 		const port = await proxy.start();
 		await expect(proxyResponse(port, "CONNECT forbidden.example:443 HTTP/1.1\r\nHost: forbidden.example\r\n\r\n")).resolves.toContain("403 Forbidden");
-		await expect(proxyResponse(port, "GET http://forbidden.example/ HTTP/1.1\r\nHost: forbidden.example\r\n\r\n")).resolves.toContain("405 Method Not Allowed");
-		expect(destinations).toEqual([{ host: "forbidden.example", port: 443 }]);
+		await expect(proxyResponse(port, "GET http://forbidden.example/ HTTP/1.1\r\nHost: forbidden.example\r\n\r\n")).resolves.toContain("403 Forbidden");
+		expect(destinations).toEqual([
+			{ host: "forbidden.example", port: 443 },
+			{ host: "forbidden.example", port: 80 },
+		]);
 		await proxy.close();
+	});
+
+	it("forwards absolute-form plaintext HTTP to an authorized upstream", async () => {
+		const upstream = createServer((_req, res) => {
+			res.writeHead(200, { "content-type": "application/json" });
+			res.end(JSON.stringify({ path: _req.url, method: _req.method }));
+		});
+		await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve));
+		const upPort = (upstream.address() as { port: number }).port;
+		const proxy = new LoopbackEgressProxy(async ({ host, port }) => {
+			return host === "127.0.0.1" && port === upPort ? "allow-always" : false;
+		});
+		const port = await proxy.start();
+		const body = JSON.stringify({ input: "hi" });
+		const raw =
+			`POST http://127.0.0.1:${upPort}/v1/responses HTTP/1.1\r\n` +
+			`Host: 127.0.0.1:${upPort}\r\n` +
+			`Content-Type: application/json\r\n` +
+			`Content-Length: ${Buffer.byteLength(body)}\r\n` +
+			`\r\n` +
+			body;
+		// 注意: 不能 write 后立即 end 读端——服务器侧会把半关闭连接当作提前终止。
+		// 这里保持连接直到响应完整读回。
+		const response = await new Promise<string>((resolve, reject) => {
+			const socket = connect(port, "127.0.0.1");
+			socket.setEncoding("utf8");
+			let data = "";
+			let resolved = false;
+			const settle = () => {
+				if (resolved) return;
+				resolved = true;
+				socket.end();
+				resolve(data);
+			};
+			const isComplete = () => {
+				// chunked 编码: 以 0\r\n\r\n 结尾
+				const chunkedComplete = /chunked/i.test(data) && (data.trimEnd().endsWith("0\r\n\r\n") || data.trimEnd().endsWith("0\r\n"));
+				if (chunkedComplete) return data.includes("HTTP/1.1 200");
+				const match = data.match(/content-length:\s*(\d+)/i);
+				if (match) {
+					const headEnd = data.indexOf("\r\n\r\n");
+					return headEnd !== -1 && data.length - (headEnd + 4) >= Number(match[1]);
+				}
+				return false;
+			};
+			socket.once("error", reject);
+			socket.on("data", (chunk: string) => {
+				data += chunk;
+				if (isComplete()) settle();
+			});
+			socket.on("end", settle);
+			socket.once("connect", () => socket.write(raw));
+			setTimeout(settle, 2000);
+		});
+		expect(response).toContain("200");
+		expect(response).toContain("/v1/responses");
+		expect(response).toContain("POST");
+		await proxy.close();
+		await new Promise<void>((resolve) => upstream.close(() => resolve()));
 	});
 });
 
