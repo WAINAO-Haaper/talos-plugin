@@ -101,6 +101,14 @@ function runtimeInstallationRoot(executable: string): string {
 	return path.dirname(executable);
 }
 
+function isLoopbackHost(host: string): boolean {
+	const normalized = host.toLowerCase().replace(/\.$/, "");
+	if (normalized === "localhost") return true;
+	if (normalized === "::1" || normalized === "[::1]") return true;
+	const match = normalized.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+	return match !== null && match[1] === "127";
+}
+
 function claudeQuestionInput(input: Record<string, unknown>): Record<string, unknown> {
 	if (!Array.isArray(input.questions)) return { ...input };
 	const questions: unknown[] = input.questions;
@@ -183,6 +191,10 @@ export class DesktopRuntimeFactory {
 		await cleanupRuntimeStatusFiles(runtimeTemp);
 		await Promise.all([mkdir(runtimeTemp, { recursive: true }), mkdir(sessionRoot, { recursive: true })]);
 		const proxy = new LoopbackEgressProxy(async ({ host, port }) => {
+			// loopback 目标（127.0.0.0/8 / ::1 / localhost）不存在数据外传风险：
+			// 沙箱内运行时访问本机网关（如 CC Switch → 自建 vLLM），数据不出用户控制范围，
+			// 免审批并记忆（allow-always）。仅对外网目标的 egress 才走逐次审批。
+			if (isLoopbackHost(host)) return "allow-always";
 			const decision = await input.approve("NetworkRequest", { url: "https://" + host + ":" + port }, { reason: "provider-egress-proxy", host, port });
 			return decision;
 		});
