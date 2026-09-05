@@ -102,6 +102,23 @@ describe("VaultBoundary and ApprovalBroker", () => {
 		expect((await current.evaluate(request(), { ...context, permission: "scoped" })).decision).toBe("ask");
 	});
 
+	it("requires a scoped rule for every canonical target regardless of target order", async () => {
+		const { vault } = await fixture();
+		await writeFile(join(vault, "other.md"), "synthetic");
+		const host = new RuleHost();
+		const rules = new PermissionRuleStore(host);
+		const canonical = await realpath(vault);
+		await rules.add({ id: "first", runtimeId: "codex", kind: "write", target: join(canonical, "note.md"), scope: "persistent", createdAt: "2026-09-05T00:00:00.000Z" });
+		const value = broker(vault, host).value;
+		for (const paths of [["note.md", "other.md"], ["other.md", "note.md"]]) {
+			expect((await value.evaluate(request({ targets: paths.map(raw => ({ raw, role: "destination" })) }), { ...context, permission: "scoped" })).decision).toBe("ask");
+		}
+		await rules.add({ id: "second", runtimeId: "codex", kind: "write", target: join(canonical, "other.md"), scope: "persistent", createdAt: "2026-09-05T00:00:00.000Z" });
+		const both = request({ targets: ["note.md", "other.md"].map(raw => ({ raw, role: "destination" })) });
+		expect((await broker(vault, host).value.evaluate(both, { ...context, permission: "scoped" })).decision).toBe("allow");
+		expect((await value.evaluate(request({ targets: [] }), { ...context, permission: "scoped" })).decision).toBe("ask");
+	});
+
 	it("separates fixed provider egress from generic network and consumes once grants", async () => {
 		const { vault, outside } = await fixture();
 		const fixtureBroker = broker(vault);
