@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, normalizePath, setIcon, type App, type WorkspaceLeaf } from "obsidian";
+import { MarkdownView, Modal, Notice, normalizePath, setIcon, type App, type WorkspaceLeaf } from "obsidian";
 import { createAgentEvent, type AgentEvent } from "../contracts/agent-events";
 import type { ConversationManifest } from "../contracts/conversation";
 import { executionText } from "../contracts/execution-request";
@@ -750,7 +750,11 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 		await this.refreshManifests();
 		if (this.destroyed || requestVersion !== this.historyRequestVersion || !this.historyList) return;
 		const needle = query.trim().toLocaleLowerCase();
-		const manifests = [...this.manifests.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+		// 软删除（lifecycle=deleted）的会话从主列表隐藏；数据仍在盘上可恢复，
+		// 否则已删会话会和活跃会话外观一致地堆在面板里，造成"删了还在/克隆"的错觉。
+		// archived 保留展示（可点"恢复"还原），deleted 不展示。
+		const manifests = [...this.manifests.values()].filter((manifest) => manifest.lifecycle !== "deleted")
+			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 		const entries = await Promise.all(manifests.map(async (manifest) => ({
 			manifest,
 			projection: await this.options.service.loadConversation(manifest.conversationId),
@@ -808,13 +812,63 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 	}
 
 	private async renameConversation(manifest: ConversationManifest): Promise<void> {
-		// Obsidian may render the workbench in a popout window, so use its active window.
-		const next = activeWindow.prompt("会话标题", manifest.title)?.trim();
+		const next = await this.promptForTitle(manifest.title);
 		if (!next) return;
 		await this.options.service.renameConversation(manifest.conversationId, next);
 		await this.refreshManifests();
 		this.renderTabs();
 		await this.renderHistory();
+	}
+
+	// Electron/Obsidian 不提供原生输入对话框（点击后不会有任何反应），
+	// 因此用原生 Obsidian Modal 承载改名输入，与代码库其它文本输入保持一致。
+	private promptForTitle(currentTitle: string): Promise<string | null> {
+		return new Promise((resolve) => {
+			const modal = new Modal(this.app);
+			let settled = false;
+			let input: HTMLInputElement | null = null;
+			const finish = (value: string | null) => {
+				if (settled) return;
+				settled = true;
+				modal.close();
+				resolve(value);
+			};
+			modal.onOpen = () => {
+				modal.setTitle("重命名会话");
+				input = modal.contentEl.createEl("input", {
+					type: "text",
+					cls: "claudian-rename-input",
+					attr: { placeholder: "会话标题" },
+					value: currentTitle,
+				});
+				const actions = modal.contentEl.createDiv({ cls: "modal-button-container" });
+				const cancel = actions.createEl("button", { text: "取消" });
+				cancel.addEventListener("click", () => finish(null));
+				const ok = actions.createEl("button", { text: "重命名", cls: "mod-cta" });
+				ok.addEventListener("click", () => {
+					const value = (input?.value ?? "").trim();
+					finish(value || null);
+				});
+				input.addEventListener("keydown", (event) => {
+					if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+						event.preventDefault();
+						const value = (input?.value ?? "").trim();
+						finish(value || null);
+					}
+				});
+				input.focus();
+				input.select();
+			};
+			// 按 Esc 或点背景关闭时，Obsidian 会走 onClose 而不触发上面的按钮；
+			// 这里回退成 null（取消），避免 Promise 永远挂起。
+			modal.onClose = () => {
+				if (!settled) {
+					settled = true;
+					resolve(null);
+				}
+			};
+			modal.open();
+		});
 	}
 
 	private async toggleLifecycle(manifest: ConversationManifest): Promise<void> {

@@ -139,11 +139,29 @@
   gap: 3px;
   width: 100%;
   padding: 0;
+  /* Obsidian app.css 给 <button> 钉了 height:30px —— 三行内容（title/summary/date
+     需 59px）被 flex 压扁，overflow:hidden 的 title/summary 各剩 3/2px，汉字只剩
+     中间一条横笔画，显示成 "--"。height:auto 让按钮随内容撑开（min-height:0 是
+     默认值，这里显式写清），覆盖全局 button 的 30px 上限。 */
+  height: auto !important;
   border: 0;
   background: transparent;
   box-shadow: none;
   color: var(--text-normal);
   text-align: start;
+}
+
+/* 防御性：三行内容一律不参与 flex 收缩，即使外层再被限高也不压字。
+   （overflow:hidden 的 flex 子项 min-height:auto=0，默认是可被压缩的，
+    这正是 title/summary 被压扁的机制。） */
+.claudian-history-item-title,
+.claudian-history-item-summary,
+.claudian-history-item-date {
+  flex: 0 0 auto;
+}
+
+.claudian-rename-input {
+  width: 100%;
 }
 
 .claudian-history-item-title {
