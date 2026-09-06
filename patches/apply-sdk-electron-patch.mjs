@@ -19,23 +19,20 @@ import path from "node:path";
 
 const sdkPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "node_modules", "@anthropic-ai", "claude-agent-sdk", "sdk.mjs");
 const source = await readFile(sdkPath, "utf8");
-const needle = "function da(e=w1){let t=new AbortController;return x1(e,t.signal),t}";
-const replacement = "function da(e=w1){let t=new AbortController;try{x1(e,t.signal)}catch{}return t}";
-if (source.includes(replacement)) {
+// Match the AbortController factory independent of SDK minified symbol names.
+// Require exactly one recognized factory; never patch an ambiguous upgrade.
+const factory = /function (\w+)\((\w+)=(\w+)\)\{let (\w+)=new AbortController;return (\w+)\(\2,\4\.signal\),\4\}/g;
+const patchedFactory = /function (\w+)\((\w+)=(\w+)\)\{let (\w+)=new AbortController;try\{(\w+)\(\2,\4\.signal\)\}catch\(error\)\{if\(error\?\.code!=="ERR_INVALID_ARG_TYPE"\)throw error\}return \4\}/g;
+const targets = [...source.matchAll(factory)];
+const patched = [...source.matchAll(patchedFactory)];
+if (targets.length === 0 && patched.length === 1) {
 	console.log("[sdk-electron-patch] 已应用，跳过");
-	process.exit(0);
+} else if (targets.length === 1 && patched.length === 0) {
+	const [original, name, limit, defaultLimit, controller, setListeners] = targets[0];
+	const replacement = `function ${name}(${limit}=${defaultLimit}){let ${controller}=new AbortController;try{${setListeners}(${limit},${controller}.signal)}catch(error){if(error?.code!=="ERR_INVALID_ARG_TYPE")throw error}return ${controller}}`;
+	await writeFile(sdkPath, source.replace(original, replacement));
+	console.log("[sdk-electron-patch] 已应用");
+} else {
+	console.error("[sdk-electron-patch] 补丁目标缺失或不唯一（SDK 版本变化？），请人工检查 createAbortController");
+	process.exitCode = 1;
 }
-if (!source.includes(needle)) {
-	// SDK 版本升级后 minified 签名可能变化：退化为通用替换
-	const generic = /function (\w+)\((\w+)=(\w+)\)\{let (\w+)=new AbortController;return (\w+)\(\2,\4\.signal\),\4\}/;
-	const match = source.match(generic);
-	if (!match) {
-		console.error("[sdk-electron-patch] 未找到补丁目标（SDK 版本变化？），请人工检查 createAbortController");
-		process.exit(1);
-	}
-	await writeFile(sdkPath, source.replace(match[0], match[0].replace(`return ${match[5]}(${match[2]},${match[4]}.signal),${match[4]}`, `try{${match[5]}(${match[2]},${match[4]}.signal)}catch{}return ${match[4]}`)));
-	console.log("[sdk-electron-patch] 已应用（通用签名匹配）");
-	process.exit(0);
-}
-await writeFile(sdkPath, source.replace(needle, replacement));
-console.log("[sdk-electron-patch] 已应用");

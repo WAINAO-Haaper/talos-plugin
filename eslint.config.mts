@@ -19,6 +19,8 @@ export default tseslint.config(
 		'build-styles.mjs',
 		'esbuild.config.mjs',
 		'third-party-licenses.mjs',
+		// Node 安装脚本由 SDK 补丁回归测试执行；不适用 Obsidian 类型规则。
+		'patches/apply-sdk-electron-patch.mjs',
 		'version-bump.mjs',
 		'versions.json',
 		'main.js',
