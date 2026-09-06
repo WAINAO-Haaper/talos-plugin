@@ -36,6 +36,7 @@ import {
 	dshBaseUrl,
 	dshHomeRoot,
 	DSH_HOST,
+	parseDshWebToken,
 	type DshLaunchPlan,
 } from "./dsh-runtime";
 
@@ -680,7 +681,14 @@ export class DshProcessManager {
 			}
 			this.child = child;
 			let stderrTail = "";
+			let stdoutTail = "";
 			let exitError = "";
+			child.stdout?.on("data", (chunk: Buffer) => {
+				// dsh >= 0.1.2 的 web 启动行打印在 stdout：
+				//   dsh web: http://127.0.0.1:<port>/?token=<token>
+				// 旧版本无 token，stdout 仅作诊断保留。
+				stdoutTail = (stdoutTail + chunk.toString("utf8")).slice(-2000);
+			});
 			child.stderr?.on("data", (chunk: Buffer) => {
 				stderrTail = (stderrTail + chunk.toString("utf8")).slice(-2000);
 			});
@@ -717,7 +725,9 @@ export class DshProcessManager {
 			await this.waitForBackendReady(
 				generation,
 				dshBaseUrl(backendPort),
-				() => exitError
+				() => exitError,
+				() => stdoutTail,
+				gateway
 			);
 			if (generation !== this.generation || this.disposed) {
 				await this.cleanupOwned(child, gateway);
@@ -739,14 +749,27 @@ export class DshProcessManager {
 	private async waitForBackendReady(
 		generation: number,
 		baseUrl: string,
-		getExitError: () => string
+		getExitError: () => string,
+		getStdoutTail: () => string,
+		gateway: DshGateway
 	): Promise<void> {
 		const deadline = this.runtime.now() + this.readyTimeoutMs;
+		let token: string | null = null;
 		while (this.runtime.now() < deadline) {
 			if (generation !== this.generation || this.disposed) return;
 			const exitError = getExitError();
 			if (exitError) throw new Error(exitError);
-			if (await this.runtime.probeBackend(baseUrl)) return;
+			// dsh >= 0.1.2：web 根路径需 token/cookie，永远不返回 2xx，
+			// 就绪信号改为「stdout 启动横幅里的 ?token= + 一次成功的 cookie 握手」。
+			// 旧版（<= 0.1.0）无认证，横幅不含 token，退回 probeBackend 轮询根路径 2xx。
+			token = token ?? parseDshWebToken(getStdoutTail());
+			if (token) {
+				await gateway.tryTokenHandshake(token, baseUrl);
+				if (gateway.hasAuthCookie) return;
+				// 横幅已打印但服务尚未响应（握手未拿到 cookie）：继续轮询。
+			} else if (await this.runtime.probeBackend(baseUrl)) {
+				return;
+			}
 			await this.runtime.wait(this.pollIntervalMs);
 		}
 		throw new Error(

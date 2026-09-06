@@ -39,6 +39,7 @@ import {
 import {
 	buildDshLaunchPlan,
 	dshBaseUrl,
+	parseDshWebToken,
 	type DshLaunchPlan,
 } from "../src/harness/dsh-runtime";
 
@@ -122,6 +123,7 @@ async function waitForExit(
 
 class FakeChild extends EventEmitter {
 	readonly stderr = new EventEmitter();
+	readonly stdout = new EventEmitter();
 	exitCode: number | null = null;
 	signalCode: NodeJS.Signals | null = null;
 	killed = false;
@@ -144,6 +146,8 @@ class FakeGateway implements DshGateway {
 	started = false;
 	ready = false;
 	closed = false;
+	hasAuthCookie = false;
+	handshakeCalls: Array<{ token: string | null; backendBaseUrl: string }> = [];
 
 	constructor(
 		readonly identity: Omit<DshHealthIdentity, "ready">,
@@ -152,6 +156,11 @@ class FakeGateway implements DshGateway {
 
 	async start(): Promise<void> {
 		this.started = true;
+	}
+
+	async tryTokenHandshake(token: string | null, backendBaseUrl: string): Promise<void> {
+		this.handshakeCalls.push({ token, backendBaseUrl });
+		if (token) this.hasAuthCookie = true;
 	}
 
 	setReady(ready: boolean): void {
@@ -477,5 +486,179 @@ describe("Harness identity and process isolation", () => {
 				(child) => child.exitCode === null && child.signalCode === null
 			)
 		).toHaveLength(0);
-	});
+		});
+
+		describe("dsh web token auth (dsh >= 0.1.2)", () => {
+		it("parses the web launch banner token and ignores legacy banners", () => {
+			expect(
+				parseDshWebToken(
+					"dsh web: http://127.0.0.1:3180/?token=91Ug-z6fyOX2OqGprp2RMfNp58jNzbYaF36-0ZMMboE\n"
+				)
+			).toBe("91Ug-z6fyOX2OqGprp2RMfNp58jNzbYaF36-0ZMMboE");
+			expect(parseDshWebToken("dsh web: http://127.0.0.1:3180\n")).toBeNull();
+			expect(parseDshWebToken("loading…\nready.\n")).toBeNull();
+		});
+
+		it("reaches ready via stdout token + cookie handshake when the backend never serves 2xx on the root", async () => {
+			const children: FakeChild[] = [];
+			let activeGateway: FakeGateway | null = null;
+			const backendPort = 43281;
+			const runtime: Partial<DshProcessRuntime> = {
+				workspaceIdentity: () => WORKSPACE_A,
+				resolveVersion: () => "0.1.2-rc.1",
+				createNonce: () => "nonce-000000000001",
+				allocateBackendPort: async () => backendPort,
+				prepareLaunchPlan: ({ executable, port, vaultRoot }) =>
+					buildDshLaunchPlan({
+						executable,
+						port,
+						dshHome: "/synthetic-home",
+						vaultRoot,
+					}),
+				createGateway: (input: DshGatewayInput) => {
+					const gateway = new FakeGateway(input.identity, () => {
+						if (activeGateway === gateway) activeGateway = null;
+					});
+					activeGateway = gateway;
+					return gateway;
+				},
+				probeHealth: async () =>
+					activeGateway?.started && !activeGateway.closed
+						? {
+								reachable: true,
+								identity: { ...activeGateway.identity, ready: activeGateway.ready },
+								error: "",
+							}
+						: { reachable: false },
+				// dsh >= 0.1.2 的 web 根路径需要 cookie，永远不返回 2xx：
+				// 就绪只能来自 token 握手路径。
+				probeBackend: async () => false,
+				spawnProcess: (_plan, _env) => {
+					const child = new FakeChild();
+					children.push(child);
+					// 模拟 dsh 在 stdout 打印启动横幅（监听建立后）
+					nodeSetTimeout(() => {
+						child.stdout.emit(
+							"data",
+							Buffer.from(`dsh web: http://127.0.0.1:${backendPort}/?token=tok-ABC123-xyz\n`)
+						);
+					}, 20);
+					return child as unknown as ChildProcess;
+				},
+				// 用真实宏任务 wait（与生产 window.setTimeout 等价），
+				// 保证轮询循环能让出事件循环、stdout 定时器得以执行。
+				wait: (ms) => new Promise((resolve) => nodeSetTimeout(resolve, ms)),
+				now: () => Date.now(),
+			};
+			const manager = new DshProcessManager({
+				getConfiguredExecutable: () => process.execPath,
+				getPort: () => 43279,
+				getVaultRoot: () => "/synthetic-vault",
+				readyTimeoutMs: 2000,
+				pollIntervalMs: 25,
+				stopTimeoutMs: 100,
+				runtime,
+			});
+			try {
+				await manager.ensureStarted();
+				expect(manager.getState()).toBe("ready");
+				expect(manager.getLastError()).toBe("");
+				const readGateway = (): FakeGateway | null => activeGateway as FakeGateway | null;
+				const finalGateway = readGateway();
+				expect(finalGateway?.handshakeCalls).toEqual([
+					{ token: "tok-ABC123-xyz", backendBaseUrl: dshBaseUrl(backendPort) },
+				]);
+				expect(finalGateway?.hasAuthCookie).toBe(true);
+			} finally {
+				await manager.dispose();
+			}
+		});
+		});
+
+		describe("DshLoopbackGateway token handshake", () => {
+		async function listen(server: http.Server): Promise<{ port: number; close: () => Promise<void> }> {
+			await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+			const address = server.address() as AddressInfo;
+			return { port: address.port, close: () => new Promise((resolve) => server.close(() => resolve())) };
+		}
+
+		it("exchanges the one-shot token for a session cookie and injects it into forwarded requests", async () => {
+			// 模拟 dsh >= 0.1.2 web 后端：token URL 303 + Set-Cookie；带 cookie 200；不带 401
+			const seenCookies: string[] = [];
+			const backend = http.createServer((request, response) => {
+				seenCookies.push(request.headers.cookie ?? "");
+				if (request.url === "/?token=abc123") {
+					response.writeHead(303, {
+						Location: "/",
+						"set-cookie": "dsh-auth-test=SESS; Path=/; HttpOnly; SameSite=Strict",
+					});
+					response.end();
+					return;
+				}
+				if (request.headers.cookie === "dsh-auth-test=SESS") {
+					response.writeHead(200, { "content-type": "text/html" });
+					response.end("<html>ui</html>");
+					return;
+				}
+				response.writeHead(401, { "content-type": "text/plain" });
+				response.end("authentication required");
+			});
+			const backendHandle = await listen(backend);
+			const reservation = http.createServer();
+			const publicHandle = await listen(reservation);
+			await publicHandle.close();
+			const gateway = new DshLoopbackGateway(
+				publicHandle.port,
+				backendHandle.port,
+				identity(WORKSPACE_A)
+			);
+			try {
+				await gateway.start();
+				// 无 token：握手 no-op，不注入 cookie
+				await gateway.tryTokenHandshake(null, dshBaseUrl(backendHandle.port));
+				expect(gateway.hasAuthCookie).toBe(false);
+				// 有 token：换到 cookie
+				await gateway.tryTokenHandshake("abc123", dshBaseUrl(backendHandle.port));
+				expect(gateway.hasAuthCookie).toBe(true);
+				gateway.setReady(true);
+				const body = await new Promise<string>((resolve, reject) => {
+					const request = http.get(
+						dshBaseUrl(publicHandle.port) + "/assets/app.js",
+						(res) => {
+							let data = "";
+							res.on("data", (chunk) => (data += chunk));
+							res.on("end", () => resolve(`${res.statusCode ?? "?"}|${data}`));
+						}
+					);
+					request.on("error", reject);
+				});
+				expect(body).toBe("200|<html>ui</html>");
+				// 转发时注入了握手拿到的 cookie（而非 token query）
+				expect(seenCookies.at(-1)).toBe("dsh-auth-test=SESS");
+			} finally {
+				await gateway.close();
+				await backendHandle.close();
+			}
+		});
+
+		it("tolerates a backend that never sets a cookie (legacy dsh without token auth)", async () => {
+			const legacy = http.createServer((_request, response) => {
+				response.writeHead(303, { Location: "/" });
+				response.end();
+			});
+			const legacyHandle = await listen(legacy);
+			const reservation = http.createServer();
+			const publicHandle = await listen(reservation);
+			await publicHandle.close();
+			const gateway = new DshLoopbackGateway(publicHandle.port, legacyHandle.port, identity(WORKSPACE_A));
+			try {
+				await gateway.start();
+				await gateway.tryTokenHandshake("whatever", dshBaseUrl(legacyHandle.port));
+				expect(gateway.hasAuthCookie).toBe(false);
+			} finally {
+				await gateway.close();
+				await legacyHandle.close();
+			}
+		});
+		});
 });

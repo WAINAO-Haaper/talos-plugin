@@ -1,7 +1,7 @@
 import * as http from "http";
 import { connect, type Socket } from "net";
 
-import { DSH_HOST } from "./dsh-runtime";
+import { DSH_HOST, dshBaseUrl } from "./dsh-runtime";
 
 export const DSH_HEALTH_PATH = "/__talos/harness-health";
 export const DSH_HEALTH_PRODUCT = "talos-deepseek-harness";
@@ -23,6 +23,16 @@ export type DshHealthProbe =
 export interface DshGateway {
 	readonly identity: Omit<DshHealthIdentity, "ready">;
 	start(): Promise<void>;
+	/**
+	 * dsh >= 0.1.2 web 服务带 token 认证：启动时在 stdout 打印
+	 * `dsh web: http://127.0.0.1:<port>/?token=...`。一次性访问该 URL 换取
+	 * session cookie（HttpOnly，长有效期），后续转发自动携带。
+	 * dsh <= 0.1.0（无 token 认证）时后端不要求 cookie，本方法可安全跳过
+	 * （注入未知 cookie 对无认证服务无副作用）。
+	 */
+	tryTokenHandshake(token: string | null, backendBaseUrl: string): Promise<void>;
+	/** token 握手是否已拿到 session cookie（dsh >= 0.1.2 的就绪信号）。 */
+	readonly hasAuthCookie: boolean;
 	setReady(ready: boolean): void;
 	close(): Promise<void>;
 }
@@ -139,9 +149,16 @@ export function probeDshHealth(
 	});
 }
 
+function backendAuthority(baseUrl: string): { host: string; port: number } {
+	const parsed = new URL(baseUrl);
+	return { host: parsed.hostname, port: parsed.port ? Number(parsed.port) : 80 };
+}
+
 export class DshLoopbackGateway implements DshGateway {
 	private server: http.Server | null = null;
 	private ready = false;
+	/** dsh >= 0.1.2 web token 认证换取的 session cookie（无 token 时为空）。 */
+	private cookie = "";
 	private readonly sockets = new Set<Socket>();
 
 	constructor(
@@ -152,6 +169,59 @@ export class DshLoopbackGateway implements DshGateway {
 
 	setReady(ready: boolean): void {
 		this.ready = ready;
+	}
+
+	private cookieHeader(): Record<string, string> {
+		return this.cookie ? { Cookie: this.cookie } : {};
+	}
+
+	get hasAuthCookie(): boolean {
+		return this.cookie.length > 0;
+	}
+
+	async tryTokenHandshake(token: string | null, backendBaseUrl: string): Promise<void> {
+		if (!token) return;
+		const { host, port } = backendAuthority(backendBaseUrl);
+		try {
+			const sessionCookie = await this.exchangeSessionCookie(host, port, token);
+			if (sessionCookie) this.cookie = sessionCookie;
+		} catch {
+			// token 交换失败时保持无 cookie 状态：probeBackend 轮询会暴露真实的
+			// 就绪失败原因，这里静默以免掩盖后端日志。
+		}
+	}
+
+	/**
+	 * 访问 token URL 触发 303 + Set-Cookie，提取 session cookie 值。
+	 * 独立请求（不复用 socket 池），只取 cookie 不读取后续资源。
+	 */
+	private exchangeSessionCookie(host: string, port: number, token: string): Promise<string | null> {
+		return new Promise((resolve) => {
+			const request = http.get(
+				{ host, port, path: "/?token=" + encodeURIComponent(token), headers: { Accept: "text/html" } },
+				(response) => {
+					const setCookies = response.headers["set-cookie"];
+					const first = Array.isArray(setCookies) ? setCookies[0] : setCookies;
+					if (first) {
+						// "name=value; Max-Age=...; Path=/; HttpOnly; ..." → 取 name=value
+						const pair = first.split(";", 1)[0].trim();
+						const eq = pair.indexOf("=");
+						if (eq > 0 && pair.length > eq + 1) {
+							response.resume();
+							resolve(pair);
+							return;
+						}
+					}
+					response.resume();
+					resolve(null);
+				}
+			);
+			request.on("error", () => resolve(null));
+			request.setTimeout(3000, () => {
+				request.destroy();
+				resolve(null);
+			});
+		});
 	}
 
 	async start(): Promise<void> {
@@ -173,10 +243,15 @@ export class DshLoopbackGateway implements DshGateway {
 					`${request.method ?? "GET"} ${request.url ?? "/"} HTTP/${request.httpVersion}\r\n`;
 				const headers: string[] = [];
 				for (let index = 0; index < request.rawHeaders.length; index += 2) {
-					headers.push(
-						`${request.rawHeaders[index]}: ${request.rawHeaders[index + 1] ?? ""}`
-					);
+					const key = request.rawHeaders[index];
+					const value = request.rawHeaders[index + 1] ?? "";
+					// dsh >= 0.1.2 browser-trust fence 校验 Host：重写为后端权威
+					if (key.toLowerCase() === "host") continue;
+					headers.push(`${key}: ${value}`);
 				}
+				headers.push(`Host: ${DSH_HOST}:${this.backendPort}`);
+				const cookie = this.cookieHeader();
+				if (cookie.Cookie) headers.push(`Cookie: ${cookie.Cookie}`);
 				upstream.write(`${requestLine}${headers.join("\r\n")}\r\n\r\n`);
 				if (head.length > 0) upstream.write(head);
 				socket.pipe(upstream).pipe(socket);
@@ -233,13 +308,16 @@ export class DshLoopbackGateway implements DshGateway {
 			response.end("Harness backend is not ready");
 			return;
 		}
+		const upstreamHost = DSH_HOST + ":" + this.backendPort;
 		const upstream = http.request(
 			{
 				host: DSH_HOST,
 				port: this.backendPort,
 				method: request.method,
 				path: request.url,
-				headers: request.headers,
+				// dsh >= 0.1.2 的 browser-trust fence 校验 Host 头：
+				// 入站 Host 指向本网关（publicPort），必须重写为后端权威，否则 401。
+				headers: { ...request.headers, host: upstreamHost, ...this.cookieHeader() },
 			},
 			(upstreamResponse) => {
 				response.writeHead(
