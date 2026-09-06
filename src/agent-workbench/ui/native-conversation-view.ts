@@ -841,7 +841,6 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 					attr: { placeholder: "会话标题" },
 					value: currentTitle,
 				});
-				input.style.width = "100%";
 				const actions = modal.contentEl.createDiv({ cls: "modal-button-container" });
 				const cancel = actions.createEl("button", { text: "取消" });
 				cancel.addEventListener("click", () => finish(null));

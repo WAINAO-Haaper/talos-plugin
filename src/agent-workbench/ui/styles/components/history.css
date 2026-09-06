@@ -160,6 +160,10 @@
   flex: 0 0 auto;
 }
 
+.claudian-rename-input {
+  width: 100%;
+}
+
 .claudian-history-item-title {
   display: block;
   max-width: 100%;
