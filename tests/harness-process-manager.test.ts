@@ -499,7 +499,7 @@ describe("Harness identity and process isolation", () => {
 			expect(parseDshWebToken("loading…\nready.\n")).toBeNull();
 		});
 
-		it("reaches ready via stdout token + cookie handshake when the backend never serves 2xx on the root", async () => {
+		it.each(["complete", "split-with-long-output"])("reaches ready via a %s stdout banner when the backend requires authentication", async (mode) => {
 			const children: FakeChild[] = [];
 			let activeGateway: FakeGateway | null = null;
 			const backendPort = 43281;
@@ -538,10 +538,12 @@ describe("Harness identity and process isolation", () => {
 					children.push(child);
 					// 模拟 dsh 在 stdout 打印启动横幅（监听建立后）
 					nodeSetTimeout(() => {
-						child.stdout.emit(
-							"data",
-							Buffer.from(`dsh web: http://127.0.0.1:${backendPort}/?token=tok-ABC123-xyz\n`)
-						);
+						if (mode === "complete") {
+							child.stdout.emit("data", Buffer.from(`dsh web: http://127.0.0.1:${backendPort}/?token=tok-ABC123-xyz\n`));
+						} else {
+							child.stdout.emit("data", Buffer.from(`dsh web: http://127.0.0.1:${backendPort}/?token=tok-ABC`));
+							nodeSetTimeout(() => child.stdout.emit("data", Buffer.from("123-xyz\n" + "ready log\n".repeat(400))), 60);
+						}
 					}, 20);
 					return child as unknown as ChildProcess;
 				},
@@ -563,7 +565,7 @@ describe("Harness identity and process isolation", () => {
 				await manager.ensureStarted();
 				expect(manager.getState()).toBe("ready");
 				expect(manager.getLastError()).toBe("");
-				const readGateway = (): FakeGateway | null => activeGateway as FakeGateway | null;
+				const readGateway = (): FakeGateway | null => activeGateway;
 				const finalGateway = readGateway();
 				expect(finalGateway?.handshakeCalls).toEqual([
 					{ token: "tok-ABC123-xyz", backendBaseUrl: dshBaseUrl(backendPort) },

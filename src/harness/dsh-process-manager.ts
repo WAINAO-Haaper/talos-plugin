@@ -682,12 +682,17 @@ export class DshProcessManager {
 			this.child = child;
 			let stderrTail = "";
 			let stdoutTail = "";
+			let webToken: string | null = null;
 			let exitError = "";
 			child.stdout?.on("data", (chunk: Buffer) => {
 				// dsh >= 0.1.2 的 web 启动行打印在 stdout：
 				//   dsh web: http://127.0.0.1:<port>/?token=<token>
-				// 旧版本无 token，stdout 仅作诊断保留。
-				stdoutTail = (stdoutTail + chunk.toString("utf8")).slice(-2000);
+				if (webToken) return;
+				const output = stdoutTail + chunk.toString("utf8");
+				webToken = parseDshWebToken(output, dshBaseUrl(backendPort));
+				// Parse before trimming so a long log chunk cannot discard the launch banner.
+				// Retain only an incomplete line; never expose the token in diagnostics.
+				stdoutTail = webToken ? "" : (output.split("\n").at(-1) ?? "").slice(-2000);
 			});
 			child.stderr?.on("data", (chunk: Buffer) => {
 				stderrTail = (stderrTail + chunk.toString("utf8")).slice(-2000);
@@ -726,7 +731,7 @@ export class DshProcessManager {
 				generation,
 				dshBaseUrl(backendPort),
 				() => exitError,
-				() => stdoutTail,
+				() => webToken,
 				gateway
 			);
 			if (generation !== this.generation || this.disposed) {
@@ -750,11 +755,10 @@ export class DshProcessManager {
 		generation: number,
 		baseUrl: string,
 		getExitError: () => string,
-		getStdoutTail: () => string,
+		getWebToken: () => string | null,
 		gateway: DshGateway
 	): Promise<void> {
 		const deadline = this.runtime.now() + this.readyTimeoutMs;
-		let token: string | null = null;
 		while (this.runtime.now() < deadline) {
 			if (generation !== this.generation || this.disposed) return;
 			const exitError = getExitError();
@@ -762,7 +766,7 @@ export class DshProcessManager {
 			// dsh >= 0.1.2：web 根路径需 token/cookie，永远不返回 2xx，
 			// 就绪信号改为「stdout 启动横幅里的 ?token= + 一次成功的 cookie 握手」。
 			// 旧版（<= 0.1.0）无认证，横幅不含 token，退回 probeBackend 轮询根路径 2xx。
-			token = token ?? parseDshWebToken(getStdoutTail());
+			const token = getWebToken();
 			if (token) {
 				await gateway.tryTokenHandshake(token, baseUrl);
 				if (gateway.hasAuthCookie) return;

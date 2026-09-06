@@ -172,7 +172,14 @@ export class DshLoopbackGateway implements DshGateway {
 	}
 
 	private cookieHeader(): Record<string, string> {
-		return this.cookie ? { Cookie: this.cookie } : {};
+		return this.cookie ? { cookie: this.cookie } : {};
+	}
+
+	private isTrustedRequest(request: http.IncomingMessage): boolean {
+		// Check the public authority before rewriting it or attaching backend credentials.
+		// In particular, never turn a foreign browser Origin into a trusted loopback Origin.
+		return request.headers.host === `${DSH_HOST}:${this.publicPort}` &&
+			(request.headers.origin === undefined || request.headers.origin === dshBaseUrl(this.publicPort));
 	}
 
 	get hasAuthCookie(): boolean {
@@ -181,6 +188,7 @@ export class DshLoopbackGateway implements DshGateway {
 
 	async tryTokenHandshake(token: string | null, backendBaseUrl: string): Promise<void> {
 		if (!token) return;
+		if (backendBaseUrl !== dshBaseUrl(this.backendPort)) return;
 		const { host, port } = backendAuthority(backendBaseUrl);
 		try {
 			const sessionCookie = await this.exchangeSessionCookie(host, port, token);
@@ -201,7 +209,9 @@ export class DshLoopbackGateway implements DshGateway {
 				{ host, port, path: "/?token=" + encodeURIComponent(token), headers: { Accept: "text/html" } },
 				(response) => {
 					const setCookies = response.headers["set-cookie"];
-					const first = Array.isArray(setCookies) ? setCookies[0] : setCookies;
+					const first = response.statusCode === 303
+						? setCookies?.find((value) => /^dsh-auth-[^=;\s]+=[^;\s]+/.test(value))
+						: undefined;
 					if (first) {
 						// "name=value; Max-Age=...; Path=/; HttpOnly; ..." → 取 name=value
 						const pair = first.split(";", 1)[0].trim();
@@ -234,6 +244,10 @@ export class DshLoopbackGateway implements DshGateway {
 			socket.once("close", () => this.sockets.delete(socket));
 		});
 		server.on("upgrade", (request, socket, head) => {
+			if (!this.isTrustedRequest(request)) {
+				socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
+				return;
+			}
 			if (!this.ready || request.url?.startsWith(DSH_HEALTH_PATH)) {
 				socket.destroy();
 				return;
@@ -246,13 +260,14 @@ export class DshLoopbackGateway implements DshGateway {
 					const key = request.rawHeaders[index];
 					const value = request.rawHeaders[index + 1] ?? "";
 					// dsh >= 0.1.2 browser-trust fence 校验 Host/Origin：重写为后端权威
-					if (key.toLowerCase() === "host" || key.toLowerCase() === "origin") continue;
+					if (key.toLowerCase() === "host" || key.toLowerCase() === "origin" ||
+						(this.cookie && key.toLowerCase() === "cookie")) continue;
 					headers.push(`${key}: ${value}`);
 				}
 				headers.push(`Host: ${DSH_HOST}:${this.backendPort}`);
-				headers.push(`Origin: http://${DSH_HOST}:${this.backendPort}`);
+				if (request.headers.origin !== undefined) headers.push(`Origin: ${dshBaseUrl(this.backendPort)}`);
 				const cookie = this.cookieHeader();
-				if (cookie.Cookie) headers.push(`Cookie: ${cookie.Cookie}`);
+				if (cookie.cookie) headers.push(`Cookie: ${cookie.cookie}`);
 				upstream.write(`${requestLine}${headers.join("\r\n")}\r\n\r\n`);
 				if (head.length > 0) upstream.write(head);
 				socket.pipe(upstream).pipe(socket);
@@ -280,6 +295,7 @@ export class DshLoopbackGateway implements DshGateway {
 		const server = this.server;
 		this.server = null;
 		this.ready = false;
+		this.cookie = "";
 		if (!server) return;
 		await new Promise<void>((resolve) => {
 			server.close(() => resolve());
@@ -292,6 +308,11 @@ export class DshLoopbackGateway implements DshGateway {
 		request: http.IncomingMessage,
 		response: http.ServerResponse
 	): void {
+		if (!this.isTrustedRequest(request)) {
+			response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+			response.end("Untrusted Harness request origin");
+			return;
+		}
 		const path = new URL(
 			request.url ?? "/",
 			`http://${DSH_HOST}:${this.publicPort}`

@@ -49,9 +49,13 @@ export function buildDshWebArgs(port: number): string[] {
  * 横幅形如：`dsh web: http://127.0.0.1:<port>/?token=<token>`；旧版本横幅无 token，返回 null。
  * 只认 query 里的 token（cookie 交换入口），不解析后续日志行，避免误抓。
  */
-export function parseDshWebToken(stdoutTail: string): string | null {
-	const match = stdoutTail.match(/[?&]token=([A-Za-z0-9_\-~.]+)/);
-	return match ? match[1] : null;
+export function parseDshWebToken(stdoutTail: string, expectedBaseUrl?: string): string | null {
+	// Wait for the complete banner line: a pipe can split a token across data chunks.
+	const banners = stdoutTail.matchAll(/(?:^|\n)dsh web: (http:\/\/127\.0\.0\.1:\d+)\/\?token=([A-Za-z0-9_~.-]+)\r?\n/g);
+	for (const match of banners) {
+		if (!expectedBaseUrl || match[1] === expectedBaseUrl) return match[2];
+	}
+	return null;
 }
 
 export function dshBaseUrl(port: number): string {
