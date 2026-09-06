@@ -585,8 +585,10 @@ describe("Harness identity and process isolation", () => {
 		it("exchanges the one-shot token for a session cookie and injects it into forwarded requests", async () => {
 			// 模拟 dsh >= 0.1.2 web 后端：token URL 303 + Set-Cookie；带 cookie 200；不带 401
 			const seenCookies: string[] = [];
+			const seenOrigins: string[] = [];
 			const backend = http.createServer((request, response) => {
 				seenCookies.push(request.headers.cookie ?? "");
+				seenOrigins.push(request.headers.origin ?? "");
 				if (request.url === "/?token=abc123") {
 					response.writeHead(303, {
 						Location: "/",
@@ -624,6 +626,7 @@ describe("Harness identity and process isolation", () => {
 				const body = await new Promise<string>((resolve, reject) => {
 					const request = http.get(
 						dshBaseUrl(publicHandle.port) + "/assets/app.js",
+						{ headers: { Origin: dshBaseUrl(publicHandle.port) } },
 						(res) => {
 							let data = "";
 							res.on("data", (chunk) => (data += chunk));
@@ -635,6 +638,8 @@ describe("Harness identity and process isolation", () => {
 				expect(body).toBe("200|<html>ui</html>");
 				// 转发时注入了握手拿到的 cookie（而非 token query）
 				expect(seenCookies.at(-1)).toBe("dsh-auth-test=SESS");
+				// 入站 Origin 指向本网关（publicPort）→ 重写为后端权威（dsh 0.1.2 fence 要求）
+				expect(seenOrigins.at(-1)).toBe(dshBaseUrl(backendHandle.port));
 			} finally {
 				await gateway.close();
 				await backendHandle.close();

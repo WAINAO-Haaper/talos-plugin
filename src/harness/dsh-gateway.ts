@@ -245,11 +245,12 @@ export class DshLoopbackGateway implements DshGateway {
 				for (let index = 0; index < request.rawHeaders.length; index += 2) {
 					const key = request.rawHeaders[index];
 					const value = request.rawHeaders[index + 1] ?? "";
-					// dsh >= 0.1.2 browser-trust fence 校验 Host：重写为后端权威
-					if (key.toLowerCase() === "host") continue;
+					// dsh >= 0.1.2 browser-trust fence 校验 Host/Origin：重写为后端权威
+					if (key.toLowerCase() === "host" || key.toLowerCase() === "origin") continue;
 					headers.push(`${key}: ${value}`);
 				}
 				headers.push(`Host: ${DSH_HOST}:${this.backendPort}`);
+				headers.push(`Origin: http://${DSH_HOST}:${this.backendPort}`);
 				const cookie = this.cookieHeader();
 				if (cookie.Cookie) headers.push(`Cookie: ${cookie.Cookie}`);
 				upstream.write(`${requestLine}${headers.join("\r\n")}\r\n\r\n`);
@@ -315,9 +316,14 @@ export class DshLoopbackGateway implements DshGateway {
 				port: this.backendPort,
 				method: request.method,
 				path: request.url,
-				// dsh >= 0.1.2 的 browser-trust fence 校验 Host 头：
-				// 入站 Host 指向本网关（publicPort），必须重写为后端权威，否则 401。
-				headers: { ...request.headers, host: upstreamHost, ...this.cookieHeader() },
+				// dsh >= 0.1.2 的 browser-trust fence 校验 Host 与 Origin：
+				// 入站两值均指向本网关（publicPort），必须重写为后端权威，否则 403/401。
+				headers: {
+					...request.headers,
+					host: upstreamHost,
+					...(request.headers.origin !== undefined ? { origin: "http://" + upstreamHost } : {}),
+					...this.cookieHeader(),
+				},
 			},
 			(upstreamResponse) => {
 				response.writeHead(
