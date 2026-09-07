@@ -1,4 +1,4 @@
-import { createServer, type Server } from "node:http";
+import http, { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { connect } from "node:net";
 import type { Duplex } from "node:stream";
 
@@ -21,9 +21,16 @@ function parseAuthority(authority: string | undefined): EgressDestination {
 }
 
 /**
- * A content-blind CONNECT bridge. Sandboxed runtimes can reach only this
+ * A content-blind egress bridge. Sandboxed runtimes can reach only this
  * loopback listener; every destination is authorized before TALOS opens the
  * upstream socket. Request bodies and response bytes are never persisted.
+ *
+ * 支持两类代理请求：
+ * - CONNECT（HTTPS 隧道）：原始终端字节直通。
+ * - absolute-form HTTP（`POST http://host:port/path`，plain-HTTP 客户端在
+ *   设置 http_proxy 后使用，如 codex CLI 的 wire_api=responses + http:// 网关）：
+ *   以隧道方式直通——保留原始请求头/方法/路径，仅把 Host 改写为上游权威，
+ *   不做任何内容解析或改写。
  */
 export class LoopbackEgressProxy {
 	private server: Server | null = null;
@@ -35,9 +42,8 @@ export class LoopbackEgressProxy {
 
 	async start(): Promise<number> {
 		if (this.server) throw new Error("egress proxy 已启动");
-		const server = createServer((_request, response) => {
-			response.writeHead(405, { connection: "close" });
-			response.end();
+		const server = createServer((request, response) => {
+			void this.forwardHttp(request, response);
 		});
 		server.on("connect", (request, client, head) => {
 			void this.connectTunnel(request.url, client, head);
@@ -77,6 +83,71 @@ export class LoopbackEgressProxy {
 			});
 		this.pendingAuthorizations.set(key, authorization);
 		return authorization;
+	}
+
+	private async forwardHttp(request: IncomingMessage, response: ServerResponse): Promise<void> {
+		let url: URL;
+		try {
+			url = new URL(request.url ?? "");
+		} catch {
+			response.writeHead(400, { connection: "close" });
+			response.end();
+			return;
+		}
+		if (url.protocol !== "http:") {
+			// 仅支持 absolute-form HTTP 代理；CONNECT 走独立隧道；相对路径直接请求不是代理语义
+			response.writeHead(405, { connection: "close" });
+			response.end();
+			return;
+		}
+		const destination = { host: url.hostname.toLowerCase().replace(/\.$/, ""), port: url.port ? Number(url.port) : 80 };
+		if (!destination.host || !Number.isSafeInteger(destination.port) || destination.port < 1 || destination.port > 65_535) {
+			response.writeHead(400, { connection: "close" });
+			response.end();
+			return;
+		}
+		let authorized: boolean;
+		try {
+			authorized = await this.authorizeDestination(destination);
+		} catch {
+			authorized = false;
+		}
+		if (!authorized) {
+			response.writeHead(403, { connection: "close" });
+			response.end();
+			return;
+		}
+		const headers: Record<string, string | string[] | number | undefined> = { ...request.headers };
+		delete headers.host;
+		delete headers["proxy-connection"];
+		const upstream = http.request({
+			host: destination.host,
+			port: destination.port,
+			path: url.pathname + url.search,
+			method: request.method,
+			headers,
+		});
+		upstream.on("error", (error) => {
+			if (!response.headersSent) {
+				response.writeHead(502, { connection: "close" });
+				response.end("egress proxy 上游错误: " + error.message);
+			} else {
+				response.destroy();
+			}
+		});
+		upstream.on("response", (upstreamRes) => {
+			try {
+				response.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
+			} catch {
+				response.destroy();
+				return;
+			}
+			upstreamRes.pipe(response);
+			upstreamRes.on("error", () => response.destroy());
+		});
+		response.on("close", () => upstream.destroy());
+		request.on("error", () => upstream.destroy());
+		request.pipe(upstream);
 	}
 
 	private async connectTunnel(authority: string | undefined, client: Duplex, head: Buffer): Promise<void> {
