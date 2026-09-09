@@ -43,8 +43,10 @@ const staticVendorText = {
 };
 
 const banner = `/*
-TALOS PROPRIETARY SOFTWARE
-Copyright (c) 2026 外脑玩家 Haaper. All rights reserved.
+TALOS PERSONAL USE SOURCE LICENSE 1.0
+Copyright (c) 2026 外脑玩家 Haaper.
+Source available for personal, non-commercial use.
+Commercial use requires prior written authorization. See LICENSE.
 
 This generated bundle contains third-party software governed by separate
 licenses and service terms. Any distribution of this file MUST include:

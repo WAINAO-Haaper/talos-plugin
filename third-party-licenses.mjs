@@ -11,23 +11,24 @@ const licensePattern = /^(licen[sc]e|copying|notice)(\..+)?$/i;
 const packages = new Map();
 const requiredDirectNotices = Object.keys(packageJson.dependencies ?? {});
 
-function assertCommercialMetadata() {
+function assertDistributionMetadata() {
 	const errors = [];
 	const rootLock = lock.packages?.[""] ?? {};
-	const proprietaryLicense = readFileSync(join(root, "LICENSE"), "utf8");
+	const sourceLicense = readFileSync(join(root, "LICENSE"), "utf8");
 	const notices = readFileSync(join(root, "THIRD-PARTY-NOTICES.md"), "utf8");
 
-	if (packageJson.license !== "UNLICENSED" || packageJson.private !== true) {
-		errors.push("package.json must remain private with license=UNLICENSED.");
+	if (packageJson.license !== "SEE LICENSE IN LICENSE" || packageJson.private !== true) {
+		errors.push("package.json must remain private with license=SEE LICENSE IN LICENSE.");
 	}
-	if (rootLock.license !== "UNLICENSED") {
-		errors.push("package-lock.json root license must remain UNLICENSED.");
+	if (rootLock.license !== "SEE LICENSE IN LICENSE") {
+		errors.push("package-lock.json root license must remain SEE LICENSE IN LICENSE.");
 	}
 	if (
-		!proprietaryLicense.includes("TALOS PROPRIETARY SOFTWARE LICENSE") ||
-		!proprietaryLicense.includes("THIRD-PARTY-NOTICES.md")
+		!sourceLicense.includes("TALOS PERSONAL USE SOURCE LICENSE 1.0") ||
+		!sourceLicense.includes("No Commercial Use is permitted") ||
+		!sourceLicense.includes("THIRD-PARTY-NOTICES.md")
 	) {
-		errors.push("Root LICENSE is missing the proprietary boundary or third-party carve-out.");
+		errors.push("Root LICENSE is missing the personal-use, commercial, or third-party boundary.");
 	}
 	for (const dependency of requiredDirectNotices) {
 		if (!notices.includes(`\`${dependency}\``)) {
@@ -43,7 +44,7 @@ function assertCommercialMetadata() {
 	}
 }
 
-assertCommercialMetadata();
+assertDistributionMetadata();
 
 for (const [relativePath, lockEntry] of Object.entries(lock.packages ?? {})) {
 	if (!relativePath.startsWith("node_modules/") || lockEntry.dev === true) continue;
