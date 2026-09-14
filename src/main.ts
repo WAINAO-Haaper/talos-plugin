@@ -121,8 +121,7 @@ import {
 	type QwenVoiceWebSearchRegion,
 } from "./quyuan/qwen-web-search";
 
-// 统一的 TALOS 品牌图标：库内 02-品牌资产/TALOS-Logo-Reverse-Origin-v1.svg 的实际矢量
-// （蓝底 #005CFF + 白色 T 标志，裁去 TALOS 文字，缩放进 100×100 视框）。ribbon 与视图标签共用。
+// 统一的 TALOS 品牌图标：TalosBall 0.3.0 的固定 blob 静态姿态。Ribbon 与视图标签共用。
 export const TALOS_ICON = "talos-logo";
 const QUYUAN_RUNTIME_ERROR_LIMIT = 24;
 const TRUSTED_PROVIDER_FETCH = createRequestUrlFetch((input) => requestUrl(input));
