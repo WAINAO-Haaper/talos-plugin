@@ -9,6 +9,7 @@ import { migrateLegacyCodexCredential } from "./agent-workbench/legacy/legacy-co
 import { RuntimeDiscoveryService } from "./agent-workbench/discovery/runtime-discovery-service";
 import { NodeRuntimeProbeHost } from "./agent-workbench/discovery/node-runtime-probe-host";
 import { DesktopRuntimeFactory } from "./agent-workbench/discovery/desktop-runtime-factory";
+import { CLAUDE_SDK_BUNDLE_FILE, configureClaudeSdkBundle } from "./agent-workbench/transports/claude-sdk-port";
 import { NodeSandboxProbeHost, ProcessSandbox } from "./agent-workbench/security/process-sandbox";
 import { ApprovalBroker } from "./agent-workbench/security/approval-broker";
 import { ExternalAccessGrantStore } from "./agent-workbench/security/external-access-grant";
@@ -249,6 +250,7 @@ export default class TalosPlugin extends Plugin {
 	};
 
 	async onload(): Promise<void> {
+		configureClaudeSdkBundle(this.claudeSdkBundlePath());
 		await this.loadTalosSettings();
 		this.talosActionRuntime = this.createTalosActionRuntime();
 		registerApprovalTaskRuntime(
@@ -601,6 +603,15 @@ export default class TalosPlugin extends Plugin {
 			"data-talos-vault-theme",
 			normalizeVisualTheme(this.talosSettings.visualTheme)
 		);
+	}
+
+	// Claude SDK 单独打包在插件目录的 claude-sdk.cjs，首次运行 Claude 时才加载。
+	// 用 getBasePath 能力判断而非 instanceof（真实宿主曾因 instanceof 判断失败）。
+	private claudeSdkBundlePath(): string | null {
+		const adapter = this.app.vault.adapter as { getBasePath?: () => string };
+		const dir = this.manifest.dir;
+		if (typeof adapter.getBasePath !== "function" || !dir) return null;
+		return [adapter.getBasePath(), dir, CLAUDE_SDK_BUNDLE_FILE].join("/");
 	}
 
 	// D-TLP-014：DeepSeek Harness 嵌入面的进程管理单例。
@@ -1671,8 +1682,8 @@ export default class TalosPlugin extends Plugin {
 				? "ap-southeast-1"
 				: "cn-beijing";
 		const endpoint = qwenWebSearchEndpoint(workspaceId, region);
-		const apiKey = this.readProviderSecret("aliyunApiKey")?.trim();
-		if (!apiKey) {
+		const aliyunKey = this.readProviderSecret("aliyunApiKey")?.trim();
+		if (!aliyunKey) {
 			throw new Error("请先在设置中安全保存百炼 API Key");
 		}
 		const sessionId = input.sessionId || "qwen-web-search:" + input.callId;
@@ -1691,7 +1702,7 @@ export default class TalosPlugin extends Plugin {
 			url: endpoint,
 			method: "POST",
 			headers: {
-				Authorization: "Bearer " + apiKey,
+				Authorization: "Bearer " + aliyunKey,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(requestBody),
@@ -1740,8 +1751,8 @@ export default class TalosPlugin extends Plugin {
 		const region = this.talosSettings.quyuanRealtimeRegion === "ap-southeast-1"
 			? "ap-southeast-1"
 			: "cn-beijing";
-		const apiKey = this.readProviderSecret("aliyunApiKey")?.trim();
-		if (!apiKey) {
+		const aliyunKey = this.readProviderSecret("aliyunApiKey")?.trim();
+		if (!aliyunKey) {
 			throw new Error("请先在设置中安全保存百炼 API Key");
 		}
 		const audit = await this.auditQuyuanProviderEgress({
@@ -1763,7 +1774,7 @@ export default class TalosPlugin extends Plugin {
 			url: endpoint.toString(),
 			method: "POST",
 			headers: {
-				Authorization: `Bearer ${apiKey}`,
+				Authorization: `Bearer ${aliyunKey}`,
 				"Content-Type": "application/sdp",
 			},
 			body: input.offerSdp,

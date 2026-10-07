@@ -33,3 +33,6 @@ error-screenshot.png
 quyuan-voice-current.png
 quyuan-voice-preview.html
 whisper-local-test.html
+
+# Claude SDK bundle (built next to main.js)
+claude-sdk.cjs

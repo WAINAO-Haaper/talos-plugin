@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node build-styles.mjs && node esbuild.config.mjs",
-    "build": "npm run licenses:check && tsc -noEmit -skipLibCheck && node build-styles.mjs && node esbuild.config.mjs production && node scripts/check-peer-status-bundle.mjs",
+    "build": "npm run licenses:check && tsc -noEmit -skipLibCheck && node build-styles.mjs && node esbuild.config.mjs production && node scripts/check-peer-status-bundle.mjs && node scripts/check-claude-sdk-split.mjs",
     "build:css": "node build-styles.mjs",
     "typecheck": "tsc --noEmit --skipLibCheck",
     "test": "vitest run",
