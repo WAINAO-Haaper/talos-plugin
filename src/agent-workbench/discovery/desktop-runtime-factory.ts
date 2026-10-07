@@ -14,7 +14,7 @@ import { OhMyPiProcessPort } from "../transports/ohmypi-process-port";
 import { spawnJsonLineRpc } from "../transports/json-line-rpc-connection";
 import { spawnOmpRpc } from "../transports/omp-rpc-connection";
 import { resolveCertificateEnvironment } from "./certificate-environment";
-import { desktopRuntimePath } from "./node-runtime-probe-host";
+import { desktopRuntimePath, desktopRuntimeSearchDirectories } from "./node-runtime-probe-host";
 import { RuntimeDiscoveryService } from "./runtime-discovery-service";
 import { codexProtectedVaultSubpaths } from "../security/codex-permission-profile";
 import { LoopbackEgressProxy } from "../security/loopback-egress-proxy";
@@ -98,7 +98,37 @@ function runtimeInstallationRoot(executable: string): string {
 	}
 	if (normalized.startsWith("/opt/homebrew/")) return "/opt/homebrew";
 	if (normalized.startsWith("/usr/local/")) return "/usr/local";
+	// npm 全局安装：可执行文件是 <prefix>/lib/node_modules/<pkg>/... 下的 JS 入口
+	// （shebang 依赖外部 node），packageRoot 必须覆盖整个包目录才能读到包的 node_modules。
+	const npmModulesMarker = "/lib/node_modules/";
+	const npmModulesIndex = normalized.indexOf(npmModulesMarker);
+	if (npmModulesIndex >= 0) {
+		const after = normalized.slice(npmModulesIndex + npmModulesMarker.length);
+		const parts = after.split("/");
+		const packageDepth = parts.length > 0 && parts[0].startsWith("@") ? 2 : 1;
+		const packageDir = parts.slice(0, packageDepth).join("/");
+		if (packageDir) return normalized.slice(0, npmModulesIndex + npmModulesMarker.length + packageDir.length);
+	}
 	return path.dirname(executable);
+}
+
+/**
+ * shebang 型运行时（如 codex CLI）在沙箱内通过 `env node` 解析 Node.js，
+ * 需要把 node 所在安装根加入只读白名单，否则沙箱内 127。
+ */
+async function nodeRuntimeReadRoot(): Promise<string | null> {
+	for (const dir of desktopRuntimeSearchDirectories()) {
+		let resolved: string;
+		try {
+			resolved = await realpath(path.join(dir, "node"));
+		} catch {
+			continue;
+		}
+		if (resolved.startsWith("/opt/homebrew/")) return "/opt/homebrew";
+		if (resolved.startsWith("/usr/local/")) return "/usr/local";
+		return path.dirname(resolved);
+	}
+	return null;
 }
 
 function claudeQuestionInput(input: Record<string, unknown>): Record<string, unknown> {
@@ -200,12 +230,14 @@ export class DesktopRuntimeFactory {
 		};
 		try {
 		if (runtimeId === "codex") {
+			// codex CLI 是 shebang 型 JS 入口，沙箱内 `env node` 必须能解析到 Node.js 安装根
+			const nodeRoot = await nodeRuntimeReadRoot();
 			const launch = await this.sandbox.prepare({
 				executable: runtimeExecutable,
 				args: ["app-server", "--listen", "stdio://"],
 				cwd: input.vaultRoot,
 				environment,
-				readOnlyRoots: [packageRoot, ...certificateRoots],
+				readOnlyRoots: [packageRoot, ...(nodeRoot ? [nodeRoot] : []), ...certificateRoots],
 				readWriteRoots: [sessionRoot, runtimeTemp],
 				loopbackProxyPort: proxyPort,
 				deniedVaultSubpaths: codexProtectedVaultSubpaths(input.configDir!),
