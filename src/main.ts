@@ -311,6 +311,15 @@ export default class TalosPlugin extends Plugin {
 			name: "全库问答",
 			callback: () => void this.executeTalosAskCommand(),
 		});
+		this.addCommand({
+			id: "refresh-peer-status",
+			name: "刷新状态桥快照（只读）",
+			callback: () => {
+				for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TALOS)) {
+					if (leaf.view instanceof TalosView) void leaf.view.refresh();
+				}
+			},
+		});
 
 		this.addSettingTab(new TalosSettingTab(this.app, this));
 
