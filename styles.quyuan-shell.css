@@ -840,9 +840,6 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 /* 屈原语音对话面板 · 流体声云
    结构固定；七套 TALOS 主题只替换本作用域变量，避免宿主主题串色。 */
-.talos-console .nav-icon {
-  display: none;
-}
 
 .talos-console[data-talos-page="jarvis"]::before,
 .talos-console[data-talos-page="jarvis"] > .bg-fx {
@@ -932,8 +929,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .talos-console .pagenav-card .section-title,
 .talos-console .pagenav-card .nav-group-label,
-.talos-console .pagenav-card .nav-label,
-.talos-console .pagenav-card .nav-meta {
+.talos-console .pagenav-card .nav-label {
   display: none;
 }
 
@@ -972,10 +968,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .talos-console
   .sidebar:is(:hover, :focus-within)
-  .pagenav-card .nav-label,
-.talos-console
-  .sidebar:is(:hover, :focus-within)
-  .pagenav-card .nav-meta {
+  .pagenav-card .nav-label {
   display: block;
 }
 
@@ -1357,138 +1350,10 @@ body.theme-light .tq-voice {
   background: #c2383d;
 }
 
-.talos-console.theme-geometric-modern .tq-copy h1.tq-cap,
-.talos-console.theme-geometric-modern .tq-copy .tq-sub,
-.talos-console.theme-geometric-modern .tq-live {
-  text-shadow: none;
-}
-
-.talos-console.theme-geometric-modern .tq-foot {
-  box-shadow:
-    0 14px 42px rgba(73, 57, 35, 0.11),
-    0 1px 0 rgba(255, 255, 255, 0.72) inset;
-}
-
 .tq-voice *,
 .tq-voice *::before,
 .tq-voice *::after {
   box-sizing: border-box;
-}
-
-.tq-head {
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex: 0 0 auto;
-  min-height: 72px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--tq-border);
-  background: color-mix(in srgb, var(--tq-surface) 90%, var(--tq-panel-strong));
-  box-shadow: 0 1px 0 color-mix(in srgb, #fff 34%, transparent) inset;
-}
-
-.tq-head-brand,
-.tq-head-actions {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.tq-head-brand {
-  flex: 1 1 auto;
-  gap: 11px;
-}
-
-.tq-head-actions {
-  flex: 0 1 auto;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.tq-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(36, 91, 255, 0.24);
-  border-radius: 13px;
-  background: rgba(36, 91, 255, 0.08);
-  overflow: hidden;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 7px 20px rgba(36, 91, 255, 0.1);
-}
-
-.tq-badge img {
-  display: block;
-  width: 56px;
-  max-width: none;
-  height: 56px;
-  object-fit: contain;
-}
-
-.tq-title {
-  flex: 1 1 auto;
-  min-width: 150px;
-}
-
-.tq-title b,
-.tq-title small {
-  display: block;
-}
-
-.tq-title b {
-  color: var(--tq-text);
-  font-size: 15.5px;
-  font-weight: 680;
-  letter-spacing: 0.035em;
-}
-
-.tq-title small {
-  margin-top: 4px;
-  color: var(--tq-muted);
-  font-size: 10.5px;
-  letter-spacing: 0.015em;
-}
-
-.tq-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 7px 11px;
-  border: 1px solid var(--tq-border);
-  border-radius: 11px;
-  color: var(--tq-muted);
-  background: color-mix(in srgb, var(--tq-panel-strong) 86%, transparent);
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--tq-text) 6%, transparent) inset,
-    0 8px 24px rgba(0, 0, 0, 0.12);
-  font: inherit;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.tq-chip svg {
-  width: 16px;
-  height: 16px;
-}
-
-.talos-console.theme-geometric-modern .tq-status-chip {
-  border-color: rgba(84, 120, 101, 0.28);
-  color: #385947;
-  background: rgba(84, 120, 101, 0.08);
-}
-
-.talos-console.theme-geometric-modern .tq-model {
-  border-color: rgba(71, 123, 165, 0.26);
-  color: #405f78;
-  background: rgba(71, 123, 165, 0.07);
 }
 
 .tq-btn {
@@ -1603,40 +1468,12 @@ body.theme-light .tq-voice {
   padding: 0;
 }
 
-.tq-btn--xs {
-  --tq-btn-height: 28px;
-  --tq-btn-radius: 8px;
-  gap: 5px;
-  padding-inline: 9px;
-  font-size: 10px;
-}
-
 .tq-btn--sm {
   --tq-btn-height: 32px;
   --tq-btn-radius: 9px;
   gap: 6px;
   padding-inline: 10px;
   font-size: 11px;
-}
-
-.tq-btn--lg {
-  --tq-btn-height: 40px;
-  --tq-btn-radius: 11px;
-  padding-inline: 14px;
-}
-
-.tq-status-chip {
-  border-color: color-mix(in srgb, var(--tq-state-reco) 30%, var(--tq-border));
-}
-
-.tq-enginebtn {
-  --tq-btn-accent: var(--tq-state);
-  border-color: color-mix(in srgb, var(--tq-state) 34%, var(--tq-border));
-  background: color-mix(in srgb, var(--tq-state) 10%, var(--tq-panel-strong));
-}
-
-.tq-squarebtn {
-  --tq-btn-height: 36px;
 }
 
 .tq-body {
@@ -1753,391 +1590,17 @@ body.theme-light .tq-voice {
 }
 
 /* 上一版静态 PNG 全身/近景方案保留为 CSS 回滚层，现行 DOM 不再创建。 */
-.tq-character-scene {
-  --tq-input-level: 0;
-  --tq-input-scale: 1;
-  --tq-input-shift: 0px;
-  --tq-output-level: 0;
-  --tq-output-scale: 1;
-  --tq-portrait-zoom: 335%;
-  --tq-eye-opacity: 0.96;
-  --tq-eye-hue: 0deg;
-  --tq-eye-glow: 12px;
-  --tq-eye-scale: 1;
-  --tq-eye-brightness: 1;
-  --tq-patrol-cycle: 18s;
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 240ms ease;
-}
-
-.tq-character-scene.is-ready,
-.tq-character-scene.is-fallback {
-  opacity: 1;
-}
 
 /* Canvas replaced elements cannot reliably render ::after; keep the center shield here. */
-.tq-character-scene::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: radial-gradient(
-    circle at 50% 45%,
-    color-mix(in srgb, var(--tq-surface) 52%, transparent) 0%,
-    transparent 36%
-  );
-  pointer-events: none;
-}
-
-.tq-character-roam,
-.tq-character-closeup {
-  position: absolute;
-  inset: 0;
-  transition:
-    opacity 420ms ease,
-    transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 420ms ease;
-}
-
-.tq-character-roam {
-  z-index: 1;
-  opacity: 1;
-  transform: scale(1);
-}
-
-.tq-character-path {
-  position: absolute;
-  left: 12cqw;
-  top: 18cqh;
-  height: min(64cqh, 520px);
-  aspect-ratio: 0.55;
-  will-change: left, top, transform;
-  animation: tq-character-patrol var(--tq-patrol-cycle) linear infinite;
-}
-
-.tq-character-path::before,
-.tq-character-path::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.tq-character-path::before {
-  z-index: 0;
-  left: 58%;
-  top: 18%;
-  width: 136%;
-  height: 30%;
-  clip-path: polygon(0 43%, 100% 0, 100% 100%, 0 57%);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tq-state) 28%, transparent), transparent 82%);
-  filter: blur(5px);
-  opacity: 0;
-  transform-origin: 0 50%;
-  animation: tq-character-patrol-beam 3.2s ease-in-out infinite;
-}
-
-.tq-character-path::after {
-  z-index: 0;
-  left: 50%;
-  bottom: 0;
-  width: 96%;
-  height: 13%;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 54%, transparent);
-  border-radius: 50%;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--tq-state) 22%, transparent);
-  opacity: 0.24;
-  transform: translateX(-50%) scale(0.72);
-  animation: tq-character-patrol-ring 1.65s ease-out infinite;
-}
-
-.tq-character-bob {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  transform-origin: 50% 88%;
-  will-change: transform;
-  animation: tq-character-bob 1.65s ease-in-out infinite;
-}
-
-.tq-character-image {
-  display: block;
-  max-width: none;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.tq-character-image--body {
-  position: absolute;
-  left: 50%;
-  bottom: -3%;
-  width: auto !important;
-  height: 110% !important;
-  max-width: none !important;
-  max-height: none !important;
-  aspect-ratio: 1 / 1;
-  object-fit: contain;
-  transform: translateX(-50%);
-  transform-origin: 50% 85%;
-  filter:
-    drop-shadow(0 18px 24px rgba(0, 0, 0, 0.4))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--tq-state) 18%, transparent));
-}
-
-.tq-character-shadow {
-  position: absolute;
-  left: 50%;
-  bottom: 2%;
-  width: 64%;
-  height: 7%;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--tq-state) 28%, rgba(0, 0, 0, 0.48));
-  filter: blur(12px);
-  opacity: 0.6;
-  transform: translateX(-50%);
-}
-
-.tq-character-closeup {
-  z-index: 2;
-  opacity: 0;
-  transform: scale(0.82);
-  filter: blur(8px);
-}
-
-.tq-character-aura {
-  position: absolute;
-  left: 50%;
-  top: 45%;
-  width: min(86cqw, 88cqh, 960px);
-  aspect-ratio: 1;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 42%, transparent);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, color-mix(in srgb, var(--tq-state) 17%, transparent), transparent 66%),
-    conic-gradient(from 30deg, transparent, color-mix(in srgb, var(--tq-state) 24%, transparent), transparent 42%);
-  box-shadow:
-    0 0 70px color-mix(in srgb, var(--tq-state) 18%, transparent),
-    0 0 140px color-mix(in srgb, var(--tq-state) 10%, transparent) inset;
-  opacity: 0.7;
-  transform: translate(-50%, -50%);
-}
-
-.tq-character-portrait {
-  position: absolute;
-  left: 50%;
-  top: 45%;
-  width: min(78cqw, 82cqh, 860px);
-  aspect-ratio: 1;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 34%, transparent);
-  border-radius: 46%;
-  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tq-state) 13%, transparent), transparent 68%);
-  box-shadow:
-    0 24px 90px rgba(0, 0, 0, 0.32),
-    0 0 54px color-mix(in srgb, var(--tq-state) 18%, transparent) inset;
-  transform: translate(-50%, -50%);
-  transform-origin: 50% 55%;
-  will-change: transform, filter;
-}
-
-.tq-character-face-rig {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  transform-origin: 50% 43%;
-  will-change: transform;
-  transition: transform 90ms linear, filter 280ms ease;
-}
-
-.tq-character-image--portrait {
-  position: absolute;
-  left: 45.9%;
-  top: -24.3%;
-  width: auto !important;
-  height: var(--tq-portrait-zoom) !important;
-  max-width: none !important;
-  max-height: none !important;
-  aspect-ratio: 1 / 1;
-  object-fit: contain;
-  transform: translateX(-50%);
-  transform-origin: 50% 22%;
-  filter:
-    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.36))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--tq-state) 18%, transparent));
-}
-
-.tq-character-eyes {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.tq-character-eye {
-  position: absolute;
-  top: 40.5%;
-  width: 8%;
-  height: 5.1%;
-  border-radius: 18%;
-  color: #00f5d4;
-  background: currentColor;
-  box-shadow:
-    0 0 var(--tq-eye-glow) currentColor,
-    0 0 8px currentColor inset;
-  opacity: 0;
-  filter: hue-rotate(var(--tq-eye-hue)) brightness(var(--tq-eye-brightness));
-  transform: scale(var(--tq-eye-scale));
-  transition:
-    opacity 140ms ease,
-    filter 90ms linear,
-    transform 90ms linear;
-}
-
-.tq-character-eye--left {
-  left: 32.8%;
-}
-
-.tq-character-eye--right {
-  left: 62.2%;
-}
-
-.tq-character-face-light {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  top: 31%;
-  width: 42%;
-  height: 16%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--tq-state) 46%, transparent), transparent 72%);
-  filter: blur(8px);
-  opacity: 0.28;
-  transform: translate(-50%, var(--tq-input-shift));
-  transition: opacity 90ms linear, transform 90ms linear;
-}
-
-.tq-character-scan {
-  position: absolute;
-  z-index: 5;
-  left: 14%;
-  right: 14%;
-  top: 18%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--tq-state), transparent);
-  box-shadow: 0 0 18px var(--tq-state);
-  opacity: 0;
-}
-
-.tq-character-fallback {
-  display: none;
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: 112px;
-  height: 112px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--tq-state) 48%, transparent);
-  border-radius: 32px;
-  color: var(--tq-state);
-  background: color-mix(in srgb, var(--tq-panel-strong) 82%, transparent);
-  box-shadow: 0 0 48px color-mix(in srgb, var(--tq-state) 28%, transparent);
-  transform: translate(-50%, -50%);
-}
-
-.tq-character-fallback svg {
-  width: 54px;
-  height: 54px;
-}
-
-.tq-character-scene.is-fallback :is(.tq-character-roam, .tq-character-closeup) {
-  display: none;
-}
-
-.tq-character-scene.is-fallback .tq-character-fallback {
-  display: flex;
-}
 
 /* Awake uses a dedicated close-up instance, so the camera never jumps from a random roam position. */
-.tq-voice:is(
-  [data-wake-state="awake"],
-  [data-voice-state="think"],
-  [data-voice-state="speak"]
-) .tq-character-roam {
-  opacity: 0;
-  transform: scale(0.88);
-}
 
 .tq-voice:is(
   [data-wake-state="awake"],
   [data-voice-state="think"],
   [data-voice-state="speak"]
-) :is(.tq-character-path, .tq-character-bob),
-.tq-voice:is(
-  [data-wake-state="awake"],
-  [data-voice-state="think"],
-  [data-voice-state="speak"]
-) .tq-character-path::before,
-.tq-voice:is(
-  [data-wake-state="awake"],
-  [data-voice-state="think"],
-  [data-voice-state="speak"]
-) .tq-character-path::after {
+) :is(.tq-character-path, .tq-character-bob) {
   animation-play-state: paused;
-}
-
-.tq-voice:is(
-  [data-wake-state="awake"],
-  [data-voice-state="think"],
-  [data-voice-state="speak"]
-) .tq-character-closeup {
-  opacity: 1;
-  transform: scale(1);
-  filter: blur(0);
-}
-
-.tq-voice[data-voice-state="listen"] .tq-character-portrait {
-  animation: tq-character-listen 2s ease-in-out infinite;
-}
-
-.tq-voice[data-voice-state="listen"] .tq-character-face-rig {
-  transform: translateY(var(--tq-input-shift)) scale(var(--tq-input-scale));
-}
-
-.tq-voice[data-voice-state="listen"] .tq-character-face-light {
-  opacity: calc(0.32 + var(--tq-input-level));
-}
-
-.tq-voice[data-wake-state="awake"][data-voice-state="reco"] .tq-character-scan {
-  animation: tq-character-scan 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-.tq-voice[data-voice-state="think"] .tq-character-portrait {
-  animation: tq-character-think 3.4s ease-in-out infinite;
-}
-
-.tq-voice[data-voice-state="think"] .tq-character-aura {
-  animation: tq-character-aura 4.8s linear infinite;
-}
-
-.tq-voice[data-voice-state="speak"] .tq-character-face-rig {
-  transform: scale(var(--tq-output-scale));
-}
-
-.tq-voice[data-voice-state="speak"] .tq-character-eye {
-  opacity: var(--tq-eye-opacity);
-  animation: tq-character-eyes-speak 1.8s ease-in-out infinite alternate;
-}
-
-.tq-voice[data-voice-state="speak"] .tq-character-face-light {
-  opacity: calc(0.4 + var(--tq-output-level));
-  filter: blur(6px);
 }
 
 @keyframes tq-character-patrol {
@@ -2205,22 +1668,6 @@ body.theme-light .tq-voice {
 }
 
 @container tq-stage (max-width: 620px) {
-  .tq-character-path {
-    left: 4cqw;
-    top: 20cqh;
-    height: min(56cqh, 360px);
-    animation-name: tq-character-patrol-compact;
-  }
-
-  .tq-character-aura {
-    top: 42%;
-    width: min(100cqw, 88cqh);
-  }
-
-  .tq-character-portrait {
-    top: 42%;
-    width: min(94cqw, 78cqh);
-  }
 
   @keyframes tq-character-patrol-compact {
     0%, 10% { left: 4cqw; top: 20cqh; transform: rotate(-1deg); }
@@ -2231,88 +1678,13 @@ body.theme-light .tq-voice {
   }
 }
 
-@container tq-stage (max-width: 420px) {
-  .tq-character-path {
-    height: min(50cqh, 280px);
-  }
-
-  .tq-character-aura {
-    top: 35%;
-    width: min(104cqw, 78cqh);
-  }
-
-  .tq-character-portrait {
-    top: 35%;
-    width: min(98cqw, 72cqh);
-  }
-}
-
-@container tq-stage (max-height: 520px) {
-  .tq-character-path {
-    top: 9cqh;
-    height: 64cqh;
-  }
-
-  .tq-character-aura,
-  .tq-character-portrait {
-    top: 39%;
-  }
-}
-
-@container tq-stage (max-width: 420px) and (max-height: 520px) {
-  .tq-character-aura,
-  .tq-character-portrait {
-    top: 35%;
-  }
-}
-
-.tq-particles {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.tq-particles-back {
-  z-index: 1;
-}
-
-.tq-particles-front {
-  z-index: 4;
-}
-
 /* === 屈原舞台背景层（LetterGlitch 字符故障 / GridScan 3D 网格扫描） === */
-.tq-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  opacity: 1;
-}
 
 /* LetterGlitch 不需要鼠标交互；GridScan 需要鼠标跟踪 */
-.tq-bg[aria-hidden="true"] {
-  pointer-events: none;
-}
+
 /* GridScan 需要 mousemove——通过 JS 动态加 .tq-bg--interactive 标记 */
-.tq-bg.tq-bg--interactive {
-  pointer-events: auto;
-}
 
 /* 中心微暗角：只在中央 logo 区轻微压暗，让粒子 T 形跳出；四周不压暗，保持背景可见 */
-.tq-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    circle at center,
-    color-mix(in srgb, var(--tq-surface) 40%, transparent) 0%,
-    transparent 32%
-  );
-}
 
 /* 外圈微暗角：只在最边缘轻微压暗，保留背景动态效果可见 */
 .tq-stage::before {
@@ -2329,160 +1701,11 @@ body.theme-light .tq-voice {
 }
 
 /* 浅色主题：背景透明度降低，避免抢戏 */
-.theme-light .tq-bg {
-  opacity: 0.32;
-}
 
 .tq-stage.is-particle-fallback {
   background:
     radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--tq-state) 15%, transparent), transparent 34%),
     linear-gradient(135deg, color-mix(in srgb, var(--tq-surface) 92%, var(--tq-state)), var(--tq-surface));
-}
-
-.tq-stage.is-particle-fallback .tq-particles {
-  display: none;
-}
-
-.tq-stage.is-particle-fallback .tq-orb {
-  width: min(18vw, 144px);
-  height: min(18vw, 144px);
-}
-
-.tq-stage.is-particle-fallback .tq-core {
-  opacity: 0.78;
-  box-shadow:
-    0 0 0 18px color-mix(in srgb, var(--tq-state) 8%, transparent),
-    0 0 64px color-mix(in srgb, var(--tq-state) 28%, transparent);
-}
-
-.tq-orb {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  top: 50%;
-  width: min(10vw, 82px);
-  height: min(10vw, 82px);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.tq-core {
-  display: none;
-}
-
-.tq-core svg {
-  width: 24px;
-  height: 24px;
-}
-
-.tq-copy {
-  position: absolute;
-  z-index: 5;
-  right: clamp(28px, 4vw, 58px);
-  bottom: 102px;
-  width: min(58%, 640px);
-  padding: 48px 36px 36px;
-  text-align: right;
-  background: var(--tq-copy-shield);
-  border-radius: 40px;
-  box-shadow: 0 0 64px 48px var(--tq-copy-shield);
-  pointer-events: none;
-}
-
-.tq-flow {
-  position: absolute;
-  z-index: 5;
-  top: 30px;
-  left: clamp(24px, 3vw, 46px);
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: clamp(18px, 2.2vw, 34px);
-  margin: 0;
-  color: var(--tq-faint);
-  font-size: clamp(15px, 1.2vw, 19px);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  pointer-events: none;
-}
-
-.tq-flow-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  opacity: 0.62;
-  transition:
-    color 220ms ease,
-    opacity 220ms ease,
-    transform 220ms ease;
-}
-
-.tq-flow-state i {
-  width: 10px;
-  height: 10px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-}
-
-.tq-voice[data-voice-state="listen"] .tq-flow-state.is-listen,
-.tq-voice[data-voice-state="idle"] .tq-flow-state.is-listen,
-.tq-voice[data-voice-state="reco"] .tq-flow-state.is-reco,
-.tq-voice[data-voice-state="think"] .tq-flow-state.is-think,
-.tq-voice[data-voice-state="speak"] .tq-flow-state.is-speak {
-  color: var(--tq-state);
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-.tq-voice[data-voice-state="listen"] .tq-flow-state.is-listen i,
-.tq-voice[data-voice-state="idle"] .tq-flow-state.is-listen i,
-.tq-voice[data-voice-state="reco"] .tq-flow-state.is-reco i,
-.tq-voice[data-voice-state="think"] .tq-flow-state.is-think i,
-.tq-voice[data-voice-state="speak"] .tq-flow-state.is-speak i {
-  background: currentColor;
-  box-shadow: 0 0 14px currentColor;
-}
-
-.tq-copy h1.tq-cap {
-  margin: 0;
-  color: var(--tq-text);
-  -webkit-text-fill-color: var(--tq-text);
-  -webkit-background-clip: border-box !important;
-  background: none !important;
-  background-clip: border-box !important;
-  font-family: "TALOS Ma Shan Zheng", "STKaiti", "Kaiti SC", serif;
-  font-size: clamp(48px, 4.8vw, 72px) !important;
-  line-height: 1.02;
-  font-weight: 400;
-  letter-spacing: 0.015em;
-  text-shadow: 0 2px 22px var(--tq-surface);
-}
-
-.tq-copy .tq-sub {
-  margin-top: 15px;
-  color: var(--tq-text);
-  font-size: clamp(20px, 2vw, 30px) !important;
-  line-height: 1.2;
-  font-weight: 430;
-  letter-spacing: 0.04em;
-  text-shadow: 0 2px 18px var(--tq-surface);
-}
-
-.tq-live {
-  max-width: 640px;
-  margin: 20px 0 0 auto;
-  overflow: hidden;
-  color: var(--tq-muted);
-  font-size: clamp(13px, 1.25vw, 17px);
-  line-height: 1.55;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 1px 12px var(--tq-surface);
-}
-
-.tq-voice[data-voice-state="speak"] .tq-copy {
-  animation: tq-answer-arrive 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes tq-answer-arrive {
@@ -2494,84 +1717,6 @@ body.theme-light .tq-voice {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
-}
-
-.tq-foot {
-  position: absolute;
-  z-index: 6;
-  left: 20px;
-  right: 20px;
-  bottom: 18px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  min-height: 60px;
-  padding: 9px 11px;
-  border: 1px solid var(--tq-border);
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--tq-panel-strong) 92%, transparent);
-  box-shadow:
-    0 18px 60px rgba(0, 0, 0, 0.22),
-    0 1px 0 color-mix(in srgb, var(--tq-text) 7%, transparent) inset;
-  backdrop-filter: blur(18px);
-}
-
-.tq-foot .tq-btn {
-  min-height: var(--tq-btn-height);
-}
-
-.tq-foot .tq-listen-btn {
-  --tq-btn-accent: var(--tq-state-listen);
-  --tq-btn-fg: #06101d;
-}
-
-.tq-foot .tq-listen-btn:not(.is-active) {
-  color: var(--tq-muted);
-  border-color: var(--tq-border);
-  background: color-mix(in srgb, var(--tq-panel-strong) 86%, transparent);
-  box-shadow: none;
-}
-
-.tq-foot .tq-stop {
-  --tq-btn-accent: var(--tq-state-speak);
-}
-
-.tq-foot .tq-text-btn {
-  --tq-btn-accent: var(--tq-state-think);
-}
-
-.tq-meter {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 1 1 auto;
-  min-width: 56px;
-  height: 24px;
-  padding: 2px 8px;
-  overflow: hidden;
-}
-
-.tq-meter i {
-  display: block;
-  width: 2px;
-  height: var(--bar, 8px);
-  border-radius: 2px;
-  background: var(--tq-state);
-  opacity: 0.52;
-  transform: scaleY(calc(0.28 + var(--tq-level, 0)));
-  transform-origin: center;
-  transition: transform 45ms linear, background 220ms ease;
-}
-
-.tq-dot {
-  flex: 0 1 160px;
-  overflow: hidden;
-  color: var(--tq-muted);
-  font-size: 11px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Uiverse.io / gharsh11032000 interaction language, adapted to TALOS semantics.
@@ -2637,80 +1782,9 @@ body.theme-light .tq-voice {
   color: #e8e8e8;
 }
 
-.tq-btn.tq-listen-btn:not(.tq-btn--tab):not(.tq-btn--row) {
-  --tq-btn-fill: var(--tq-state-listen);
-}
-
-.tq-btn.tq-stop:not(.tq-btn--tab):not(.tq-btn--row) {
-  --tq-btn-fill: #f53844;
-}
-
 /* 发送按钮：极光青填充，与语音工作区深色极光主题一致（打断键保持红色语义） */
 .tq-btn.tq-send-btn:not(.tq-btn--tab):not(.tq-btn--row) {
   --tq-btn-fill: #38bdf8;
-}
-
-.tq-btn.tq-text-btn:not(.tq-btn--tab):not(.tq-btn--row) {
-  --tq-btn-fill: var(--tq-state-think);
-}
-
-.tq-btn.tq-btn--tab {
-  --tq-btn-fill: var(--tq-btn-accent, #f53844);
-  overflow: hidden;
-  isolation: isolate;
-  border-color: color-mix(in srgb, #e8e8e8 16%, transparent);
-  border-radius: 50px;
-  color: #e8e8e8;
-  background: #212121;
-  transition:
-    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
-    border-color 300ms cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 300ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.tq-btn.tq-btn--tab::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  content: "";
-  background: var(--tq-btn-fill);
-  transform: translateY(105%);
-  transition: transform 300ms cubic-bezier(0.23, 1, 0.32, 1);
-  pointer-events: none;
-}
-
-.tq-btn.tq-btn--tab > * {
-  position: relative;
-  z-index: 1;
-}
-
-.tq-btn.tq-btn--tab svg {
-  color: var(--tq-btn-fill);
-  transition:
-    color 300ms cubic-bezier(0.23, 1, 0.32, 1),
-    stroke 300ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.tq-btn.tq-btn--tab:hover:not(:disabled),
-.tq-btn.tq-btn--tab:focus-visible,
-.tq-btn.tq-btn--tab.is-active {
-  color: #e8e8e8;
-  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8);
-  background: #212121;
-  transform: none;
-}
-
-.tq-btn.tq-btn--tab:hover:not(:disabled)::before,
-.tq-btn.tq-btn--tab:focus-visible::before,
-.tq-btn.tq-btn--tab.is-active::before {
-  transform: translateY(0);
-}
-
-.tq-btn.tq-btn--tab:hover:not(:disabled) svg,
-.tq-btn.tq-btn--tab:focus-visible svg,
-.tq-btn.tq-btn--tab.is-active svg {
-  color: #e8e8e8;
 }
 
 /* Selected states persist longer than hover, so darken the semantic fill enough
@@ -2741,26 +1815,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
   .tq-btn:not(.tq-btn--tab):not(.tq-btn--row):hover:not(:disabled),
 body[data-talos-vault-theme] .talos-console .tq-voice
   .tq-btn:not(.tq-btn--tab):not(.tq-btn--row):focus-visible {
-  border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8) !important;
-  color: #e8e8e8 !important;
-  background: #212121 !important;
-  background-color: #212121 !important;
-}
-
-body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-btn--tab {
-  border-color: color-mix(in srgb, #e8e8e8 16%, transparent) !important;
-  border-radius: 50px !important;
-  color: #e8e8e8 !important;
-  background: #212121 !important;
-  background-color: #212121 !important;
-}
-
-body[data-talos-vault-theme] .talos-console .tq-voice
-  .tq-btn.tq-btn--tab:hover:not(:disabled),
-body[data-talos-vault-theme] .talos-console .tq-voice
-  .tq-btn.tq-btn--tab:focus-visible,
-body[data-talos-vault-theme] .talos-console .tq-voice
-  .tq-btn.tq-btn--tab.is-active {
   border-color: color-mix(in srgb, var(--tq-btn-fill) 78%, #e8e8e8) !important;
   color: #e8e8e8 !important;
   background: #212121 !important;
@@ -2811,16 +1865,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     padding: 14px !important;
   }
 
-  .tq-head .tq-model,
-  .tq-head .tq-title small,
-  .tq-foot .tq-tts,
-  .tq-dot {
-    display: none;
-  }
-
-  .tq-foot .tq-btn {
-    padding-inline: 10px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -2859,86 +1903,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     padding: 10px !important;
   }
 
-  .tq-head {
-    min-height: 58px;
-    padding-inline: 10px;
-  }
-
-  .tq-head-brand {
-    gap: 8px;
-  }
-
-  .tq-badge {
-    flex-basis: 36px;
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
-  }
-
-  .tq-badge img {
-    width: 48px;
-    height: 48px;
-  }
-
-  .tq-head .tq-chip,
-  .tq-head .tq-title small {
-    display: none;
-  }
-
-  .tq-head .tq-title {
-    min-width: 0;
-  }
-
-  .tq-head .tq-title b {
-    overflow: hidden;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .tq-head-actions > .tq-squarebtn:last-child {
-    display: none;
-  }
-
-  .tq-copy {
-    right: 14px;
-    bottom: 84px;
-    width: min(86%, 520px);
-    padding: 24px 18px 20px;
-    text-align: right;
-  }
-
-  .tq-flow {
-    top: 18px;
-    left: 16px;
-    gap: 14px;
-    justify-content: flex-start;
-    font-size: clamp(13px, 3.6vw, 16px);
-    letter-spacing: 0.03em;
-  }
-
-  .tq-live {
-    margin-left: auto;
-  }
-
-  .tq-cap {
-    font-size: clamp(38px, 10vw, 56px) !important;
-  }
-
-  .tq-foot {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-  }
-
-  .tq-foot .tq-btn {
-    flex: 0 1 68px;
-    width: auto;
-    min-width: 0;
-    gap: 4px;
-    padding: 0 4px;
-    font-size: 10px;
-  }
 }
 
 /* 控制台内嵌设置：复用 TalosSettingTab 的单一设置渲染与保存逻辑。 */
@@ -3108,45 +2072,13 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tq-character-roam,
-  .tq-character-closeup,
-  .tq-character-face-rig,
-  .tq-character-image--portrait,
-  .tq-character-face-light {
-    transition: none;
-  }
-
-  .tq-character-path,
-  .tq-character-path::before,
-  .tq-character-path::after,
-  .tq-character-bob,
-  .tq-character-portrait,
-  .tq-character-aura,
-  .tq-character-scan,
-  .tq-character-eye {
-    animation: none !important;
-  }
-
-  .tq-character-path {
-    left: 12cqw;
-    top: 18cqh;
-  }
 
   .tq-btn {
     transition: none;
   }
 
-  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row)::before,
-  .tq-btn.tq-btn--tab::before {
+  .tq-btn:not(.tq-btn--tab):not(.tq-btn--row)::before {
     transition: none;
-  }
-
-  .tq-flow-state {
-    transition: none;
-  }
-
-  .tq-voice[data-voice-state="speak"] .tq-copy {
-    animation: none;
   }
 
   .tq-overlay-line {
@@ -3157,10 +2089,6 @@ body[data-talos-vault-theme] .talos-console .tq-voice
     animation: none;
   }
 
-  .tq-meter i {
-    transition: none;
-    transform: scaleY(0.55);
-  }
 }
 
 /* =====================================================================

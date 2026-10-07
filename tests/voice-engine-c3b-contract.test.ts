@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { pluginSource as readPluginSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -41,7 +42,7 @@ describe("voice engine C-3b removal contract (D-TLP-016)", () => {
 	});
 
 	it("leaves no legacy view registration or rollback command in main.ts", () => {
-		const main = readSrc("src/main.ts");
+		const main = readPluginSource();
 		expect(main).not.toContain("jarvis-view");
 		expect(main).not.toContain("VIEW_TYPE_JARVIS");
 		expect(main).not.toContain('id: "open-jarvis"');

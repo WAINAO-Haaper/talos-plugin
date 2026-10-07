@@ -77,6 +77,8 @@ export interface TalosSettings {
 	openOnStartup: boolean;
 	/** 打开控制台时播放头像彩蛋；「不再显示」按钮会把它关掉 */
 	welcomeEasterEgg: boolean;
+	/** TALOS–超级大脑双向状态桥：只读消费 lili 生成的派生状态缓存 */
+	talosPeerStatusBridgeEnabled: boolean;
 	// 屈原语音助手
 	voiceAgentCommand: string; // 语音大脑命令，如 claude -p
 	voicePermission: string; // 工具权限：readonly | acceptEdits | all | off
@@ -178,6 +180,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	agentCommand: "",
 	openOnStartup: true,
 	welcomeEasterEgg: true,
+	talosPeerStatusBridgeEnabled: true,
 	voiceAgentCommand: "",
 	voicePermission: "off",
 	voicePersona: "",
@@ -589,6 +592,15 @@ export class TalosSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.talosSettings.openOnStartup).onChange(async (v) => {
 					this.plugin.talosSettings.openOnStartup = v;
+					await this.plugin.saveTalosSettings();
+				})
+			);
+		new Setting(c)
+			.setName("TALOS 状态桥")
+			.setDesc("只读取 lili 生成的本地状态快照（.talos/peer-status/v1），显示 TALOS 当前焦点、主线与下一步；关闭后其余功能不受影响。")
+			.addToggle((t) =>
+				t.setValue(this.plugin.talosSettings.talosPeerStatusBridgeEnabled).onChange(async (v) => {
+					this.plugin.talosSettings.talosPeerStatusBridgeEnabled = v;
 					await this.plugin.saveTalosSettings();
 				})
 			);

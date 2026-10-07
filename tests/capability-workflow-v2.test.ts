@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const page = view.slice(
-	view.indexOf("\tprivate pageCapability("),
-	view.indexOf("\n\n\n\t// ---------- 填充 ----------")
-);
+const page = functionSource(view, "renderCapabilityPage");
 
 describe("Capability center v2", () => {
 	it("uses an equal real-distribution and group-control first screen", () => {
@@ -26,17 +24,17 @@ describe("Capability center v2", () => {
 	it("keeps dynamic themed tabs and updates the lower browser", () => {
 		expect(page).toContain("const drawTabs = () =>");
 		expect(page).toContain("const drawGrid = () =>");
-		expect(page).toContain("this.activeCap = group.key");
+		expect(page).toContain("view.activeCap = group.key");
 		expect(page).toContain("drawTabs();");
 		expect(page).toContain("drawGrid();");
-		expect(page).toContain("this.addActionButtonContent(");
+		expect(page).toContain("view.addActionButtonContent(");
 		expect(page).toContain('"aria-pressed"');
 	});
 
 	it("preserves copy invocation, source opening, and module selection", () => {
-		expect(page).toContain("void this.copyText(item.invoke)");
-		expect(page).toContain("void openFile(this.app, item.path ||");
-		expect(page).toContain("this.wireModuleSelection(");
+		expect(page).toContain("void view.copyText(item.invoke)");
+		expect(page).toContain("void openFile(view.app, item.path ||");
+		expect(page).toContain("view.wireModuleSelection(");
 		expect(page).toContain('cls: "cap-src"');
 	});
 

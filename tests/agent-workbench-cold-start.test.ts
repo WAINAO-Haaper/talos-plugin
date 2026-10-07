@@ -3,10 +3,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatSurfaceWorkbench } from "../src/quyuan/chat-surface";
 import { DeferredChatWorkbench } from "../src/quyuan/deferred-chat-workbench";
+import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const mainSource = readFileSync(`${root}src/main.ts`, "utf8");
-const viewSource = readFileSync(`${root}src/view.ts`, "utf8");
+const mainSource = readPluginSource();
+const viewSource = readViewSource();
 const switcherSource = readFileSync(`${root}src/harness/harness-switcher.ts`, "utf8");
 
 function deferred<T>() {
@@ -95,11 +96,11 @@ describe("agent workbench cold-start lifecycle", () => {
 			mainSource.match(/await leaf\.setViewState\(\{ type: VIEW_TYPE_TALOS, active: true \}\);/g),
 		).toHaveLength(1);
 		expect(viewSource).toContain("new DeferredChatWorkbench");
-		expect(viewSource).toContain("await this.plugin.waitForAgentWorkbench()");
+		expect(viewSource).toContain("await view.plugin.waitForAgentWorkbench()");
 		expect(viewSource).toMatch(
-			/const \{ service \}\s*=\s*await this\.plugin\.waitForAgentWorkbench\(\)/,
+			/const \{ service \}\s*=\s*await view\.plugin\.waitForAgentWorkbench\(\)/,
 		);
-		expect(viewSource).toContain('this.activePage !== "chat" || !page.isConnected');
+		expect(viewSource).toContain('view.activePage !== "chat" || !page.isConnected');
 		expect(viewSource).toContain("...encodeTalosViewState(this.activePage)");
 		expect(viewSource).toContain("this.pageRouter.navigate(decodeTalosViewState(state))");
 		expect(viewSource).toContain("this.app.workspace.requestSaveLayout()");

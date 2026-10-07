@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const view = readViewSource();
 const primitives = readFileSync(
 	`${projectRoot}src/ui/page-primitives.ts`,
 	"utf8"
@@ -31,7 +32,8 @@ describe("TALOS unified interface language v2 foundation", () => {
 	});
 
 	it("renders all business page headers through one shared primitive", () => {
-		expect(view).toContain('from "./ui/page-primitives"');
+		// 页面渲染已拆到 src/ui/pages，按相对路径从同一个共享模块引入
+		expect(view).toMatch(/from "(?:\.\/ui|\.\.)\/page-primitives"/);
 		expect(view).toContain("renderTalosPageHeader(parent");
 		expect(primitives).toContain('data.talosComponent = "page-header"'.replace("data.", "dataset."));
 		expect(primitives).toContain("metrics.slice(0, 4)");
@@ -115,8 +117,8 @@ describe("TALOS unified interface language v2 foundation", () => {
 			expect(view).toContain(`"${theme}"`);
 		}
 
-		expect(view).toContain("this.buildThemeAtmosphere(bg)");
-		expect(view).toContain("this.buildPixelPatrol(hero)");
+		expect(view).toContain("buildThemeAtmosphere(view, bg)");
+		expect(view).toContain("buildPixelPatrol(view, hero)");
 		for (const surface of [
 			".cosmos-scene",
 			".data-rain",

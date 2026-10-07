@@ -60,6 +60,7 @@ jobs:
           name: talos-build
           path: |
             main.js
+            claude-sdk.cjs
             styles.css
             manifest.json
           if-no-files-found: error

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { ProviderSecretStore } from "../src/ai/provider/provider-secret-store";
 import type { LegacySecretSettings } from "../src/ai/provider/settings-migration";
@@ -7,9 +5,9 @@ import {
 	WP7_MIGRATION_SCHEMA_VERSION,
 	migrateWp7Data,
 } from "../src/migrations/wp7-migration";
+import { pluginSource as readPluginSource } from "./helpers/source-text";
 
-const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
+const mainSource = readPluginSource();
 
 class MemorySecrets {
 	readonly values = new Map<string, string>();

@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const page = view.slice(
-	view.indexOf("\tprivate pageTalos("),
-	view.indexOf("\tprivate pageInbox(")
-);
+const page = functionSource(view, "renderTalosPage");
 
 describe("TALOS release governance v2", () => {
 	it("uses an equal release-data and critical-gates first screen", () => {
@@ -34,9 +32,9 @@ describe("TALOS release governance v2", () => {
 	});
 
 	it("preserves the release banner, existing gates, and product module cards", () => {
-		expect(page).toContain("this.fillBanner(banner, d.warRoom)");
-		expect(page).toContain("this.fillGates(");
-		expect(page).toContain("this.fillTalosModules(");
+		expect(page).toContain("fillBanner(view, banner, d.warRoom)");
+		expect(page).toContain("fillGates(view, ");
+		expect(page).toContain("fillTalosModules(view, ");
 		expect(page).toContain("talos-v2-module-panel");
 		expect(css).toContain(".talos-v2-module-panel .module-grid");
 	});

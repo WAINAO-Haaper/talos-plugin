@@ -1,10 +1,14 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 const failures = [];
 const assert = (condition, message) => { if (!condition) failures.push(message); };
 const read = (path) => readFileSync(path, "utf8");
 
-const main = read("src/main.ts");
+// TalosPlugin 的语音、诊断、Provider 等已拆到 src/plugin，按整体检查
+const main = [
+	"src/main.ts",
+	...readdirSync("src/plugin").filter((name) => name.endsWith(".ts")).sort().map((name) => `src/plugin/${name}`),
+].map(read).join("\n");
 const service = read("src/agent-workbench/core/agent-workbench-service.ts");
 const execution = read("src/agent-workbench/core/agent-execution-coordinator.ts");
 const view = read("src/agent-workbench/ui/native-conversation-view.ts");

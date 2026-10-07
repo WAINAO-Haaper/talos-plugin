@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { pluginSource as readPluginSource } from "./helpers/source-text";
 
 const projectRoot = new URL("../", import.meta.url).pathname;
 const inputController = readFileSync(
 	`${projectRoot}src/agent-workbench/core/agent-execution-coordinator.ts`,
 	"utf8"
 );
-const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
+const mainSource = readPluginSource();
 
 describe("chat egress wiring", () => {
 	it("audits normal and steered messages before they reach the Provider", () => {

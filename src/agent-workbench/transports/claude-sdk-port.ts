@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { forkSession, query, type CanUseTool, type Query, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, Query, SDKMessage, SDKUserMessage, forkSession, query } from "@anthropic-ai/claude-agent-sdk";
 import type { CreateSessionInput, ModelDescriptor, RuntimeProbe } from "../contracts/runtime-adapter";
 import type { ClaudeAgentSdkPort, ClaudeTurnInput } from "../adapters/claude/claude-agent-sdk-adapter";
 import type { ProtocolFrame } from "../adapters/shared/protocol-frame";
@@ -13,7 +13,43 @@ export interface ClaudeSdkFacade {
 	forkSession(sessionId: string): Promise<{ sessionId: string }>;
 }
 
-const defaultSdk: ClaudeSdkFacade = { query, forkSession: (sessionId) => forkSession(sessionId) };
+/** Bundle file shipped next to main.js; built from claude-sdk-entry.ts. `.cjs` keeps it CommonJS even under a `"type": "module"` package.json. */
+export const CLAUDE_SDK_BUNDLE_FILE = "claude-sdk.cjs";
+
+interface ClaudeSdkModule {
+	query: typeof query;
+	forkSession: typeof forkSession;
+}
+
+type ModuleRequire = (id: string) => unknown;
+
+let sdkBundlePath: string | null = null;
+let sdkModule: ClaudeSdkModule | null = null;
+
+/**
+ * The SDK is about half of the plugin bundle, so it is built as a separate
+ * file and only required the first time a Claude turn actually runs.
+ */
+export function configureClaudeSdkBundle(path: string | null): void {
+	sdkBundlePath = path;
+	sdkModule = null;
+}
+
+export function loadClaudeSdk(load: ModuleRequire = require): ClaudeSdkModule {
+	if (sdkModule) return sdkModule;
+	if (!sdkBundlePath) throw new Error(`Claude SDK 未就绪：插件目录缺少 ${CLAUDE_SDK_BUNDLE_FILE} 的位置`);
+	const loaded = load(sdkBundlePath) as Partial<ClaudeSdkModule> | null;
+	if (!loaded || typeof loaded.query !== "function" || typeof loaded.forkSession !== "function") {
+		throw new Error(`Claude SDK 加载失败：${CLAUDE_SDK_BUNDLE_FILE} 内容不完整`);
+	}
+	sdkModule = { query: loaded.query, forkSession: loaded.forkSession };
+	return sdkModule;
+}
+
+const defaultSdk: ClaudeSdkFacade = {
+	query: (input) => loadClaudeSdk().query(input),
+	forkSession: (sessionId) => loadClaudeSdk().forkSession(sessionId),
+};
 
 // Claude Code's session-level --model contract accepts these official aliases.
 // Availability is still decided by the user's existing Claude authentication.

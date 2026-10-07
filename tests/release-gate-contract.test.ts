@@ -5,6 +5,7 @@ import { TFile } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import type { TalosSettings } from "../src/settings";
 import { collectWarRoom } from "../src/data/talos";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 vi.mock("obsidian", () => ({
   TFile: class MockTFile {
@@ -15,7 +16,7 @@ vi.mock("obsidian", () => ({
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const parser = readFileSync(`${projectRoot}src/data/talos.ts`, "utf8");
-const view = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const view = readViewSource();
 const readme = readFileSync(`${projectRoot}README.md`, "utf8");
 const providerQa = readFileSync(
   `${projectRoot}docs/qa/wp7-real-provider-acceptance.md`,

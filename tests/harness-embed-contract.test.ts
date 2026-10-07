@@ -12,6 +12,7 @@ import {
 } from "../src/harness/dsh-runtime";
 import { HARNESS_IFRAME_SANDBOX } from "../src/harness/harness-workbench";
 import { normalizeHarnessSurface } from "../src/harness/harness-switcher";
+import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -83,7 +84,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 	});
 
 	it("wires the chat page to the dual-channel harness switcher", () => {
-		const view = readSrc("src/view.ts");
+		const view = readViewSource();
 		expect(view).toContain("HarnessSwitcherWorkbench");
 		expect(view).toContain("HarnessWorkbench");
 		expect(view).toContain("TalosAgentWorkbench");
@@ -105,7 +106,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 	});
 
 	it("stops the harness process on plugin unload", () => {
-		const main = readSrc("src/main.ts");
+		const main = readPluginSource();
 		expect(main).toContain("getHarnessManager(): DshProcessManager");
 		expect(main).toContain("this.harnessManager?.dispose()");
 		expect(main).toContain("adapter instanceof FileSystemAdapter");
@@ -142,7 +143,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(normalizeHarnessSurface("dsh")).toBe("dsh");
 		expect(normalizeHarnessSurface("nope")).toBe("dsh");
 		expect(normalizeHarnessSurface(undefined)).toBe("dsh");
-		const view = readSrc("src/view.ts");
+		const view = readViewSource();
 		expect(view).not.toContain("resolveInitialHarnessSurface");
 		expect(view).not.toContain("已自动切换到 Codex 工作台");
 	});

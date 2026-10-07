@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const outputPage = view.slice(
-	view.indexOf("\tprivate pageOutput("),
-	view.indexOf("\tprivate pageTalos(")
-);
+const outputPage = functionSource(view, "renderOutputPage");
 
 describe("Output workflow v2", () => {
 	it("splits real closure data and today's attention equally", () => {

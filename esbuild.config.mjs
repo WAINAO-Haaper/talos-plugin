@@ -76,13 +76,11 @@ var __talosImportMetaUrl = (() => {
 
 const prod = process.argv[2] === 'production';
 
-const context = await esbuild.context({
+const shared = {
 	banner: {
 		js: banner,
 	},
-	entryPoints: ['src/main.ts'],
 	bundle: true,
-	plugins: [sdkNodeTimersShim, staticVendorText],
 	external: [
 		'obsidian',
 		'electron',
@@ -111,13 +109,29 @@ const context = await esbuild.context({
 	logLevel: 'info',
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
-	outfile: 'main.js',
 	minify: prod,
-});
+};
+
+// main.js 不再在运行时引用 claude-agent-sdk（约占原 bundle 的一半）；SDK 单独
+// 打成 claude-sdk.cjs，与 main.js 同目录发布，首次运行 Claude 时才 require。
+const contexts = await Promise.all([
+	esbuild.context({
+		...shared,
+		entryPoints: ['src/main.ts'],
+		plugins: [staticVendorText],
+		outfile: 'main.js',
+	}),
+	esbuild.context({
+		...shared,
+		entryPoints: ['src/agent-workbench/transports/claude-sdk-entry.ts'],
+		plugins: [sdkNodeTimersShim],
+		outfile: 'claude-sdk.cjs',
+	}),
+]);
 
 if (prod) {
-	await context.rebuild();
+	await Promise.all(contexts.map((context) => context.rebuild()));
 	process.exit(0);
 } else {
-	await context.watch();
+	await Promise.all(contexts.map((context) => context.watch()));
 }

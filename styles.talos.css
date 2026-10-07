@@ -195,25 +195,21 @@
 .talos-console .eyebrow .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: tl-pulse 2.2s infinite; }
 .talos-console h1 { font-size: 29px; line-height: 1.16; margin: 3px 0 4px; letter-spacing: .01em; background: linear-gradient(92deg,#fff 10%,#9FC2FF 35%,#C4B5FD 60%,#F9A8D4 90%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: tl-flow 8s ease-in-out infinite; }
 .talos-console .sub { font-size: 13px; color: var(--muted); }
-.talos-console .hero-grid { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(280px,.6fr); gap: 16px; margin-top: 18px; position: relative; z-index: 1; }
+
 /* Hero 三统计已删（指标去重：数字只住星轨节点一处），quote 独占一行 */
-.talos-console .hero-grid--single { grid-template-columns: minmax(0,1fr); }
+
 /* 安静原则：无待审批时侧栏整卡隐藏 */
 .talos-console .card.is-hidden { display: none; }
 .talos-console .quote { border: 1px solid var(--line); border-left: 3px solid var(--pink); background: linear-gradient(180deg,rgba(244,114,182,.10),rgba(77,141,255,.05)); padding: 14px 16px; border-radius: 0 var(--radius) var(--radius) 0; cursor: pointer; transition: .2s; animation: tl-hue 14s linear infinite; color: var(--ink); }
 .talos-console .quote:hover { transform: translateX(3px); }
 .talos-console .quote strong { display: block; font-size: 18px; line-height: 1.4; margin-bottom: 7px; color: var(--ink) !important; -webkit-text-fill-color: var(--ink); text-shadow: 0 0 12px rgba(247,249,255,.18); }
 .talos-console .quote span { font-size: 11px; color: var(--muted) !important; -webkit-text-fill-color: var(--muted); font-family: var(--mono); letter-spacing: .06em; }
-.talos-console .status-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
 
 /* stat */
 .talos-console .stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 11px; transition: .2s; }
 .talos-console .stat:hover { transform: translateY(-2px); }
 .talos-console .stat b { display: block; font-size: 22px; line-height: 1.1; font-family: var(--mono); font-weight: 700; color: var(--sc,#4D8DFF); text-shadow: 0 0 16px color-mix(in srgb,var(--sc,#4D8DFF) 55%,transparent); }
 .talos-console .stat span { font-size: 11px; color: var(--muted); }
-.talos-console .status-row .stat:nth-child(1) { --sc: #34D399; }
-.talos-console .status-row .stat:nth-child(2) { --sc: #FB7185; }
-.talos-console .status-row .stat:nth-child(3) { --sc: #FBBF24; }
 
 /* section title */
 .talos-console .section-title { display: flex; align-items: center; gap: 9px; margin: 0 0 11px; }
@@ -385,23 +381,13 @@
 .talos-console .day.today span { color: rgba(255,255,255,.85); }
 
 /* progress / countdown */
-.talos-console .progress-list { display: flex; flex-direction: column; gap: 11px; }
-.talos-console .progress-line b { display: flex; justify-content: space-between; color: var(--ink); font-size: 12px; margin-bottom: 5px; font-weight: 600; }
-.talos-console .progress-line b span:last-child { font-family: var(--mono); color: var(--pc2); }
-.talos-console .progress-line:nth-child(1) { --pc1: #FB7185; --pc2: #FBBF24; }
-.talos-console .progress-line:nth-child(2) { --pc1: #4D8DFF; --pc2: #38E1FF; }
-.talos-console .progress-line:nth-child(3) { --pc1: #9333EA; --pc2: #F472B6; }
+
 .talos-console .bar { height: 7px; border-radius: 999px; background: rgba(140,160,255,.10); overflow: hidden; position: relative; }
 .talos-console .bar i { display: block; height: 100%; border-radius: 999px; width: var(--talos-w,0%); background: linear-gradient(90deg,var(--pc1,#4D8DFF),var(--pc2,#38E1FF)); box-shadow: 0 0 12px color-mix(in srgb,var(--pc2,#38E1FF) 55%,transparent); transition: width 1.2s cubic-bezier(.2,.7,.2,1); position: relative; overflow: hidden; }
 .talos-console .bar i::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent); animation: tl-shimmer 2.6s ease-in-out infinite; }
-.talos-console .countdown { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 13px 14px; margin-top: 12px; position: relative; overflow: hidden; background: linear-gradient(120deg,rgba(45,98,255,.25),rgba(147,51,234,.2),rgba(219,39,119,.18)); background-size: 220% 100%; animation: tl-flow 9s ease-in-out infinite; }
-.talos-console .countdown b { font-size: 26px; color: #fff; font-family: var(--mono); text-shadow: 0 0 18px rgba(167,139,250,.7); }
-.talos-console .countdown span { font-size: 11px; color: rgba(247,249,255,.86); }
 
 /* grids */
-.talos-console .dashboard-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
-.talos-console .dashboard-grid > * { min-width: 0; }
-.talos-console .wide-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
+
 .talos-console .commands { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .talos-console .commands .command { width: 100%; text-align: left; flex-direction: column; align-items: flex-start; gap: 3px; }
 .talos-console .commands .command:nth-child(8n+1){--ac:#38E1FF}.talos-console .commands .command:nth-child(8n+2){--ac:#A78BFA}.talos-console .commands .command:nth-child(8n+3){--ac:#F472B6}.talos-console .commands .command:nth-child(8n+4){--ac:#34D399}.talos-console .commands .command:nth-child(8n+5){--ac:#FBBF24}.talos-console .commands .command:nth-child(8n+6){--ac:#FB923C}.talos-console .commands .command:nth-child(8n+7){--ac:#FB7185}.talos-console .commands .command:nth-child(8n){--ac:#4D8DFF}
@@ -426,994 +412,11 @@
 	gap: 14px;
 	container: overview-content / inline-size;
 }
-.talos-console .overview-verdict {
-	display: grid;
-	grid-template-columns: auto minmax(0,1fr) auto;
-	align-items: center;
-	gap: 16px;
-	padding: 18px;
-}
-.talos-console .overview-verdict-icon {
-	display: grid;
-	place-items: center;
-	width: 50px;
-	height: 50px;
-	border: 1px solid color-mix(in srgb,var(--ac) 44%,var(--line));
-	border-radius: 50%;
-	color: var(--ac);
-	background: color-mix(in srgb,var(--ac) 10%,var(--surface-2));
-}
-.talos-console .overview-verdict-icon svg {
-	width: 25px;
-	height: 25px;
-}
-.talos-console .overview-verdict-copy {
-	min-width: 0;
-}
-.talos-console .overview-verdict-copy small,
-.talos-console .overview-verdict-copy span {
-	display: block;
-	color: var(--muted);
-}
-.talos-console .overview-verdict-copy small {
-	font-family: var(--mono);
-	font-size: 10px;
-	letter-spacing: .09em;
-	text-transform: uppercase;
-}
-.talos-console .overview-verdict-copy strong {
-	display: block;
-	margin: 2px 0;
-	color: var(--ink);
-	font-size: clamp(18px,2vw,26px);
-	line-height: 1.25;
-}
-.talos-console .overview-verdict-copy span {
-	font-size: 12px;
-}
-.talos-console .overview-verdict-action {
-	white-space: nowrap;
-}
-.talos-console .overview-progress-grid {
-	grid-template-columns: repeat(3,minmax(0,1fr));
-}
-.talos-console .overview-progress-card {
-	display: flex;
-	flex-direction: column;
-	min-height: 142px;
-}
-.talos-console .overview-progress-head {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-.talos-console .overview-progress-head b {
-	display: block;
-	margin: 0;
-	color: var(--ink);
-	font-family: var(--sans);
-	font-size: 13px;
-	line-height: 1.3;
-	text-shadow: none;
-}
-.talos-console .overview-progress-icon {
-	display: grid;
-	place-items: center;
-	color: var(--ac);
-}
-.talos-console .overview-progress-icon svg {
-	width: 18px;
-	height: 18px;
-}
-.talos-console .overview-progress-card strong {
-	display: block;
-	margin: 8px 0 1px;
-	color: var(--ac);
-	font-family: var(--mono);
-	font-size: 27px;
-	line-height: 1.05;
-	text-shadow: 0 0 14px color-mix(in srgb,var(--ac) 42%,transparent);
-}
-.talos-console .overview-progress-card .bar {
-	margin-top: auto;
-}
-.talos-console .overview-workspace {
-	display: grid;
-	grid-template-columns: minmax(0,1.08fr) minmax(300px,.92fr);
-	gap: 14px;
-}
-.talos-console .overview-workspace > * {
-	min-width: 0;
-}
-.talos-console .overview-attention-list {
-	gap: 8px;
-}
-.talos-console .overview-attention-row {
-	--ac: var(--blue);
-	display: grid;
-	grid-template-columns: auto minmax(0,1fr) auto;
-	align-items: center;
-	gap: 10px;
-}
-.talos-console .overview-attention-row.tone-hot {
-	--ac: var(--rose);
-}
-.talos-console .overview-attention-row.tone-warn {
-	--ac: var(--amber);
-}
-.talos-console .overview-attention-row.is-attention-selected {
-	border-color: var(--ac);
-	background: color-mix(in srgb,var(--ac) 10%,var(--surface-2));
-	box-shadow: inset 3px 0 0 var(--ac), 0 0 16px color-mix(in srgb,var(--ac) 18%,transparent);
-}
-.talos-console .overview-attention-icon,
-.talos-console .overview-attention-arrow {
-	display: grid;
-	place-items: center;
-	color: var(--ac);
-}
-.talos-console .overview-attention-icon svg {
-	width: 19px;
-	height: 19px;
-}
-.talos-console .overview-attention-arrow svg {
-	width: 16px;
-	height: 16px;
-}
-.talos-console .overview-attention-detail {
-	min-height: 250px;
-}
-.talos-console .overview-detail-body {
-	--detail-ac: var(--blue);
-	display: flex;
-	flex-direction: column;
-	min-height: 176px;
-}
-.talos-console .overview-detail-body[data-tone="hot"] {
-	--detail-ac: var(--rose);
-}
-.talos-console .overview-detail-body[data-tone="warn"] {
-	--detail-ac: var(--amber);
-}
-.talos-console .overview-detail-title {
-	display: flex;
-	align-items: flex-start;
-	gap: 11px;
-}
-.talos-console .overview-detail-title > div:last-child {
-	min-width: 0;
-}
-.talos-console .overview-detail-title strong,
-.talos-console .overview-detail-title small {
-	display: block;
-}
-.talos-console .overview-detail-title strong {
-	color: var(--ink);
-	font-size: 17px;
-	line-height: 1.3;
-}
-.talos-console .overview-detail-title small {
-	margin-top: 3px;
-	color: var(--muted);
-	font-family: var(--mono);
-	font-size: 10.5px;
-	line-height: 1.4;
-}
-.talos-console .overview-detail-icon {
-	display: grid;
-	place-items: center;
-	flex: 0 0 auto;
-	width: 36px;
-	height: 36px;
-	border-radius: 9px;
-	color: var(--detail-ac);
-	background: color-mix(in srgb,var(--detail-ac) 11%,var(--surface-2));
-	border: 1px solid color-mix(in srgb,var(--detail-ac) 30%,var(--line));
-}
-.talos-console .overview-detail-icon svg {
-	width: 20px;
-	height: 20px;
-}
-.talos-console .overview-detail-body p {
-	margin: 16px 0;
-	color: var(--muted);
-	font-size: 12.5px;
-	line-height: 1.7;
-}
-.talos-console .overview-detail-action {
-	align-self: flex-start;
-	margin-top: auto;
-}
-.talos-console .overview-focus .focus-list {
-	display: grid;
-	grid-template-columns: repeat(3,minmax(0,1fr));
-}
-.talos-console .overview-focus .focus {
-	min-width: 0;
-}
-.talos-console .overview-trust-grid {
-	display: grid;
-	grid-template-columns: repeat(3,minmax(0,1fr));
-	gap: 8px;
-}
-.talos-console .overview-trust-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	min-height: 72px;
-	cursor: pointer;
-}
-.talos-console .overview-trust-item > div:last-child {
-	min-width: 0;
-}
-.talos-console .overview-trust-item span,
-.talos-console .overview-trust-item b {
-	display: block;
-	margin: 0;
-}
-.talos-console .overview-trust-item span {
-	color: var(--muted);
-	font-size: 11px;
-}
-.talos-console .overview-trust-item b {
-	overflow: hidden;
-	color: var(--ink);
-	font-family: var(--mono);
-	font-size: 14px;
-	line-height: 1.4;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	text-shadow: none;
-}
-.talos-console .overview-trust-icon {
-	display: grid;
-	place-items: center;
-	flex: 0 0 auto;
-	color: var(--sc,var(--ac));
-}
-	.talos-console .overview-trust-icon svg {
-		width: 20px;
-		height: 20px;
-	}
-	.talos-console .overview-command {
-		display: grid;
-		gap: 12px;
-		padding: 16px;
-		overflow: hidden;
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--ac) 10%,transparent),transparent 48%),
-			var(--surface);
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-command:hover {
-		border-color: color-mix(in srgb,var(--ac) 72%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--ac) 32%,transparent),transparent 62%),
-			color-mix(in srgb,var(--ac) 12%,var(--surface));
-		box-shadow: 8px 8px 0 color-mix(in srgb,var(--line) 84%,transparent), 0 0 24px color-mix(in srgb,var(--ac) 24%,transparent);
-		transform: translateY(-2px);
-	}
-	.talos-console .overview-command-head {
-		display: grid;
-		grid-template-columns: auto minmax(0,1fr) auto;
-		align-items: center;
-		gap: 14px;
-		min-width: 0;
-	}
-	.talos-console .overview-command-icon {
-		display: grid;
-		place-items: center;
-		width: 46px;
-		height: 46px;
-		border: 1px solid color-mix(in srgb,var(--ac) 42%,var(--line));
-		border-radius: 8px;
-		color: var(--ac);
-		background: color-mix(in srgb,var(--ac) 10%,var(--surface-2));
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-command:hover .overview-command-icon {
-		border-color: color-mix(in srgb,var(--ac) 82%,var(--line));
-		background: color-mix(in srgb,var(--ac) 34%,var(--surface-2));
-		box-shadow: inset 0 0 18px color-mix(in srgb,var(--ac) 24%,transparent), 0 0 22px color-mix(in srgb,var(--ac) 26%,transparent);
-		transform: translateY(-1px);
-	}
-	.talos-console .overview-command-icon svg {
-		width: 23px;
-		height: 23px;
-	}
-	.talos-console .overview-command-copy {
-		min-width: 0;
-	}
-	.talos-console .overview-command-copy small {
-		display: block;
-		color: color-mix(in srgb,var(--ac) 72%,var(--muted));
-		font-family: var(--mono);
-		font-size: 10.5px;
-		line-height: 1.35;
-		letter-spacing: 0;
-	}
-	.talos-console .overview-command-copy h2 {
-		margin: 2px 0 3px;
-		color: var(--ink);
-		font-size: 26px;
-		line-height: 1.22;
-		letter-spacing: 0;
-	}
-	.talos-console .overview-command-copy p {
-		margin: 0;
-		color: var(--muted);
-		font-size: 12.5px;
-		line-height: 1.55;
-	}
-	.talos-console .overview-command-action {
-		min-height: 38px;
-		max-width: 180px;
-		padding: 8px 14px;
-		border: 1px solid color-mix(in srgb,var(--ac) 46%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--ac) 13%,var(--surface-2));
-		color: var(--ink);
-		font-weight: 800;
-		cursor: pointer;
-		white-space: nowrap;
-		transition: border-color .16s, background .16s, box-shadow .16s, transform .16s;
-	}
-	.talos-console .overview-command-action:hover {
-		border-color: color-mix(in srgb,var(--ac) 82%,var(--line));
-		background: color-mix(in srgb,var(--ac) 32%,var(--surface-2));
-		box-shadow: 0 0 20px color-mix(in srgb,var(--ac) 26%,transparent);
-		transform: translateY(-1px);
-	}
-	body[data-talos-vault-theme] .talos-console .overview-command-action {
-		background: color-mix(in srgb,var(--ac) 13%,var(--surface-2)) !important;
-		color: var(--ink) !important;
-		border-color: color-mix(in srgb,var(--ac) 46%,var(--line)) !important;
-		border-radius: 8px !important;
-	}
-	body[data-talos-vault-theme] .talos-console .overview-command-action:hover {
-		background: color-mix(in srgb,var(--ac) 32%,var(--surface-2)) !important;
-		border-color: color-mix(in srgb,var(--ac) 82%,var(--line)) !important;
-	}
-	.talos-console .overview-primary-card {
-		--primary-ac: var(--ac);
-		display: grid;
-		gap: 5px;
-		min-height: 132px;
-		padding: 15px 16px 14px 20px;
-		border: 1px solid color-mix(in srgb,var(--primary-ac) 32%,var(--line));
-		border-left: 5px solid var(--primary-ac);
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface-2) 88%,transparent);
-		cursor: pointer;
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-primary-card:hover {
-		border-color: color-mix(in srgb,var(--primary-ac) 72%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--primary-ac) 26%,transparent),transparent 62%),
-			color-mix(in srgb,var(--primary-ac) 12%,var(--surface-2));
-		box-shadow: 0 0 24px color-mix(in srgb,var(--primary-ac) 26%,transparent);
-		transform: translateY(-2px);
-	}
-	.talos-console .overview-primary-card.tone-hot { --primary-ac: var(--rose); }
-	.talos-console .overview-primary-card.tone-warn { --primary-ac: var(--amber); }
-	.talos-console .overview-primary-label {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		color: color-mix(in srgb,var(--primary-ac) 82%,var(--ink));
-		font-size: 12px;
-		font-weight: 800;
-		line-height: 1.3;
-	}
-	.talos-console .overview-primary-icon {
-		display: grid;
-		place-items: center;
-		flex: 0 0 auto;
-	}
-	.talos-console .overview-primary-icon svg {
-		width: 17px;
-		height: 17px;
-	}
-	.talos-console .overview-primary-card h3 {
-		margin: 0;
-		color: var(--ink);
-		font-size: 28px;
-		line-height: 1.18;
-		letter-spacing: 0;
-	}
-	.talos-console .overview-primary-card p {
-		margin: 0;
-		color: var(--muted);
-		font-size: 12.5px;
-		line-height: 1.55;
-	}
-	.talos-console .overview-primary-card small {
-		color: var(--faint);
-		font-family: var(--mono);
-		font-size: 10.5px;
-		line-height: 1.35;
-	}
-	.talos-console .overview-command-metrics {
-		display: grid;
-		grid-template-columns: repeat(3,minmax(0,1fr));
-		gap: 9px;
-	}
-	.talos-console .overview-command-metric {
-		--metric-ac: var(--blue);
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		min-height: 118px;
-		padding: 11px;
-		border: 1px solid color-mix(in srgb,var(--metric-ac) 30%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface-2) 86%,transparent);
-		cursor: pointer;
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-command-metric:hover {
-		border-color: color-mix(in srgb,var(--metric-ac) 72%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--metric-ac) 26%,transparent),transparent 62%),
-			color-mix(in srgb,var(--metric-ac) 12%,var(--surface-2));
-		box-shadow: 0 0 22px color-mix(in srgb,var(--metric-ac) 26%,transparent);
-		transform: translateY(-2px);
-	}
-	.talos-console .overview-command-metric.tone-hot { --metric-ac: var(--rose); }
-	.talos-console .overview-command-metric.tone-warn { --metric-ac: var(--amber); }
-	.talos-console .overview-command-metric.tone-good { --metric-ac: var(--green); }
-	.talos-console .overview-command-metric .overview-progress-icon {
-		color: var(--metric-ac);
-	}
-	.talos-console .overview-command-metric strong {
-		display: block;
-		margin: 8px 0 1px;
-		color: var(--metric-ac);
-		font-family: var(--mono);
-		font-size: 26px;
-		line-height: 1.05;
-		text-shadow: 0 0 14px color-mix(in srgb,var(--metric-ac) 35%,transparent);
-	}
-	.talos-console .overview-command-metric small {
-		display: block;
-		color: var(--muted);
-		font-size: 10.5px;
-		line-height: 1.35;
-		overflow-wrap: anywhere;
-	}
-	.talos-console .overview-command-metric .bar {
-		margin-top: auto;
-	}
-	.talos-console .overview-command-metric .bar i {
-		background: var(--metric-ac);
-	}
-	.talos-console .overview-secondary {
-		--ac: var(--blue);
-	}
-	.talos-console .overview-secondary-grid {
-		display: grid;
-		grid-template-columns: repeat(3,minmax(0,1fr));
-		gap: 8px;
-	}
-	.talos-console .overview-secondary-item {
-		--secondary-ac: var(--blue);
-		display: grid;
-		grid-template-columns: auto minmax(0,1fr);
-		align-items: center;
-		gap: 10px;
-		min-height: 74px;
-		padding: 10px;
-		border: 1px solid color-mix(in srgb,var(--secondary-ac) 22%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface-2) 78%,transparent);
-		cursor: pointer;
-	}
-	.talos-console .overview-secondary-item.tone-hot { --secondary-ac: var(--rose); }
-	.talos-console .overview-secondary-item.tone-warn { --secondary-ac: var(--amber); }
-	.talos-console .overview-secondary-item.tone-good { --secondary-ac: var(--green); }
-	.talos-console .overview-secondary-icon {
-		display: grid;
-		place-items: center;
-		width: 28px;
-		height: 28px;
-		color: var(--secondary-ac);
-	}
-	.talos-console .overview-secondary-icon svg {
-		width: 18px;
-		height: 18px;
-	}
-	.talos-console .overview-secondary-copy {
-		min-width: 0;
-	}
-	.talos-console .overview-secondary-copy span,
-	.talos-console .overview-secondary-copy b,
-	.talos-console .overview-secondary-copy small {
-		display: block;
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-secondary-copy span {
-		color: var(--muted);
-		font-size: 11px;
-	}
-	.talos-console .overview-secondary-copy b {
-		color: var(--ink);
-		font-family: var(--mono);
-		font-size: 17px;
-		line-height: 1.25;
-	}
-	.talos-console .overview-secondary-copy small {
-		color: var(--faint);
-		font-size: 10.5px;
-		line-height: 1.35;
-	}
-	.talos-console .overview-secondary-list {
-		display: grid;
-		gap: 7px;
-		margin-top: 10px;
-	}
-	.talos-console .overview-secondary-row {
-		--row-ac: var(--blue);
-		display: grid;
-		grid-template-columns: auto minmax(0,1fr);
-		align-items: center;
-		gap: 9px;
-		padding: 9px 10px;
-		border: 1px solid color-mix(in srgb,var(--row-ac) 24%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface-2) 76%,transparent);
-		cursor: pointer;
-	}
-	.talos-console .overview-secondary-row.tone-hot { --row-ac: var(--rose); }
-	.talos-console .overview-secondary-row.tone-warn { --row-ac: var(--amber); }
-	.talos-console .overview-secondary-row-icon {
-		display: grid;
-		place-items: center;
-		color: var(--row-ac);
-	}
-	.talos-console .overview-secondary-row-icon svg {
-		width: 18px;
-		height: 18px;
-	}
-	.talos-console .overview-secondary-row b,
-	.talos-console .overview-secondary-row small {
-		display: block;
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-secondary-row b {
-		color: var(--ink);
-		font-size: 12.5px;
-		line-height: 1.35;
-	}
-	.talos-console .overview-secondary-row small {
-		color: var(--muted);
-		font-size: 10.5px;
-		line-height: 1.35;
-	}
-	@media (max-width: 1100px) {
-		.talos-console .overview-command-head {
-			grid-template-columns: auto minmax(0,1fr);
-		}
-		.talos-console .overview-command-action {
-			grid-column: 1 / -1;
-			justify-self: start;
-		}
-		.talos-console .overview-command-metrics,
-		.talos-console .overview-secondary-grid {
-			grid-template-columns: 1fr;
-		}
-	}
-	@media (max-width: 680px) {
-		.talos-console .overview-command {
-			padding: 13px;
-		}
-		.talos-console .overview-command-head {
-			gap: 10px;
-		}
-		.talos-console .overview-command-icon {
-			width: 40px;
-			height: 40px;
-		}
-		.talos-console .overview-command-copy h2 {
-			font-size: 21px;
-		}
-		.talos-console .overview-primary-card h3 {
-			font-size: 22px;
-		}
-		.talos-console .overview-command-metric {
-			min-height: 104px;
-		}
-	}
 
 	/* 总览重排（2026-07-08）：不再横向拉伸单个模块，改为主判断 + 指标矩阵 + 小状态卡。 */
-	.talos-console .overview-reflow {
-		display: grid;
-		grid-template-columns: minmax(420px,.92fr) minmax(420px,1.08fr);
-		align-items: stretch;
-		gap: 18px 24px;
-	}
-	.talos-console .overview-reflow .overview-command {
-		display: grid;
-		align-content: start;
-		gap: 14px;
-		min-height: 322px;
-		padding: 16px 18px;
-	}
-	.talos-console .overview-reflow .overview-command-head {
-		grid-template-columns: auto minmax(0,1fr);
-		gap: 14px 16px;
-	}
-	.talos-console .overview-reflow .overview-command-action {
-		grid-column: 1 / -1;
-		justify-self: start;
-		margin-top: 2px;
-	}
-	.talos-console .overview-reflow .overview-command-copy h2 {
-		font-size: 24px;
-		line-height: 1.18;
-	}
-	.talos-console .overview-reflow .overview-command-copy p {
-		max-width: 52ch;
-	}
-	.talos-console .overview-reflow .overview-primary-card {
-		min-height: 104px;
-		padding: 13px 15px 13px 18px;
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-	}
-	.talos-console .overview-reflow .overview-primary-card h3 {
-		font-size: 23px;
-		line-height: 1.16;
-	}
-	.talos-console .overview-reflow .overview-primary-card p {
-		display: -webkit-box;
-		overflow: hidden;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-	}
-	.talos-console .overview-reflow .overview-command-metrics {
-		grid-template-columns: repeat(2,minmax(0,1fr));
-		gap: 28px 18px;
-		align-self: start;
-	}
-	.talos-console .overview-reflow .overview-command-metric {
-		--metric-ac: var(--rose);
-		min-height: 146px;
-		padding: 17px 18px 16px;
-		border-color: color-mix(in srgb,var(--rose) 32%,var(--line));
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-	}
-	.talos-console .overview-reflow .overview-command-metric.tone-hot,
-	.talos-console .overview-reflow .overview-command-metric.tone-warn,
-	.talos-console .overview-reflow .overview-command-metric.tone-good {
-		--metric-ac: var(--rose);
-	}
-	.talos-console .overview-reflow .overview-command-metric:hover {
-		border-color: color-mix(in srgb,var(--rose) 72%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--rose) 24%,transparent),transparent 62%),
-			color-mix(in srgb,var(--rose) 10%,var(--surface));
-		box-shadow: 7px 7px 0 color-mix(in srgb,var(--line) 85%,transparent), 0 0 22px color-mix(in srgb,var(--rose) 22%,transparent);
-	}
-	.talos-console .overview-reflow .overview-command-metric strong {
-		margin: 12px 0 5px;
-		color: var(--ink);
-		font-size: 31px;
-		text-shadow: none;
-	}
-	.talos-console .overview-reflow .overview-command-metric small {
-		font-size: 11px;
-	}
+
 	/* 总览行动/统计分区（2026-07-09）：左侧审批待办，右侧高密度动态统计墙。 */
-	.talos-console .overview-ops-grid {
-		display: grid;
-		grid-template-columns: minmax(0,.78fr) minmax(0,1.22fr);
-		align-items: stretch;
-		gap: 0;
-		min-width: 0;
-	}
-	.talos-console .overview-action-column,
-	.talos-console .overview-stat-column {
-		display: grid;
-		align-content: stretch;
-		gap: 0;
-		min-width: 0;
-		height: 100%;
-	}
-	.talos-console .overview-action-column {
-		grid-template-rows: auto minmax(0,1fr);
-	}
-	.talos-console .overview-stat-column {
-		grid-template-rows: minmax(0,1fr);
-	}
-	.talos-console .overview-action-column .overview-command {
-		min-height: 258px;
-		padding: 13px 14px;
-	}
-	.talos-console .overview-action-column .overview-command-head {
-		grid-template-columns: auto minmax(0,1fr);
-		gap: 10px 12px;
-	}
-	.talos-console .overview-action-column .overview-command-action {
-		grid-column: 1 / -1;
-		justify-self: start;
-	}
-	.talos-console .overview-action-grid {
-		grid-template-columns: repeat(2,minmax(0,1fr));
-	}
-	.talos-console .overview-action-workgrid {
-		grid-template-columns: 1fr;
-	}
-	.talos-console .overview-action-workgrid .panel {
-		min-height: 132px;
-	}
-	.talos-console .overview-stat-wall {
-		--ac: var(--blue);
-		position: relative;
-		min-height: 100%;
-		overflow: hidden;
-	}
-	.talos-console .overview-stat-wall > * {
-		position: relative;
-		z-index: 1;
-	}
-	.talos-console .overview-stat-wall::after {
-		content: "";
-		position: absolute;
-		inset: 0;
-		z-index: 0;
-		pointer-events: none;
-		background:
-			linear-gradient(90deg,transparent,color-mix(in srgb,var(--ac) 10%,transparent),transparent);
-		opacity: .55;
-		transform: translateX(-100%);
-		animation: tl-overview-stat-scan 7s linear infinite;
-	}
-	.talos-console .overview-health-score {
-		--health-ac: var(--green);
-		display: grid;
-		grid-template-columns: minmax(104px,.28fr) minmax(0,1fr);
-		align-items: center;
-		gap: 12px;
-		min-height: 132px;
-		padding: 10px 12px;
-		border: 1px solid color-mix(in srgb,var(--health-ac) 38%,var(--line));
-		border-radius: 8px;
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--health-ac) 15%,transparent),transparent 58%),
-			color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-		cursor: pointer;
-	}
-	.talos-console .overview-health-score.tone-hot { --health-ac: var(--rose); }
-	.talos-console .overview-health-score.tone-warn { --health-ac: var(--amber); }
-	.talos-console .overview-health-score.tone-good { --health-ac: var(--green); }
-	.talos-console .overview-health-ring {
-		display: grid;
-		place-items: center;
-		width: 104px;
-		aspect-ratio: 1;
-		border: 2px solid var(--line);
-		border-radius: 50%;
-		background:
-			radial-gradient(circle at center,var(--surface) 0 58%,transparent 59%),
-			conic-gradient(var(--health-ac) var(--health-score), color-mix(in srgb,var(--line) 72%,transparent) 0);
-		box-shadow: inset 0 0 0 8px color-mix(in srgb,var(--surface) 88%,transparent);
-		animation: tl-overview-health-pulse 4.8s ease-in-out infinite;
-	}
-	.talos-console .overview-health-ring strong {
-		color: var(--ink);
-		font-family: var(--mono);
-		font-size: 30px;
-		line-height: 1;
-	}
-	.talos-console .overview-health-ring span {
-		margin-top: -20px;
-		color: var(--muted);
-		font-size: 11px;
-		font-weight: 800;
-	}
-	.talos-console .overview-health-copy {
-		display: grid;
-		gap: 6px;
-		min-width: 0;
-	}
-	.talos-console .overview-health-copy b {
-		color: var(--ink);
-		font-size: 18px;
-		line-height: 1.2;
-	}
-	.talos-console .overview-health-copy p {
-		margin: 0;
-		color: var(--muted);
-		font-size: 12px;
-		line-height: 1.45;
-	}
-	.talos-console .overview-health-chips {
-		display: grid;
-		grid-template-columns: repeat(3,minmax(0,1fr));
-		gap: 7px;
-	}
-	.talos-console .overview-health-chip {
-		--chip-ac: var(--blue);
-		min-width: 0;
-		padding: 6px 7px;
-		border: 1px solid color-mix(in srgb,var(--chip-ac) 32%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--chip-ac) 9%,var(--surface-2));
-	}
-	.talos-console .overview-health-chip.tone-warn { --chip-ac: var(--amber); }
-	.talos-console .overview-health-chip.tone-good { --chip-ac: var(--green); }
-	.talos-console .overview-health-chip span,
-	.talos-console .overview-health-chip b {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-health-chip span {
-		color: var(--muted);
-		font-size: 10px;
-	}
-	.talos-console .overview-health-chip b {
-		margin-top: 3px;
-		color: var(--ink);
-		font-family: var(--mono);
-		font-size: 14px;
-	}
-	.talos-console .overview-stat-bars {
-		display: grid;
-		grid-template-columns: repeat(5,minmax(96px,1fr));
-		gap: 0;
-	}
-	.talos-console .overview-stat-bar {
-		--bar-ac: var(--blue);
-		display: grid;
-		grid-template-rows: auto 1fr auto;
-		gap: 8px;
-		min-height: 228px;
-		padding: 11px;
-		border: 1px solid color-mix(in srgb,var(--bar-ac) 34%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-		cursor: pointer;
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-stat-bar.tone-hot { --bar-ac: var(--rose); }
-	.talos-console .overview-stat-bar.tone-warn { --bar-ac: var(--amber); }
-	.talos-console .overview-stat-bar.tone-good { --bar-ac: var(--green); }
-	.talos-console .overview-stat-bar:hover {
-		border-color: color-mix(in srgb,var(--bar-ac) 78%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--bar-ac) 20%,transparent),transparent 66%),
-			color-mix(in srgb,var(--bar-ac) 9%,var(--surface));
-		box-shadow: 0 0 18px color-mix(in srgb,var(--bar-ac) 18%,transparent);
-		transform: translateY(-2px);
-	}
-	.talos-console .overview-stat-bar-head,
-	.talos-console .overview-stat-bar-foot {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 7px;
-		min-width: 0;
-	}
-	.talos-console .overview-stat-bar-head {
-		color: var(--ink);
-		font-size: 12px;
-		font-weight: 800;
-	}
-	.talos-console .overview-stat-bar-head span:last-child {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-stat-bar-icon {
-		display: grid;
-		place-items: center;
-		flex: 0 0 auto;
-		color: var(--bar-ac);
-	}
-	.talos-console .overview-stat-bar-icon svg {
-		width: 16px;
-		height: 16px;
-	}
-	.talos-console .overview-stat-bar-chart {
-		display: flex;
-		align-items: end;
-		justify-content: center;
-		min-height: 124px;
-		padding: 4px 0;
-	}
-	.talos-console .overview-stat-bar-track {
-		position: relative;
-		width: 42px;
-		height: 100%;
-		min-height: 120px;
-		border: 2px solid var(--line);
-		background:
-			repeating-linear-gradient(to top,color-mix(in srgb,var(--line) 45%,transparent) 0 1px,transparent 1px 22px),
-			color-mix(in srgb,var(--surface-2) 72%,transparent);
-		overflow: hidden;
-	}
-	.talos-console .overview-stat-bar-fill {
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		height: var(--bar-h);
-		background:
-			linear-gradient(180deg,color-mix(in srgb,var(--bar-ac) 82%,#fff),var(--bar-ac));
-		box-shadow: 0 0 16px color-mix(in srgb,var(--bar-ac) 35%,transparent);
-		animation: tl-overview-bar-rise 1.1s cubic-bezier(.2,.7,.2,1), tl-overview-bar-breathe 3.8s ease-in-out infinite;
-	}
-	.talos-console .overview-stat-bar-foot b {
-		color: var(--ink);
-		font-family: var(--mono);
-		font-size: 22px;
-		line-height: 1;
-	}
-	.talos-console .overview-stat-bar-foot small {
-		color: var(--muted);
-		font-family: var(--mono);
-		font-size: 10px;
-	}
-	.talos-console .overview-stat-matrix {
-		display: grid;
-		grid-template-columns: repeat(3,minmax(150px,1fr));
-		gap: 0;
-		align-self: start;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric {
-		position: relative;
-		isolation: isolate;
-		min-height: 112px;
-		padding: 12px;
-		border-color: color-mix(in srgb,var(--metric-ac) 34%,var(--line));
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-		overflow: hidden;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric > * {
-		position: relative;
-		z-index: 1;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric::after {
-		content: "";
-		position: absolute;
-		inset: -1px;
-		z-index: 0;
-		pointer-events: none;
-		background:
-			linear-gradient(120deg,transparent 10%,color-mix(in srgb,var(--metric-ac) 16%,transparent) 48%,transparent 72%);
-		opacity: 0;
-		transform: translateX(-120%);
-		animation: tl-overview-tile-glint 5.4s ease-in-out infinite;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric:nth-child(2n)::after {
-		animation-delay: .7s;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric:nth-child(3n)::after {
-		animation-delay: 1.35s;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric:hover {
-		border-color: color-mix(in srgb,var(--metric-ac) 76%,var(--line));
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric strong {
-		margin: 9px 0 3px;
-		color: var(--ink);
-		font-size: 26px;
-		text-shadow: none;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric small {
-		font-size: 10.5px;
-	}
-	.talos-console .overview-stat-matrix .overview-command-metric .bar i::after {
-		animation-duration: 2s;
-	}
+
 	@keyframes tl-overview-stat-scan {
 		0% { opacity: 0; transform: translateX(-100%); }
 		12% { opacity: .55; }
@@ -1437,372 +440,22 @@
 		0%,100% { filter: brightness(1); }
 		50% { filter: brightness(1.12); }
 	}
-	.talos-console .overview-secondary-grid {
-		display: grid;
-		grid-template-columns: repeat(4,minmax(0,1fr));
-		gap: 14px 18px;
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-item {
-		--secondary-ac: var(--rose);
-		align-items: start;
-		min-height: 112px;
-		padding: 15px 16px;
-		border-color: color-mix(in srgb,var(--rose) 28%,var(--line));
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-		box-shadow: 6px 6px 0 color-mix(in srgb,var(--line) 88%,transparent);
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-item.tone-hot,
-	.talos-console .overview-secondary-grid .overview-secondary-item.tone-warn,
-	.talos-console .overview-secondary-grid .overview-secondary-item.tone-good {
-		--secondary-ac: var(--rose);
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-item:hover {
-		border-color: color-mix(in srgb,var(--rose) 54%,var(--line));
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--secondary-ac) 28%,transparent),transparent 62%),
-			color-mix(in srgb,var(--secondary-ac) 12%,var(--surface));
-		box-shadow: 8px 8px 0 color-mix(in srgb,var(--line) 88%,transparent), 0 0 18px color-mix(in srgb,var(--rose) 12%,transparent);
-		transform: translateY(-2px);
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-copy span {
-		font-size: 12px;
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-copy b {
-		margin-top: 8px;
-		font-size: 22px;
-	}
-	.talos-console .overview-secondary-grid .overview-secondary-copy small {
-		margin-top: 5px;
-		font-size: 11px;
-		white-space: normal;
-	}
-	.talos-console .overview-action-grid {
-		grid-template-columns: repeat(2,minmax(0,1fr));
-	}
-	.talos-console .overview-action-panel {
-		display: grid;
-		grid-template-rows: auto minmax(0,1fr) auto;
-		align-content: stretch;
-		min-height: 100%;
-	}
-	.talos-console .overview-action-list {
-		display: grid;
-		gap: 0;
-		align-self: stretch;
-		grid-template-rows: repeat(4,minmax(72px,1fr));
-	}
-	.talos-console .overview-action-row {
-		--action-ac: var(--blue);
-		display: grid;
-		grid-template-columns: auto minmax(0,1fr) auto;
-		align-items: center;
-		gap: 10px;
-		min-height: 72px;
-		padding: 10px 12px;
-		border: 1px solid color-mix(in srgb,var(--action-ac) 30%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--surface) 94%,var(--surface-2));
-		cursor: pointer;
-		transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
-	}
-	.talos-console .overview-action-row.tone-hot { --action-ac: var(--rose); }
-	.talos-console .overview-action-row.tone-warn { --action-ac: var(--amber); }
-	.talos-console .overview-action-row.tone-good { --action-ac: var(--green); }
-	.talos-console .overview-action-row:hover {
-		border-color: color-mix(in srgb,var(--action-ac) 72%,var(--line));
-		background: color-mix(in srgb,var(--action-ac) 12%,var(--surface));
-		box-shadow: 0 0 18px color-mix(in srgb,var(--action-ac) 16%,transparent);
-		transform: translateY(-1px);
-	}
-	.talos-console .overview-action-row-icon,
-	.talos-console .overview-action-row-arrow {
-		display: grid;
-		place-items: center;
-		color: var(--action-ac);
-	}
-	.talos-console .overview-action-row-icon svg,
-	.talos-console .overview-action-row-arrow svg {
-		width: 17px;
-		height: 17px;
-	}
-	.talos-console .overview-action-row-copy {
-		min-width: 0;
-	}
-	.talos-console .overview-action-row-copy span,
-	.talos-console .overview-action-row-copy b {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-action-row-copy span {
-		color: var(--muted);
-		font-size: 11px;
-	}
-	.talos-console .overview-action-row-copy b {
-		margin-top: 2px;
-		color: var(--ink);
-		font-size: 14px;
-		line-height: 1.25;
-	}
-	.talos-console .overview-action-panel .overview-approval-quick {
-		margin-top: 10px;
-		align-self: end;
-	}
-	.talos-console .overview-approval-grid {
-		display: grid;
-		grid-template-columns: repeat(2,minmax(0,1fr));
-		gap: 14px;
-		min-width: 0;
-	}
-	.talos-console .overview-approval-grid > * {
-		min-width: 0;
-	}
-	.talos-console .overview-approval-panel {
-		align-content: start;
-		min-height: 180px;
-	}
+
 	.talos-console .overview-approval-list {
 		min-width: 0;
 	}
-	.talos-console .overview-approval-grid .approval-item {
-		display: grid;
-		grid-template-columns: auto minmax(0,1fr);
-		align-items: center;
-	}
-	.talos-console .overview-approval-grid .approval-title {
-		width: 100%;
-	}
-	.talos-console .overview-approval-grid .approval-actions {
-		grid-column: 1 / -1;
-		justify-content: flex-end;
-		width: 100%;
-		margin-left: 0;
-		padding-left: 37px;
-		flex-wrap: wrap;
-	}
-	.talos-console .overview-approval-grid .approval-feedback {
-		grid-template-columns: 28px minmax(0,1fr);
-	}
-	.talos-console .overview-approval-grid .approval-feedback-open {
-		grid-column: 2;
-		justify-self: start;
-	}
+
 	.talos-console .candidate-badge {
 		background: linear-gradient(135deg,#7C3AED,#A78BFA);
 		box-shadow: 0 0 12px rgba(167,139,250,.45);
 	}
-	.talos-console .overview-workgrid {
-		display: grid;
-		grid-template-columns: minmax(0,1.12fr) minmax(360px,.88fr);
-		gap: 24px;
-	}
-	.talos-console .overview-workgrid .panel {
-		min-height: 170px;
-	}
-	.talos-console .overview-workgrid .panel:hover {
-		background:
-			linear-gradient(135deg,color-mix(in srgb,var(--ac) 18%,transparent),transparent 64%),
-			color-mix(in srgb,var(--ac) 8%,var(--surface));
-	}
-	.talos-console .overview-focus-panel .focus-list {
-		margin-top: 0;
-	}
-	.talos-console .overview-advice-card {
-		--advice-ac: var(--ac);
-		display: grid;
-		gap: 8px;
-		padding: 10px 0 0;
-		cursor: pointer;
-	}
-	.talos-console .overview-advice-card.tone-hot { --advice-ac: var(--rose); }
-	.talos-console .overview-advice-card.tone-warn { --advice-ac: var(--amber); }
-	.talos-console .overview-advice-card:hover .overview-advice-icon {
-		border-color: color-mix(in srgb,var(--advice-ac) 78%,var(--line));
-		background: color-mix(in srgb,var(--advice-ac) 24%,var(--surface-2));
-	}
-	.talos-console .overview-advice-title {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		min-width: 0;
-	}
-	.talos-console .overview-advice-icon {
-		display: grid;
-		place-items: center;
-		flex: 0 0 auto;
-		width: 34px;
-		height: 34px;
-		border: 1px solid color-mix(in srgb,var(--advice-ac) 40%,var(--line));
-		border-radius: 8px;
-		color: var(--advice-ac);
-		background: color-mix(in srgb,var(--advice-ac) 10%,var(--surface-2));
-	}
-	.talos-console .overview-advice-icon svg {
-		width: 18px;
-		height: 18px;
-	}
-	.talos-console .overview-advice-title b {
-		overflow: hidden;
-		color: var(--ink);
-		font-size: 20px;
-		line-height: 1.25;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.talos-console .overview-advice-card p {
-		margin: 0;
-		color: var(--muted);
-		font-size: 12.5px;
-		line-height: 1.55;
-	}
-	.talos-console .overview-advice-card small {
-		color: var(--faint);
-		font-family: var(--mono);
-		font-size: 10.5px;
-		line-height: 1.4;
-	}
-	.talos-console .overview-advice-action {
-		justify-self: start;
-		min-height: 34px;
-		margin-top: 8px;
-		padding: 7px 12px;
-		border: 1px solid color-mix(in srgb,var(--advice-ac) 46%,var(--line));
-		border-radius: 8px;
-		background: color-mix(in srgb,var(--advice-ac) 12%,var(--surface-2));
-		color: var(--ink);
-		font-weight: 800;
-		cursor: pointer;
-	}
-	body[data-talos-vault-theme] .talos-console .overview-advice-action {
-		background: color-mix(in srgb,var(--advice-ac) 12%,var(--surface-2)) !important;
-		color: var(--ink) !important;
-		border-color: color-mix(in srgb,var(--advice-ac) 46%,var(--line)) !important;
-		border-radius: 8px !important;
-	}
-	@media (max-width: 1250px) {
-		.talos-console .overview-ops-grid,
-		.talos-console .overview-reflow,
-		.talos-console .overview-workgrid {
-			grid-template-columns: 1fr;
-		}
-		.talos-console .overview-action-column,
-		.talos-console .overview-stat-column,
-		.talos-console .overview-action-panel {
-			align-content: start;
-			height: auto;
-			min-height: auto;
-		}
-		.talos-console .overview-action-column,
-		.talos-console .overview-stat-column,
-		.talos-console .overview-action-panel,
-		.talos-console .overview-action-list {
-			grid-template-rows: none;
-		}
-		.talos-console .overview-stat-matrix {
-			grid-template-columns: repeat(2,minmax(0,1fr));
-		}
-		.talos-console .overview-stat-bars {
-			grid-template-columns: repeat(3,minmax(96px,1fr));
-		}
-		.talos-console .overview-secondary-grid {
-			grid-template-columns: repeat(2,minmax(0,1fr));
-		}
-	}
-	@container overview-content (max-width: 980px) {
-		.talos-console .overview-ops-grid {
-			grid-template-columns: 1fr;
-			gap: 12px;
-		}
-		.talos-console .overview-action-column,
-		.talos-console .overview-stat-column,
-		.talos-console .overview-action-panel {
-			align-content: start;
-			height: auto;
-			min-height: auto;
-		}
-	}
-	@container overview-content (max-width: 760px) {
-		.talos-console .overview-approval-grid {
-			grid-template-columns: 1fr;
-		}
-		.talos-console .overview-stat-bars {
-			grid-template-columns: repeat(3,minmax(0,1fr));
-		}
-	}
-	@container overview-content (max-width: 520px) {
-		.talos-console .overview-health-score {
-			grid-template-columns: 1fr;
-		}
-		.talos-console .overview-health-ring {
-			justify-self: center;
-		}
-		.talos-console .overview-stat-bars {
-			grid-template-columns: repeat(2,minmax(0,1fr));
-		}
-		.talos-console .overview-approval-grid .approval-actions {
-			justify-content: flex-start;
-			padding-left: 0;
-		}
-	}
-	@media (max-width: 680px) {
-		.talos-console .overview-ops-grid,
-		.talos-console .overview-reflow {
-			gap: 12px;
-		}
-		.talos-console .overview-action-grid,
-		.talos-console .overview-stat-matrix,
-		.talos-console .overview-stat-bars,
-		.talos-console .overview-reflow .overview-command-metrics,
-		.talos-console .overview-secondary-grid {
-			grid-template-columns: 1fr;
-		}
-		.talos-console .overview-health-score {
-			grid-template-columns: 1fr;
-		}
-		.talos-console .overview-health-ring {
-			justify-self: center;
-		}
-		.talos-console .overview-action-column .overview-command,
-		.talos-console .overview-reflow .overview-command {
-			min-height: auto;
-		}
-		.talos-console .overview-reflow .overview-primary-card h3,
-		.talos-console .overview-advice-title b {
-			font-size: 20px;
-		}
-		.talos-console .overview-secondary-grid .overview-secondary-item {
-			min-height: 94px;
-			box-shadow: none;
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.talos-console .overview-command,
-		.talos-console .overview-command-icon,
-		.talos-console .overview-primary-card,
-		.talos-console .overview-command-metric,
-		.talos-console .overview-health-ring,
-		.talos-console .overview-stat-bar-fill,
-		.talos-console .overview-stat-wall::after,
-		.talos-console .overview-stat-matrix .overview-command-metric::after {
-			animation: none !important;
-			transition: none;
-		}
-		.talos-console .overview-command:hover,
-		.talos-console .overview-command:hover .overview-command-icon,
-		.talos-console .overview-primary-card:hover,
-		.talos-console .overview-command-metric:hover {
-			transform: none;
-		}
-	}
-	.talos-console .overview-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+
 .talos-console .overview-card { border: 1px solid var(--line); background: var(--surface-2); border-radius: 9px; padding: 11px; cursor: pointer; transition: .18s; min-height: 88px; }
 .talos-console .overview-card:hover { border-color: var(--ac); box-shadow: 0 0 18px color-mix(in srgb,var(--ac) 20%,transparent); transform: translateY(-2px); }
 .talos-console .overview-card b { display: block; font-family: var(--mono); font-size: 24px; color: var(--ac); line-height: 1.05; }
 .talos-console .overview-card span { display: block; font-size: 12px; color: var(--ink); margin-top: 4px; }
 .talos-console .overview-card small { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 2px; }
-.talos-console .signal-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+
 .talos-console .signal-pill { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); background: rgba(140,160,255,.07); border-radius: 9px; padding: 8px 10px; cursor: pointer; transition: .16s; }
 .talos-console .signal-pill:hover { transform: translateY(-2px); border-color: var(--ac); }
 .talos-console .signal-pill b { font-family: var(--mono); font-size: 17px; color: var(--ac); }
@@ -1812,7 +465,7 @@
 .talos-console .signal-pill.tone-hot { --ac: var(--rose); }
 
 /* 高频导航 / 业务页 */
-.talos-console .quick-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+
 .talos-console .quick-card,
 .talos-console .metric-card,
 .talos-console .platform-card,
@@ -1872,7 +525,6 @@
 	line-height: 1.35;
 	color: #fff;
 }
-.talos-console .quick-value,
 .talos-console .metric-card b,
 .talos-console .platform-card .big,
 .talos-console .cluster-card .big,
@@ -1897,7 +549,6 @@
 	font-size: 11px;
 	line-height: 1.35;
 }
-.talos-console .metric-grid,
 .talos-console .platform-grid,
 .talos-console .cluster-grid,
 .talos-console .project-grid,
@@ -1971,7 +622,7 @@
 .talos-console .health .stat:nth-child(1){--sc:#38E1FF}.talos-console .health .stat:nth-child(2){--sc:#FBBF24}.talos-console .health .stat:nth-child(3){--sc:#A78BFA}.talos-console .health .stat:nth-child(4){--sc:#34D399}
 
 /* focus */
-.talos-console .focus-list { display: flex; flex-direction: column; gap: 8px; }
+
 .talos-console .focus { display: flex; gap: 11px; align-items: flex-start; border: 1px solid var(--line); background: var(--surface-2); border-radius: 9px; padding: 11px; cursor: pointer; transition: .18s; }
 .talos-console .focus:hover { border-color: rgba(251,113,133,.5); box-shadow: 0 0 18px rgba(251,113,133,.15); transform: translateX(4px); }
 .talos-console .focus .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; }
@@ -2000,10 +651,7 @@
 .talos-console .approval .item .approval-action span { color: inherit; -webkit-text-fill-color: currentColor; font-size: 13px; overflow: visible; text-overflow: clip; }
 .talos-console .approval-action-icon { display: inline-flex; width: 14px; height: 14px; flex: 0 0 auto; }
 .talos-console .approval-action-icon svg { width: 14px; height: 14px; }
-.talos-console .overview-approval-quick { margin-top: 12px; padding: 10px; border: 1px solid rgba(251,191,36,.28); border-radius: 10px; background: rgba(251,191,36,.06); }
-.talos-console .overview-approval-quick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.talos-console .overview-approval-quick-head b { color: var(--ink); font-size: 13px; }
-.talos-console .overview-approval-quick-head span { color: var(--muted); font-size: 11px; }
+
 .talos-console .approval-feedback { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 9px; border: 1px solid rgba(52,211,153,.42); background: rgba(52,211,153,.12); }
 .talos-console .approval-feedback.is-rejected { border-color: rgba(251,113,133,.45); background: rgba(251,113,133,.1); }
 .talos-console .approval-feedback-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--green); }
@@ -2018,7 +666,7 @@
 .talos-console .badge.zero { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.45); box-shadow: 0 0 10px rgba(52,211,153,.25); animation: none; }
 
 /* charts */
-.talos-console .chart-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 14px; }
+
 .talos-console .barchart { display: flex; flex-direction: column; gap: 8px; }
 .talos-console .barrow { display: grid; grid-template-columns: 58px 1fr 38px; align-items: center; gap: 9px; font-size: 12px; cursor: pointer; }
 .talos-console .barrow .bt { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: .15s; }
@@ -2056,7 +704,6 @@
 .talos-console .gate.state-blocked { border-left-color: var(--rose); }
 .talos-console .gate-id { font-family: var(--mono); font-size: 12px; font-weight: 800; color: #fff; flex: 0 0 auto; }
 .talos-console .gate-title { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.talos-console .war-sub { font-family: var(--mono); font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .08em; margin: 10px 0 6px; }
 
 /* banner */
 .talos-console .banner { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
@@ -2492,8 +1139,7 @@
 	opacity: .66;
 	animation: tl-ribbon-sweep 13s ease-in-out infinite;
 }
-.talos-console.theme-cosmos-dark .hero-head,
-.talos-console.theme-cosmos-dark .hero-grid { display: none; }
+.talos-console.theme-cosmos-dark .hero-head { display: none; }
 .talos-console.theme-cosmos-dark .cosmos-scene {
 	display: block;
 	position: relative;
@@ -2786,26 +1432,10 @@
 .talos-console.theme-cosmos-dark .note,
 .talos-console.theme-cosmos-dark .focus,
 .talos-console.theme-cosmos-dark .gate,
-.talos-console.theme-cosmos-dark .tab,
-.talos-console.theme-cosmos-dark .jv-status,
-.talos-console.theme-cosmos-dark .jv-bubble,
-.talos-console.theme-cosmos-dark .jv-input,
-.talos-console.theme-cosmos-dark .jv-btn {
+.talos-console.theme-cosmos-dark .tab {
 	background: var(--surface-2);
 	border-color: var(--line);
 	box-shadow: inset 0 1px 0 color-mix(in srgb,#fff 42%,transparent);
-}
-.talos-console.theme-cosmos-dark .jv-tool,
-.talos-console.theme-cosmos-dark .jv-perm {
-	background: var(--surface);
-	border-color: color-mix(in srgb,var(--amber) 34%,transparent);
-	box-shadow: 0 16px 42px color-mix(in srgb,var(--blue) 10%,transparent), inset 0 1px 0 color-mix(in srgb,#fff 55%,transparent);
-}
-.talos-console.theme-cosmos-dark .jv-tool-input,
-.talos-console.theme-cosmos-dark .jv-tool-out,
-.talos-console.theme-cosmos-dark .jv-perm-input {
-	background: color-mix(in srgb,var(--ink) 5%,transparent);
-	color: var(--ink);
 }
 
 @keyframes tl-cosmos-planet {
@@ -2863,14 +1493,12 @@
 	.talos-console .logo-module { width: 112px; height: 102px; }
 	.talos-console .logo-module .logo { width: 66px; height: 66px; }
 	.talos-console .logo-module .logo svg { width: 52px; height: 52px; }
-	.talos-console .hero-grid, .talos-console .wide-grid, .talos-console .dashboard-grid { grid-template-columns: 1fr; }
+
 	.talos-console .note-grid,
-	.talos-console .quick-grid,
-	.talos-console .project-grid,
-	.talos-console .module-grid,
-	.talos-console .platform-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-	.talos-console .overview-workspace { grid-template-columns: 1fr; }
-	.talos-console .overview-focus .focus-list { grid-template-columns: 1fr; }
+.talos-console .project-grid,
+.talos-console .module-grid,
+.talos-console .platform-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+
 	.talos-console.theme-cosmos-dark .app { grid-template-columns: 1fr; padding: 0 16px 18px; }
 	.talos-console.theme-cosmos-dark .sidebar {
 		display: grid;
@@ -2890,33 +1518,21 @@
 @media (max-width: 680px) {
 	.talos-console .app { padding: 10px; gap: 10px; }
 	.talos-console .sidebar,
-	.talos-console .commands,
-	.talos-console .note-grid,
-	.talos-console .quick-grid,
-	.talos-console .metric-grid,
-	.talos-console .platform-grid,
-	.talos-console .cluster-grid,
-	.talos-console .project-grid,
-	.talos-console .module-grid,
-	.talos-console .health { grid-template-columns: 1fr; }
-	.talos-console .overview-verdict {
-		grid-template-columns: auto minmax(0,1fr);
-		padding: 14px;
-	}
-	.talos-console .overview-verdict-action {
-		grid-column: 1 / -1;
-		width: 100%;
-	}
-	.talos-console .overview-progress-grid,
-	.talos-console .overview-trust-grid { grid-template-columns: 1fr; }
-	.talos-console .overview-progress-card { min-height: 126px; }
+.talos-console .commands,
+.talos-console .note-grid,
+.talos-console .platform-grid,
+.talos-console .cluster-grid,
+.talos-console .project-grid,
+.talos-console .module-grid,
+.talos-console .health { grid-template-columns: 1fr; }
+
 	.talos-console .hero { padding: 16px; }
 	.talos-console .hero-head { grid-template-columns: 1fr; }
 	.talos-console .logo-module { justify-self: start; width: 104px; height: 92px; margin-top: 10px; }
 	.talos-console .logo-module .logo { width: 60px; height: 60px; }
 	.talos-console .logo-module .logo svg { width: 47px; height: 47px; }
 	.talos-console h1 { font-size: 23px; }
-	.talos-console .status-row { grid-template-columns: 1fr; }
+
 	.talos-console.theme-cosmos-dark .app { padding: 0 10px 14px; }
 	.talos-console.theme-cosmos-dark .sidebar { grid-template-columns: 1fr; }
 	.talos-console.theme-cosmos-dark .main { padding-top: 12px; }
@@ -3086,78 +1702,8 @@
 .talos-modal-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; }
 
 /* ===================== 屈原语音助手 ===================== */
-.talos-console .jv-panel { display: flex; flex-direction: column; gap: 14px; }
-.talos-console .jv-stagerow { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; }
-.talos-console .jv-stage { position: relative; display: grid; place-items: center; min-height: 200px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: radial-gradient(circle at 50% 40%, color-mix(in srgb,var(--ac) 14%,transparent), transparent 70%); }
-
-.talos-console .jv-avatar { position: relative; width: 180px; height: 198px; display: grid; place-items: center; animation: jv-breathe 4s ease-in-out infinite; }
-.talos-console .jv-rings { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-.talos-console .jv-ring { position: absolute; border-radius: 50%; border: 2px solid color-mix(in srgb,var(--ac) 45%,transparent); opacity: .5; }
-.talos-console .jv-ring.r1 { width: 150px; height: 150px; }
-.talos-console .jv-ring.r2 { width: 174px; height: 174px; border-style: dashed; opacity: .3; }
-.talos-console .jv-ring.r3 { width: 196px; height: 196px; opacity: .18; }
-.talos-console .jv-face { width: 168px; height: 184px; position: relative; z-index: 1; filter: drop-shadow(0 0 14px color-mix(in srgb,var(--ac) 40%,transparent)); }
-
-.talos-console .jv-antenna { stroke: color-mix(in srgb,var(--ac) 70%,transparent); stroke-width: 3; stroke-linecap: round; }
-.talos-console .jv-antenna-dot { fill: var(--ac); transform-box: fill-box; transform-origin: center; animation: jv-corepulse 2.4s ease-in-out infinite; }
-.talos-console .jv-ear { fill: color-mix(in srgb,var(--ac) 28%,#0a1224); }
-.talos-console .jv-head { fill: color-mix(in srgb,var(--ac) 15%,#0a1326); stroke: color-mix(in srgb,var(--ac) 65%,transparent); stroke-width: 2.5; }
-.talos-console .jv-visor { fill: color-mix(in srgb,var(--ac) 7%,#060a18); stroke: color-mix(in srgb,var(--ac) 24%,transparent); stroke-width: 1.5; }
-.talos-console .jv-core { fill: #fff; filter: drop-shadow(0 0 6px var(--ac)); transform-box: fill-box; transform-origin: center; animation: jv-corepulse 3s ease-in-out infinite; }
-.talos-console .jv-eye { transform-box: fill-box; transform-origin: center; animation: jv-blink 5.4s infinite; }
-.talos-console .jv-eye-r { animation-delay: .05s; }
-.talos-console .jv-eyeball { fill: var(--ac); filter: drop-shadow(0 0 5px color-mix(in srgb,var(--ac) 70%,transparent)); }
-.talos-console .jv-eyehl { fill: #fff; opacity: .92; }
-.talos-console .jv-smile { fill: none; stroke: var(--ac); stroke-width: 5; stroke-linecap: round; filter: drop-shadow(0 0 5px color-mix(in srgb,var(--ac) 55%,transparent)); transition: opacity .15s; }
-.talos-console .jv-talkmouth { fill: var(--ac); opacity: 0; transform-box: fill-box; transform-origin: center; }
-.talos-console .jv-think-dots { opacity: 0; transition: opacity .2s; }
-.talos-console .jv-dot { fill: var(--ac); }
 
 /* 状态 */
-.talos-console .jv-avatar.is-thinking { animation: jv-breathe 1.6s ease-in-out infinite; }
-.talos-console .jv-avatar.is-thinking .jv-ring.r2 { animation: jv-spin 3s linear infinite; }
-.talos-console .jv-avatar.is-thinking .jv-core { animation: jv-corepulse 1s ease-in-out infinite; }
-.talos-console .jv-avatar.is-thinking .jv-think-dots { opacity: 1; }
-.talos-console .jv-avatar.is-thinking .jv-dot { animation: jv-dot 1.1s infinite; }
-.talos-console .jv-avatar.is-thinking .jv-dot.d1 { animation-delay: .18s; }
-.talos-console .jv-avatar.is-thinking .jv-dot.d2 { animation-delay: .36s; }
-.talos-console .jv-avatar.is-speaking .jv-smile { opacity: 0; }
-.talos-console .jv-avatar.is-speaking .jv-talkmouth { opacity: 1; animation: jv-talk .26s ease-in-out infinite; }
-.talos-console .jv-avatar.is-speaking .jv-ring.r1 { animation: jv-ringpulse 1s ease-out infinite; }
-.talos-console .jv-avatar.is-listening .jv-ring.r1 { animation: jv-ringpulse .8s ease-out infinite; border-color: var(--green); }
-.talos-console .jv-avatar.is-error .jv-head { stroke: var(--rose); }
-.talos-console .jv-avatar.is-error .jv-eyeball, .talos-console .jv-avatar.is-error .jv-smile, .talos-console .jv-avatar.is-error .jv-core { fill: var(--rose); stroke: var(--rose); }
-.talos-console .jv-live2d-hint { position: absolute; bottom: 4px; font-size: 10px; color: var(--muted); font-family: var(--mono); text-align: center; max-width: 200px; }
-
-.talos-console .jv-side { display: flex; flex-direction: column; gap: 14px; }
-.talos-console .jv-status { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 13px; letter-spacing: .02em; color: var(--ac); border: 1px solid var(--line); border-radius: 10px; padding: 10px 13px; background: var(--surface-2); }
-.talos-console .jv-status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ac); box-shadow: 0 0 10px var(--ac); flex: 0 0 auto; }
-.talos-console .jv-status[data-state="thinking"] { color: var(--amber); } .talos-console .jv-status[data-state="thinking"]::before { background: var(--amber); box-shadow: 0 0 10px var(--amber); animation: tl-pulse 1s infinite; }
-.talos-console .jv-status[data-state="speaking"] { color: var(--green); } .talos-console .jv-status[data-state="speaking"]::before { background: var(--green); box-shadow: 0 0 10px var(--green); animation: tl-pulse .6s infinite; }
-.talos-console .jv-status[data-state="error"] { color: var(--rose); } .talos-console .jv-status[data-state="error"]::before { background: var(--rose); box-shadow: 0 0 10px var(--rose); }
-.talos-console .jv-tips { display: flex; flex-direction: column; gap: 5px; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; background: color-mix(in srgb,var(--surface-2) 70%,transparent); }
-.talos-console .jv-tips b { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-family: var(--mono); }
-.talos-console .jv-tips span { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
-
-.talos-console .jv-log { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; padding: 4px 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.talos-console .jv-msg { display: flex; }
-.talos-console .jv-user { justify-content: flex-end; }
-.talos-console .jv-bubble { max-width: 78%; padding: 9px 13px; border-radius: 13px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-.talos-console .jv-user .jv-bubble { background: color-mix(in srgb,var(--ac) 18%,transparent); border: 1px solid color-mix(in srgb,var(--ac) 38%,transparent); color: var(--ink); border-bottom-right-radius: 4px; }
-.talos-console .jv-assistant .jv-bubble { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-bottom-left-radius: 4px; }
-.talos-console .jv-replayable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.talos-console .jv-replayable:hover { border-color: color-mix(in srgb,var(--ac) 55%,transparent); box-shadow: 0 0 14px color-mix(in srgb,var(--ac) 22%,transparent); }
-.talos-console .jv-replayable::after { content: "🔊"; font-size: 11px; opacity: 0; margin-left: 7px; transition: opacity .15s; }
-.talos-console .jv-replayable:hover::after { opacity: .7; }
-
-.talos-console .jv-inputbar { display: flex; gap: 10px; align-items: flex-end; }
-.talos-console .jv-input { flex: 1; resize: vertical; min-height: 46px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); padding: 9px 12px; font-size: 14px; font-family: inherit; }
-.talos-console .jv-input:focus { outline: none; border-color: var(--ac); box-shadow: 0 0 16px color-mix(in srgb,var(--ac) 25%,transparent); }
-.talos-console .jv-btns { display: flex; flex-wrap: wrap; gap: 6px; }
-.talos-console .jv-btn { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 9px; padding: 8px 12px; font-size: 12px; cursor: pointer; transition: .16s; }
-.talos-console .jv-btn:hover:not(:disabled) { border-color: var(--ac); box-shadow: 0 0 14px color-mix(in srgb,var(--ac) 25%,transparent); }
-.talos-console .jv-btn:disabled { opacity: .4; cursor: not-allowed; }
-.talos-console .jv-send { background: color-mix(in srgb,var(--ac) 22%,transparent); border-color: color-mix(in srgb,var(--ac) 45%,transparent); color: var(--ac); font-weight: 700; }
 
 @keyframes jv-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 @keyframes jv-talk { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1.5); } }
@@ -3167,49 +1713,15 @@
 @keyframes jv-corepulse { 0%,100% { opacity: .55; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.15); } }
 @keyframes jv-ringpulse { 0% { transform: scale(.9); opacity: .6; } 100% { transform: scale(1.18); opacity: 0; } }
 
-@media (max-width: 720px) {
-	.talos-console .jv-stagerow { grid-template-columns: 1fr; }
-}
-
 /* ===== 屈原 Agentic 面板（B 方案） ===== */
-.jv-agent .jv-statusbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:6px 0 10px; }
-.jv-agent .jv-status { font-size:12px; padding:3px 10px; border-radius:999px; background:rgba(56,225,255,.08); border:1px solid rgba(56,225,255,.25); color:var(--text-muted); }
-.jv-agent .jv-status[data-state="thinking"] { color:#FBBF24; border-color:rgba(251,191,36,.4); }
-.jv-agent .jv-status[data-state="speaking"] { color:#34D399; border-color:rgba(52,211,153,.4); }
-.jv-agent .jv-status[data-state="error"] { color:#FB7185; border-color:rgba(251,113,133,.5); }
-.jv-modewrap { display:flex; align-items:center; gap:6px; }
-.jv-modelabel { font-size:11px; color:var(--text-faint); }
-.jv-modesel { font-size:12px; background:var(--background-secondary); color:var(--text-normal); border:1px solid var(--background-modifier-border); border-radius:6px; padding:2px 6px; }
-.jv-agentlog { display:flex; flex-direction:column; gap:10px; }
-.jv-bubble.jv-streaming::after { content:"▍"; animation:jvblink 1s steps(2) infinite; opacity:.7; }
+
 @keyframes jvblink { 0%,50%{opacity:.7} 51%,100%{opacity:0} }
-.jv-sysline { font-size:12px; color:var(--text-muted); padding:4px 8px; border-left:2px solid rgba(251,113,133,.5); }
-.jv-mic.is-on { background:rgba(251,113,133,.18); border-color:#FB7185; color:#FB7185; animation:jvpulse 1.2s ease-in-out infinite; }
+
 @keyframes jvpulse { 0%,100%{box-shadow:0 0 0 0 rgba(251,113,133,.4)} 50%{box-shadow:0 0 0 6px rgba(251,113,133,0)} }
 
 /* 工具调用卡片 */
-.jv-tool { border:1px solid var(--background-modifier-border); border-radius:10px; padding:8px 10px; background:var(--background-secondary); }
-.jv-tool-head { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; }
-.jv-tool-icon { display:inline-flex; opacity:.8; }
-.jv-tool-name { color:#38E1FF; }
-.jv-tool-input, .jv-tool-out { font-family:var(--font-monospace); font-size:11.5px; white-space:pre-wrap; word-break:break-word; margin:6px 0 0; padding:6px 8px; border-radius:6px; background:rgba(0,0,0,.18); max-height:180px; overflow:auto; }
-.jv-tool-out { border-top:1px dashed var(--background-modifier-border); }
-.jv-tool.tool-ok { border-color:rgba(52,211,153,.4); }
-.jv-tool.tool-error { border-color:rgba(251,113,133,.5); }
 
 /* 权限审批卡片 */
-.jv-perm { border:1px solid rgba(251,191,36,.5); border-radius:10px; padding:10px 12px; background:rgba(251,191,36,.06); }
-.jv-perm.resolved { opacity:.75; }
-.jv-perm[data-decision="deny"] { border-color:rgba(251,113,133,.5); background:rgba(251,113,133,.06); }
-.jv-perm-title { font-weight:600; font-size:13.5px; }
-.jv-perm-desc { font-size:12px; color:var(--text-muted); margin-top:3px; }
-.jv-perm-reason { font-size:11.5px; color:var(--text-faint); margin-top:4px; }
-.jv-perm-input { font-family:var(--font-monospace); font-size:11.5px; white-space:pre-wrap; word-break:break-word; margin:6px 0; padding:6px 8px; border-radius:6px; background:rgba(0,0,0,.2); max-height:160px; overflow:auto; }
-.jv-perm-btns { display:flex; gap:8px; margin-top:6px; }
-.jv-perm-verdict { font-size:12.5px; font-weight:600; }
-.jv-btn.jv-allow { background:rgba(52,211,153,.15); border-color:#34D399; color:#34D399; }
-.jv-btn.jv-remember { background:rgba(56,225,255,.12); border-color:#38E1FF; color:#38E1FF; }
-.jv-btn.jv-deny { background:rgba(251,113,133,.12); border-color:#FB7185; color:#FB7185; }
 
 /* ===================== 视觉风格：Animal Island 小岛主题 ===================== */
 .workspace-leaf-content[data-type="talos-console-view"]:has(.talos-console.theme-animal-island) {
@@ -3443,8 +1955,7 @@
 	opacity: .72;
 	animation: tl-animal-cloud 18s ease-in-out infinite;
 }
-.talos-console.theme-animal-island .hero-head,
-.talos-console.theme-animal-island .hero-grid {
+.talos-console.theme-animal-island .hero-head {
 	display: grid;
 }
 .talos-console.theme-animal-island .brand {
@@ -3534,7 +2045,6 @@
 .talos-console.theme-animal-island .focus .ft span,
 .talos-console.theme-animal-island .banner-lab,
 .talos-console.theme-animal-island .heat-mlabel,
-.talos-console.theme-animal-island .war-sub,
 .talos-console.theme-animal-island .spark-lab {
 	color: #8a7b66;
 }
@@ -3599,8 +2109,7 @@
 .talos-console.theme-animal-island .nav a,
 .talos-console.theme-animal-island .command,
 .talos-console.theme-animal-island .tab,
-.talos-console.theme-animal-island .btn,
-.talos-console.theme-animal-island .jv-btn {
+.talos-console.theme-animal-island .btn {
 	background: #f8f8f0;
 	border: 2px solid #c4b89e;
 	border-radius: 50px;
@@ -3613,8 +2122,7 @@
 .talos-console.theme-animal-island .nav a:hover,
 .talos-console.theme-animal-island .command:hover,
 .talos-console.theme-animal-island .tab:hover,
-.talos-console.theme-animal-island .btn:hover,
-.talos-console.theme-animal-island .jv-btn:hover:not(:disabled) {
+.talos-console.theme-animal-island .btn:hover {
 	border-color: var(--animal-page-accent);
 	color: var(--animal-page-accent);
 	box-shadow: 0 3px 10px 0 rgba(61,52,40,.10);
@@ -3622,8 +2130,7 @@
 }
 .talos-console.theme-animal-island .nav a.active,
 .talos-console.theme-animal-island .nav .command.active,
-.talos-console.theme-animal-island .tab.active,
-.talos-console.theme-animal-island .jv-send {
+.talos-console.theme-animal-island .tab.active {
 	background: var(--animal-page-accent);
 	border-color: var(--animal-page-accent);
 	box-shadow: 0 5px 0 0 var(--animal-shadow);
@@ -3631,8 +2138,7 @@
 }
 .talos-console.theme-animal-island .nav a.active:active,
 .talos-console.theme-animal-island .nav .command.active:active,
-.talos-console.theme-animal-island .btn:active,
-.talos-console.theme-animal-island .jv-btn:active:not(:disabled) {
+.talos-console.theme-animal-island .btn:active {
 	transform: translateY(2px);
 	box-shadow: 0 1px 0 0 var(--animal-shadow);
 }
@@ -3705,12 +2211,7 @@
 .talos-console.theme-animal-island .focus,
 .talos-console.theme-animal-island .gate,
 .talos-console.theme-animal-island .signal-pill,
-.talos-console.theme-animal-island .approval .item,
-.talos-console.theme-animal-island .jv-status,
-.talos-console.theme-animal-island .jv-bubble,
-.talos-console.theme-animal-island .jv-input,
-.talos-console.theme-animal-island .jv-tool,
-.talos-console.theme-animal-island .jv-perm {
+.talos-console.theme-animal-island .approval .item {
 	background:
 		radial-gradient(circle, color-mix(in srgb,var(--ac,var(--animal-page-accent)) 16%,transparent) 1.5px, transparent 1.5px) 0 0/28px 28px,
 		radial-gradient(circle, rgba(255,255,255,.28) 1px, transparent 1px) 7px 7px/14px 14px,
@@ -3757,7 +2258,6 @@
 .talos-console.theme-animal-island .stat b,
 .talos-console.theme-animal-island .signal-pill b,
 .talos-console.theme-animal-island .command code,
-.talos-console.theme-animal-island .quick-value,
 .talos-console.theme-animal-island .metric-card b,
 .talos-console.theme-animal-island .platform-card .big,
 .talos-console.theme-animal-island .cluster-card .big,
@@ -3785,8 +2285,7 @@
 .talos-console.theme-animal-island .focus .ft b,
 .talos-console.theme-animal-island .gate-id,
 .talos-console.theme-animal-island .gate-title,
-.talos-console.theme-animal-island .approval .item span,
-.talos-console.theme-animal-island .progress-line b {
+.talos-console.theme-animal-island .approval .item span {
 	color: #725d42;
 }
 .talos-console.theme-animal-island .bar,
@@ -3805,7 +2304,6 @@
 .talos-console.theme-animal-island .bwrap i::after {
 	display: none;
 }
-.talos-console.theme-animal-island .countdown,
 .talos-console.theme-animal-island .banner {
 	background:
 		radial-gradient(circle, rgba(247,205,103,.18) 1.5px, transparent 1.5px) 0 0/28px 28px,
@@ -3814,8 +2312,6 @@
 	border-radius: 20px;
 	animation: none;
 }
-.talos-console.theme-animal-island .countdown b,
-.talos-console.theme-animal-island .countdown span,
 .talos-console.theme-animal-island .banner-tag {
 	color: #725d42;
 	text-shadow: none;
@@ -3856,96 +2352,7 @@
 	box-shadow: none;
 	border-radius: 8px 8px 0 0;
 }
-.talos-console.theme-animal-island .jv-stage {
-	background:
-		radial-gradient(circle, color-mix(in srgb,var(--animal-page-accent) 18%,transparent) 1.5px, transparent 1.5px) 0 0/28px 28px,
-		#fffaf0;
-	border: 2px solid #c4b89e;
-	border-radius: 20px;
-}
-.talos-console.theme-animal-island .jv-avatar {
-	animation: jv-breathe 5.2s ease-in-out infinite;
-}
-.talos-console.theme-animal-island .jv-ring {
-	border-color: color-mix(in srgb,var(--animal-page-accent) 48%,#c4b89e);
-}
-.talos-console.theme-animal-island .jv-head,
-.talos-console.theme-animal-island .jv-ear {
-	fill: #f8f8f0;
-	stroke: #c4b89e;
-}
-.talos-console.theme-animal-island .jv-visor {
-	fill: #fffaf0;
-	stroke: #d4c9b4;
-}
-.talos-console.theme-animal-island .jv-eyeball,
-.talos-console.theme-animal-island .jv-core,
-.talos-console.theme-animal-island .jv-dot {
-	fill: var(--animal-page-accent);
-	filter: none;
-}
-.talos-console.theme-animal-island .jv-smile {
-	stroke: var(--animal-page-accent);
-	filter: none;
-}
-.talos-console.theme-animal-island .jv-input {
-	min-height: 46px;
-	border-radius: 24px;
-	border: 2px solid #c4b89e;
-	background: rgb(247,243,223);
-	color: #725d42;
-	box-shadow: none;
-}
-.talos-console.theme-animal-island .jv-input:focus {
-	border-color: #ffcc00;
-	box-shadow: 0 0 0 3px rgba(255,204,0,.15);
-}
-.talos-console.theme-animal-island .jv-user .jv-bubble {
-	background: var(--animal-page-soft);
-	border-color: var(--animal-page-accent);
-	color: #725d42;
-}
-.talos-console.theme-animal-island .jv-assistant .jv-bubble {
-	background: #fffaf0;
-	border-color: #d4c9b4;
-	color: #725d42;
-}
-.talos-console.theme-animal-island .jv-tool-input,
-.talos-console.theme-animal-island .jv-tool-out,
-.talos-console.theme-animal-island .jv-perm-input {
-	background: #f0e8d8;
-	border-radius: 12px;
-	color: #725d42;
-}
-.talos-console.theme-animal-island .jv-agent .jv-status {
-	background: #fffaf0;
-	border-color: #c4b89e;
-	color: #725d42;
-}
-.talos-console.theme-animal-island .jv-modesel {
-	background: #fffaf0;
-	border: 2px solid #c4b89e;
-	border-radius: 16px;
-	color: #725d42;
-}
-.talos-console.theme-animal-island .jv-tool-name {
-	color: var(--animal-page-accent);
-}
-.talos-console.theme-animal-island .jv-btn.jv-allow {
-	background: #e8f5e8;
-	border-color: #6fba2c;
-	color: #5a9e1e;
-}
-.talos-console.theme-animal-island .jv-btn.jv-remember {
-	background: #e8faf5;
-	border-color: #19c8b9;
-	color: #11a89b;
-}
-.talos-console.theme-animal-island .jv-btn.jv-deny {
-	background: #fff0e8;
-	border-color: #e05a5a;
-	color: #c94444;
-}
+
 @keyframes tl-animal-wallpaper {
 	0% { background-position: 0 0, 7px 7px, 0 0; }
 	100% { background-position: 56px 28px, 63px 35px, 0 0; }
@@ -4241,8 +2648,7 @@
 	pointer-events: none;
 	animation: none;
 }
-.talos-console.theme-system-classic .hero-head,
-.talos-console.theme-system-classic .hero-grid {
+.talos-console.theme-system-classic .hero-head {
 	position: relative;
 	z-index: 1;
 }
@@ -4310,7 +2716,6 @@
 .talos-console.theme-system-classic .focus .ft span,
 .talos-console.theme-system-classic .banner-lab,
 .talos-console.theme-system-classic .heat-mlabel,
-.talos-console.theme-system-classic .war-sub,
 .talos-console.theme-system-classic .spark-lab {
 	color: #4f4f4f;
 	-webkit-text-fill-color: currentColor;
@@ -4446,8 +2851,7 @@
 .talos-console.theme-system-classic .nav a,
 .talos-console.theme-system-classic .command,
 .talos-console.theme-system-classic .tab,
-.talos-console.theme-system-classic .btn,
-.talos-console.theme-system-classic .jv-btn {
+.talos-console.theme-system-classic .btn {
 	border: 2px solid #000;
 	border-radius: 0;
 	background: #fff;
@@ -4460,8 +2864,7 @@
 .talos-console.theme-system-classic .nav a:hover,
 .talos-console.theme-system-classic .command:hover,
 .talos-console.theme-system-classic .tab:hover,
-.talos-console.theme-system-classic .btn:hover,
-.talos-console.theme-system-classic .jv-btn:hover:not(:disabled) {
+.talos-console.theme-system-classic .btn:hover {
 	border-color: #000;
 	background: #e8e8e8;
 	transform: translate(-1px,-1px);
@@ -4469,8 +2872,7 @@
 }
 .talos-console.theme-system-classic .nav a.active,
 .talos-console.theme-system-classic .nav .command.active,
-.talos-console.theme-system-classic .tab.active,
-.talos-console.theme-system-classic .jv-send {
+.talos-console.theme-system-classic .tab.active {
 	background: #000;
 	color: #fff;
 	-webkit-text-fill-color: #fff;
@@ -4479,8 +2881,7 @@
 }
 .talos-console.theme-system-classic .nav a.active:active,
 .talos-console.theme-system-classic .nav .command.active:active,
-.talos-console.theme-system-classic .btn:active,
-.talos-console.theme-system-classic .jv-btn:active:not(:disabled) {
+.talos-console.theme-system-classic .btn:active {
 	transform: translate(2px,2px);
 	box-shadow: inset 2px 2px 0 #555;
 }
@@ -4507,8 +2908,7 @@
 	font-weight: 800;
 	box-shadow: inset 1px 1px 0 #d0d0d0;
 }
-.talos-console.theme-system-classic .active .mark,
-.talos-console.theme-system-classic .jv-send .mark {
+.talos-console.theme-system-classic .active .mark {
 	background: #fff;
 	color: #000;
 }
@@ -4567,12 +2967,7 @@
 .talos-console.theme-system-classic .focus,
 .talos-console.theme-system-classic .gate,
 .talos-console.theme-system-classic .signal-pill,
-.talos-console.theme-system-classic .approval .item,
-.talos-console.theme-system-classic .jv-status,
-.talos-console.theme-system-classic .jv-bubble,
-.talos-console.theme-system-classic .jv-input,
-.talos-console.theme-system-classic .jv-tool,
-.talos-console.theme-system-classic .jv-perm {
+.talos-console.theme-system-classic .approval .item {
 	background: #fff;
 	border: 2px solid #000;
 	border-radius: 0;
@@ -4618,7 +3013,6 @@
 .talos-console.theme-system-classic .stat b,
 .talos-console.theme-system-classic .signal-pill b,
 .talos-console.theme-system-classic .command code,
-.talos-console.theme-system-classic .quick-value,
 .talos-console.theme-system-classic .metric-card b,
 .talos-console.theme-system-classic .platform-card .big,
 .talos-console.theme-system-classic .cluster-card .big,
@@ -4648,15 +3042,9 @@
 .talos-console.theme-system-classic .focus .ft b,
 .talos-console.theme-system-classic .gate-id,
 .talos-console.theme-system-classic .gate-title,
-.talos-console.theme-system-classic .approval .item span,
-.talos-console.theme-system-classic .progress-line b {
+.talos-console.theme-system-classic .approval .item span {
 	color: #000;
 }
-.talos-console.theme-system-classic .status-row,
-.talos-console.theme-system-classic .overview-cards,
-.talos-console.theme-system-classic .signal-strip,
-.talos-console.theme-system-classic .quick-grid,
-.talos-console.theme-system-classic .metric-grid,
 .talos-console.theme-system-classic .platform-grid,
 .talos-console.theme-system-classic .cluster-grid,
 .talos-console.theme-system-classic .project-grid,
@@ -4695,7 +3083,6 @@
 .talos-console.theme-system-classic .bwrap i::after {
 	display: none;
 }
-.talos-console.theme-system-classic .countdown,
 .talos-console.theme-system-classic .banner {
 	background:
 		repeating-linear-gradient(135deg, rgba(0,0,0,.05) 0 8px, transparent 8px 16px),
@@ -4705,8 +3092,6 @@
 	box-shadow: 2px 2px 0 #000;
 	animation: none;
 }
-.talos-console.theme-system-classic .countdown b,
-.talos-console.theme-system-classic .countdown span,
 .talos-console.theme-system-classic .banner-tag {
 	color: #000;
 	text-shadow: none;
@@ -4768,101 +3153,7 @@
 	border-radius: 0;
 	box-shadow: none;
 }
-.talos-console.theme-system-classic .jv-stage {
-	background:
-		repeating-linear-gradient(0deg, rgba(0,0,0,.05) 0 1px, transparent 1px 12px),
-		#fff;
-	border: 2px solid #000;
-	border-radius: 0;
-	box-shadow: 2px 2px 0 #000;
-}
-.talos-console.theme-system-classic .jv-avatar {
-	animation: jv-breathe 6s steps(8) infinite;
-}
-.talos-console.theme-system-classic .jv-ring {
-	border-color: #000;
-	box-shadow: none;
-}
-.talos-console.theme-system-classic .jv-head,
-.talos-console.theme-system-classic .jv-ear {
-	fill: #fff;
-	stroke: #000;
-}
-.talos-console.theme-system-classic .jv-visor {
-	fill: #f1f1f1;
-	stroke: #000;
-}
-.talos-console.theme-system-classic .jv-eyeball,
-.talos-console.theme-system-classic .jv-core,
-.talos-console.theme-system-classic .jv-dot {
-	fill: #000;
-	filter: none;
-}
-.talos-console.theme-system-classic .jv-smile {
-	stroke: #000;
-	filter: none;
-}
-.talos-console.theme-system-classic .jv-input {
-	min-height: 48px;
-	background: #fff;
-	color: #000;
-	font-family: var(--sans);
-	box-shadow: inset 2px 2px 0 #bdbdbd;
-}
-.talos-console.theme-system-classic .jv-input:focus {
-	outline: 2px solid #000;
-	outline-offset: 2px;
-	border-color: #000;
-	box-shadow: inset 2px 2px 0 #bdbdbd;
-}
-.talos-console.theme-system-classic .jv-user .jv-bubble {
-	background: #000;
-	border-color: #000;
-	color: #fff;
-}
-.talos-console.theme-system-classic .jv-assistant .jv-bubble {
-	background: #fff;
-	border-color: #000;
-	color: #000;
-}
-.talos-console.theme-system-classic .jv-tool-input,
-.talos-console.theme-system-classic .jv-tool-out,
-.talos-console.theme-system-classic .jv-perm-input {
-	background: #e8e8e8;
-	border: 1px solid #000;
-	border-radius: 0;
-	color: #000;
-}
-.talos-console.theme-system-classic .jv-agent .jv-status {
-	background: #fff;
-	border-color: #000;
-	color: #000;
-	border-radius: 0;
-}
-.talos-console.theme-system-classic .jv-modesel {
-	background: #fff;
-	border: 2px solid #000;
-	border-radius: 0;
-	color: #000;
-}
-.talos-console.theme-system-classic .jv-tool-name {
-	color: #000;
-	text-decoration: underline;
-}
-.talos-console.theme-system-classic .jv-btn.jv-allow,
-.talos-console.theme-system-classic .jv-btn.jv-remember,
-.talos-console.theme-system-classic .jv-btn.jv-deny {
-	background: #fff;
-	border-color: #000;
-	color: #000;
-}
-.talos-console.theme-system-classic .jv-btn.jv-deny:hover,
-.talos-console.theme-system-classic .jv-btn.jv-allow:hover,
-.talos-console.theme-system-classic .jv-btn.jv-remember:hover {
-	background: #000;
-	color: #fff;
-	-webkit-text-fill-color: #fff;
-}
+
 @keyframes tl-system-desktop {
 	0% { background-position: 0 0, 0 0; }
 	100% { background-position: 64px 64px, -64px 64px; }
@@ -4921,10 +3212,9 @@
 		font-size: 24px;
 	}
 	.talos-console.theme-system-classic .platform-grid,
-	.talos-console.theme-system-classic .project-grid,
-	.talos-console.theme-system-classic .module-grid,
-	.talos-console.theme-system-classic .note-grid,
-	.talos-console.theme-system-classic .quick-grid {
+.talos-console.theme-system-classic .project-grid,
+.talos-console.theme-system-classic .module-grid,
+.talos-console.theme-system-classic .note-grid {
 		grid-template-columns: 1fr;
 	}
 }
@@ -5093,8 +3383,7 @@
 	letter-spacing: .12em;
 	animation: none;
 }
-.talos-console.theme-data-stream .hero-head,
-.talos-console.theme-data-stream .hero-grid {
+.talos-console.theme-data-stream .hero-head {
 	display: grid;
 }
 .talos-console.theme-data-stream .hero-head {
@@ -5166,12 +3455,7 @@
 .talos-console.theme-data-stream .focus,
 .talos-console.theme-data-stream .gate,
 .talos-console.theme-data-stream .signal-pill,
-.talos-console.theme-data-stream .approval .item,
-.talos-console.theme-data-stream .jv-status,
-.talos-console.theme-data-stream .jv-bubble,
-.talos-console.theme-data-stream .jv-input,
-.talos-console.theme-data-stream .jv-tool,
-.talos-console.theme-data-stream .jv-perm {
+.talos-console.theme-data-stream .approval .item {
 	background: rgba(3,25,13,.78);
 	border: 1px solid rgba(var(--ds-rgb),.24);
 	border-radius: 0;
@@ -5214,8 +3498,7 @@
 .talos-console.theme-data-stream .nav a,
 .talos-console.theme-data-stream .command,
 .talos-console.theme-data-stream .tab,
-.talos-console.theme-data-stream .btn,
-.talos-console.theme-data-stream .jv-btn {
+.talos-console.theme-data-stream .btn {
 	background: rgba(var(--ds-rgb),.035);
 	border: 1px solid rgba(var(--ds-rgb),.24);
 	border-radius: 0;
@@ -5226,10 +3509,8 @@
 .talos-console.theme-data-stream .command:hover,
 .talos-console.theme-data-stream .tab:hover,
 .talos-console.theme-data-stream .btn:hover,
-.talos-console.theme-data-stream .jv-btn:hover:not(:disabled),
 .talos-console.theme-data-stream .nav .command.active,
-.talos-console.theme-data-stream .tab.active,
-.talos-console.theme-data-stream .jv-send {
+.talos-console.theme-data-stream .tab.active {
 	background: var(--ds);
 	border-color: var(--ds);
 	color: #001708;
@@ -5243,8 +3524,7 @@
 	background: transparent;
 	color: var(--ds);
 }
-.talos-console.theme-data-stream .active .mark,
-.talos-console.theme-data-stream .jv-send .mark {
+.talos-console.theme-data-stream .active .mark {
 	border-color: #001708;
 	color: #001708;
 }
@@ -5252,7 +3532,6 @@
 .talos-console.theme-data-stream .overview-card b,
 .talos-console.theme-data-stream .stat b,
 .talos-console.theme-data-stream .signal-pill b,
-.talos-console.theme-data-stream .quick-value,
 .talos-console.theme-data-stream .metric-card b,
 .talos-console.theme-data-stream .platform-card .big,
 .talos-console.theme-data-stream .cluster-card .big,
@@ -5286,27 +3565,7 @@
 .talos-console.theme-data-stream .heat-cell[data-level="2"] { background: rgba(var(--ds-rgb),.34); }
 .talos-console.theme-data-stream .heat-cell[data-level="3"] { background: rgba(var(--ds-rgb),.58); }
 .talos-console.theme-data-stream .heat-cell[data-level="4"] { background: var(--ds); box-shadow: 0 0 8px rgba(var(--ds-rgb),.4); }
-.talos-console.theme-data-stream .jv-stage {
-	background: rgba(0,10,5,.74);
-	border: 1px solid var(--line);
-	border-radius: 0;
-}
-.talos-console.theme-data-stream .jv-input:focus {
-	border-color: var(--ds);
-	box-shadow: 0 0 0 2px rgba(var(--ds-rgb),.14);
-}
-.talos-console.theme-data-stream .jv-ring,
-.talos-console.theme-data-stream .jv-head,
-.talos-console.theme-data-stream .jv-ear,
-.talos-console.theme-data-stream .jv-visor {
-	border-color: var(--ds);
-}
-.talos-console.theme-data-stream .jv-eyeball,
-.talos-console.theme-data-stream .jv-core,
-.talos-console.theme-data-stream .jv-dot {
-	background: var(--ds);
-	box-shadow: 0 0 10px rgba(var(--ds-rgb),.7);
-}
+
 @keyframes tl-data-rain {
 	from { transform: translate3d(0,-28vh,0); }
 	to { transform: translate3d(0,145vh,0); }
@@ -5416,8 +3675,7 @@
 .talos-console.theme-soft-relief .hero::after {
 	display: none;
 }
-.talos-console.theme-soft-relief .hero-head,
-.talos-console.theme-soft-relief .hero-grid {
+.talos-console.theme-soft-relief .hero-head {
 	display: grid;
 }
 .talos-console.theme-soft-relief .eyebrow,
@@ -5496,12 +3754,7 @@
 .talos-console.theme-soft-relief .focus,
 .talos-console.theme-soft-relief .gate,
 .talos-console.theme-soft-relief .signal-pill,
-.talos-console.theme-soft-relief .approval .item,
-.talos-console.theme-soft-relief .jv-status,
-.talos-console.theme-soft-relief .jv-bubble,
-.talos-console.theme-soft-relief .jv-input,
-.talos-console.theme-soft-relief .jv-tool,
-.talos-console.theme-soft-relief .jv-perm {
+.talos-console.theme-soft-relief .approval .item {
 	background: var(--sr-bg);
 	border: 0;
 	border-radius: 14px;
@@ -5547,8 +3800,7 @@
 .talos-console.theme-soft-relief .nav a,
 .talos-console.theme-soft-relief .command,
 .talos-console.theme-soft-relief .tab,
-.talos-console.theme-soft-relief .btn,
-.talos-console.theme-soft-relief .jv-btn {
+.talos-console.theme-soft-relief .btn {
 	background: var(--sr-bg);
 	border: 0;
 	border-radius: 12px;
@@ -5558,8 +3810,7 @@
 .talos-console.theme-soft-relief .nav a:hover,
 .talos-console.theme-soft-relief .command:hover,
 .talos-console.theme-soft-relief .tab:hover,
-.talos-console.theme-soft-relief .btn:hover,
-.talos-console.theme-soft-relief .jv-btn:hover:not(:disabled) {
+.talos-console.theme-soft-relief .btn:hover {
 	background: var(--sr-bg);
 	color: var(--sr-accent);
 	transform: translateY(-1px);
@@ -5567,11 +3818,9 @@
 }
 .talos-console.theme-soft-relief .nav .command.active,
 .talos-console.theme-soft-relief .tab.active,
-.talos-console.theme-soft-relief .jv-send,
 .talos-console.theme-soft-relief .nav a:active,
 .talos-console.theme-soft-relief .command:active,
-.talos-console.theme-soft-relief .btn:active,
-.talos-console.theme-soft-relief .jv-btn:active:not(:disabled) {
+.talos-console.theme-soft-relief .btn:active {
 	background: var(--sr-bg);
 	color: var(--sr-accent);
 	-webkit-text-fill-color: var(--sr-accent);
@@ -5589,7 +3838,6 @@
 .talos-console.theme-soft-relief .overview-card b,
 .talos-console.theme-soft-relief .stat b,
 .talos-console.theme-soft-relief .signal-pill b,
-.talos-console.theme-soft-relief .quick-value,
 .talos-console.theme-soft-relief .metric-card b,
 .talos-console.theme-soft-relief .platform-card .big,
 .talos-console.theme-soft-relief .cluster-card .big,
@@ -5626,30 +3874,7 @@
 .talos-console.theme-soft-relief .heat-cell[data-level="2"] { background: rgba(var(--sr-accent-rgb),.36); }
 .talos-console.theme-soft-relief .heat-cell[data-level="3"] { background: rgba(var(--sr-accent-rgb),.62); }
 .talos-console.theme-soft-relief .heat-cell[data-level="4"] { background: var(--sr-accent); }
-.talos-console.theme-soft-relief .jv-stage {
-	background: var(--sr-bg);
-	border: 0;
-	border-radius: 18px;
-	box-shadow: inset 8px 8px 18px var(--sr-lo),inset -8px -8px 18px var(--sr-hi);
-}
-.talos-console.theme-soft-relief .jv-input {
-	box-shadow: inset 4px 4px 8px var(--sr-lo),inset -4px -4px 8px var(--sr-hi);
-}
-.talos-console.theme-soft-relief .jv-input:focus {
-	box-shadow: inset 4px 4px 8px var(--sr-lo),inset -4px -4px 8px var(--sr-hi),0 0 0 2px rgba(var(--sr-accent-rgb),.2);
-}
-.talos-console.theme-soft-relief .jv-ring,
-.talos-console.theme-soft-relief .jv-head,
-.talos-console.theme-soft-relief .jv-ear,
-.talos-console.theme-soft-relief .jv-visor {
-	border-color: var(--sr-accent);
-}
-.talos-console.theme-soft-relief .jv-eyeball,
-.talos-console.theme-soft-relief .jv-core,
-.talos-console.theme-soft-relief .jv-dot {
-	background: var(--sr-accent);
-	box-shadow: 0 3px 8px rgba(var(--sr-accent-rgb),.26);
-}
+
 @keyframes tl-soft-surface {
 	from { background-position: 0 0,0 0; }
 	to { background-position: 180px 180px,-220px 220px; }
@@ -5804,18 +4029,7 @@
 	box-shadow: 9px 9px 0 var(--gm-page);
 	transform: translate(-2px,-2px);
 }
-.talos-console.theme-geometric-modern[data-talos-page="overview"] .overview-secondary-grid .overview-secondary-item:hover {
-	background:
-		linear-gradient(135deg,color-mix(in srgb,var(--gm-third) 62%,var(--gm-paper)),var(--gm-paper) 72%);
-	border-color: var(--gm-ink);
-	box-shadow: 8px 8px 0 var(--gm-ink);
-}
-.talos-console.theme-geometric-modern[data-talos-page="overview"] .overview-workgrid .panel:hover {
-	background:
-		linear-gradient(135deg,color-mix(in srgb,var(--ac) 20%,var(--gm-paper)),var(--gm-paper) 68%);
-	border-color: var(--gm-ink);
-	box-shadow: 9px 9px 0 var(--gm-page);
-}
+
 .talos-console.theme-geometric-modern .sidebar section:nth-child(3n+1)::before { background: var(--gm-page); }
 .talos-console.theme-geometric-modern .sidebar section:nth-child(3n+2)::before { background: var(--gm-secondary); }
 .talos-console.theme-geometric-modern .sidebar section:nth-child(3n)::before { background: var(--gm-third); }
@@ -5852,8 +4066,7 @@
 	background: var(--gm-secondary);
 	animation: tl-geo-hero 19s ease-in-out infinite reverse;
 }
-.talos-console.theme-geometric-modern .hero-head,
-.talos-console.theme-geometric-modern .hero-grid {
+.talos-console.theme-geometric-modern .hero-head {
 	display: grid;
 }
 .talos-console.theme-geometric-modern .hero-head {
@@ -5942,12 +4155,7 @@
 .talos-console.theme-geometric-modern .focus,
 .talos-console.theme-geometric-modern .gate,
 .talos-console.theme-geometric-modern .signal-pill,
-.talos-console.theme-geometric-modern .approval .item,
-.talos-console.theme-geometric-modern .jv-status,
-.talos-console.theme-geometric-modern .jv-bubble,
-.talos-console.theme-geometric-modern .jv-input,
-.talos-console.theme-geometric-modern .jv-tool,
-.talos-console.theme-geometric-modern .jv-perm {
+.talos-console.theme-geometric-modern .approval .item {
 	background: rgba(255,255,255,.46);
 	border: 2px solid var(--gm-ink);
 	border-radius: 0;
@@ -6003,8 +4211,7 @@
 .talos-console.theme-geometric-modern .nav a,
 .talos-console.theme-geometric-modern .command,
 .talos-console.theme-geometric-modern .tab,
-.talos-console.theme-geometric-modern .btn,
-.talos-console.theme-geometric-modern .jv-btn {
+.talos-console.theme-geometric-modern .btn {
 	background: var(--gm-paper);
 	border: 2px solid var(--gm-ink);
 	border-radius: 0;
@@ -6015,8 +4222,7 @@
 .talos-console.theme-geometric-modern .nav a:hover,
 .talos-console.theme-geometric-modern .command:hover,
 .talos-console.theme-geometric-modern .tab:hover,
-.talos-console.theme-geometric-modern .btn:hover,
-.talos-console.theme-geometric-modern .jv-btn:hover:not(:disabled) {
+.talos-console.theme-geometric-modern .btn:hover {
 	background: var(--gm-third);
 	border-color: var(--gm-ink);
 	color: var(--gm-ink);
@@ -6024,8 +4230,7 @@
 	box-shadow: 5px 5px 0 var(--gm-ink);
 }
 .talos-console.theme-geometric-modern .nav .command.active,
-.talos-console.theme-geometric-modern .tab.active,
-.talos-console.theme-geometric-modern .jv-send {
+.talos-console.theme-geometric-modern .tab.active {
 	background: var(--gm-page);
 	border-color: var(--gm-ink);
 	color: #fff;
@@ -6039,8 +4244,7 @@
 	background: var(--gm-third);
 	color: var(--gm-ink);
 }
-.talos-console.theme-geometric-modern .active .mark,
-.talos-console.theme-geometric-modern .jv-send .mark {
+.talos-console.theme-geometric-modern .active .mark {
 	background: var(--gm-paper);
 	color: var(--gm-ink);
 }
@@ -6048,7 +4252,6 @@
 .talos-console.theme-geometric-modern .overview-card b,
 .talos-console.theme-geometric-modern .stat b,
 .talos-console.theme-geometric-modern .signal-pill b,
-.talos-console.theme-geometric-modern .quick-value,
 .talos-console.theme-geometric-modern .metric-card b,
 .talos-console.theme-geometric-modern .platform-card .big,
 .talos-console.theme-geometric-modern .cluster-card .big,
@@ -6087,27 +4290,7 @@
 .talos-console.theme-geometric-modern .heat-cell[data-level="2"] { background: var(--gm-third); }
 .talos-console.theme-geometric-modern .heat-cell[data-level="3"] { background: var(--gm-secondary); }
 .talos-console.theme-geometric-modern .heat-cell[data-level="4"] { background: var(--gm-page); }
-.talos-console.theme-geometric-modern .jv-stage {
-	background: rgba(255,255,255,.42);
-	border: 2px solid var(--gm-ink);
-	border-radius: 0;
-}
-.talos-console.theme-geometric-modern .jv-input:focus {
-	border-color: var(--gm-blue);
-	box-shadow: 4px 4px 0 var(--gm-third);
-}
-.talos-console.theme-geometric-modern .jv-ring,
-.talos-console.theme-geometric-modern .jv-head,
-.talos-console.theme-geometric-modern .jv-ear,
-.talos-console.theme-geometric-modern .jv-visor {
-	border-color: var(--gm-ink);
-}
-.talos-console.theme-geometric-modern .jv-eyeball,
-.talos-console.theme-geometric-modern .jv-core,
-.talos-console.theme-geometric-modern .jv-dot {
-	background: var(--gm-page);
-	box-shadow: none;
-}
+
 @keyframes tl-geo-float-a {
 	0%,100% { transform: translate3d(0,0,0) rotate(0); }
 	50% { transform: translate3d(34px,24px,0) rotate(9deg); }
@@ -6151,11 +4334,8 @@
 		grid-template-columns: 1fr;
 	}
 	.talos-console.theme-data-stream .hero-head,
-	.talos-console.theme-soft-relief .hero-head,
-	.talos-console.theme-geometric-modern .hero-head,
-	.talos-console.theme-data-stream .hero-grid,
-	.talos-console.theme-soft-relief .hero-grid,
-	.talos-console.theme-geometric-modern .hero-grid {
+.talos-console.theme-soft-relief .hero-head,
+.talos-console.theme-geometric-modern .hero-head {
 		grid-template-columns: 1fr;
 	}
 	.talos-console.theme-data-stream .logo-module,
@@ -6431,39 +4611,9 @@
 	min-width: 0;
 	min-height: 0;
 }
-.talos-console[data-talos-page="jarvis"] .jv-panel {
-	flex: 1 1 auto;
-	width: 100%;
-	height: 100%;
-	min-width: 0;
-	min-height: 0;
-	max-height: 100%;
-	overflow: hidden;
-	margin: 0;
-	transform: none !important;
-}
-.talos-console[data-talos-page="jarvis"] .jv-statusbar,
-.talos-console[data-talos-page="jarvis"] .jv-inputbar,
+
 .talos-console[data-talos-page="jarvis"] .section-title {
 	flex: 0 0 auto;
-}
-.talos-console[data-talos-page="jarvis"] .jv-log {
-	flex: 1 1 auto;
-	min-height: 180px;
-	max-height: none;
-	overflow-y: auto;
-	overscroll-behavior: contain;
-	scrollbar-width: thin;
-}
-.talos-console[data-talos-page="jarvis"] .jv-inputbar {
-	position: relative;
-	z-index: 2;
-	padding-top: 2px;
-}
-.talos-console[data-talos-page="jarvis"] .jv-input {
-	min-width: 0;
-	min-height: 76px;
-	max-height: 180px;
 }
 
 .talos-console[data-talos-page="jarvis"] .quyuan-error-panel {
@@ -6560,13 +4710,7 @@
 		height: auto;
 		min-height: 72svh;
 	}
-	.talos-console[data-talos-page="jarvis"] .jv-inputbar {
-		align-items: stretch;
-		flex-direction: column;
-	}
-	.talos-console[data-talos-page="jarvis"] .jv-btns {
-		justify-content: flex-end;
-	}
+
 }
 
 /* ===================== 每日执行舱 ===================== */
@@ -6734,11 +4878,7 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.talos-console .daily-work-grid {
-	display: grid;
-	grid-template-columns: minmax(0,1.5fr) minmax(280px,.5fr);
-	gap: 14px;
-}
+
 .talos-console .daily-timeline {
 	display: flex;
 	flex-direction: column;
@@ -7022,8 +5162,7 @@
 }
 
 @media (max-width: 1100px) {
-	.talos-console .daily-overview,
-	.talos-console .daily-work-grid {
+	.talos-console .daily-overview {
 		grid-template-columns: 1fr;
 	}
 	.talos-console .daily-actions,
@@ -7053,43 +5192,10 @@
 }
 
 /* ===================== 屈原多标签条（P3） ===================== */
-.talos-console .jv-tabsbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 4px 0; align-items: center; }
-.talos-console .jv-tab { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px 8px 0 0; font-size: 12px; cursor: pointer; opacity: 0.65; background: rgba(255,255,255,0.04); border: 1px solid transparent; max-width: 180px; }
-.talos-console .jv-tab.is-active { opacity: 1; background: rgba(56,225,255,0.12); border-color: rgba(56,225,255,0.35); }
-.talos-console .jv-tab-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.talos-console .jv-tab-close { opacity: 0.5; font-weight: bold; padding: 0 2px; }
-.talos-console .jv-tab-close:hover { opacity: 1; color: #ff6b6b; }
-.talos-console .jv-tab-add { opacity: 0.8; font-weight: bold; padding: 4px 10px; }
-.talos-console .jv-tab-add:hover { opacity: 1; color: var(--ac, #38E1FF); }
-.talos-console .jv-tabscontent { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.talos-console .jv-tabscontent .jv-log { flex: 1; min-height: 0; }
 
 /* ===================== 屈原 P4：@提及 / 附件 / 思考块 ===================== */
-.talos-console .jv-inputbar { position: relative; }
-.talos-console .jv-mentions { position: absolute; bottom: 100%; left: 0; right: 0; max-height: 220px; overflow-y: auto; background: var(--background-secondary, #14151c); border: 1px solid rgba(56,225,255,0.35); border-radius: 8px; margin-bottom: 4px; z-index: 30; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
-.talos-console .jv-mention-item { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; cursor: pointer; }
-.talos-console .jv-mention-item:hover { background: rgba(56,225,255,0.12); }
-.talos-console .jv-mention-name { font-size: 13px; }
-.talos-console .jv-mention-path { font-size: 11px; opacity: 0.55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.talos-console .jv-attachbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
-.talos-console .jv-attach-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 12px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
-.talos-console .jv-attach-close { opacity: 0.6; font-weight: bold; cursor: pointer; }
-.talos-console .jv-attach-close:hover { opacity: 1; color: #ff6b6b; }
-.talos-console .jv-think { margin: 4px 0; padding: 4px 8px; border-left: 2px solid rgba(160,160,200,0.4); opacity: 0.8; }
-.talos-console .jv-think > summary { cursor: pointer; font-size: 12px; opacity: 0.7; }
-.talos-console .jv-think-pre { margin: 4px 0 0; font-size: 12px; white-space: pre-wrap; opacity: 0.75; }
 
 /* ===================== 屈原 P5：能力透出 ===================== */
-.talos-console .jv-capsbtn { margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: 6px; cursor: pointer; opacity: 0.8; background: rgba(255,255,255,0.05); }
-.talos-console .jv-capsbtn:hover { opacity: 1; color: var(--ac, #38E1FF); }
-.talos-console .jv-caps { padding: 8px 10px; margin: 4px 0; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); font-size: 12px; }
-.talos-console .jv-caps-group { margin-bottom: 8px; }
-.talos-console .jv-caps-label { opacity: 0.6; margin-bottom: 4px; }
-.talos-console .jv-caps-items { display: flex; flex-wrap: wrap; gap: 6px; }
-.talos-console .jv-caps-chip { padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
-.talos-console .jv-caps-chip.is-click { cursor: pointer; }
-.talos-console .jv-caps-chip.is-click:hover { color: var(--ac, #38E1FF); border-color: rgba(56,225,255,0.4); }
-.talos-console .jv-caps-note { opacity: 0.6; font-style: italic; margin-top: 4px; }
 
 /* ===================== TALOS 设置页 · Tab 分页 ===================== */
 .talos-settings .talos-settabs { display: flex; gap: 4px; border-bottom: 1px solid var(--background-modifier-border, rgba(255,255,255,0.1)); margin-bottom: 14px; flex-wrap: wrap; }
@@ -7100,211 +5206,54 @@
 @keyframes talos-fadein { from { opacity: 0; } to { opacity: 1; } }
 
 /* ===================== 屈原底栏（模型/思考/上下文/YOLO） ===================== */
-.talos-console .jv-bottombar { display: flex; align-items: center; gap: 12px; padding: 6px 4px 2px; font-size: 12px; opacity: 0.9; flex-wrap: wrap; }
-.talos-console .jv-bottombar .jv-bl { opacity: 0.6; margin-right: 4px; }
-.talos-console .jv-modelsel, .talos-console .jv-thinksel { font-size: 12px; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: var(--text-normal); }
-.talos-console .jv-modelsel { color: var(--ac, #38E1FF); font-weight: 600; }
-.talos-console .jv-thinkwrap, .talos-console .jv-voicewrap, .talos-console .jv-yolowrap { display: inline-flex; align-items: center; gap: 4px; }
-.talos-console .jv-ctx { padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); opacity: 0.8; margin-left: auto; }
-.talos-console .jv-yolo { cursor: pointer; accent-color: #ff7043; }
 
 /* ===================== 屈原 · 侧边栏独立视图 ===================== */
 .workspace-leaf-content[data-type="talos-jarvis-view"] .view-content { padding: 0; overflow: hidden; }
 .talos-jarvis-pane { height: 100%; display: flex; flex-direction: column; }
-.talos-jarvis-pane .jv-panel.jv-agent { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.talos-jarvis-pane .jv-tabscontent { flex: 1; min-height: 0; overflow: hidden; }
-.talos-jarvis-pane .jv-tabscontent .jv-log {
-	flex: 1 1 0;
-	min-height: 0;
-	height: auto;
-	max-height: none !important;
-	overflow-y: auto;
-}
+
 .talos-jarvis-pane .section-title { padding: 8px 10px 0; }
-.talos-jarvis-pane .jv-statusbar, .talos-jarvis-pane .jv-tabsbar, .talos-jarvis-pane .jv-inputbar, .talos-jarvis-pane .jv-bottombar { padding-left: 10px; padding-right: 10px; }
 
 /* ===================== 屈原面板 · 布局紧凑化（2026-06-28） ===================== */
 /* 顶部信息区压缩 */
-.talos-console .jv-agent .section-title { margin-bottom: 6px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.talos-console .jv-agent .section-title h2 { font-size: 1.02em; margin: 0; line-height: 1.2; }
-.talos-console .jv-agent .section-title small { font-size: 10px; opacity: 0.5; }
-.talos-console .jv-agent .jv-statusbar { padding: 4px 0; margin: 0 0 6px; }
-.talos-console .jv-agent .jv-status { font-size: 12px; }
-.talos-console .jv-agent .jv-tabsbar { padding-top: 2px; }
+
 /* 输入框比例适中：给个舒适的最小高度，可随内容增长 */
-.talos-console .jv-agent .jv-input { min-height: 60px; max-height: 180px; font-size: 13px; line-height: 1.45; }
-.talos-console .jv-agent .jv-inputbar { padding-top: 4px; padding-bottom: 4px; }
-.talos-console .jv-agent .jv-bottombar { padding-top: 4px; padding-bottom: 6px; }
 
 /* 窄侧栏专属：副标题让位、头部更紧、底栏可换行 */
-.talos-jarvis-pane .jv-agent .section-title small { display: none; }
-.talos-jarvis-pane .jv-agent .jv-bottombar { gap: 8px; font-size: 11px; }
-.talos-jarvis-pane .jv-agent .jv-btns .jv-btn { padding: 4px 8px; }
 
 /* =====================================================================
    屈原面板 · Claudian 式柔和皮肤（2026-06-28，盖过各主题重边框）
    ===================================================================== */
-.talos-console .jv-agent { --jv-soft-bd: var(--background-modifier-border, rgba(0,0,0,0.12)); --jv-accent: #d2691e; }
 
 /* 头部更轻 */
-.talos-console .jv-agent .section-title h2 { font-weight: 600; font-size: 1em; }
-.talos-console .jv-agent .jv-statusbar { border: none !important; background: transparent !important; }
-.talos-console .jv-agent .jv-status { border: 1px solid var(--jv-soft-bd) !important; border-radius: 8px !important; box-shadow: none !important; background: var(--background-secondary) !important; padding: 3px 10px !important; font-weight: 500; }
-.talos-console .jv-agent .jv-modesel { border: 1px solid var(--jv-soft-bd) !important; border-radius: 8px !important; box-shadow: none !important; background: var(--background-secondary) !important; }
 
 /* 空态：居中欢迎 */
-.talos-console .jv-agent .jv-log .empty { display: flex; align-items: center; justify-content: center; min-height: 180px; height: 100%; text-align: center; font-size: 16px; opacity: 0.4; line-height: 1.7; padding: 0 24px; }
-.talos-console .jv-agent .jv-log .jv-welcome {
-	opacity: 1;
-	color: var(--text-normal, #232323);
-}
-.talos-console .jv-agent .jv-welcome-card {
-	width: min(100%, 440px);
-	padding: 18px 24px;
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	color: var(--text-normal, #232323);
-	box-shadow: none;
-}
-.talos-console .jv-agent .jv-welcome-eyebrow {
-	font-family: var(--font-monospace, ui-monospace, monospace);
-	font-size: 10px;
-	font-weight: 700;
-	line-height: 1.2;
-	letter-spacing: .22em;
-	text-transform: uppercase;
-	color: var(--text-muted, #595959);
-	opacity: 1;
-}
-.talos-console .jv-agent .jv-welcome-title {
-	display: block;
-	margin-top: 16px;
-	font-family: "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "STSong", serif;
-	font-size: clamp(26px, 5vw, 36px);
-	font-weight: 600;
-	line-height: 1.3;
-	letter-spacing: .1em;
-	color: var(--interactive-accent, #a8232f);
-}
-.talos-console .jv-agent .jv-welcome-subtitle {
-	margin-top: 8px;
-	font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
-	font-size: 13px;
-	line-height: 1.6;
-	letter-spacing: .08em;
-	color: var(--text-normal, #292929);
-	opacity: .78;
-}
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-card {
-	border: 0;
-	background: transparent;
-	color: var(--gm-ink, #101010);
-	box-shadow: none;
-}
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-eyebrow { color: #625d55; }
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-title { color: #a8232f; }
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-subtitle { color: #292622; opacity: .82; }
-@media (max-width: 420px) {
-	.talos-console .jv-agent .jv-log .jv-welcome { padding: 0 12px; }
-	.talos-console .jv-agent .jv-welcome-card { padding: 16px 12px; }
-	.talos-console .jv-agent .jv-welcome-title { font-size: 26px; }
-}
 
 /* 消息气泡：去黑框、圆角、柔色 */
-.talos-console .jv-agent .jv-bubble { border: none !important; border-radius: 14px !important; box-shadow: none !important; padding: 10px 14px !important; line-height: 1.55; }
-.talos-console .jv-agent .jv-assistant { width: 100%; }
-.talos-console .jv-agent .jv-assistant .jv-bubble {
-	width: 100%;
-	max-width: 100%;
-	box-sizing: border-box;
-	background: var(--background-secondary, #f3f3f3) !important;
-}
-.talos-console .jv-agent .jv-user { display: flex; justify-content: flex-end; }
-.talos-console .jv-agent .jv-user .jv-bubble { background: var(--interactive-accent, #d2691e) !important; color: var(--text-on-accent, #fff) !important; max-width: 80%; }
-.talos-console .jv-agent .jv-sysline { opacity: 0.6; font-size: 12px; }
 
 /* 工具卡片：卡片化、去黑框 */
-.talos-console .jv-agent .jv-tool { border: 1px solid var(--jv-soft-bd) !important; border-radius: 12px !important; box-shadow: none !important; overflow: hidden; margin: 6px 0; }
-.talos-console .jv-agent .jv-tool-head { background: var(--background-secondary) !important; border: none !important; padding: 6px 10px !important; }
-.talos-console .jv-agent .jv-tool-input, .talos-console .jv-agent .jv-tool-out { border: none !important; background: var(--background-primary-alt, rgba(0,0,0,0.03)) !important; font-size: 12px; margin: 0 !important; padding: 8px 10px !important; }
-.talos-console .jv-agent .jv-perm { border: 1px solid var(--jv-accent) !important; border-radius: 12px !important; box-shadow: none !important; }
 
 /* 思考折叠块更轻 */
-.talos-console .jv-agent .jv-think { border-left: 2px solid var(--jv-soft-bd); opacity: 0.7; }
 
 /* 标签：紧凑圆角 chip，挪到输入框上方（Claudian 式） */
-.talos-console .jv-agent { display: flex; flex-direction: column; }
-.talos-console .jv-agent .section-title { order: 0; }
-.talos-console .jv-agent .jv-statusbar { order: 1; }
-.talos-console .jv-agent .jv-tabscontent { order: 2; flex: 1 1 auto; min-height: 0; }
-.talos-console .jv-agent .jv-tabsbar { order: 3; padding: 6px 0 4px; border-top: 1px solid var(--jv-soft-bd); }
-.talos-console .jv-agent .jv-inputbar { order: 4; }
-.talos-console .jv-agent .jv-bottombar { order: 5; }
-.talos-console .jv-agent .jv-tab { border: 1px solid transparent !important; border-radius: 8px !important; background: var(--background-secondary) !important; opacity: 0.7; padding: 3px 9px !important; }
-.talos-console .jv-agent .jv-tab.is-active { opacity: 1; border-color: var(--interactive-accent, #d2691e) !important; }
-.talos-console .jv-agent .jv-tab-num { font-weight: 700; opacity: 0.6; margin-right: 2px; }
-.talos-console .jv-agent .jv-tab-add { opacity: 0.7; }
 
 /* 输入框：大圆角、浅底、细边（Claudian 同款） */
-.talos-console .jv-agent .jv-inputbar { border: none !important; background: transparent !important; }
-.talos-console .jv-agent .jv-input { border: 1px solid var(--jv-soft-bd) !important; border-radius: 14px !important; box-shadow: none !important; background: var(--background-primary) !important; padding: 12px 14px !important; min-height: 64px; max-height: 200px; font-size: 13px; line-height: 1.5; }
-.talos-console .jv-agent .jv-input:focus { border-color: var(--interactive-accent, #d2691e) !important; outline: none !important; }
 
 /* 按钮：去黑框、圆角、轻 */
-.talos-console .jv-agent .jv-btn { border: 1px solid var(--jv-soft-bd) !important; border-radius: 10px !important; box-shadow: none !important; background: var(--background-secondary) !important; font-weight: 500; padding: 6px 12px !important; }
-.talos-console .jv-agent .jv-btn:hover { background: var(--background-modifier-hover) !important; }
-.talos-console .jv-agent .jv-send { background: var(--interactive-accent, #d2691e) !important; color: var(--text-on-accent, #fff) !important; border-color: transparent !important; }
-.talos-console .jv-agent .jv-allow { background: #2e7d32 !important; color: #fff !important; border-color: transparent !important; }
-.talos-console .jv-agent .jv-deny { background: #c62828 !important; color: #fff !important; border-color: transparent !important; }
 
 /* 底栏：模型/思考用暖色强调，YOLO 改拨动开关 */
-.talos-console .jv-agent .jv-bottombar { border-top: 1px solid var(--jv-soft-bd); }
-.talos-console .jv-agent .jv-modelsel { color: var(--jv-accent) !important; font-weight: 700; border: none !important; background: transparent !important; }
-.talos-console .jv-agent .jv-thinksel { color: var(--jv-accent) !important; border: none !important; background: transparent !important; font-weight: 600; }
-.talos-console .jv-agent .jv-ctx { background: transparent !important; opacity: 0.6; }
-.talos-console .jv-agent .jv-yolo { appearance: none; -webkit-appearance: none; width: 38px; height: 20px; border-radius: 10px; background: #cfcfcf; position: relative; cursor: pointer; transition: background .2s; flex: none; }
-.talos-console .jv-agent .jv-yolo:checked { background: var(--jv-accent); }
-.talos-console .jv-agent .jv-voice-toggle:checked { background: #2e7d32; }
-.talos-console .jv-agent .jv-yolo::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
-.talos-console .jv-agent .jv-yolo:checked::after { transform: translateX(18px); }
 
 /* ===================== 屈原日志区 · flex 填满 + 去黑边（修复中间黑线/下方空白） ===================== */
-.talos-console .jv-agent { display: flex !important; flex-direction: column !important; height: 100%; min-height: 0; }
-.talos-console .jv-agent .jv-tabscontent { order: 2; flex: 1 1 auto !important; min-height: 0; display: flex; flex-direction: column; }
-.talos-console .jv-agent .jv-log,
-.talos-console .jv-agent .jv-agentlog {
-	flex: 1 1 auto !important;
-	min-height: 0;
-	height: auto !important;
-	overflow-y: auto !important;
-	border: none !important;
-	box-shadow: none !important;
-	background: transparent !important;
-	padding: 8px 2px !important;
-}
+
 /* 去掉状态条/分隔处的硬黑边（主题残留） */
-.talos-console .jv-agent .jv-statusbar,
-.talos-console .jv-agent .section-title { border: none !important; box-shadow: none !important; }
-.talos-console .jv-agent .jv-tabsbar { border-top: 1px solid var(--jv-soft-bd, rgba(0,0,0,0.1)) !important; border-bottom: none !important; }
 
 /* ===================== 屈原 · 修气泡截断 + 回答区/输入区对齐（2026-06-28） ===================== */
 /* 气泡永不裁剪文本 */
-.talos-console .jv-agent .jv-bubble,
-.talos-console .jv-agent .jv-msg { max-height: none !important; height: auto !important; overflow: visible !important; }
+
 /* 隐藏空气泡（历史残留 / 未填充的流式占位） */
-.talos-console .jv-agent .jv-bubble:empty { display: none !important; }
-.talos-console .jv-agent .jv-msg:has(> .jv-bubble:empty) { display: none !important; }
+
 /* 统一左右留白：回答区与输入区同一列宽 */
-.talos-console .jv-agent .jv-log,
-.talos-console .jv-agent .jv-tabsbar,
-.talos-console .jv-agent .jv-inputbar,
-.talos-console .jv-agent .jv-bottombar,
-.talos-console .jv-agent .jv-statusbar { padding-left: 12px !important; padding-right: 12px !important; }
+
 /* 输入框占满列宽，按钮移到下方右对齐 → 与消息右边缘对齐 */
-.talos-console .jv-agent .jv-inputbar { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 6px; }
-.talos-console .jv-agent .jv-input { width: 100% !important; box-sizing: border-box; }
-.talos-console .jv-agent .jv-btns { display: flex !important; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 
 /* =====================================================================
    TALOS 全库主题同步
@@ -7537,73 +5486,52 @@ body[data-talos-vault-theme] {
 	--talos-dir-template-en: #8b5cf6;
 }
 body[data-talos-vault-theme] .nav-folder-title[data-path="00-收件箱"],
-body[data-talos-vault-theme] .tree-item-self[data-path="00-收件箱"],
-body[data-talos-vault-theme] .nn-navitem[data-path="00-收件箱"] { --talos-dir-ac: var(--talos-dir-00-inbox); }
+body[data-talos-vault-theme] .tree-item-self[data-path="00-收件箱"] { --talos-dir-ac: var(--talos-dir-00-inbox); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="01-日志"],
-body[data-talos-vault-theme] .tree-item-self[data-path="01-日志"],
-body[data-talos-vault-theme] .nn-navitem[data-path="01-日志"] { --talos-dir-ac: var(--talos-dir-01-log); }
+body[data-talos-vault-theme] .tree-item-self[data-path="01-日志"] { --talos-dir-ac: var(--talos-dir-01-log); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="02-洞察"],
-body[data-talos-vault-theme] .tree-item-self[data-path="02-洞察"],
-body[data-talos-vault-theme] .nn-navitem[data-path="02-洞察"] { --talos-dir-ac: var(--talos-dir-02-insight); }
+body[data-talos-vault-theme] .tree-item-self[data-path="02-洞察"] { --talos-dir-ac: var(--talos-dir-02-insight); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="03-素材"],
-body[data-talos-vault-theme] .tree-item-self[data-path="03-素材"],
-body[data-talos-vault-theme] .nn-navitem[data-path="03-素材"] { --talos-dir-ac: var(--talos-dir-03-material); }
+body[data-talos-vault-theme] .tree-item-self[data-path="03-素材"] { --talos-dir-ac: var(--talos-dir-03-material); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="04-项目"],
-body[data-talos-vault-theme] .tree-item-self[data-path="04-项目"],
-body[data-talos-vault-theme] .nn-navitem[data-path="04-项目"] { --talos-dir-ac: var(--talos-dir-04-project); }
+body[data-talos-vault-theme] .tree-item-self[data-path="04-项目"] { --talos-dir-ac: var(--talos-dir-04-project); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="05-归档"],
-body[data-talos-vault-theme] .tree-item-self[data-path="05-归档"],
-body[data-talos-vault-theme] .nn-navitem[data-path="05-归档"] { --talos-dir-ac: var(--talos-dir-05-archive); }
+body[data-talos-vault-theme] .tree-item-self[data-path="05-归档"] { --talos-dir-ac: var(--talos-dir-05-archive); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="灵魂"],
-body[data-talos-vault-theme] .tree-item-self[data-path="灵魂"],
-body[data-talos-vault-theme] .nn-navitem[data-path="灵魂"] { --talos-dir-ac: var(--talos-dir-soul); }
+body[data-talos-vault-theme] .tree-item-self[data-path="灵魂"] { --talos-dir-ac: var(--talos-dir-soul); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="模板"],
-body[data-talos-vault-theme] .tree-item-self[data-path="模板"],
-body[data-talos-vault-theme] .nn-navitem[data-path="模板"] { --talos-dir-ac: var(--talos-dir-template-cn); }
+body[data-talos-vault-theme] .tree-item-self[data-path="模板"] { --talos-dir-ac: var(--talos-dir-template-cn); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="配置"],
-body[data-talos-vault-theme] .tree-item-self[data-path="配置"],
-body[data-talos-vault-theme] .nn-navitem[data-path="配置"] { --talos-dir-ac: var(--talos-dir-config); }
+body[data-talos-vault-theme] .tree-item-self[data-path="配置"] { --talos-dir-ac: var(--talos-dir-config); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="输出"],
-body[data-talos-vault-theme] .tree-item-self[data-path="输出"],
-body[data-talos-vault-theme] .nn-navitem[data-path="输出"] { --talos-dir-ac: var(--talos-dir-output); }
+body[data-talos-vault-theme] .tree-item-self[data-path="输出"] { --talos-dir-ac: var(--talos-dir-output); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="自动化"],
-body[data-talos-vault-theme] .tree-item-self[data-path="自动化"],
-body[data-talos-vault-theme] .nn-navitem[data-path="自动化"] { --talos-dir-ac: var(--talos-dir-automation); }
+body[data-talos-vault-theme] .tree-item-self[data-path="自动化"] { --talos-dir-ac: var(--talos-dir-automation); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="attachments"],
-body[data-talos-vault-theme] .tree-item-self[data-path="attachments"],
-body[data-talos-vault-theme] .nn-navitem[data-path="attachments"] { --talos-dir-ac: var(--talos-dir-attachments); }
+body[data-talos-vault-theme] .tree-item-self[data-path="attachments"] { --talos-dir-ac: var(--talos-dir-attachments); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="Excalidraw"],
-body[data-talos-vault-theme] .tree-item-self[data-path="Excalidraw"],
-body[data-talos-vault-theme] .nn-navitem[data-path="Excalidraw"] { --talos-dir-ac: var(--talos-dir-excalidraw); }
+body[data-talos-vault-theme] .tree-item-self[data-path="Excalidraw"] { --talos-dir-ac: var(--talos-dir-excalidraw); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="Identity"],
-body[data-talos-vault-theme] .tree-item-self[data-path="Identity"],
-body[data-talos-vault-theme] .nn-navitem[data-path="Identity"] { --talos-dir-ac: var(--talos-dir-identity); }
+body[data-talos-vault-theme] .tree-item-self[data-path="Identity"] { --talos-dir-ac: var(--talos-dir-identity); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="System"],
-body[data-talos-vault-theme] .tree-item-self[data-path="System"],
-body[data-talos-vault-theme] .nn-navitem[data-path="System"] { --talos-dir-ac: var(--talos-dir-system); }
+body[data-talos-vault-theme] .tree-item-self[data-path="System"] { --talos-dir-ac: var(--talos-dir-system); }
 body[data-talos-vault-theme] .nav-folder-title[data-path="template"],
-body[data-talos-vault-theme] .tree-item-self[data-path="template"],
-body[data-talos-vault-theme] .nn-navitem[data-path="template"] { --talos-dir-ac: var(--talos-dir-template-en); }
+body[data-talos-vault-theme] .tree-item-self[data-path="template"] { --talos-dir-ac: var(--talos-dir-template-en); }
 
-body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]),
-body[data-talos-vault-theme] .nn-navitem:where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) .nn-navitem-content {
+body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) {
 	color: var(--talos-dir-ac) !important;
 	background: color-mix(in srgb,var(--talos-dir-ac) 7%,transparent) !important;
 	border: 1px solid color-mix(in srgb,var(--talos-dir-ac) 26%,transparent);
 }
-body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]):hover,
-body[data-talos-vault-theme] .nn-navitem:where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]):hover .nn-navitem-content {
+body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]):hover {
 	background: color-mix(in srgb,var(--talos-dir-ac) 13%,transparent) !important;
 	border-color: color-mix(in srgb,var(--talos-dir-ac) 44%,transparent);
 }
-body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) :is(.nav-folder-title-content,.tree-item-inner,.collapse-icon,.iconize-icon,svg),
-body[data-talos-vault-theme] .nn-navitem:where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) :is(.nn-navitem-name,.nn-navitem-icon,.nn-navitem-chevron,svg) {
+body[data-talos-vault-theme] :is(.nav-folder-title,.tree-item-self):where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) :is(.nav-folder-title-content,.tree-item-inner,.collapse-icon,.iconize-icon,svg) {
 	color: var(--talos-dir-ac) !important;
 	stroke: currentColor !important;
 }
-body[data-talos-vault-theme] .nn-navitem:where([data-path="00-收件箱"],[data-path="01-日志"],[data-path="02-洞察"],[data-path="03-素材"],[data-path="04-项目"],[data-path="05-归档"],[data-path="灵魂"],[data-path="模板"],[data-path="配置"],[data-path="输出"],[data-path="自动化"],[data-path="attachments"],[data-path="Excalidraw"],[data-path="Identity"],[data-path="System"],[data-path="template"]) .nn-navitem-name {
-	font-weight: 700 !important;
-}
+
 body[data-talos-vault-theme] :is(.markdown-source-view.mod-cm6 .cm-scroller, .markdown-reading-view, .markdown-preview-view) {
 	background-color: var(--tv-bg) !important;
 	color: var(--tv-text) !important;
@@ -7845,28 +5773,6 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 	line-height: 1.2;
 	font-weight: 800;
 }
-.talos-console .pagenav-card .command .nav-meta {
-	flex: 0 0 auto;
-	max-width: 82px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	border: 1px solid color-mix(in srgb,var(--ac) 34%,transparent);
-	border-radius: 999px;
-	padding: 3px 8px;
-	background: color-mix(in srgb,var(--ac) 9%,var(--surface-2)) !important;
-	color: var(--muted) !important;
-	-webkit-text-fill-color: var(--muted) !important;
-	font: 800 10.5px/1.3 var(--mono) !important;
-	letter-spacing: 0;
-	text-shadow: none;
-}
-.talos-console .pagenav-card .command .nav-meta.is-alert {
-	border-color: color-mix(in srgb,var(--rose) 54%,transparent);
-	background: color-mix(in srgb,var(--rose) 13%,var(--surface-2)) !important;
-	color: var(--rose) !important;
-	-webkit-text-fill-color: var(--rose) !important;
-}
 
 @media (min-width: 1101px) {
 	.talos-console[data-talos-page="overview"] .app {
@@ -7880,8 +5786,7 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 		padding: 24px 28px;
 		overflow: hidden;
 	}
-.talos-console[data-talos-page="overview"] .hero-head,
-.talos-console[data-talos-page="overview"] .hero-grid {
+.talos-console[data-talos-page="overview"] .hero-head {
 	display: grid;
 }
 .talos-console[data-talos-page="overview"] .hero-head {
@@ -7913,10 +5818,7 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 		width: 38px;
 		height: 38px;
 	}
-	.talos-console[data-talos-page="overview"] .hero-grid {
-		grid-template-columns: minmax(0,1fr);
-		margin-top: 14px;
-	}
+
 	.talos-console[data-talos-page="overview"] .hero .quote {
 		min-height: 58px;
 		display: flex;
@@ -7987,8 +5889,7 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 	.talos-console.theme-system-classic[data-talos-page="overview"] .hero {
 		padding: 38px 20px 20px;
 	}
-	.talos-console[data-talos-page="overview"] .hero-head,
-	.talos-console[data-talos-page="overview"] .hero-grid {
+	.talos-console[data-talos-page="overview"] .hero-head {
 		grid-template-columns: 1fr;
 	}
 	.talos-console[data-talos-page="overview"] .hero .brand-text h1 {
@@ -8043,9 +5944,7 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 	min-height: 252px;
 	padding: 20px 22px 28px;
 }
-.talos-console[data-talos-page="overview"] .hero-grid {
-	margin-top: 8px;
-}
+
 .talos-console[data-talos-page="overview"] .hero .quote {
 	min-height: 48px;
 }
@@ -8288,45 +6187,7 @@ body[data-talos-vault-theme="geometric-modern"] :is(.markdown-source-view.mod-cm
 	24%,48% { opacity: .72; transform: translateX(360%); }
 	54%,100% { opacity: 0; transform: translateX(460%); }
 }
-.talos-console[data-talos-page="overview"] .overview-reflow {
-	gap: 0;
-}
-.talos-console[data-talos-page="overview"] .overview-reflow .overview-command {
-	min-height: 300px;
-	gap: 8px;
-	padding: 12px;
-}
-.talos-console[data-talos-page="overview"] .overview-reflow .overview-command-head {
-	gap: 8px 10px;
-}
-.talos-console[data-talos-page="overview"] .overview-reflow .overview-primary-card {
-	min-height: 92px;
-	padding: 10px 12px 10px 14px;
-}
-.talos-console[data-talos-page="overview"] .overview-reflow .overview-command-metrics {
-	gap: 0;
-}
-.talos-console[data-talos-page="overview"] .overview-reflow .overview-command-metric {
-	min-height: 128px;
-	padding: 12px;
-}
-.talos-console[data-talos-page="overview"] .overview-secondary-grid {
-	gap: 0;
-}
-.talos-console[data-talos-page="overview"] .overview-secondary-grid .overview-secondary-item {
-	min-height: 92px;
-	padding: 10px;
-	box-shadow: none;
-}
-.talos-console[data-talos-page="overview"] .overview-workgrid {
-	gap: 0;
-}
-.talos-console[data-talos-page="overview"] .overview-workgrid .panel {
-	min-height: 146px;
-}
-.talos-console[data-talos-page="overview"] .overview-advice-card {
-	padding-top: 6px;
-}
+
 @media (min-width: 1101px) {
 	.talos-console[data-talos-page="overview"] .app {
 		grid-template-columns: 286px minmax(0,1fr);
@@ -8911,9 +6772,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	text-shadow: none;
 }
 
-.talos-console :is(.overview-health-ring,.overview-stat-bar-fill),
-.talos-console .overview-stat-wall::after,
-.talos-console .overview-stat-matrix .overview-command-metric::after {
+.talos-console :is(.overview-health-ring,.overview-stat-bar-fill) {
 	animation: none !important;
 }
 
@@ -9037,7 +6896,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    收件箱分诊台 · 积压年龄分布 + 主题聚类比例条（2026-07-20）
    设计依据：design-system/talos/pages/inbox.md
@@ -9129,7 +6987,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	.talos-console .cluster-bar-fill { transition: none !important; }
 }
 
-
 /* ============================================================
    Module Hero 比例重构（2026-07-20）
    问题：主卡/统计卡呈长条状、文字层级平、数字重点不突出。
@@ -9193,7 +7050,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 		font-size: 20px;
 	}
 }
-
 
 /* ============================================================
    像素小人场景系统 · 批次 1（2026-07-20）
@@ -9345,7 +7201,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    像素小人舞台嵌入业务页 module-hero（2026-07-20 修正）
    背景：共享 Hero 在非总览页 display:none（见「总览 Hero 作用域」段），
@@ -9367,7 +7222,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console:not([data-talos-page="overview"]) .module-hero .talos-pixel-patrol .talos-pixel-bot {
 	top: 10px;
 }
-
 
 /* ============================================================
    实机反馈修正（2026-07-20 02:47）
@@ -9431,7 +7285,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    hero 图标徽章化 + 副卡降权（2026-07-20 03:01 实机反馈）
    1. Bauhaus 主题：hero 图标 = 导航 .mark 同款圆形徽章
@@ -9462,7 +7315,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"]) .module-hero-stat small {
 	font-size: 10px;
 }
-
 
 /* ============================================================
    hero 三区布局定型（2026-07-20 03:19 实机反馈）
@@ -9540,7 +7392,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 		margin: 8px -13px -13px;  /* 680px 断点 panel padding 为 13px */
 	}
 }
-
 
 /* ============================================================
    像素小人场景系统 · 批次 2（2026-07-20）
@@ -9791,7 +7642,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    像素小人场景系统 · 批次 3（2026-07-20）
    设计依据：design-system/talos/pixel-bot-system.md §2.5/2.6/2.11
@@ -10032,7 +7882,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    像素小人场景系统 · 批次 4（2026-07-20）
    设计依据：design-system/talos/pixel-bot-system.md §2.7/2.10
@@ -10182,7 +8031,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 		transform: translateY(0) scale(var(--pixel-scale)) scaleX(1) skewX(-8deg);
 	}
 }
-
 
 /* ============================================================
    页级 panel 皮肤系统（2026-07-20）
@@ -10351,7 +8199,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    hero 边框粗细与下方 panel 统一（2026-07-20 08:22 实机反馈）
    问题：hero 内部三元素（main/stat/action）固定 1px 边框，
@@ -10387,7 +8234,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	border-width: 0;
 }
 
-
 /* ============================================================
    留白治理 · 填充式布局（2026-07-20 08:56 开工）
    原则：盒子保留、尺寸不减——用三段式布局把内容填满横宽，
@@ -10396,9 +8242,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
    ============================================================ */
 
 /* ========== ① 指标卡：左数字｜中文字｜右 aux ========== */
-.talos-console .metric-grid {
-	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
+
 .talos-console .metric-card {
 	display: flex;
 	align-items: center;
@@ -10592,7 +8436,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	.talos-console .daily-slot-badge { padding: 2px 7px; }
 }
 
-
 /* ============================================================
    排列密排 · panel-grid（2026-07-20 09:10 实机反馈）
    问题：多个页面仍是「一个 panel 独占一行」的长条堆叠，
@@ -10611,82 +8454,13 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	gap: 14px;
 }
 
-.talos-console .panel-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14px;
-	/* 同排等高对齐：短模块拉伸到与邻居同高，模块之间不漏背景 */
-	align-items: stretch;
-}
-.talos-console .panel-grid.cols-3 {
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.talos-console .panel-grid > .panel {
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-}
-.talos-console .panel-grid > .panel.span-2 {
-	grid-column: 1 / -1;
-}
-
 /* 拉伸后内容纵向填满：标题固定，内容区吃满剩余高度。
    同步覆盖 dashboard-grid / chart-row / daily-work-grid，
    所有并排容器同排等高、内容铺满，不漏背景。 */
-.talos-console .panel-grid > .panel > .section-title,
-.talos-console .dashboard-grid > .panel > .section-title,
-.talos-console .chart-row > .panel > .section-title,
-.talos-console .daily-work-grid > .panel > .section-title {
-	flex: 0 0 auto;
-}
-.talos-console .dashboard-grid > .panel,
-.talos-console .chart-row > .panel,
-.talos-console .daily-work-grid > .panel {
-	display: flex;
-	flex-direction: column;
-}
-.talos-console .panel-grid > .panel > *:not(.section-title),
-.talos-console .dashboard-grid > .panel > *:not(.section-title),
-.talos-console .chart-row > .panel > *:not(.section-title),
-.talos-console .daily-work-grid > .panel > *:not(.section-title) {
-	flex: 1 1 auto;
-}
-.talos-console .panel-grid .detail-list,
-.talos-console .dashboard-grid .detail-list {
-	display: flex;
-	flex-direction: column;
-}
-.talos-console .panel-grid .detail-list .detail-row,
-.talos-console .dashboard-grid .detail-list .detail-row {
-	flex: 1 1 auto;
-}
-.talos-console .daily-work-grid .daily-timeline .daily-slot {
-	flex: 1 1 auto;
-}
-.talos-console .panel-grid .daily-map,
-.talos-console .panel-grid .daily-protocol {
-	height: 100%;
-	grid-auto-rows: 1fr;
-}
 
 /* 半栏 panel 内部：固定列数的内容格栅收敛，避免挤压 */
-.talos-console .panel-grid .daily-protocol {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.talos-console .panel-grid .daily-map {
-	grid-template-columns: 1fr;
-}
-.talos-console .panel-grid .project-grid {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-}
 
 /* --- 响应式重申：与 dashboard-grid 同一断点收敛 --- */
-@media (max-width: 1100px) {
-	.talos-console .panel-grid,
-	.talos-console .panel-grid.cols-3 {
-		grid-template-columns: 1fr;
-	}
-}
 
 /* 项目场景页：项目地图为主、入口索引为辅；入口按内容收缩，不跟随长列表等高。 */
 .talos-console[data-talos-page="projects"] .project-scene-layout {
@@ -10752,7 +8526,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	}
 }
 
-
 /* ============================================================
    项目任务进度条（2026-07-20 新增模块）
    数据源：项目文件夹内 Markdown 复选框完成率（最近 40 个改动文件）。
@@ -10811,7 +8584,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	color: var(--gm-ink);
 	font-weight: 700;
 }
-
 
 /* ============================================================
    Theme 47 · Executive Brief
@@ -10956,12 +8728,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .note,
 .talos-console.theme-executive-brief .focus,
 .talos-console.theme-executive-brief .gate,
-.talos-console.theme-executive-brief .signal-pill,
-.talos-console.theme-executive-brief .jv-status,
-.talos-console.theme-executive-brief .jv-bubble,
-.talos-console.theme-executive-brief .jv-input,
-.talos-console.theme-executive-brief .jv-tool,
-.talos-console.theme-executive-brief .jv-perm {
+.talos-console.theme-executive-brief .signal-pill {
 	background: var(--eb-surface);
 	border: 2px solid var(--eb-line);
 	border-radius: 8px;
@@ -11007,8 +8774,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .nav a,
 .talos-console.theme-executive-brief .command,
 .talos-console.theme-executive-brief .tab,
-.talos-console.theme-executive-brief .btn,
-.talos-console.theme-executive-brief .jv-btn {
+.talos-console.theme-executive-brief .btn {
 	background: var(--eb-surface);
 	border: 2px solid var(--eb-line);
 	border-radius: 6px;
@@ -11018,8 +8784,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .nav a:hover,
 .talos-console.theme-executive-brief .command:hover,
 .talos-console.theme-executive-brief .tab:hover,
-.talos-console.theme-executive-brief .btn:hover,
-.talos-console.theme-executive-brief .jv-btn:hover:not(:disabled) {
+.talos-console.theme-executive-brief .btn:hover {
 	background: var(--eb-surface-2);
 	border-color: var(--eb-line-strong);
 	color: var(--eb-accent);
@@ -11031,8 +8796,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	transform: none;
 }
 .talos-console.theme-executive-brief .nav .command.active,
-.talos-console.theme-executive-brief .tab.active,
-.talos-console.theme-executive-brief .jv-send {
+.talos-console.theme-executive-brief .tab.active {
 	background: var(--eb-surface);
 	border-color: var(--eb-line-strong);
 	color: var(--eb-accent);
@@ -11044,19 +8808,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .tab.active {
 	box-shadow: inset 0 -2px 0 var(--eb-accent);
 }
-.talos-console.theme-executive-brief .jv-send {
-	background: var(--eb-accent);
-	border-color: var(--eb-accent);
-	color: #fff;
-	-webkit-text-fill-color: #fff;
-	box-shadow: none;
-}
-.talos-console.theme-executive-brief .jv-send:hover:not(:disabled) {
-	background: #1a389c;
-	border-color: #1a389c;
-	color: #fff;
-	-webkit-text-fill-color: #fff;
-}
+
 .talos-console.theme-executive-brief .mark {
 	border: 2px solid var(--eb-line);
 	border-radius: 6px;
@@ -11064,8 +8816,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	color: var(--eb-accent);
 	box-shadow: none;
 }
-.talos-console.theme-executive-brief .active .mark,
-.talos-console.theme-executive-brief .jv-send .mark {
+.talos-console.theme-executive-brief .active .mark {
 	background: var(--eb-accent);
 	border-color: var(--eb-accent);
 	color: #fff;
@@ -11074,7 +8825,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .overview-card b,
 .talos-console.theme-executive-brief .stat b,
 .talos-console.theme-executive-brief .signal-pill b,
-.talos-console.theme-executive-brief .quick-value,
 .talos-console.theme-executive-brief .metric-card b,
 .talos-console.theme-executive-brief .platform-card .big,
 .talos-console.theme-executive-brief .cluster-card .big,
@@ -11111,28 +8861,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-executive-brief .heat-cell[data-level="2"] { background: rgba(var(--eb-accent-rgb),.36); }
 .talos-console.theme-executive-brief .heat-cell[data-level="3"] { background: rgba(var(--eb-accent-rgb),.62); }
 .talos-console.theme-executive-brief .heat-cell[data-level="4"] { background: var(--eb-accent); }
-.talos-console.theme-executive-brief .jv-stage {
-	background: var(--eb-surface-2);
-	border: 2px solid var(--eb-line);
-	border-radius: 8px;
-	box-shadow: none;
-}
-.talos-console.theme-executive-brief .jv-input:focus {
-	border-color: var(--eb-accent);
-	box-shadow: 0 0 0 2px rgba(var(--eb-accent-rgb),.15);
-}
-.talos-console.theme-executive-brief .jv-ring,
-.talos-console.theme-executive-brief .jv-head,
-.talos-console.theme-executive-brief .jv-ear,
-.talos-console.theme-executive-brief .jv-visor {
-	border-color: var(--eb-line-strong);
-}
-.talos-console.theme-executive-brief .jv-eyeball,
-.talos-console.theme-executive-brief .jv-core,
-.talos-console.theme-executive-brief .jv-dot {
-	background: var(--eb-accent);
-	box-shadow: none;
-}
+
 .talos-console.theme-executive-brief .daily-item {
 	background: var(--eb-surface);
 	border: 2px solid var(--eb-line);
@@ -11201,7 +8930,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: var(--eb-line-strong);
 	border-radius: 8px;
 }
-
 
 /* ============================================================
    Theme 53 · Paper Ink
@@ -11335,12 +9063,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-paper-ink .note,
 .talos-console.theme-paper-ink .focus,
 .talos-console.theme-paper-ink .gate,
-.talos-console.theme-paper-ink .signal-pill,
-.talos-console.theme-paper-ink .jv-status,
-.talos-console.theme-paper-ink .jv-bubble,
-.talos-console.theme-paper-ink .jv-input,
-.talos-console.theme-paper-ink .jv-tool,
-.talos-console.theme-paper-ink .jv-perm {
+.talos-console.theme-paper-ink .signal-pill {
 	background: #fdfbf7;
 	border: 2px solid var(--line);
 	border-radius: 2px;
@@ -11389,8 +9112,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-paper-ink .nav a,
 .talos-console.theme-paper-ink .command,
 .talos-console.theme-paper-ink .tab,
-.talos-console.theme-paper-ink .btn,
-.talos-console.theme-paper-ink .jv-btn {
+.talos-console.theme-paper-ink .btn {
 	background: #fdfbf7;
 	border: 2px solid var(--line);
 	border-radius: 1px;
@@ -11400,8 +9122,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-paper-ink .nav a:hover,
 .talos-console.theme-paper-ink .command:hover,
 .talos-console.theme-paper-ink .tab:hover,
-.talos-console.theme-paper-ink .btn:hover,
-.talos-console.theme-paper-ink .jv-btn:hover:not(:disabled) {
+.talos-console.theme-paper-ink .btn:hover {
 	background: #f7f3ea;
 	border-color: var(--line-strong);
 	color: #1a1a1a;
@@ -11422,20 +9143,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	transform: none;
 	box-shadow: inset 0 -2px 0 #1a1a1a;
 }
-.talos-console.theme-paper-ink .jv-send {
-	background: #1a1a1a;
-	border-color: #1a1a1a;
-	border-radius: 1px;
-	color: #fdfbf7;
-	-webkit-text-fill-color: #fdfbf7;
-	box-shadow: none;
-}
-.talos-console.theme-paper-ink .jv-send:hover:not(:disabled) {
-	background: #000;
-	border-color: #000;
-	color: #fdfbf7;
-	-webkit-text-fill-color: #fdfbf7;
-}
+
 .talos-console.theme-paper-ink .mark {
 	border: 2px solid var(--line);
 	border-radius: 1px;
@@ -11443,8 +9151,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	color: #1a1a1a;
 	box-shadow: none;
 }
-.talos-console.theme-paper-ink .active .mark,
-.talos-console.theme-paper-ink .jv-send .mark {
+.talos-console.theme-paper-ink .active .mark {
 	background: #1a1a1a;
 	border-color: #1a1a1a;
 	color: #fdfbf7;
@@ -11453,7 +9160,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-paper-ink .overview-card b,
 .talos-console.theme-paper-ink .stat b,
 .talos-console.theme-paper-ink .signal-pill b,
-.talos-console.theme-paper-ink .quick-value,
 .talos-console.theme-paper-ink .metric-card b,
 .talos-console.theme-paper-ink .platform-card .big,
 .talos-console.theme-paper-ink .cluster-card .big,
@@ -11490,28 +9196,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-paper-ink .heat-cell[data-level="2"] { background: rgba(26,26,26,.32); }
 .talos-console.theme-paper-ink .heat-cell[data-level="3"] { background: rgba(26,26,26,.58); }
 .talos-console.theme-paper-ink .heat-cell[data-level="4"] { background: #1a1a1a; }
-.talos-console.theme-paper-ink .jv-stage {
-	background: #f7f3ea;
-	border: 2px solid var(--line);
-	border-radius: 2px;
-	box-shadow: none;
-}
-.talos-console.theme-paper-ink .jv-input:focus {
-	border-color: #1a1a1a;
-	box-shadow: none;
-}
-.talos-console.theme-paper-ink .jv-ring,
-.talos-console.theme-paper-ink .jv-head,
-.talos-console.theme-paper-ink .jv-ear,
-.talos-console.theme-paper-ink .jv-visor {
-	border-color: var(--line-strong);
-}
-.talos-console.theme-paper-ink .jv-eyeball,
-.talos-console.theme-paper-ink .jv-core,
-.talos-console.theme-paper-ink .jv-dot {
-	background: #1a1a1a;
-	box-shadow: none;
-}
+
 .talos-console.theme-paper-ink .daily-item {
 	background: #fdfbf7;
 	border: 2px solid var(--line);
@@ -11729,12 +9414,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-swiss-modern .note,
 .talos-console.theme-swiss-modern .focus,
 .talos-console.theme-swiss-modern .gate,
-.talos-console.theme-swiss-modern .signal-pill,
-.talos-console.theme-swiss-modern .jv-status,
-.talos-console.theme-swiss-modern .jv-bubble,
-.talos-console.theme-swiss-modern .jv-input,
-.talos-console.theme-swiss-modern .jv-tool,
-.talos-console.theme-swiss-modern .jv-perm {
+.talos-console.theme-swiss-modern .signal-pill {
 	background: #ffffff;
 	border: 2px solid #000;
 	border-radius: 0;
@@ -11791,8 +9471,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-swiss-modern .nav a,
 .talos-console.theme-swiss-modern .command,
 .talos-console.theme-swiss-modern .tab,
-.talos-console.theme-swiss-modern .btn,
-.talos-console.theme-swiss-modern .jv-btn {
+.talos-console.theme-swiss-modern .btn {
 	background: #ffffff;
 	border: 2px solid #000;
 	border-radius: 0;
@@ -11802,8 +9481,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-swiss-modern .nav a:hover,
 .talos-console.theme-swiss-modern .command:hover,
 .talos-console.theme-swiss-modern .tab:hover,
-.talos-console.theme-swiss-modern .btn:hover,
-.talos-console.theme-swiss-modern .jv-btn:hover:not(:disabled) {
+.talos-console.theme-swiss-modern .btn:hover {
 	background: #f5f5f5;
 	border-color: #000;
 	color: #000;
@@ -11824,21 +9502,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	transform: none;
 	box-shadow: inset 0 -2px 0 var(--swiss-red);
 }
-.talos-console.theme-swiss-modern .jv-send {
-	background: var(--swiss-red);
-	border-color: var(--swiss-red);
-	border-radius: 0;
-	color: #fff;
-	-webkit-text-fill-color: #fff;
-	text-transform: uppercase;
-	box-shadow: none;
-}
-.talos-console.theme-swiss-modern .jv-send:hover:not(:disabled) {
-	background: #b82217;
-	border-color: #b82217;
-	color: #fff;
-	-webkit-text-fill-color: #fff;
-}
+
 .talos-console.theme-swiss-modern .mark {
 	border: 2px solid #000;
 	border-radius: 0;
@@ -11846,8 +9510,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	color: #000;
 	box-shadow: none;
 }
-.talos-console.theme-swiss-modern .active .mark,
-.talos-console.theme-swiss-modern .jv-send .mark {
+.talos-console.theme-swiss-modern .active .mark {
 	background: var(--swiss-red);
 	border-color: var(--swiss-red);
 	color: #fff;
@@ -11856,7 +9519,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-swiss-modern .overview-card b,
 .talos-console.theme-swiss-modern .stat b,
 .talos-console.theme-swiss-modern .signal-pill b,
-.talos-console.theme-swiss-modern .quick-value,
 .talos-console.theme-swiss-modern .metric-card b,
 .talos-console.theme-swiss-modern .platform-card .big,
 .talos-console.theme-swiss-modern .cluster-card .big,
@@ -11894,28 +9556,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-swiss-modern .heat-cell[data-level="2"] { background: rgba(0,0,0,.32); }
 .talos-console.theme-swiss-modern .heat-cell[data-level="3"] { background: rgba(0,0,0,.58); }
 .talos-console.theme-swiss-modern .heat-cell[data-level="4"] { background: #000; }
-.talos-console.theme-swiss-modern .jv-stage {
-	background: #ffffff;
-	border: 2px solid #000;
-	border-radius: 0;
-	box-shadow: none;
-}
-.talos-console.theme-swiss-modern .jv-input:focus {
-	border-color: #000;
-	box-shadow: none;
-}
-.talos-console.theme-swiss-modern .jv-ring,
-.talos-console.theme-swiss-modern .jv-head,
-.talos-console.theme-swiss-modern .jv-ear,
-.talos-console.theme-swiss-modern .jv-visor {
-	border-color: #000;
-}
-.talos-console.theme-swiss-modern .jv-eyeball,
-.talos-console.theme-swiss-modern .jv-core,
-.talos-console.theme-swiss-modern .jv-dot {
-	background: var(--swiss-red);
-	box-shadow: none;
-}
+
 .talos-console.theme-swiss-modern .daily-item {
 	background: #ffffff;
 	border: 2px solid #000;
@@ -11990,7 +9631,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: #000;
 	border-radius: 0;
 }
-
 
 /* ============================================================
    修复：三套新浅色主题导航文字看不清（2026-07-20 16:38 实机反馈）
@@ -12290,8 +9930,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
 	color: var(--text-normal);
 }
-.talos-page-tab:focus-visible,
-.workbench-module-card:focus-visible {
+.talos-page-tab:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
@@ -12311,37 +9950,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: color-mix(in srgb, var(--color-orange) 16%, transparent);
 	color: var(--color-orange);
 }
-.workbench-module-panel {
-	margin-top: 14px;
-}
-.workbench-module-grid {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 10px;
-}
-.workbench-module-card {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	min-height: 58px;
-	padding: 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 12px;
-	background: var(--background-secondary);
-	color: var(--text-normal);
-	font: inherit;
-	text-align: left;
-}
-.workbench-module-card:hover {
-	border-color: color-mix(in srgb, var(--interactive-accent) 44%, transparent);
-	transform: translateY(-1px);
-}
-.workbench-module-card__icon {
-	display: inline-flex;
-	width: 20px;
-	height: 20px;
-	color: var(--interactive-accent);
-}
+
 .talos-chat-migration-panel,
 .talos-settings-entry {
 	display: grid;
@@ -12375,30 +9984,16 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-chat-migration-copy small {
 	color: var(--text-muted);
 }
-@media (max-width: 900px) {
-	.workbench-module-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-}
+
 @media (max-width: 560px) {
 	.talos-page-tabs {
 		flex-wrap: nowrap;
 		overflow-x: auto;
 	}
-	.workbench-module-grid {
-		grid-template-columns: 1fr;
-	}
+
 	.talos-chat-migration-panel,
 	.talos-settings-entry {
 		grid-template-columns: 1fr;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	.workbench-module-card {
-		transition: none;
-	}
-	.workbench-module-card:hover {
-		transform: none;
 	}
 }
 
@@ -12419,19 +10014,16 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .day,
 .talos-console.theme-geometric-modern .overview-card,
 .talos-console.theme-geometric-modern .signal-pill,
-.talos-console.theme-geometric-modern .countdown,
 .talos-console.theme-geometric-modern .nav a,
 .talos-console.theme-geometric-modern .command,
 .talos-console.theme-geometric-modern .daily-node,
-.talos-console.theme-geometric-modern .daily-timeline,
-.talos-console.theme-geometric-modern .workbench-module-card {
+.talos-console.theme-geometric-modern .daily-timeline {
 	border-width: 2px;
 }
 .talos-console.theme-geometric-modern .quote {
 	border-width: 2px 2px 2px 3px;
 }
-.talos-console.theme-geometric-modern .cap-actions > span,
-.talos-console.theme-geometric-modern .pagenav-card .command .nav-meta {
+.talos-console.theme-geometric-modern .cap-actions > span {
 	border-width: 1.5px;
 }
 .talos-console.theme-geometric-modern .section-title h2 {
@@ -12441,8 +10033,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .command span,
 .talos-console.theme-geometric-modern .daily-route-item b,
 .talos-console.theme-geometric-modern .daily-slot-time b,
-.talos-console.theme-geometric-modern .daily-slot-body h3,
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-subtitle {
+.talos-console.theme-geometric-modern .daily-slot-body h3 {
 	font-size: 14px;
 }
 .talos-console.theme-geometric-modern .stat span,
@@ -12463,8 +10054,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .daily-slot-body span,
 .talos-console.theme-geometric-modern .daily-day small,
 .talos-console.theme-geometric-modern .daily-day span,
-.talos-console.theme-geometric-modern .daily-node span,
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-eyebrow {
+.talos-console.theme-geometric-modern .daily-node span {
 	font-size: 11px;
 }
 
@@ -12503,13 +10093,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 	background: none;
 }
 /* 总览页行动行、统计条、首要焦点卡纳入几何现代描边规范（原 1px 细线） */
-.talos-console.theme-geometric-modern .overview-action-row,
-.talos-console.theme-geometric-modern .overview-stat-bar {
-	border-width: 2px;
-}
-.talos-console.theme-geometric-modern .overview-primary-card {
-	border-width: 2px 2px 2px 5px;
-}
 
 /* D-TLP-012 · 设置页数值统一（2026-08-22）：设置页元素此前未纳入规范，
    黑底修复后露出真值——卡片 1px/圆角 12px、名称 750 字重、描述 14px，
@@ -12553,7 +10136,6 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .daily-route-item b,
 .talos-console.theme-geometric-modern .daily-slot-time b,
 .talos-console.theme-geometric-modern .daily-slot-body h3,
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-subtitle,
 .talos-console.theme-geometric-modern .overview-kanban-card b,
 .talos-console.theme-geometric-modern .talos-settings--console .setting-item-name,
 .talos-console.theme-geometric-modern .talos-settings--console :is(input, select, textarea, button) {
@@ -12581,8 +10163,7 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 .talos-console.theme-geometric-modern .daily-slot-body span,
 .talos-console.theme-geometric-modern .daily-day small,
 .talos-console.theme-geometric-modern .daily-day span,
-.talos-console.theme-geometric-modern .daily-node span,
-.talos-console.theme-geometric-modern .jv-agent .jv-welcome-eyebrow {
+.talos-console.theme-geometric-modern .daily-node span {
 	font-size: clamp(11px, 0.78cqw, 13px);
 }
 
@@ -12597,70 +10178,38 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
    3px 展示条、inbox detail-text ::before 标记）。
    ============================================================ */
 /* 标题档 15px */
-.talos-console.theme-geometric-modern .overview-detail-title strong,
-.talos-console.theme-geometric-modern .overview-secondary-copy b,
-.talos-console.theme-geometric-modern .daily-win strong,
-.talos-console.theme-geometric-modern .jv-agent .jv-log .empty {
+.talos-console.theme-geometric-modern .daily-win strong {
 	font-size: 15px;
 }
 /* 正文/列表档 14px（:not(.cap-src) 排除来源徽标，否则 0,5,1 会盖住其 11px 元信息档） */
-.talos-console.theme-geometric-modern .overview-progress-head b,
 .talos-console.theme-geometric-modern .pagenav-card .command span:not(.cap-src),
-.talos-console.theme-geometric-modern .action-card .command span:not(.cap-src),
-.talos-console.theme-geometric-modern .jv-perm-title {
+.talos-console.theme-geometric-modern .action-card .command span:not(.cap-src) {
 	font-size: 14px;
 }
 /* 辅助档 12px */
-.talos-console.theme-geometric-modern .overview-detail-body p,
-.talos-console.theme-geometric-modern .overview-command-copy p,
-.talos-console.theme-geometric-modern .overview-primary-card p,
-.talos-console.theme-geometric-modern .overview-secondary-row b,
-.talos-console.theme-geometric-modern .day b,
-.talos-console.theme-geometric-modern .jv-tool-input,
-.talos-console.theme-geometric-modern .jv-tool-out,
-.talos-console.theme-geometric-modern .jv-perm-input {
+.talos-console.theme-geometric-modern .day b {
 	font-size: 12px;
 }
 /* 元信息档 11px */
 .talos-console.theme-geometric-modern .date,
 .talos-console.theme-geometric-modern .day span,
-.talos-console.theme-geometric-modern .overview-detail-title small,
-.talos-console.theme-geometric-modern .overview-command-copy small,
-.talos-console.theme-geometric-modern .overview-primary-card small,
-.talos-console.theme-geometric-modern .jv-perm-reason,
 .talos-console.theme-geometric-modern .command .cap-src {
 	font-size: 11px;
 }
 
 /* 等比流式字号同步：与 v1 四档 clamp+cqw 一一对应，同特异性靠后生效 */
-.talos-console.theme-geometric-modern .overview-detail-title strong,
-.talos-console.theme-geometric-modern .overview-secondary-copy b,
-.talos-console.theme-geometric-modern .daily-win strong,
-.talos-console.theme-geometric-modern .jv-agent .jv-log .empty {
+.talos-console.theme-geometric-modern .daily-win strong {
 	font-size: clamp(15px, 1.05cqw, 19px);
 }
-.talos-console.theme-geometric-modern .overview-progress-head b,
 .talos-console.theme-geometric-modern .pagenav-card .command span:not(.cap-src),
-.talos-console.theme-geometric-modern .action-card .command span:not(.cap-src),
-.talos-console.theme-geometric-modern .jv-perm-title {
+.talos-console.theme-geometric-modern .action-card .command span:not(.cap-src) {
 	font-size: clamp(14px, 0.98cqw, 17px);
 }
-.talos-console.theme-geometric-modern .overview-detail-body p,
-.talos-console.theme-geometric-modern .overview-command-copy p,
-.talos-console.theme-geometric-modern .overview-primary-card p,
-.talos-console.theme-geometric-modern .overview-secondary-row b,
-.talos-console.theme-geometric-modern .day b,
-.talos-console.theme-geometric-modern .jv-tool-input,
-.talos-console.theme-geometric-modern .jv-tool-out,
-.talos-console.theme-geometric-modern .jv-perm-input {
+.talos-console.theme-geometric-modern .day b {
 	font-size: clamp(12px, 0.85cqw, 14px);
 }
 .talos-console.theme-geometric-modern .date,
 .talos-console.theme-geometric-modern .day span,
-.talos-console.theme-geometric-modern .overview-detail-title small,
-.talos-console.theme-geometric-modern .overview-command-copy small,
-.talos-console.theme-geometric-modern .overview-primary-card small,
-.talos-console.theme-geometric-modern .jv-perm-reason,
 .talos-console.theme-geometric-modern .command .cap-src {
 	font-size: clamp(11px, 0.78cqw, 13px);
 }
@@ -12809,4 +10358,71 @@ body[data-talos-vault-theme] .talos-console:not([data-talos-page="overview"]):no
 }
 .talos-console[data-talos-theme] .talos-settings--console .talos-settab:hover:not(.is-active)::before {
 	background: var(--gm-paper, var(--background-primary));
+}
+
+/* ---------- TALOS 状态桥（只读消费 lili 派生缓存） ---------- */
+.talos-console .talos-peer-status {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 2px 2px;
+}
+.talos-console .talos-peer-status-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.talos-console .talos-peer-status-label {
+	font-weight: 800;
+	font-size: 15px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.talos-console .talos-peer-status-pill {
+	flex: none;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 10px;
+	border-radius: 999px;
+	border: 1px solid transparent;
+}
+.talos-console .talos-peer-status-pill.is-good {
+	color: var(--talos-status-ok);
+	border-color: var(--talos-status-ok);
+}
+.talos-console .talos-peer-status-pill.is-warn {
+	color: var(--talos-status-warn);
+	border-color: var(--talos-status-warn);
+}
+.talos-console .talos-peer-status-pill.is-hot {
+	color: var(--talos-status-danger);
+	border-color: var(--talos-status-danger);
+}
+.talos-console .talos-peer-status-pill.is-muted {
+	color: var(--text-muted);
+	border-color: var(--text-muted);
+}
+.talos-console .talos-peer-status-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px 14px;
+}
+.talos-console .talos-peer-status-key {
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.talos-console .talos-peer-status-value {
+	font-size: 13px;
+	font-weight: 700;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.talos-console .talos-peer-status-foot {
+	font-size: 11px;
+	color: var(--text-faint);
 }

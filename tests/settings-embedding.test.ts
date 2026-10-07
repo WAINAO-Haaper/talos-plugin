@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const view = readViewSource();
 const settings = readFileSync(`${projectRoot}src/settings.ts`, "utf8");
 const shellCss = [
 	readFileSync(`${projectRoot}styles.quyuan-shell.css`, "utf8"),
@@ -16,7 +17,7 @@ describe("embedded TALOS settings", () => {
 		expect(settings).toContain("this.renderTarget = containerEl");
 		expect(settings).toContain("this.renderInto(target)");
 		expect(settings).not.toContain("new Notice(`${name} 已写入 Obsidian SecretStorage`);\n\t\t\t\t\tthis.display()");
-		expect(view).toContain("this.embeddedSettingsTab.renderInto(body)");
+		expect(view).toContain("view.embeddedSettingsTab.renderInto(body)");
 	});
 
 	it("keeps the fixed settings destination and shadowless sidebar", () => {

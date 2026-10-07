@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const switcher = readFileSync(
 	`${root}src/harness/harness-switcher.ts`,
 	"utf8"
 );
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 
 describe("AI chat workspace v2", () => {
@@ -22,14 +23,14 @@ describe("AI chat workspace v2", () => {
 	});
 
 	it("mounts the switch at the bottom of navigation and only on chat", () => {
-		const drawerMount = view.indexOf("this.taskDrawer.mount()");
+		const drawerMount = view.indexOf("view.taskDrawer.mount()");
 		const hostMount = view.indexOf(
 			'cls: "talos-chat-nav-switch-host"'
 		);
 		expect(drawerMount).toBeGreaterThan(-1);
 		expect(hostMount).toBeGreaterThan(drawerMount);
 		expect(view).toContain(
-			"getSwitchHost: () => this.chatSwitchHostEl"
+			"getSwitchHost: () => view.chatSwitchHostEl"
 		);
 		expect(switcher).toContain("this.attachSwitchControl()");
 		expect(css).toMatch(

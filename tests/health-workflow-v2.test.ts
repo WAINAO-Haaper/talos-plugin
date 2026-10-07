@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const page = view.slice(
-	view.indexOf("\tprivate pageHealth("),
-	view.indexOf("\tprivate pageProjects(")
-);
+const page = functionSource(view, "renderHealthPage");
 
 describe("System health v2", () => {
 	it("uses an equal health-trend and direct-decision first screen", () => {
@@ -17,8 +15,8 @@ describe("System health v2", () => {
 		);
 		expect(page).toContain('"data-system-section", "core-data"');
 		expect(page).toContain('"attention-and-actions"');
-		expect(page).toContain("this.fillTrend(trend, d.healthTrend)");
-		expect(page).toContain("this.renderDecisionWorkspace(decisions, d, 3)");
+		expect(page).toContain("fillTrend(view, trend, d.healthTrend)");
+		expect(page).toContain("view.renderDecisionWorkspace(decisions, d, 3)");
 		expect(page).not.toContain("fillMetricGrid");
 		expect(page).not.toContain('cls: "panel-grid"');
 	});
@@ -35,9 +33,9 @@ describe("System health v2", () => {
 	});
 
 	it("reuses the existing reversible approval actions", () => {
-		expect(view).toContain("this.renderApprovalItem(pendingList, item)");
-		expect(view).toContain("this.renderCandidateItem(preferenceList, item)");
-		expect(view.match(/this\.renderDecisionWorkspace\(/g)?.length).toBe(3);
+		expect(view).toContain("renderApprovalItem(view, pendingList, item)");
+		expect(view).toContain("renderCandidateItem(view, preferenceList, item)");
+		expect(view.match(/view\.renderDecisionWorkspace\(/g)?.length).toBe(3);
 	});
 
 	it("uses a container breakpoint and natural page height", () => {

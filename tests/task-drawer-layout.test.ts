@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const viewSource = readViewSource();
 const drawerSource = readFileSync(
 	`${projectRoot}src/ui/task-drawer.ts`,
 	"utf8"
@@ -16,10 +17,10 @@ const layoutCss = readFileSync(
 describe("task drawer navigation layout", () => {
 	it("mounts inside the navigation card instead of overlaying content", () => {
 		expect(viewSource).toMatch(
-			/this\.taskDrawer = new TaskDrawer\(\{\s*parent: navCard,/
+			/view\.taskDrawer = new TaskDrawer\(\{\s*parent: navCard,/
 		);
 		expect(viewSource).not.toMatch(
-			/this\.taskDrawer = new TaskDrawer\(\{\s*parent: main,/
+			/(?:this|view)\.taskDrawer = new TaskDrawer\(\{\s*parent: main,/
 		);
 		expect(viewSource).not.toContain('cls: "task-rail"');
 	});

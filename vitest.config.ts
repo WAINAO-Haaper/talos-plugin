@@ -9,5 +9,12 @@ export default defineConfig({
     deps: {
       optimizer: { ssr: { enabled: false }, web: { enabled: false } },
     },
+    // `npx vitest run --coverage` 生成覆盖率；只统计插件源码
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.d.ts"],
+      reporter: ["text-summary", "json-summary"],
+    },
   },
 });

@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const view = readViewSource();
 const stats = readFileSync(`${projectRoot}src/data/stats.ts`, "utf8");
 const baseCss = readFileSync(`${projectRoot}styles.talos.css`, "utf8");
 const uiCss = readFileSync(`${projectRoot}styles.ui-v2.css`, "utf8");
@@ -34,8 +35,8 @@ describe("workbench dashboard and approval layout", () => {
 	});
 
 	it("reuses real trend and distribution data instead of decorative percentages", () => {
-		expect(view).toContain("this.fillTrend(trendPanel, d.healthTrend)");
-		expect(view).toContain("this.fillDist(");
+		expect(view).toContain("fillTrend(view, trendPanel, d.healthTrend)");
+		expect(view).toContain("fillDist(view, ");
 		expect(view).not.toContain("fillOverviewStatBar");
 		expect(view).not.toContain("overview-stat-bar");
 		expect(view).not.toContain("d.total / 2000");

@@ -1,5 +1,7 @@
 # Changelog
 
+- 2026-10-07 v0.4.6 性能与结构优化，功能不变：Claude Agent SDK 单独打包为 `claude-sdk.cjs`，首次使用 Claude 时才加载，`main.js` 由 1.6MB 降到约 0.8MB，并加入防止 SDK 回流主包的构建守卫；`view.ts`（4503 行）与 `main.ts`（2091 行）拆分为 `src/ui/pages`、`src/ui/charts`、`src/ui/view-*` 与 `src/plugin/*` 共 17 个模块，各文件不超过 800 行，搬迁函数逐一做等价比对；删除 775 条已不再渲染的旧版样式并在构建时压缩，`styles.css` 由 855KB 降到约 600KB；接入 `@vitest/coverage-v8` 并补充图表模块渲染测试（845 项回归）。同时包含 v0.4.5 之后合并的 PR #4（Claude Agent SDK 在 Electron 下的 AbortSignal 补丁，经 postinstall 打入 `claude-sdk.cjs`）、#5（dsh ≥ 0.1.2 web token 认证）与 #6（会话历史面板操作与显示修复）。手动安装需同时放入新增的 `claude-sdk.cjs`；Windows 上的 SDK 按需加载尚未实机验证。
+
 - 2026-09-04 源码许可调整：TALOS 自有材料从完全专有许可切换为 `TALOS Personal Use Source License 1.0`，允许个人非商业使用、学习、修改及按同一许可非商业分享；公司内部使用、客户交付、收费服务、托管、转售、白标与其他商业用途仍须事先书面授权。README、许可证徽章、`package.json`、lockfile、第三方边界、设置页、欢迎页联系方式、构建许可审计与 bundle banner 同步更新；项目明确标记为 Source Available，而非 OSI Open Source。
 
 - 2026-09-04 v0.4.5 会话恢复与桌面体验修复：保存过的空标签数组现在与“从未保存过 UI 状态”严格区分，用户主动关闭全部会话后重启不会再回退打开最近 6 个会话；首次运行仍保留最近会话回退。同步包含当前主线的重点项目卡片、开屏彩蛋与 Windows 部署修复，并让 macOS Seatbelt 专属 profile 检查只在 Darwin 环境执行，避免 Ubuntu CI 访问不存在的 `/System`。版本元数据、macOS/Windows 双系统安装包和 9 个手动安装资产统一进入 v0.4.5；v0.4.4 及更早 Release 保留，不改写历史。

@@ -19,29 +19,24 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 
 	it("converges leftover off-ladder sizes into the four tiers", () => {
 		const v2 = css.slice(css.indexOf("UI 规范 v2"));
+		// 2026-10-07：旧版总览（overview-detail/secondary/progress/primary-card）与旧 jarvis
+		// （jv-*）的 class 已不在插件中出现，其样式随死样式清理一并移除；四档契约
+		// 只校验仍在渲染的选择器。
 		// 标题档 15px：原 17px strong / 16px daily-win / 16px 空态
 		for (const sel of [
-			".overview-detail-title strong",
-			".overview-secondary-copy b",
 			".daily-win strong",
-			".jv-agent .jv-log .empty",
 		]) {
 			expect(v2).toContain(sel);
 		}
 		// 正文 14px：原 13/13.5px
 		for (const sel of [
-			".overview-progress-head b",
 			".pagenav-card .command span",
-			".jv-perm-title",
 		]) {
 			expect(v2).toContain(sel);
 		}
 		// 辅助 12px：原 12.5/11.5px
 		for (const sel of [
-			".overview-detail-body p",
-			".overview-secondary-row b",
 			".day b",
-			".jv-tool-input",
 		]) {
 			expect(v2).toContain(sel);
 		}
@@ -49,8 +44,6 @@ describe("UI spec v2 convergence (D-TLP-012 / C-4)", () => {
 		for (const sel of [
 			".date",
 			".day span",
-			".overview-primary-card small",
-			".jv-perm-reason",
 			".command .cap-src",
 		]) {
 			expect(v2).toContain(sel);

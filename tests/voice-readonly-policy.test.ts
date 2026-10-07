@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, pluginSource as readPluginSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -68,12 +69,9 @@ describe("voice read-only and bounded Qwen search policy", () => {
 	});
 
 	it("routes Qwen Realtime Vault and explicit web-search execution through authorizeTool", () => {
-		const main = readSrc("src/main.ts");
-		const vaultStart = main.indexOf("async executeQuyuanVoiceVaultTool");
-		const webStart = main.indexOf("async executeQuyuanVoiceWebSearch");
-		const exchangeStart = main.indexOf("async exchangeQuyuanRealtimeSdp");
-		const vaultExecution = main.slice(vaultStart, webStart);
-		const webExecution = main.slice(webStart, exchangeStart);
+		const main = readPluginSource();
+		const vaultExecution = functionSource(main, "executeQuyuanVoiceVaultTool");
+		const webExecution = functionSource(main, "executeQuyuanVoiceWebSearch");
 		expect(vaultExecution).toContain("service.authorizeTool");
 		expect(vaultExecution.indexOf("service.authorizeTool")).toBeLessThan(
 			vaultExecution.indexOf("executeVoiceVaultTool")
@@ -91,7 +89,7 @@ describe("voice read-only and bounded Qwen search policy", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
 		const realtime = readSrc("src/quyuan/qwen-realtime-voice.ts");
 		const webSearch = readSrc("src/quyuan/qwen-web-search.ts");
-		const main = readSrc("src/main.ts");
+		const main = readPluginSource();
 		expect(panel).toContain("executeQuyuanVoiceVaultTool");
 		expect(panel).toContain("与其他 TALOS 智能体同类的库内只读工具");
 		for (const name of [
@@ -120,7 +118,7 @@ describe("voice read-only and bounded Qwen search policy", () => {
 
 	it("keeps legacy cloud ASR, WebSpeech, and serial online TTS unreachable", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
-		const main = readSrc("src/main.ts");
+		const main = readPluginSource();
 		const cloudAsr = readSrc("src/quyuan/cloud-asr.ts");
 		const voiceIo = readSrc("src/jarvis/voiceio.ts");
 		const settings = readSrc("src/settings.ts");
@@ -141,21 +139,15 @@ describe("voice read-only and bounded Qwen search policy", () => {
 	it("keeps the Bailian long-lived key on the trusted plugin side", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
 		const realtime = readSrc("src/quyuan/qwen-realtime-voice.ts");
-		const main = readSrc("src/main.ts");
-		const search = main.slice(
-			main.indexOf("async executeQuyuanVoiceWebSearch"),
-			main.indexOf("async exchangeQuyuanRealtimeSdp")
-		);
-		const exchange = main.slice(
-			main.indexOf("async exchangeQuyuanRealtimeSdp"),
-			main.indexOf("async getCodexHarnessStatus")
-		);
+		const main = readPluginSource();
+		const search = functionSource(main, "executeQuyuanVoiceWebSearch");
+		const exchange = functionSource(main, "exchangeQuyuanRealtimeSdp");
 		expect(search).toContain("VOICE_QWEN_WEB_SEARCH_ALLOWED");
 		expect(search).toContain('readProviderSecret("aliyunApiKey")');
-		expect(search).toContain('Authorization: "Bearer " + apiKey');
+		expect(search).toContain('Authorization: "Bearer " + aliyunKey');
 		expect(search).toContain('"web-search-query"');
 		expect(exchange).toContain('readProviderSecret("aliyunApiKey")');
-		expect(exchange).toContain("Authorization: `Bearer ${apiKey}`");
+		expect(exchange).toContain("Authorization: `Bearer ${aliyunKey}`");
 		expect(exchange).toContain('"voice-audio"');
 		expect(main).toContain('input.namespace === "voice" && input.kind === "voice-audio"');
 		expect(panel).not.toContain('readProviderSecret("aliyunApiKey")');

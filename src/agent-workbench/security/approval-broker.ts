@@ -162,11 +162,14 @@ export class ApprovalBroker {
 		if (context.permission === "vault-full" && request.kind === "write") {
 			return { actionId: request.actionId, decision: "allow", reason: "Vault Full 允许普通 Vault 内写入" };
 		}
-		if (context.permission === "scoped") {
+		if (context.permission === "scoped" && targets.length > 0) {
+			let matchedRuleId: string | undefined;
 			for (const target of targets) {
 				const rule = await this.rules.match({ runtimeId: request.runtimeId, kind: request.kind, target: target.canonical, conversationId: context.conversationId });
-				if (rule) return { actionId: request.actionId, decision: "allow", reason: "命中精确权限规则", ruleId: rule.id };
+				if (!rule) return { actionId: request.actionId, decision: "ask", reason: "部分目标缺少精确权限规则" };
+				matchedRuleId ??= rule.id;
 			}
+			return { actionId: request.actionId, decision: "allow", reason: "全部目标命中精确权限规则", ruleId: matchedRuleId };
 		}
 		return { actionId: request.actionId, decision: "ask", reason: "动作需要审批" };
 	}

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { AgentWorkbenchService } from "../src/agent-workbench/core/agent-workbench-service";
 import { migrateLegacyTabManagerState, WorkbenchUiStateStore } from "../src/agent-workbench/storage/workbench-ui-state-store";
+import { pluginSource as readPluginSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const source = (path: string) => readFileSync(`${root}${path}`, "utf8");
@@ -11,7 +12,7 @@ const conversation = source("src/agent-workbench/ui/native-conversation-view.ts"
 const serviceSource = source("src/agent-workbench/core/agent-workbench-service.ts");
 const composer = source("src/agent-workbench/ui/native-composer.ts");
 const renderer = source("src/agent-workbench/ui/native-event-renderer.ts");
-const main = source("src/main.ts");
+const main = readPluginSource();
 const css = source("styles.ui-v2.css");
 const styleIndex = source("src/agent-workbench/ui/styles/index.css");
 
@@ -19,6 +20,7 @@ describe("TALOS native agent workbench UI", () => {
 	it("owns every production chat entry without importing the retired implementation", () => {
 		expect(main).toContain("TalosAgentRecoveryView");
 		expect(main).not.toContain("setSystemContext(this.quyuanSoul");
+		expect(main).not.toContain("setSystemContext(plugin.quyuanSoul");
 		expect(main).toContain("VIEW_TYPE_TALOS_AGENT_RECOVERY");
 		expect(main).toContain("ConversationInputLedger");
 		expect(main).toContain("WorkbenchUiStateStore");
