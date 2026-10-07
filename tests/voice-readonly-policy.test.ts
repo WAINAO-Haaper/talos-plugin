@@ -152,10 +152,10 @@ describe("voice read-only and bounded Qwen search policy", () => {
 		);
 		expect(search).toContain("VOICE_QWEN_WEB_SEARCH_ALLOWED");
 		expect(search).toContain('readProviderSecret("aliyunApiKey")');
-		expect(search).toContain('Authorization: "Bearer " + apiKey');
+		expect(search).toContain('Authorization: "Bearer " + aliyunKey');
 		expect(search).toContain('"web-search-query"');
 		expect(exchange).toContain('readProviderSecret("aliyunApiKey")');
-		expect(exchange).toContain("Authorization: `Bearer ${apiKey}`");
+		expect(exchange).toContain("Authorization: `Bearer ${aliyunKey}`");
 		expect(exchange).toContain('"voice-audio"');
 		expect(main).toContain('input.namespace === "voice" && input.kind === "voice-audio"');
 		expect(panel).not.toContain('readProviderSecret("aliyunApiKey")');
