@@ -6,13 +6,14 @@ import {
 	type ChatSurfaceWorkbench,
 } from "../src/quyuan/chat-surface";
 import { createMiniHost } from "./helpers/mini-dom";
+import { pluginSource as readPluginSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const nativeViewSource = readFileSync(
 	`${projectRoot}src/agent-workbench/ui/native-conversation-view.ts`,
 	"utf8"
 );
-const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
+const mainSource = readPluginSource();
 
 function workbench(): ChatSurfaceWorkbench & {
 	activeTabId: string;

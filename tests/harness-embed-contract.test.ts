@@ -12,7 +12,7 @@ import {
 } from "../src/harness/dsh-runtime";
 import { HARNESS_IFRAME_SANDBOX } from "../src/harness/harness-workbench";
 import { normalizeHarnessSurface } from "../src/harness/harness-switcher";
-import { viewSource as readViewSource } from "./helpers/source-text";
+import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const readSrc = (rel: string): string =>
@@ -106,7 +106,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 	});
 
 	it("stops the harness process on plugin unload", () => {
-		const main = readSrc("src/main.ts");
+		const main = readPluginSource();
 		expect(main).toContain("getHarnessManager(): DshProcessManager");
 		expect(main).toContain("this.harnessManager?.dispose()");
 		expect(main).toContain("adapter instanceof FileSystemAdapter");

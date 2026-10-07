@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { viewSource as readViewSource } from "./helpers/source-text";
+import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
+const mainSource = readPluginSource();
 const viewSource = readViewSource();
 const talosStyles = readFileSync(`${projectRoot}styles.talos.css`, "utf8");
 const quyuanStyles = readFileSync(

@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // 源码文本合同测试的统一读取入口。TalosView 的页面、图表、审批区等已拆到
-// src/ui 下的独立模块；按整体读取，"包含 / 不包含" 断言不会因代码换文件而失效。
+// src/ui 下的独立模块，TalosPlugin 的语音、诊断、Provider 等拆到 src/plugin；
+// 按整体读取，"包含 / 不包含" 断言不会因代码换文件而失效。
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -31,6 +32,16 @@ export const VIEW_SOURCE_FILES: readonly string[] = [
 /** TalosView 及其拆分模块的完整源码。 */
 export function viewSource(): string {
 	return VIEW_SOURCE_FILES.map(read).join("\n");
+}
+
+export const PLUGIN_SOURCE_FILES: readonly string[] = [
+	"src/main.ts",
+	...modulesIn("src/plugin"),
+];
+
+/** TalosPlugin 及其拆分到 src/plugin 的模块的完整源码。 */
+export function pluginSource(): string {
+	return PLUGIN_SOURCE_FILES.map(read).join("\n");
 }
 
 /** 取出一个导出函数的完整源码（到下一个顶层 export 为止）。 */
