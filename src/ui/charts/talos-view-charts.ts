@@ -6,21 +6,6 @@ import { renderTalosEmptyState } from "../page-primitives";
 import type { TalosView } from "../../view";
 
 // ---------- 填充 ----------
-export function fillMetricGrid(view: TalosView, parent: HTMLElement, metrics: MetricTile[]): void {
-	for (const m of metrics) {
-		const card = parent.createDiv({ cls: `metric-card tone-${m.tone || "default"}` });
-		card.createEl("b", { text: m.value });
-		const txt = card.createDiv({ cls: "metric-txt" });
-		txt.createEl("span", { text: m.label });
-		txt.createEl("small", { text: m.sub });
-		if (m.aux) {
-			const aux = card.createDiv({ cls: "metric-aux" });
-			aux.createSpan({ cls: "chip", text: m.aux });
-		}
-		if (m.path) card.addEventListener("click", () => void openFile(view.app, m.path || ""));
-	}
-}
-
 export function fillSignalList(view: TalosView, parent: HTMLElement, items: SignalItem[], emptyText: string): void {
 	if (items.length === 0) {
 		parent.createDiv({ cls: "empty", text: emptyText });
