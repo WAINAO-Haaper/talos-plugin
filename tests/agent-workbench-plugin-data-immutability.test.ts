@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const mainSource = readFileSync(`${projectRoot}src/main.ts`, "utf8");
-const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const viewSource = readViewSource();
 const storageSource = readFileSync(`${projectRoot}src/agent-workbench/storage/obsidian-workbench-storage.ts`, "utf8");
 const importerSource = readFileSync(`${projectRoot}src/agent-workbench/legacy/claudian-readonly-importer.ts`, "utf8");
 
@@ -19,8 +20,9 @@ describe("agent workbench plugin data immutability", () => {
 		expect(mainSource).not.toContain("stored.agentWorkbenchPermissionRules");
 		expect(mainSource).not.toContain("stored.agentWorkbenchBindings");
 		expect(mainSource).toContain("chat-surface.json");
-		expect(viewSource).toContain("this.plugin.setAgentWorkbenchSurface(id)");
+		expect(viewSource).toContain("view.plugin.setAgentWorkbenchSurface(id)");
 		expect(viewSource).not.toContain("this.plugin.talosSettings.harnessSurface = id");
+		expect(viewSource).not.toContain("view.plugin.talosSettings.harnessSurface = id");
 	});
 
 	it("uses atomic TALOS sidecar writes and keeps old source bytes read-only", () => {

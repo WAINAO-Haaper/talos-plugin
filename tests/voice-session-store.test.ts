@@ -6,6 +6,7 @@ import {
 	type VoiceSessionPersistence,
 	type VoiceSessionSnapshot,
 } from "../src/quyuan/voice-session-store";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const voicePanelSource = readFileSync(
@@ -16,7 +17,7 @@ const voiceDriverSource = readFileSync(
 	`${projectRoot}src/quyuan/native-voice-driver.ts`,
 	"utf8"
 );
-const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const viewSource = readViewSource();
 
 function memoryPersistence(
 	initial = ""

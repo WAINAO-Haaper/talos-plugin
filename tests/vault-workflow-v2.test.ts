@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const page = view.slice(
-	view.indexOf("\tprivate pageVault("),
-	view.indexOf("\tprivate pageCapability(")
-);
+const page = functionSource(view, "renderVaultPage");
 
 describe("Vault analytics v2", () => {
 	it("uses equal distribution and health-attention panels", () => {
@@ -18,13 +16,13 @@ describe("Vault analytics v2", () => {
 		expect(page).toContain('"data-system-section", "core-data"');
 		expect(page).toContain('"attention-and-actions"');
 		expect(page).not.toContain("chart-row");
-		expect(page).toContain("this.fillDist(");
-		expect(page).toContain("this.fillTrend(health, d.healthTrend)");
+		expect(page).toContain("fillDist(view, ");
+		expect(page).toContain("fillTrend(view, health, d.healthTrend)");
 	});
 
 	it("promotes real README anomalies without inventing status", () => {
 		expect(page).toContain(
-			"d.modules.filter(\n\t\t\t(module) => !module.readmeExists"
+			"d.modules.filter(\n\t\t(module) => !module.readmeExists"
 		);
 		expect(page).toContain("missingModules.map((module) =>");
 		expect(page).toContain('"README 异常"');

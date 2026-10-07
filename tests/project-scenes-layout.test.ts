@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const projectPage = view.slice(
-	view.indexOf("\tprivate pageProjects("),
-	view.indexOf("\tprivate pageKnowledge(")
-);
+const projectPage = functionSource(view, "renderProjectsPage");
 
 describe("Project scenes workflow v2", () => {
 	it("replaces the old 2.2/.8 split with an equal data-and-attention stage", () => {

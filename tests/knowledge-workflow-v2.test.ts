@@ -1,14 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
-const page = view.slice(
-	view.indexOf("\tprivate pageKnowledge("),
-	view.indexOf("\tprivate pageIdentity(")
-);
+const page = functionSource(view, "renderKnowledgePage");
 
 describe("Knowledge hub v2", () => {
 	it("uses an equal asset-structure and recent-entry first screen", () => {

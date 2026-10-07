@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const main = readFileSync(`${root}src/main.ts`, "utf8");
-const view = readFileSync(`${root}src/view.ts`, "utf8");
+const view = readViewSource();
 const importer = readFileSync(`${root}src/agent-workbench/legacy/claudian-readonly-importer.ts`, "utf8");
 
 describe("D-TLP-034 ownership baseline", () => {

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	LEGACY_PAGE_KEYS,
@@ -12,9 +10,9 @@ import {
 	encodeTalosViewState,
 	TalosPageRouter,
 } from "../src/ui/page-router";
+import { viewSource as readViewSource } from "./helpers/source-text";
 
-const projectRoot = fileURLToPath(new URL("../", import.meta.url));
-const viewSource = readFileSync(`${projectRoot}src/view.ts`, "utf8");
+const viewSource = readViewSource();
 
 describe("TALOS navigation model", () => {
 	it("has seven primary destinations with settings permanently last", () => {
@@ -56,7 +54,7 @@ describe("TALOS navigation model", () => {
 	it("uses the primary navigation instead of duplicating nine launch cards", () => {
 		expect(viewSource).toContain('"data-workbench-section", "core-data"');
 		expect(viewSource).toContain(
-			'"data-workbench-section",\n\t\t\t"attention-and-approvals"'
+			'"data-workbench-section",\n\t\t"attention-and-approvals"'
 		);
 		expect(viewSource).toContain('"data-workbench-section", "task-kanban"');
 		expect(viewSource).not.toContain("for (const module of WORKBENCH_MODULES)");
