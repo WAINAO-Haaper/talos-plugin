@@ -408,8 +408,8 @@ describe("LoopbackEgressProxy", () => {
 		await expect(proxyResponse(port, "CONNECT forbidden.example:443 HTTP/1.1\r\nHost: forbidden.example\r\n\r\n")).resolves.toContain("403 Forbidden");
 		await expect(proxyResponse(port, "GET http://forbidden.example/ HTTP/1.1\r\nHost: forbidden.example\r\n\r\n")).resolves.toContain("403 Forbidden");
 		expect(destinations).toEqual([
-			{ host: "forbidden.example", port: 443 },
-			{ host: "forbidden.example", port: 80 },
+			{ host: "forbidden.example", port: 443, connection: "tunnel" },
+			{ host: "forbidden.example", port: 80, connection: "plain" },
 		]);
 		await proxy.close();
 	});

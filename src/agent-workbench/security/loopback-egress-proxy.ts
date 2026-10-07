@@ -5,6 +5,8 @@ import type { Duplex } from "node:stream";
 export interface EgressDestination {
 	host: string;
 	port: number;
+	/** tunnel = CONNECT（TLS 隧道）；plain = 明文 absolute-form HTTP 逐跳转发。审批 UI 据此显示真实连接语义。 */
+	connection?: "tunnel" | "plain";
 }
 
 export type EgressAuthorization = boolean | "allow" | "allow-always" | "deny";
@@ -100,7 +102,7 @@ export class LoopbackEgressProxy {
 			response.end();
 			return;
 		}
-		const destination = { host: url.hostname.toLowerCase().replace(/\.$/, ""), port: url.port ? Number(url.port) : 80 };
+		const destination: EgressDestination = { host: url.hostname.toLowerCase().replace(/\.$/, ""), port: url.port ? Number(url.port) : 80, connection: "plain" };
 		if (!destination.host || !Number.isSafeInteger(destination.port) || destination.port < 1 || destination.port > 65_535) {
 			response.writeHead(400, { connection: "close" });
 			response.end();
@@ -154,7 +156,7 @@ export class LoopbackEgressProxy {
 		this.track(client);
 		let destination: EgressDestination;
 		try {
-			destination = parseAuthority(authority);
+			destination = { ...parseAuthority(authority), connection: "tunnel" };
 			if (!(await this.authorizeDestination(destination))) throw new Error("目标未授权");
 		} catch {
 			client.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
