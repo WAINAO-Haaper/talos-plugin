@@ -5,6 +5,7 @@ import {
 } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { transform } from "esbuild";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const talosSource = resolve(root, "styles.talos.css");
@@ -29,7 +30,8 @@ if (imports.length === 0) throw new Error("TALOS agent workbench style index has
 const parts = [
 	"/* GENERATED FILE — edit source CSS files, including styles.ui-v2.css */",
 	readFileSync(talosSource, "utf8"),
-	"\n/* TALOS native agent workbench styles · visual baseline derived from Claudian 2.0.25 (MIT) */\n",
+	// /*! */ 是许可证注释，压缩后仍保留归属说明
+	"\n/*! TALOS native agent workbench styles · visual baseline derived from Claudian 2.0.25 (MIT) */\n",
 ];
 
 for (const modulePath of imports) {
@@ -98,5 +100,14 @@ if (cssErrors.length > 0) {
 	process.exit(1);
 }
 
-writeFileSync(output, combined, "utf8");
-console.log(`Built TALOS + Quyuan styles (${Math.round(combined.length / 1024)} KB), 结构自检通过`);
+// 自检在未压缩的合并结果上做（行号可读），通过后再压缩：去掉注释与空白、
+// 合并完全重复的规则，不改写选择器与声明语义。
+const { code, warnings } = await transform(combined, { loader: "css", minify: true, logLevel: "silent" });
+if (warnings.length > 0) {
+	console.error("CSS 压缩出现警告：\n" + warnings.map((w) => w.text).join("\n"));
+	process.exit(1);
+}
+writeFileSync(output, code, "utf8");
+console.log(
+	`Built TALOS + Quyuan styles (${Math.round(combined.length / 1024)} KB → ${Math.round(code.length / 1024)} KB minified), 结构自检通过`
+);
