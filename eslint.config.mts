@@ -19,11 +19,13 @@ export default tseslint.config(
 		'build-styles.mjs',
 		// Node .mjs 合同由 Vitest 执行（bundle 守卫有专项测试）
 		'scripts/check-peer-status-bundle.mjs',
+		'scripts/check-claude-sdk-split.mjs',
 		'esbuild.config.mjs',
 		'third-party-licenses.mjs',
 		'version-bump.mjs',
 		'versions.json',
 		'main.js',
+		'claude-sdk.cjs',
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
