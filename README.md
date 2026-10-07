@@ -1,6 +1,6 @@
 # TALOS for Obsidian
 
-![version](https://img.shields.io/badge/version-v0.4.5-2f6feb)
+![version](https://img.shields.io/badge/version-v0.4.6-2f6feb)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-7c3aed)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827)
 ![license](https://img.shields.io/badge/license-Personal%20Use%20Source%20Available-FAD861)
@@ -48,12 +48,12 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 平台状态
 
-v0.4.5 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
+v0.4.6 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
 
 | 平台 | 当前状态 | AI 执行边界 |
 |---|---|---|
 | **macOS** | 主要支持平台 | 本机 Claude / Codex / OhMyPi 可在可验证的 macOS Seatbelt 沙箱内运行；沙箱不可用时 Execute 失败关闭。 |
-| **Windows 10/11 x64** | v0.4.5 已加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
+| **Windows 10/11 x64** | 自 v0.4.1 起加入部署与兼容支持 | 推荐使用 SecretStorage 中配置的 Direct API Provider；当前为 **Plan-only**，不会启动本机 CLI 或执行工具。`.cmd` / `.bat` 仅用于安全发现，路径包含 shell 元字符时拒绝启动。 |
 | **其他桌面系统** | 非当前交付重点 | 没有可验证 OS 沙箱时，本机智能体 Execute 失败关闭。 |
 
 ### 目标硬件
@@ -76,10 +76,10 @@ TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商�
 
 | 操作系统 | 安装包名称 |
 |---|---|
-| **macOS** | `TALOS-v0.4.5-macOS.zip` |
-| **Windows 10/11 x64** | `TALOS-v0.4.5-Windows.zip` |
+| **macOS** | `TALOS-v0.4.6-macOS.zip` |
+| **Windows 10/11 x64** | `TALOS-v0.4.6-Windows.zip` |
 
-两个压缩包使用同一套 v0.4.5 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
+两个压缩包使用同一套 v0.4.6 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
 
 1. 从最新 Release 下载与你的操作系统对应的 ZIP。
 2. 解压后将其中的 `talos` 文件夹放到 `<你的 Vault>/.obsidian/plugins/`。
@@ -91,6 +91,7 @@ TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商�
 把 Release 中的以下文件放入 `<你的 Vault>/.obsidian/plugins/talos/`：
 
 - `main.js`
+- `claude-sdk.cjs`（v0.4.6 起，Claude 运行时按需加载）
 - `manifest.json`
 - `styles.css`
 - `LICENSE`
@@ -133,12 +134,12 @@ npm run licenses:check
 npm run build
 ```
 
-生产构建会执行许可证审计、TypeScript 检查、样式合并和 esbuild 打包。任何分发包必须包含安装章节列出的 9 个文件。
+生产构建会执行许可证审计、TypeScript 检查、样式合并和 esbuild 打包。任何分发包必须包含安装章节列出的 10 个文件。
 
 ### 源码结构
 
-- `src/main.ts`：插件生命周期、命令、工作台与 Provider 装配。
-- `src/view.ts`：控制台 ItemView、导航和业务页面。
+- `src/main.ts`：插件生命周期、命令与装配；语音工具、诊断、Provider 等拆在 `src/plugin/`。
+- `src/view.ts`：控制台 ItemView 与导航；业务页面、图表和审批区拆在 `src/ui/pages/`、`src/ui/charts/` 与 `src/ui/view-*.ts`。
 - `src/agent-workbench/`：多智能体会话、运行时适配、审批、安全、存储和 UI。
 - `src/harness/`：DeepSeek Harness 嵌入、进程管理和健康检查。
 - `src/quyuan/`：人格、Qwen Realtime 语音、只读工具和 TALOS Ball 舞台。
