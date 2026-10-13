@@ -1,3 +1,4 @@
+import { describeApproval } from "./approval-presentation";
 import { MarkdownView, Modal, Notice, normalizePath, setIcon, type App, type WorkspaceLeaf } from "obsidian";
 import { createAgentEvent, type AgentEvent } from "../contracts/agent-events";
 import type { ConversationManifest } from "../contracts/conversation";
@@ -657,13 +658,34 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 			const phase = textValue(policy.phase, "execute");
 			const actionKind = textValue(policy.actionKind, "unknown");
 			const phaseLabel = phase === "proposal" ? "提案预览" : risk === "C" ? "独立执行批准" : "执行批准";
-			const title = card.ownerDocument.createElement("strong");
+			const doc = card.ownerDocument;
+			const view = describeApproval({ runtimeId: input.runtimeId, toolName: input.toolName, toolInput: input.toolInput, reason: input.reason, risk, phase });
+			const title = doc.createElement("strong");
 			title.className = "claudian-ask-approval-tool-name";
-			title.textContent = input.runtimeId + " · " + input.toolName + " · " + phaseLabel;
-			const reason = card.ownerDocument.createElement("p");
+			title.textContent = view.headline;
+			title.title = input.toolName;
+			const facts = doc.createElement("p");
+			facts.className = "talos-approval-facts";
+			facts.textContent = [phaseLabel, ...view.facts].join(" · ");
+			const reason = doc.createElement("p");
 			reason.className = "claudian-ask-approval-reason";
-			reason.textContent = "风险 " + risk + " · " + input.reason;
-			const target = card.ownerDocument.createElement("pre");
+			reason.textContent = view.riskText;
+			const folds: HTMLElement[] = [];
+			if (view.code) {
+				const code = doc.createElement("details");
+				code.className = "talos-approval-code";
+				const summary = doc.createElement("summary");
+				summary.textContent = `查看 ${view.code.label}（${view.code.lines} 行）${view.code.firstLine ? `：${view.code.firstLine}` : ""}`;
+				const pre = doc.createElement("pre");
+				pre.textContent = view.code.text;
+				code.append(summary, pre);
+				folds.push(code);
+			}
+			const technical = doc.createElement("details");
+			technical.className = "talos-approval-technical";
+			const technicalSummary = doc.createElement("summary");
+			technicalSummary.textContent = "技术细节";
+			const target = doc.createElement("pre");
 			target.className = "claudian-ask-approval-desc";
 			target.textContent = JSON.stringify(approvalDisplayValue({
 				canonicalToolId: policy.canonicalToolId,
@@ -672,6 +694,8 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 				proposalAvailable: policy.proposalAvailable,
 				proposal: input.toolInput,
 			}), null, 2);
+			technical.append(technicalSummary, target);
+			folds.push(technical);
 			const actions = card.ownerDocument.createElement("div");
 			actions.className = "claudian-input-nav-actions";
 			const cancels = this.interactionCancels(input.conversationId);
@@ -692,7 +716,7 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 				actions.append(this.actionButton("允许并记住", () => finish("allow-always")));
 			}
 			actions.append(this.actionButton("拒绝", () => finish("deny")));
-			card.append(title, reason, target, actions);
+			card.append(title, facts, reason, ...folds, actions);
 			this.approvalRegion.appendChild(card);
 			this.syncInteractionVisibility();
 		});

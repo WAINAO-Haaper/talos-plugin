@@ -26,4 +26,14 @@ describe("approval card layout", () => {
 		expect(desc).toContain("overflow: auto");
 		expect(rule(".talos-native-chat .talos-native-approval-region .claudian-input-nav-actions")).toContain("display: flex");
 	});
+
+	it("folds code and technical details so long requests cannot push the buttons away", () => {
+		const view = readFileSync(`${root}src/agent-workbench/ui/native-conversation-view.ts`, "utf8");
+		expect(view).toContain('code.className = "talos-approval-code"');
+		expect(view).toContain('technical.className = "talos-approval-technical"');
+		expect(view).toContain("card.append(title, facts, reason, ...folds, actions);");
+		const code = rule(".talos-native-chat .talos-native-approval-region .talos-approval-code > pre");
+		expect(code).toContain("max-height: 12em");
+		expect(code).toContain("overflow: auto");
+	});
 });

@@ -3624,6 +3624,47 @@ body[data-talos-vault-theme] .talos-console
 	white-space: pre-wrap;
 }
 
+.talos-native-chat .talos-native-approval-region .claudian-ask-approval-tool-name {
+	display: block;
+	font-size: 14px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.talos-native-chat .talos-native-approval-region .talos-approval-facts {
+	margin: 4px 0 2px;
+	color: var(--text-muted);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.talos-native-chat .talos-native-approval-region .talos-approval-code,
+.talos-native-chat .talos-native-approval-region .talos-approval-technical {
+	margin: 4px 0;
+	font-size: 12px;
+}
+
+.talos-native-chat .talos-native-approval-region .talos-approval-code > summary,
+.talos-native-chat .talos-native-approval-region .talos-approval-technical > summary {
+	cursor: pointer;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.talos-native-chat .talos-native-approval-region .talos-approval-code > pre {
+	max-height: 12em;
+	margin: 6px 0 4px;
+	padding: 8px 10px;
+	overflow: auto;
+	background: var(--background-primary-alt);
+	border-radius: 6px;
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	white-space: pre;
+}
+
 .talos-native-chat .talos-native-approval-region .claudian-input-nav-actions {
 	display: flex;
 	flex-wrap: wrap;
