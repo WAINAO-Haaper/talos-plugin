@@ -9,15 +9,17 @@ const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 const page = functionSource(view, "renderVaultPage");
 
 describe("Vault analytics v2", () => {
-	it("uses equal distribution and health-attention panels", () => {
+	// 模块整合（D-TLP-069）：健康趋势只在系统健康页；README 异常并入知识库分布；库结构页签上移到第一行。
+	it("uses one row of distribution and library-structure tabs without a duplicate health trend", () => {
 		expect(page).toContain(
 			'cls: "system-v2-primary vault-v2-primary"'
 		);
 		expect(page).toContain('"data-system-section", "core-data"');
-		expect(page).toContain('"attention-and-actions"');
 		expect(page).not.toContain("chart-row");
 		expect(page).toContain("fillDist(view, ");
-		expect(page).toContain("fillTrend(view, health, d.healthTrend)");
+		expect(page).not.toContain("fillTrend");
+		expect(page).toContain("const anomalyHead = distribution.createDiv({");
+		expect(page).toMatch(/mountPanelTabs\(\{\s*parent: primary,\s*groupKey: "vault-structure"/);
 	});
 
 	it("promotes real README anomalies without inventing status", () => {
