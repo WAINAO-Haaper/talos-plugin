@@ -913,6 +913,15 @@ export class TalosView extends ItemView {
 		}
 	}
 
+	/** 审批与偏好的唯一处理位置：今日页第二行的「待决策」页签。 */
+	openDecisions(): void {
+		this.panelTabSelections.set("today-status", "decisions");
+		if (this.activePage !== "today") this.navigateToPage("today");
+		const tab = this.pageEl?.querySelector<HTMLElement>('[data-panel-tabs="today-status"] [data-tab="decisions"]');
+		tab?.click();
+		tab?.closest(".talos-panel-tabs")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+	}
+
 	navigateToPage(pageKey: string): void {
 		if (this.lens) {
 			this.lens.navigate(LENS_PAGE_FOR_CLASSIC[pageKey] ?? "overview");

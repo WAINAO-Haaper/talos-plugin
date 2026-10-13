@@ -1,4 +1,5 @@
 // TALOS 控制台TALOS、收件箱、对话、语音与设置页渲染；由 TalosView 委托调用。
+import { mountPanelTabs } from "../panel-tabs";
 import type { Collected } from "../talos-view-model";
 import type { GateItem } from "../../types";
 import { Notice, setIcon } from "obsidian";
@@ -300,66 +301,89 @@ export function renderInboxPage(view: TalosView, page: HTMLElement, d: Collected
 	});
 	mountFlowPipeline(view, hero, d, "inbox");
 
-	renderInboxTriageQueue(view, page, d);
-
+	// 模块整合：一行两列——左「待分诊」（核心），右「积压概况」（年龄 / 主题 / 最近进入，同一批笔记的三种统计）。
 	const triage = page.createDiv({
 		cls: "workflow-v2-primary inbox-v2-primary",
 	});
 	triage.setAttribute("data-workflow-layout", "split");
-
-	const age = view.panel(
-		triage,
-		"#FBBF24",
-		"积压年龄",
-		"0–3D · 4–7D · 8–14D · >14D"
-	);
-	age.setAttribute("data-workflow-section", "core-data");
-	if (d.inbox.count > 0) {
-		fillInboxAgeDist(view, age.createDiv({ cls: "age-dist" }), d.inbox);
-	} else {
-		renderTalosEmptyState(
-			age,
-			"收件箱已清空",
-			"当前没有需要分诊的内容，新的输入会继续进入这里。",
+	renderInboxTriageQueue(view, triage, d);
+	mountPanelTabs({
+		parent: triage,
+		groupKey: "inbox-overview",
+		label: "积压概况",
+		selections: view.panelTabSelections,
+		tabs: [
 			{
-				label: "打开收件箱",
-				icon: "inbox",
-				onActivate: () =>
-					void openFile(view.app, view.paths.readme("inbox")),
-			}
-		);
-	}
-
-	const clusters = view.panel(
-		triage,
-		"#38E1FF",
-		"主题分诊",
-		priorityCluster
-			? `按规模排序 · 先处理「${priorityCluster.name}」`
-			: "暂无待消化主题"
-	);
-	clusters.setAttribute(
-		"data-workflow-section",
-		"attention-and-actions"
-	);
-	fillInboxClusters(view, 
-		clusters.createDiv({ cls: "cluster-grid" }),
-		rankedClusters
-	);
-
-	const recent = view.panel(
-		page,
-		"#A78BFA",
-		"最近进入",
-		"第三层入口 · 点击打开原文件"
-	);
-	recent.addClass("inbox-v2-recent-panel");
-	recent.setAttribute("data-workflow-section", "recent-entry");
-	fillSignalList(view, 
-		recent.createDiv({ cls: "detail-list" }),
-		d.inbox.recent,
-		"收件箱已清空"
-	);
+				key: "age",
+				label: "积压年龄",
+				render: (host) => {
+				const age = view.panel(
+					host,
+					"#FBBF24",
+					"积压年龄",
+					"0–3D · 4–7D · 8–14D · >14D"
+				);
+				age.setAttribute("data-workflow-section", "core-data");
+				if (d.inbox.count > 0) {
+					fillInboxAgeDist(view, age.createDiv({ cls: "age-dist" }), d.inbox);
+				} else {
+					renderTalosEmptyState(
+						age,
+						"收件箱已清空",
+						"当前没有需要分诊的内容，新的输入会继续进入这里。",
+						{
+							label: "打开收件箱",
+							icon: "inbox",
+							onActivate: () =>
+								void openFile(view.app, view.paths.readme("inbox")),
+						}
+					);
+				}
+				},
+			},
+			{
+				key: "clusters",
+				label: "主题分诊",
+				render: (host) => {
+				const clusters = view.panel(
+					host,
+					"#38E1FF",
+					"主题分诊",
+					priorityCluster
+						? `按规模排序 · 先处理「${priorityCluster.name}」`
+						: "暂无待消化主题"
+				);
+				clusters.setAttribute(
+					"data-workflow-section",
+					"attention-and-actions"
+				);
+				fillInboxClusters(view,
+					clusters.createDiv({ cls: "cluster-grid" }),
+					rankedClusters
+				);
+				},
+			},
+			{
+				key: "recent",
+				label: "最近进入",
+				render: (host) => {
+				const recent = view.panel(
+					host,
+					"#A78BFA",
+					"最近进入",
+					"第三层入口 · 点击打开原文件"
+				);
+				recent.addClass("inbox-v2-recent-panel");
+				recent.setAttribute("data-workflow-section", "recent-entry");
+				fillSignalList(view,
+					recent.createDiv({ cls: "detail-list" }),
+					d.inbox.recent,
+					"收件箱已清空"
+				);
+				},
+			},
+		],
+	});
 }
 
 /** 逐条分诊：卡片 → 提案 → 批准 → 落到目标目录，全程留在收件箱页。 */

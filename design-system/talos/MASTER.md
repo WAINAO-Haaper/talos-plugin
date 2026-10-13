@@ -227,6 +227,17 @@ height. Rules:
   Today (decisions · task progress · TALOS status / actions · quick note), Daily (rails ·
   protocol · week router) and Vault (module map · heatmap).
 
+### 6.5 One home per information type (owner decision D-TLP-069, 2026-10-14)
+
+Every information type has exactly one home page that shows it in full; every other page
+shows at most a number plus a jump. Homes: approvals and preference candidates — Today ·
+decisions tab (`view.openDecisions()` is the only route from other pages); current focus —
+Daily; health trend — System health; README anomalies — Vault (inside the distribution
+module); capability groups — inside the capability browser. Same-purpose views of one data
+set (inbox age / topics / recent; focus vs all projects; error patterns / loop status) share
+one tab group instead of separate modules. The 14 core display modules stay on each page's
+first row and are never placed behind a tab.
+
 Reference check: at a 1470×920 window with both Obsidian sidebars open (console ≈718px),
 each business page should stay within about 1.35 screens, and the first screen must show the
 header plus the first full module row.

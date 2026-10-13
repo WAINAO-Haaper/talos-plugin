@@ -166,9 +166,10 @@ export function renderTodayPage(view: TalosView, page: HTMLElement, d: Collected
 		"arrow-up-right"
 	);
 	priorityAction.createSpan({ text: primary.action });
-	priorityAction.addEventListener("click", () =>
-		void openFile(view.app, primary.path)
-	);
+	priorityAction.addEventListener("click", () => {
+		if (primary.target === "decisions") view.openDecisions();
+		else void openFile(view.app, primary.path);
+	});
 	renderOverviewAttentionRows(view, attentionPanel, attention.slice(1, 4));
 
 	// 单页原则：第二行把决策、进度、状态与工具合进两个页签组，内容与渲染不变。

@@ -1,4 +1,5 @@
 // TALOS 控制台项目、输出与健康页渲染；由 TalosView 委托调用。
+import { mountPanelTabs } from "../panel-tabs";
 import type { Collected } from "../talos-view-model";
 import type { ProjectScene } from "../../types";
 import { openFile } from "../../actions";
@@ -102,7 +103,6 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 	const candidates =
 		d.healthDigest.metrics.find((item) => item.label === "偏好候选") ||
 		d.healthDigest.metrics[2];
-	const pendingTotal = d.approvals.length + d.candidates.length;
 
 	if (health && d.healthTrend.length > 1) {
 		const last = d.healthTrend[d.healthTrend.length - 1];
@@ -133,15 +133,15 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 			{
 				label: approvals?.label || "待审批",
 				value: approvals?.value || "0",
-				sub: approvals?.sub,
-				path: approvals?.path,
+				sub: "点击去今日 · 待决策",
+				onActivate: () => view.openDecisions(),
 				tone: approvals?.tone || "default",
 			},
 			{
 				label: candidates?.label || "偏好候选",
 				value: candidates?.value || "0",
-				sub: candidates?.sub,
-				path: candidates?.path,
+				sub: "点击去今日 · 待决策",
+				onActivate: () => view.openDecisions(),
 				tone: candidates?.tone || "default",
 			},
 		],
@@ -175,47 +175,52 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 	trend.setAttribute("data-system-section", "core-data");
 	fillTrend(view, trend, d.healthTrend);
 
-	const decisions = view.panel(
-		primary,
-		"#FBBF24",
-		"审批与偏好",
-		pendingTotal > 0
-			? `${pendingTotal} 项可直接处理`
-			: "审批池已清空"
-	);
-	decisions.setAttribute(
-		"data-system-section",
-		"attention-and-actions"
-	);
-	view.renderDecisionWorkspace(decisions, d, 3);
-
-	const diagnostics = page.createDiv({
-		cls: "system-v2-secondary health-v2-diagnostics",
+	// 模块整合：审批与偏好只在今日页「待决策」处理（页头数字可直达）；循环状态与错误模式合为「诊断」。
+	mountPanelTabs({
+		parent: primary,
+		groupKey: "health-diagnostics",
+		label: "诊断",
+		selections: view.panelTabSelections,
+		tabs: [
+			{
+				key: "errors",
+				label: "错误模式",
+				badge: d.healthDigest.errors.length,
+				render: (host) => {
+				const errors = view.panel(
+					host,
+					"#FB7185",
+					"错误模式",
+					d.healthDigest.errors.length > 0
+						? `${d.healthDigest.errors.length} 项需要诊断`
+						: "error-patterns · 当前清空"
+				);
+				fillSignalList(view,
+					errors.createDiv({ cls: "detail-list" }),
+					d.healthDigest.errors,
+					"暂无活跃错误模式"
+				);
+				},
+			},
+			{
+				key: "loops",
+				label: "循环状态",
+				render: (host) => {
+				const loops = view.panel(
+					host,
+					"#38E1FF",
+					"循环状态",
+					"loop-health-log"
+				);
+				fillSignalList(view,
+					loops.createDiv({ cls: "detail-list" }),
+					d.healthDigest.loopStatus,
+					"暂无循环状态记录"
+				);
+				},
+			},
+		],
 	});
-	const loops = view.panel(
-		diagnostics,
-		"#38E1FF",
-		"循环状态",
-		"loop-health-log"
-	);
-	fillSignalList(view, 
-		loops.createDiv({ cls: "detail-list" }),
-		d.healthDigest.loopStatus,
-		"暂无循环状态记录"
-	);
-	const errors = view.panel(
-		diagnostics,
-		"#FB7185",
-		"错误模式",
-		d.healthDigest.errors.length > 0
-			? `${d.healthDigest.errors.length} 项需要诊断`
-			: "error-patterns · 当前清空"
-	);
-	fillSignalList(view, 
-		errors.createDiv({ cls: "detail-list" }),
-		d.healthDigest.errors,
-		"暂无活跃错误模式"
-	);
 }
 
 export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collected): void {
@@ -298,161 +303,182 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 		d.projects
 	);
 
-	const attention = view.panel(
-		primary,
-		"#F59E0B",
-		"重点项目",
-		"P0 优先 · 最近活跃度次序"
-	);
-	attention.addClass("project-entry-panel");
-	attention.setAttribute(
-		"data-workflow-section",
-		"attention-and-actions"
-	);
-	const attentionList = attention.createDiv({
-		cls: "project-v2-attention-list",
-	});
-	if (rankedProjects.length === 0) {
-		renderTalosEmptyState(
-			attentionList,
-			"暂无项目场景",
-			"建立项目 README 后，这里会显示优先级与最新进展。",
+	// 模块整合：「重点项目」与「项目场景地图」是同一批项目的两个视图，合为「重点 / 全部」页签。
+	mountPanelTabs({
+		parent: primary,
+		groupKey: "projects-scenes",
+		label: "项目场景",
+		selections: view.panelTabSelections,
+		tabs: [
 			{
-				label: "打开项目目录",
-				icon: "folder-kanban",
-				onActivate: () =>
-					void openFile(view.app, view.paths.readme("projects")),
-			}
-		);
-	} else {
-		for (const project of rankedProjects.slice(0, 4)) {
-			const row = attentionList.createEl("button", {
-				cls: `project-card project-v2-priority-row priority-${project.priority}`,
-				attr: { type: "button" },
-			});
-			const head = row.createDiv({
-				cls: "project-v2-priority-row__head",
-			});
-			head.createEl("strong", { text: project.name });
-			head.createEl("span", {
-				cls: `project-v2-priority-badge priority-${project.priority}`,
-				text: project.priority.toUpperCase(),
-			});
-			row.createEl("small", { text: project.status });
-			row.createEl("small", {
-				cls: "module-latest",
-				text: `最新：${project.latestTitle}`,
-			});
-			if (project.progress) {
-				const pct = Math.round(
-					(project.progress.done /
-						Math.max(project.progress.total, 1)) *
-						100
+				key: "focus",
+				label: "重点项目",
+				badge: p0Count,
+				render: (host) => {
+				const attention = view.panel(
+					host,
+					"#F59E0B",
+					"重点项目",
+					"P0 优先 · 最近活跃度次序"
 				);
-				const progress = row.createDiv({
-					cls: "project-v2-priority-progress",
+				attention.addClass("project-entry-panel");
+				attention.setAttribute(
+					"data-workflow-section",
+					"attention-and-actions"
+				);
+				const attentionList = attention.createDiv({
+					cls: "project-v2-attention-list",
 				});
-				progress.createSpan().style.width = `${pct}%`;
-				progress.createEl("small", {
-					text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
-				});
-			}
-			row.addEventListener("click", () =>
-				void openFile(view.app, project.readme)
-			);
-		}
-	}
+				if (rankedProjects.length === 0) {
+					renderTalosEmptyState(
+						attentionList,
+						"暂无项目场景",
+						"建立项目 README 后，这里会显示优先级与最新进展。",
+						{
+							label: "打开项目目录",
+							icon: "folder-kanban",
+							onActivate: () =>
+								void openFile(view.app, view.paths.readme("projects")),
+						}
+					);
+				} else {
+					for (const project of rankedProjects.slice(0, 4)) {
+						const row = attentionList.createEl("button", {
+							cls: `project-card project-v2-priority-row priority-${project.priority}`,
+							attr: { type: "button" },
+						});
+						const head = row.createDiv({
+							cls: "project-v2-priority-row__head",
+						});
+						head.createEl("strong", { text: project.name });
+						head.createEl("span", {
+							cls: `project-v2-priority-badge priority-${project.priority}`,
+							text: project.priority.toUpperCase(),
+						});
+						row.createEl("small", { text: project.status });
+						row.createEl("small", {
+							cls: "module-latest",
+							text: `最新：${project.latestTitle}`,
+						});
+						if (project.progress) {
+							const pct = Math.round(
+								(project.progress.done /
+									Math.max(project.progress.total, 1)) *
+									100
+							);
+							const progress = row.createDiv({
+								cls: "project-v2-priority-progress",
+							});
+							progress.createSpan().style.width = `${pct}%`;
+							progress.createEl("small", {
+								text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+							});
+						}
+						row.addEventListener("click", () =>
+							void openFile(view.app, project.readme)
+						);
+					}
+				}
 
-	const entryActions = attention.createDiv({
-		cls: "project-v2-entry-actions",
+				const entryActions = attention.createDiv({
+					cls: "project-v2-entry-actions",
+				});
+				for (const action of [
+					{
+						label: "场景索引",
+						icon: "map",
+						path: view.paths.sceneIndexFile,
+					},
+					{
+						label: "项目总 README",
+						icon: "folder-open",
+						path: view.paths.readme("projects"),
+					},
+				]) {
+					const button = entryActions.createEl("button", {
+						cls: "module-hero-action",
+						attr: { type: "button" },
+					});
+					setIcon(
+						button.createSpan({ cls: "module-hero-action-icon" }),
+						action.icon
+					);
+					button.createSpan({ text: action.label });
+					button.addEventListener("click", () =>
+						void openFile(view.app, action.path)
+					);
+				}
+				},
+			},
+			{
+				key: "all",
+				label: `全部项目 ${d.projects.length}`,
+				render: (host) => {
+				const mapPanel = view.panel(
+					host,
+					"#A78BFA",
+					"项目场景地图",
+					`${view.paths.dir("projects")} · 全部项目`
+				);
+				mapPanel.addClass("project-map-panel");
+				mapPanel.setAttribute("data-workflow-section", "project-map");
+				const cards = mapPanel.createDiv({ cls: "project-grid" });
+				if (d.projects.length === 0) {
+					renderTalosEmptyState(
+						cards,
+						"暂无项目",
+						"项目目录中出现可识别场景后，将自动生成项目卡片。"
+					);
+				}
+				for (const project of d.projects) {
+					const card = cards.createDiv({
+						cls: `project-card priority-${project.priority}`,
+					});
+					card.createEl("b", { text: project.name });
+					card.createEl("span", { cls: "big", text: String(project.count) });
+					card.createEl("small", { text: project.status });
+					if (project.progress) {
+						const pct = Math.round(
+							(project.progress.done /
+								Math.max(project.progress.total, 1)) *
+								100
+						);
+						const progress = card.createDiv({ cls: "proj-progress" });
+						const head = progress.createDiv({
+							cls: "proj-progress-head",
+						});
+						head.createEl("small", { text: "任务进度" });
+						head.createEl("small", {
+							cls: "proj-progress-num",
+							text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+						});
+						const track = progress.createDiv({
+							cls: "proj-progress-track",
+						});
+						track.createDiv({ cls: "proj-progress-fill" }).style.width =
+							`${pct}%`;
+					} else {
+						card.createEl("small", {
+							cls: "proj-progress-none",
+							text: "无任务清单 · 进度未跟踪",
+						});
+					}
+					const latest = card.createEl("small", {
+						cls: "module-latest",
+						text: `最新：${project.latestTitle}`,
+					});
+					if (project.latestPath) {
+						latest.addEventListener("click", (event) => {
+							event.stopPropagation();
+							void openFile(view.app, project.latestPath || "");
+						});
+					}
+					card.addEventListener("click", () =>
+						void openFile(view.app, project.readme)
+					);
+				}
+				},
+			},
+		],
 	});
-	for (const action of [
-		{
-			label: "场景索引",
-			icon: "map",
-			path: view.paths.sceneIndexFile,
-		},
-		{
-			label: "项目总 README",
-			icon: "folder-open",
-			path: view.paths.readme("projects"),
-		},
-	]) {
-		const button = entryActions.createEl("button", {
-			cls: "module-hero-action",
-			attr: { type: "button" },
-		});
-		setIcon(
-			button.createSpan({ cls: "module-hero-action-icon" }),
-			action.icon
-		);
-		button.createSpan({ text: action.label });
-		button.addEventListener("click", () =>
-			void openFile(view.app, action.path)
-		);
-	}
-
-	const mapPanel = view.panel(
-		page,
-		"#A78BFA",
-		"项目场景地图",
-		`${view.paths.dir("projects")} · 全部项目`
-	);
-	mapPanel.addClass("project-map-panel");
-	mapPanel.setAttribute("data-workflow-section", "project-map");
-	const cards = mapPanel.createDiv({ cls: "project-grid" });
-	if (d.projects.length === 0) {
-		renderTalosEmptyState(
-			cards,
-			"暂无项目",
-			"项目目录中出现可识别场景后，将自动生成项目卡片。"
-		);
-	}
-	for (const project of d.projects) {
-		const card = cards.createDiv({
-			cls: `project-card priority-${project.priority}`,
-		});
-		card.createEl("b", { text: project.name });
-		card.createEl("span", { cls: "big", text: String(project.count) });
-		card.createEl("small", { text: project.status });
-		if (project.progress) {
-			const pct = Math.round(
-				(project.progress.done /
-					Math.max(project.progress.total, 1)) *
-					100
-			);
-			const progress = card.createDiv({ cls: "proj-progress" });
-			const head = progress.createDiv({
-				cls: "proj-progress-head",
-			});
-			head.createEl("small", { text: "任务进度" });
-			head.createEl("small", {
-				cls: "proj-progress-num",
-				text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
-			});
-			const track = progress.createDiv({
-				cls: "proj-progress-track",
-			});
-			track.createDiv({ cls: "proj-progress-fill" }).style.width =
-				`${pct}%`;
-		} else {
-			card.createEl("small", {
-				cls: "proj-progress-none",
-				text: "无任务清单 · 进度未跟踪",
-			});
-		}
-		const latest = card.createEl("small", {
-			cls: "module-latest",
-			text: `最新：${project.latestTitle}`,
-		});
-		if (project.latestPath) {
-			latest.addEventListener("click", (event) => {
-				event.stopPropagation();
-				void openFile(view.app, project.latestPath || "");
-			});
-		}
-		card.addEventListener("click", () =>
-			void openFile(view.app, project.readme)
-		);
-	}
 }

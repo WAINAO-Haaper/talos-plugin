@@ -24,10 +24,11 @@ export function collectOverviewAttention(view: TalosView, d: Collected): Overvie
 			meta: `${d.approvals[0]?.title || "B/C 类变更"} · 需要决策`,
 			detail:
 				"这些变更不会自动执行。先处理会阻塞当前工作流或影响身份、规则与系统结构的提案。",
-			action: "进入审批池",
+			action: "去待决策处理",
 			path: view.plugin.talosSettings.pendingApprovalsPath,
 			icon: "clipboard-check",
 			tone: "warn",
+			target: "decisions",
 		});
 	}
 	if (d.inbox.count > 0) {
@@ -48,10 +49,11 @@ export function collectOverviewAttention(view: TalosView, d: Collected): Overvie
 			meta: "待确认 · 运行 /digest 晋升或退回",
 			detail:
 				"候选偏好尚未成为稳定规则。集中确认，避免未经验证的信号长期悬空。",
-			action: "打开候选池",
+			action: "去待决策处理",
 			path: view.plugin.talosSettings.candidatesPath,
 			icon: "list-checks",
 			tone: "default",
+			target: "decisions",
 		});
 	}
 	return items;
@@ -80,7 +82,10 @@ export function renderOverviewAttentionRows(view: TalosView, parent: HTMLElement
 		copy.createEl("span", { text: item.meta });
 		const arrow = row.createSpan({ cls: "overview-v2-attention-row__arrow" });
 		setIcon(arrow, "chevron-right");
-		const activate = () => void openFile(view.app, item.path);
+		const activate = () => {
+			if (item.target === "decisions") view.openDecisions();
+			else void openFile(view.app, item.path);
+		};
 		row.addEventListener("click", activate);
 		row.addEventListener("keydown", (event) => {
 			if (event.key !== "Enter" && event.key !== " ") return;

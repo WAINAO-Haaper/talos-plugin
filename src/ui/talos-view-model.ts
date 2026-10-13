@@ -95,6 +95,8 @@ export interface OverviewAttention {
 	path: string;
 	icon: string;
 	tone: "hot" | "warn" | "default";
+	/** 审批与偏好条目：在今日页内切到「待决策」处理，不再打开文件。 */
+	target?: "decisions";
 }
 
 export interface ApprovalDecisionFeedback {
@@ -116,6 +118,8 @@ export interface ModuleHeroStat {
 	value: string;
 	sub?: string;
 	path?: string;
+	/** 点击指标时的动作；优先于 path（例如跳到今日页的待决策）。 */
+	onActivate?: () => void;
 	tone?: "default" | "warn" | "hot" | "good";
 }
 

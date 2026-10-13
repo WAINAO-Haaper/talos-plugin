@@ -4,7 +4,7 @@ import type { Collected } from "../talos-view-model";
 import { openFile } from "../../actions";
 import { renderTalosEmptyState } from "../page-primitives";
 import type { TalosView } from "../../view";
-import { fillCapabilityDistribution, fillDist, fillSignalList, fillTrend } from "../charts/talos-view-charts";
+import { fillCapabilityDistribution, fillDist, fillSignalList } from "../charts/talos-view-charts";
 import { commandActionHint, moduleHero } from "../view-modules";
 import { mountFlowPipeline } from "../flow-pipeline";
 
@@ -122,8 +122,8 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 			{
 				label: "待确认",
 				value: String(pendingTotal),
-				sub: `${d.approvals.length} 审批 · ${d.candidates.length} 偏好`,
-				path: view.plugin.talosSettings.pendingApprovalsPath,
+				sub: `${d.approvals.length} 审批 · ${d.candidates.length} 偏好 · 去今日处理`,
+				onActivate: () => view.openDecisions(),
 				tone: pendingTotal > 0 ? "warn" : "good",
 			},
 		],
@@ -229,36 +229,9 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 		"data-knowledge-section",
 		"attention-and-actions"
 	);
-	const focus = view.panel(
-		attentionColumn,
-		"#FB7185",
-		"当前工作状态",
-		"tasks.md · 最多三个焦点"
-	);
-	fillSignalList(view, 
-		focus.createDiv({ cls: "detail-list" }),
-		d.focus.slice(0, 3).map((item) => ({
-			title: item.title,
-			meta: item.doneWhen
-				? `done_when · ${item.doneWhen}`
-				: item.desc,
-			path: item.path || view.plugin.talosSettings.tasksPath,
-		})),
-		"今日尚未设置焦点"
-	);
-
-	const decisions = view.panel(
-		attentionColumn,
-		"#FBBF24",
-		"审批与偏好",
-		pendingTotal > 0
-			? `${pendingTotal} 项可直接处理`
-			: "审批池已清空"
-	);
-	view.renderDecisionWorkspace(decisions, d, 2);
-
+	// 模块整合：当前焦点的主场是执行节奏，审批与偏好的主场是今日 · 待决策；这里只保留治理入口（数字 + 跳转）。
 	const governance = view.panel(
-		page,
+		attentionColumn,
 		"#34D399",
 		"记忆与治理入口",
 		"任务 · 审批 · 偏好 · 健康"
@@ -364,21 +337,8 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 		d.dist
 	);
 
-	const health = view.panel(
-		primary,
-		"#F472B6",
-		"库健康与异常",
-		missingReadmes > 0
-			? `${missingReadmes} 个模块缺少 README`
-			: "README 完整"
-	);
-	health.addClass("vault-v2-health-panel");
-	health.setAttribute(
-		"data-system-section",
-		"attention-and-actions"
-	);
-	fillTrend(view, health, d.healthTrend);
-	const anomalyHead = health.createDiv({
+	// 模块整合：健康趋势的主场是系统健康页；这里只把 README 异常并入知识库分布，作为库结构的完整性检查。
+	const anomalyHead = distribution.createDiv({
 		cls: "workflow-v2-subhead vault-v2-anomaly-head",
 	});
 	anomalyHead.createEl("strong", { text: "README 异常" });
@@ -389,7 +349,7 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 				: "当前清空",
 	});
 	fillSignalList(view, 
-		health.createDiv({ cls: "detail-list vault-v2-anomaly-list" }),
+		distribution.createDiv({ cls: "detail-list vault-v2-anomaly-list" }),
 		missingModules.map((module) => ({
 			title: module.name,
 			meta: `${module.count} 篇 · 缺少模块 README`,
@@ -398,9 +358,9 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 		"所有顶层模块均有 README"
 	);
 
-	// 单页原则：模块地图与热力图合进一个页签组，内容与渲染不变。
+	// 单页原则：模块地图与热力图合进一个页签组，放在第一行右栏，内容与渲染不变。
 	mountPanelTabs({
-		parent: page,
+		parent: primary,
 		groupKey: "vault-structure",
 		label: "库结构",
 		selections: view.panelTabSelections,
@@ -568,13 +528,16 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 		d.capGroups
 	);
 
-	const controls = view.panel(
+	// 模块整合：分组控制是调用入口的筛选，并入调用入口顶部；调用入口上移到第一行右栏。
+	const browser = view.panel(
 		primary,
-		"#14B8A6",
-		"分组控制",
-		"选择后更新下方调用入口"
+		"#A78BFA",
+		"能力调用入口",
+		"点击卡片填入 TALOS 对话 · 右键复制 · 源文件按钮只负责打开"
 	);
-	controls.addClass("capability-v2-controls");
+	browser.addClass("capability-v2-browser");
+	browser.setAttribute("data-knowledge-section", "capability-browser");
+	const controls = browser.createDiv({ cls: "capability-v2-controls capability-v2-controls--inline" });
 	controls.setAttribute(
 		"data-knowledge-section",
 		"attention-and-actions"
@@ -584,14 +547,6 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 	});
 	const tabs = controls.createDiv({ cls: "tabs capability-v2-tabs" });
 
-	const browser = view.panel(
-		page,
-		"#A78BFA",
-		"能力调用入口",
-		"点击卡片复制调用 · 源文件按钮只负责打开"
-	);
-	browser.addClass("capability-v2-browser");
-	browser.setAttribute("data-knowledge-section", "capability-browser");
 	const grid = browser.createDiv({ cls: "commands" });
 
 	const drawGrid = () => {

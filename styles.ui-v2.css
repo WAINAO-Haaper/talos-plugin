@@ -4644,3 +4644,25 @@ body .talos-custom-api__kinds button.is-active {
 	clip: rect(0 0 0 0);
 	white-space: nowrap;
 }
+
+/* 模块整合（0.4.14）：能力分组控制并入「能力调用入口」顶部，作为紧凑的筛选条。 */
+.talos-console[data-talos-page="capability"] .capability-v2-controls--inline {
+	display: grid;
+	gap: var(--talos-space-2);
+	margin-bottom: var(--talos-space-3);
+	padding-bottom: var(--talos-space-2);
+	border-bottom: 1px solid var(--talos-ui-line-subtle);
+}
+
+.talos-console[data-talos-page="capability"] .capability-v2-controls--inline .capability-v2-current-summary {
+	display: flex;
+	align-items: baseline;
+	gap: var(--talos-space-2);
+}
+
+/* 页签宿主必须可收缩：否则面板里的长文本（如错误模式）会把两列网格撑出控制台右边界（0.4.14 实测）。 */
+.talos-console .talos-panel-tabs__panel,
+.talos-console .talos-panel-tabs__panel > .talos-ui-panel {
+	min-width: 0;
+	max-width: 100%;
+}
