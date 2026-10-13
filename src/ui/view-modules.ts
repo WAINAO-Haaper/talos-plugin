@@ -41,9 +41,11 @@ export function moduleHero(view: TalosView, parent: HTMLElement, options: Module
 			value: stat.value,
 			detail: stat.sub,
 			tone: stat.tone,
-			...(stat.path
-				? { onActivate: () => void openFile(view.app, stat.path as string) }
-				: {}),
+			...(stat.onActivate
+				? { onActivate: stat.onActivate }
+				: stat.path
+					? { onActivate: () => void openFile(view.app, stat.path as string) }
+					: {}),
 		})),
 		actions: (options.actions || []).map((action) => {
 			const command = action.command;
