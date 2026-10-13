@@ -219,9 +219,16 @@ height. Rules:
   pinned, and scrolling does not chain to the page;
 - still no page-wide fixed height and no forced stretch of the last module (§2);
 - AI chat, voice, Harness and settings are exempt.
+- when a page still exceeds about 1.5 screens after layout, merge secondary modules of the
+  same purpose into a tab group (`mountPanelTabs`): each tab hosts the original panel
+  unchanged, one is visible at a time, the choice is remembered for the session, tabs with
+  pending items show a count, and the selected tab uses the ink/paper inversion. Primary
+  modules (what to do now, what needs attention) are never put behind a tab. Applied on
+  Today (decisions · task progress · TALOS status / actions · quick note), Daily (rails ·
+  protocol · week router) and Vault (module map · heatmap).
 
 Reference check: at a 1470×920 window with both Obsidian sidebars open (console ≈718px),
-each business page should stay within about 1.5 screens, and the first screen must show the
+each business page should stay within about 1.35 screens, and the first screen must show the
 header plus the first full module row.
 
 ## 7. Page archetypes

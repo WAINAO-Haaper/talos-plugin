@@ -1,6 +1,7 @@
 // TALOS「今日」页：现在做什么、需要处理什么、待决策与任务进度，一屏取齐。
 // 2026-10-07 导航重构：合并原工作台与每日执行的首屏信息；健康趋势、知识分布等
 // 只在各自主场页（系统 / 内容流）出现，这里只保留带跳转的提醒。
+import { mountPanelTabs } from "../panel-tabs";
 import type { Collected, OverviewAttention } from "../talos-view-model";
 import { WEEKDAYS } from "../talos-view-model";
 import { ConsoleActionPanel } from "../console-action-panel";
@@ -170,29 +171,62 @@ export function renderTodayPage(view: TalosView, page: HTMLElement, d: Collected
 	);
 	renderOverviewAttentionRows(view, attentionPanel, attention.slice(1, 4));
 
-	const decisionPanel = view.panel(
-		grid,
-		"var(--amber)",
-		"待决策",
-		pendingTotal > 0 ? `${pendingTotal} 项待决策` : "审批池已清空"
-	);
-	decisionPanel.setAttribute("data-today-section", "decisions");
-	view.renderDecisionWorkspace(decisionPanel, d, 3);
-	view.renderPeerStatusPanel(grid);
+	// 单页原则：第二行把决策、进度、状态与工具合进两个页签组，内容与渲染不变。
+	mountPanelTabs({
+		parent: grid,
+		groupKey: "today-status",
+		label: "决策与进度",
+		selections: view.panelTabSelections,
+		tabs: [
+			{
+				key: "decisions",
+				label: "待决策",
+				badge: pendingTotal,
+				render: (host) => {
+					const decisionPanel = view.panel(
+						host,
+						"var(--amber)",
+						"待决策",
+						pendingTotal > 0 ? `${pendingTotal} 项待决策` : "审批池已清空"
+					);
+					decisionPanel.setAttribute("data-today-section", "decisions");
+					view.renderDecisionWorkspace(decisionPanel, d, 3);
+				},
+			},
+			{
+				key: "kanban",
+				label: "任务进度",
+				render: (host) => {
+					const kanbanPanel = view.panel(
+						host,
+						"#F59E0B",
+						"任务进度",
+						"待办 · 进行中 · 最近完成"
+					);
+					kanbanPanel.addClass("overview-v2-kanban-panel");
+					kanbanPanel.setAttribute("data-today-section", "task-kanban");
+					view.fillOverviewKanban(kanbanPanel, d);
+				},
+			},
+			{ key: "peer", label: "TALOS 状态", render: (host) => view.renderPeerStatusPanel(host) },
+		],
+	});
 
-	const kanbanPanel = view.panel(
-		page,
-		"#F59E0B",
-		"任务进度",
-		"待办 · 进行中 · 最近完成"
-	);
-	kanbanPanel.addClass("overview-v2-kanban-panel");
-	kanbanPanel.setAttribute("data-today-section", "task-kanban");
-	view.fillOverviewKanban(kanbanPanel, d);
+	mountPanelTabs({
+		parent: grid,
+		groupKey: "today-tools",
+		label: "工具",
+		selections: view.panelTabSelections,
+		tabs: [
+			{ key: "actions", label: "可执行动作", render: (host) => renderTodayActions(view, host) },
+			{ key: "note", label: "快捷便签", render: (host) => renderTodayQuickNote(view, host) },
+		],
+	});
+}
 
-	const utilityGrid = page.createDiv({ cls: "overview-v2-utility-grid" });
+function renderTodayActions(view: TalosView, host: HTMLElement): void {
 	const actionRuntimePanel = view.panel(
-		utilityGrid,
+		host,
 		"#38E1FF",
 		"可执行动作",
 		"A 直接执行 · C 提案后审批"
@@ -267,9 +301,11 @@ export function renderTodayPage(view: TalosView, page: HTMLElement, d: Collected
 		],
 	});
 	view.actionPanel.mount();
+}
 
+function renderTodayQuickNote(view: TalosView, host: HTMLElement): void {
 	const quickNotePanel = view.panel(
-		utilityGrid,
+		host,
 		"#A78BFA",
 		"快捷便签",
 		"B 类可恢复写入 · ⌘/Ctrl + Enter 保存"

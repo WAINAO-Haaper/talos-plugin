@@ -1,4 +1,5 @@
 // TALOS 控制台知识、全库、身份与能力页渲染；由 TalosView 委托调用。
+import { mountPanelTabs } from "../panel-tabs";
 import type { Collected } from "../talos-view-model";
 import { openFile } from "../../actions";
 import { renderTalosEmptyState } from "../page-primitives";
@@ -397,90 +398,110 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 		"所有顶层模块均有 README"
 	);
 
-	const heat = view.panel(
-		page,
-		"#A78BFA",
-		"笔记创建热力图",
-		d.heatmap.meta
-	);
-	heat.addClass("vault-v2-heat-panel");
-	heat.setAttribute("data-system-section", "activity-heatmap");
-	const heatWrap = heat.createDiv({ cls: "heatmap" });
-	heatWrap.setAttribute("role", "img");
-	heatWrap.setAttribute(
-		"aria-label",
-		`笔记创建热力图：${d.heatmap.meta}`
-	);
-	for (const month of d.heatmap.months) {
-		const monthElement = heatWrap.createDiv({
-			cls: "heat-month",
-		});
-		monthElement.createEl("span", {
-			cls: "heat-mlabel",
-			text: month.label,
-		});
-		const weeks = monthElement.createDiv({ cls: "heat-weeks" });
-		for (const week of month.weeks) {
-			const weekElement = weeks.createDiv({
-				cls: "heat-week",
-			});
-			for (const cell of week) {
-				const cellElement = weekElement.createDiv({
-					cls: "heat-cell",
-				});
-				if (cell.date === "") {
-					cellElement.addClass("is-empty");
-				} else {
-					cellElement.setAttribute(
-						"data-level",
-						String(cell.level)
-					);
-					cellElement.setAttribute(
-						"title",
-						`${cell.date} · ${cell.count}`
+	// 单页原则：模块地图与热力图合进一个页签组，内容与渲染不变。
+	mountPanelTabs({
+		parent: page,
+		groupKey: "vault-structure",
+		label: "库结构",
+		selections: view.panelTabSelections,
+		tabs: [
+			{
+				key: "modules",
+				label: "系统模块地图",
+				render: (host) => {
+				const modules = view.panel(
+					host,
+					"#4D8DFF",
+					"系统模块地图",
+					"顶层模块 · README / 最新文件"
+				);
+				modules.addClass("vault-v2-module-panel");
+				modules.setAttribute("data-system-section", "module-map");
+				const grid = modules.createDiv({ cls: "note-grid" });
+				for (const module of d.modules) {
+					const note = grid.createDiv({
+						cls: module.readmeExists
+							? "note module-card"
+							: "note module-card missing-readme",
+					});
+					note.createEl("b", { text: module.name });
+					note.createEl("span", {
+						cls: "big",
+						text: String(module.count),
+					});
+					note.createEl("span", {
+						text: `更新 ${module.lastChange} · ${module.readmeExists ? "README OK" : "缺 README"}`,
+					});
+					const latest = note.createEl("small", {
+						cls: "module-latest",
+						text: `最新：${module.latestTitle}`,
+					});
+					if (module.latestPath) {
+						latest.addEventListener("click", (event) => {
+							event.stopPropagation();
+							void openFile(view.app, module.latestPath || "");
+						});
+					}
+					note.addEventListener("click", () =>
+						void openFile(view.app, module.readme)
 					);
 				}
-			}
-		}
-	}
-
-	const modules = view.panel(
-		page,
-		"#4D8DFF",
-		"系统模块地图",
-		"顶层模块 · README / 最新文件"
-	);
-	modules.addClass("vault-v2-module-panel");
-	modules.setAttribute("data-system-section", "module-map");
-	const grid = modules.createDiv({ cls: "note-grid" });
-	for (const module of d.modules) {
-		const note = grid.createDiv({
-			cls: module.readmeExists
-				? "note module-card"
-				: "note module-card missing-readme",
-		});
-		note.createEl("b", { text: module.name });
-		note.createEl("span", {
-			cls: "big",
-			text: String(module.count),
-		});
-		note.createEl("span", {
-			text: `更新 ${module.lastChange} · ${module.readmeExists ? "README OK" : "缺 README"}`,
-		});
-		const latest = note.createEl("small", {
-			cls: "module-latest",
-			text: `最新：${module.latestTitle}`,
-		});
-		if (module.latestPath) {
-			latest.addEventListener("click", (event) => {
-				event.stopPropagation();
-				void openFile(view.app, module.latestPath || "");
-			});
-		}
-		note.addEventListener("click", () =>
-			void openFile(view.app, module.readme)
-		);
-	}
+				},
+			},
+			{
+				key: "heatmap",
+				label: "笔记创建热力图",
+				render: (host) => {
+				const heat = view.panel(
+					host,
+					"#A78BFA",
+					"笔记创建热力图",
+					d.heatmap.meta
+				);
+				heat.addClass("vault-v2-heat-panel");
+				heat.setAttribute("data-system-section", "activity-heatmap");
+				const heatWrap = heat.createDiv({ cls: "heatmap" });
+				heatWrap.setAttribute("role", "img");
+				heatWrap.setAttribute(
+					"aria-label",
+					`笔记创建热力图：${d.heatmap.meta}`
+				);
+				for (const month of d.heatmap.months) {
+					const monthElement = heatWrap.createDiv({
+						cls: "heat-month",
+					});
+					monthElement.createEl("span", {
+						cls: "heat-mlabel",
+						text: month.label,
+					});
+					const weeks = monthElement.createDiv({ cls: "heat-weeks" });
+					for (const week of month.weeks) {
+						const weekElement = weeks.createDiv({
+							cls: "heat-week",
+						});
+						for (const cell of week) {
+							const cellElement = weekElement.createDiv({
+								cls: "heat-cell",
+							});
+							if (cell.date === "") {
+								cellElement.addClass("is-empty");
+							} else {
+								cellElement.setAttribute(
+									"data-level",
+									String(cell.level)
+								);
+								cellElement.setAttribute(
+									"title",
+									`${cell.date} · ${cell.count}`
+								);
+							}
+						}
+					}
+				}
+				},
+			},
+		],
+	});
 }
 
 export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Collected): void {

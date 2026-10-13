@@ -1,4 +1,5 @@
 // TALOS 控制台每日执行页渲染；由 TalosView 委托调用。
+import { mountPanelTabs } from "../panel-tabs";
 import { type Collected, WEEKDAYS } from "../talos-view-model";
 import { openFile } from "../../actions";
 import { renderTalosEmptyState } from "../page-primitives";
@@ -194,155 +195,177 @@ export function renderDailyPage(view: TalosView, page: HTMLElement, d: Collected
 		});
 	}
 
-	const supportGrid = page.createDiv({
-		cls: "workflow-v2-secondary daily-v2-secondary",
-	});
-	const rails = view.panel(
-		supportGrid,
-		"#F472B6",
-		"执行铁轨",
-		"RULES · ACTIVE FOCUS"
-	);
-	rails.setAttribute("data-workflow-section", "supporting-rules");
-	const railList = rails.createDiv({ cls: "daily-rails" });
-	for (const rail of [
-		{
-			title: "主轨 · 输出闭环",
-			desc: "每天优先推动一条内容走到发布、排期或回填。",
-		},
-		{
-			title: "副轨 · 周轮值项目",
-			desc: "项目推进不靠心情，轮到谁就推进谁的一个结果。",
-		},
-		{
-			title: "回轨 · 收工记忆",
-			desc: "未完成不内耗，只记录阻塞原因与明早第一步。",
-		},
-		{
-			title: "硬刹车",
-			desc: "没发之前，不扩建发布系统；输入处理不清仓。",
-		},
-	]) {
-		const item = railList.createDiv({ cls: "daily-rail" });
-		item.createEl("b", { text: rail.title });
-		item.createEl("span", { text: rail.desc });
-	}
-
-	const focusList = rails.createDiv({ cls: "daily-focus-list" });
-	if (d.focus.length === 0) {
-		renderTalosEmptyState(
-			focusList,
-			"暂无活跃焦点",
-			"打开任务池写下今天唯一的 done_when。",
+	// 单页原则：规则、协议入口与周轮值合进一个页签组，内容与渲染不变。
+	mountPanelTabs({
+		parent: page,
+		groupKey: "daily-support",
+		label: "规则与入口",
+		selections: view.panelTabSelections,
+		tabs: [
 			{
-				label: "打开任务池",
-				icon: "list-checks",
-				onActivate: () =>
-					void openFile(view.app, view.plugin.talosSettings.tasksPath),
-			}
-		);
-	} else {
-		for (const focus of d.focus) {
-			const item = focusList.createDiv({
-				cls: `daily-focus daily-item level-${focus.level}`,
-			});
-			item.createEl("b", { text: focus.title });
-			if (focus.doneWhen) {
-				item.createEl("small", {
-					text: `done_when · ${focus.doneWhen}`,
-				});
-			} else if (focus.desc) {
-				item.createEl("small", { text: focus.desc });
-			}
-			item.addEventListener("click", () =>
-				void openFile(
-					view.app,
-					focus.path || view.plugin.talosSettings.tasksPath
-				)
-			);
-		}
-	}
+				key: "rails",
+				label: "执行铁轨",
+				render: (supportGrid) => {
+				const rails = view.panel(
+					supportGrid,
+					"#F472B6",
+					"执行铁轨",
+					"RULES · ACTIVE FOCUS"
+				);
+				rails.setAttribute("data-workflow-section", "supporting-rules");
+				const railList = rails.createDiv({ cls: "daily-rails" });
+				for (const rail of [
+					{
+						title: "主轨 · 输出闭环",
+						desc: "每天优先推动一条内容走到发布、排期或回填。",
+					},
+					{
+						title: "副轨 · 周轮值项目",
+						desc: "项目推进不靠心情，轮到谁就推进谁的一个结果。",
+					},
+					{
+						title: "回轨 · 收工记忆",
+						desc: "未完成不内耗，只记录阻塞原因与明早第一步。",
+					},
+					{
+						title: "硬刹车",
+						desc: "没发之前，不扩建发布系统；输入处理不清仓。",
+					},
+				]) {
+					const item = railList.createDiv({ cls: "daily-rail" });
+					item.createEl("b", { text: rail.title });
+					item.createEl("span", { text: rail.desc });
+				}
 
-	const guide = view.panel(
-		supportGrid,
-		"#FBBF24",
-		"执行协议与入口",
-		"FOUR SWITCHES · LIVE FILES"
-	);
-	guide.addClass("daily-v2-guide");
-	guide.setAttribute("data-workflow-section", "protocol-and-entry");
-	const protocolGrid = guide.createDiv({ cls: "daily-protocol" });
-	for (const item of [
-		["唯一胜利条件", "一天只盯第一个 done_when，其他进展都是 bonus。"],
-		["先发后修", "公开发布没破零前，新模板与新基建默认延后。"],
-		["周几替你选", "第二深度块由周轮值表决定，不现场挑项目。"],
-		["明早第一步", "收工时必须写下明早第一个动作。"],
-	]) {
-		const card = protocolGrid.createDiv({ cls: "daily-proto" });
-		card.createEl("b", { text: item[0] });
-		card.createEl("span", { text: item[1] });
-	}
+				const focusList = rails.createDiv({ cls: "daily-focus-list" });
+				if (d.focus.length === 0) {
+					renderTalosEmptyState(
+						focusList,
+						"暂无活跃焦点",
+						"打开任务池写下今天唯一的 done_when。",
+						{
+							label: "打开任务池",
+							icon: "list-checks",
+							onActivate: () =>
+								void openFile(view.app, view.plugin.talosSettings.tasksPath),
+						}
+					);
+				} else {
+					for (const focus of d.focus) {
+						const item = focusList.createDiv({
+							cls: `daily-focus daily-item level-${focus.level}`,
+						});
+						item.createEl("b", { text: focus.title });
+						if (focus.doneWhen) {
+							item.createEl("small", {
+								text: `done_when · ${focus.doneWhen}`,
+							});
+						} else if (focus.desc) {
+							item.createEl("small", { text: focus.desc });
+						}
+						item.addEventListener("click", () =>
+							void openFile(
+								view.app,
+								focus.path || view.plugin.talosSettings.tasksPath
+							)
+						);
+					}
+				}
+				},
+			},
+			{
+				key: "guide",
+				label: "执行协议与入口",
+				render: (supportGrid) => {
+				const guide = view.panel(
+					supportGrid,
+					"#FBBF24",
+					"执行协议与入口",
+					"FOUR SWITCHES · LIVE FILES"
+				);
+				guide.addClass("daily-v2-guide");
+				guide.setAttribute("data-workflow-section", "protocol-and-entry");
+				const protocolGrid = guide.createDiv({ cls: "daily-protocol" });
+				for (const item of [
+					["唯一胜利条件", "一天只盯第一个 done_when，其他进展都是 bonus。"],
+					["先发后修", "公开发布没破零前，新模板与新基建默认延后。"],
+					["周几替你选", "第二深度块由周轮值表决定，不现场挑项目。"],
+					["明早第一步", "收工时必须写下明早第一个动作。"],
+				]) {
+					const card = protocolGrid.createDiv({ cls: "daily-proto" });
+					card.createEl("b", { text: item[0] });
+					card.createEl("span", { text: item[1] });
+				}
 
-	const entryHead = guide.createDiv({ cls: "workflow-v2-subhead" });
-	entryHead.createEl("strong", { text: "快速入口" });
-	entryHead.createEl("span", { text: "点击进入原始文件" });
-	const map = guide.createDiv({ cls: "daily-map" });
-	for (const node of [
-		{
-			label: "每日操作系统",
-			desc: "原始说明与规则",
-			path: "每日操作系统.md",
-			icon: "calendar-check",
-		},
-		{
-			label: "tasks.md",
-			desc: "焦点与 done_when",
-			path: view.plugin.talosSettings.tasksPath,
-			icon: "list-checks",
-		},
-		{
-			label: "输出统一出口",
-			desc: "发布前唯一队列",
-			path: view.paths.outletFile,
-			icon: "send",
-		},
-		{
-			label: "运营候选池",
-			desc: "发布后反馈池",
-			path: view.paths.opsCandidatesFile,
-			icon: "activity",
-		},
-		{
-			label: "CONTEXT",
-			desc: "近期状态与项目台账",
-			path: view.paths.contextFile,
-			icon: "scan-text",
-		},
-	]) {
-		const card = map.createDiv({ cls: "daily-node daily-item" });
-		const icon = card.createSpan({ cls: "daily-node-icon" });
-		setIcon(icon, node.icon);
-		const copy = card.createDiv();
-		copy.createEl("b", { text: node.label });
-		copy.createEl("span", { text: node.desc });
-		card.addEventListener("click", () => void openFile(view.app, node.path));
-	}
-
-	const weekPanel = view.panel(
-		page,
-		"#A78BFA",
-		"周轮值表 · 深度块②",
-		"WEEK ROUTER"
-	);
-	weekPanel.addClass("daily-v2-week-panel");
-	const week = weekPanel.createDiv({ cls: "daily-week" });
-	for (const item of rota) {
-		const day = week.createDiv({
-			cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}`,
-		});
-		day.createEl("small", { text: `${item.code} · ${item.label}` });
-		day.createEl("b", { text: item.project });
-		day.createEl("span", { text: item.desc });
-		day.addEventListener("click", () => void openFile(view.app, item.path));
-	}
+				const entryHead = guide.createDiv({ cls: "workflow-v2-subhead" });
+				entryHead.createEl("strong", { text: "快速入口" });
+				entryHead.createEl("span", { text: "点击进入原始文件" });
+				const map = guide.createDiv({ cls: "daily-map" });
+				for (const node of [
+					{
+						label: "每日操作系统",
+						desc: "原始说明与规则",
+						path: "每日操作系统.md",
+						icon: "calendar-check",
+					},
+					{
+						label: "tasks.md",
+						desc: "焦点与 done_when",
+						path: view.plugin.talosSettings.tasksPath,
+						icon: "list-checks",
+					},
+					{
+						label: "输出统一出口",
+						desc: "发布前唯一队列",
+						path: view.paths.outletFile,
+						icon: "send",
+					},
+					{
+						label: "运营候选池",
+						desc: "发布后反馈池",
+						path: view.paths.opsCandidatesFile,
+						icon: "activity",
+					},
+					{
+						label: "CONTEXT",
+						desc: "近期状态与项目台账",
+						path: view.paths.contextFile,
+						icon: "scan-text",
+					},
+				]) {
+					const card = map.createDiv({ cls: "daily-node daily-item" });
+					const icon = card.createSpan({ cls: "daily-node-icon" });
+					setIcon(icon, node.icon);
+					const copy = card.createDiv();
+					copy.createEl("b", { text: node.label });
+					copy.createEl("span", { text: node.desc });
+					card.addEventListener("click", () => void openFile(view.app, node.path));
+				}
+				},
+			},
+			{
+				key: "week",
+				label: "周轮值表",
+				render: (weekHost) => {
+				const weekPanel = view.panel(
+					weekHost,
+					"#A78BFA",
+					"周轮值表 · 深度块②",
+					"WEEK ROUTER"
+				);
+				weekPanel.addClass("daily-v2-week-panel");
+				const week = weekPanel.createDiv({ cls: "daily-week" });
+				for (const item of rota) {
+					const day = week.createDiv({
+						cls: `daily-day daily-item${item.day === now.getDay() ? " is-today" : ""}`,
+					});
+					day.createEl("small", { text: `${item.code} · ${item.label}` });
+					day.createEl("b", { text: item.project });
+					day.createEl("span", { text: item.desc });
+					day.addEventListener("click", () => void openFile(view.app, item.path));
+				}
+				},
+			},
+		],
+	});
 }

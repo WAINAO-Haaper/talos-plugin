@@ -44,4 +44,19 @@ describe("one-screen principle", () => {
 		expect(master).toContain("### 6.4 One-screen principle (owner decision D-TLP-068, 2026-10-14)");
 		expect(master).toContain("功能模块尽量在一个页面显示");
 	});
+
+	it("merges secondary modules on today, daily and vault into tab groups", () => {
+		const read = (path: string) => readFileSync(`${root}src/ui/pages/${path}`, "utf8");
+		const today = read("today-page.ts");
+		expect(today).toContain('groupKey: "today-status"');
+		expect(today).toContain('groupKey: "today-tools"');
+		for (const label of ["待决策", "任务进度", "TALOS 状态", "可执行动作", "快捷便签"]) expect(today).toContain(`label: "${label}"`);
+		expect(today).toContain("badge: pendingTotal");
+		const daily = read("daily-page.ts");
+		expect(daily).toContain('groupKey: "daily-support"');
+		for (const label of ["执行铁轨", "执行协议与入口", "周轮值表"]) expect(daily).toContain(`label: "${label}"`);
+		const vault = read("knowledge-pages.ts");
+		expect(vault).toContain('groupKey: "vault-structure"');
+		for (const label of ["系统模块地图", "笔记创建热力图"]) expect(vault).toContain(`label: "${label}"`);
+	});
 });

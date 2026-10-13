@@ -125,6 +125,8 @@ export class TalosView extends ItemView {
 	chatMounted = false;
 	/** 收件箱分诊的会话状态（「稍后」顺序），页面重绘后保留，不写文件。 */
 	readonly inboxTriageSession: InboxTriageSession = { deferred: [] };
+	/** 合并页签的选中项（单页原则），页面重绘后保留，不写文件。 */
+	readonly panelTabSelections = new Map<string, string>();
 	private clockTimer: number | null = null;
 	actionPanel: ConsoleActionPanel | null = null;
 	embeddedSettingsTab: TalosSettingTab | null = null;

@@ -4551,3 +4551,92 @@ body .talos-custom-api__kinds button.is-active {
 		flex: 0 0 auto;
 	}
 }
+
+/* 单页原则 · 合并页签（today / daily / vault 第二行）：一次只显示一个原有面板。 */
+.talos-console .talos-panel-tabs {
+	display: grid;
+	gap: var(--talos-space-2);
+	min-width: 0;
+	align-content: start;
+}
+
+.talos-console .talos-panel-tabs__bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--talos-space-1);
+	min-width: 0;
+}
+
+.talos-console .talos-panel-tabs__tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 28px;
+	padding: 2px 12px;
+	border: 1.5px solid var(--talos-ui-line-subtle);
+	border-radius: var(--talos-ui-radius-control);
+	background: var(--talos-ui-surface);
+	box-shadow: none;
+	color: var(--talos-ui-muted);
+	font-size: var(--talos-type-meta);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.talos-console .talos-panel-tabs__tab[aria-selected="true"] {
+	border-color: var(--talos-ui-ink);
+	background: color-mix(in srgb, var(--talos-ui-accent) 14%, var(--talos-ui-surface));
+	color: var(--talos-ui-ink);
+	font-weight: 600;
+}
+
+.talos-console .talos-panel-tabs__tab:focus-visible {
+	outline: 2px solid var(--talos-ui-focus);
+	outline-offset: 2px;
+}
+
+.talos-console .talos-panel-tabs__badge {
+	min-width: 18px;
+	padding: 0 5px;
+	border-radius: 9px;
+	background: var(--talos-status-warning, #e0a100);
+	color: var(--talos-ui-ink);
+	font-size: 11px;
+	line-height: 18px;
+	text-align: center;
+}
+
+.talos-console .talos-panel-tabs__panel[hidden] {
+	display: none;
+}
+
+.talos-console .talos-panel-tabs__panel > .talos-ui-panel {
+	margin: 0;
+}
+
+/* 两列并排后命令按钮变窄、两行文字会折行；Obsidian 默认按钮高 30px 放不下，按内容自适应。 */
+.talos-console .daily-command {
+	height: auto;
+	min-height: 30px;
+}
+
+/* 合并页签选中态：全库主题以 !important 统一按钮底色与描边（styles.talos.css 按钮毯式规则），
+   这里沿用 .talos-page-tab 的先例，以更高特异性 + !important 给出墨底纸字反色。 */
+.talos-console[data-talos-theme] .talos-panel-tabs__tab[aria-selected="true"] {
+	background-color: var(--gm-ink, var(--text-normal)) !important;
+	border-color: var(--gm-ink, var(--text-normal)) !important;
+	color: var(--gm-paper, var(--background-primary)) !important;
+}
+
+.talos-console[data-talos-theme] .talos-panel-tabs__tab[aria-selected="true"] .talos-panel-tabs__badge {
+	color: var(--gm-ink, var(--text-normal));
+}
+
+.talos-console .talos-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
