@@ -59,4 +59,11 @@ describe("one-screen principle", () => {
 		expect(vault).toContain('groupKey: "vault-structure"');
 		for (const label of ["系统模块地图", "笔记创建热力图"]) expect(vault).toContain(`label: "${label}"`);
 	});
+
+	it("keeps the pixel patrol bot fully inside the compact scene band", () => {
+		// 小人布局高 43px、以底边为基准缩放并带倾斜动画；带高 48px、顶部 -2px 时整只可见（0.4.12 实机被裁）。
+		expect(layer).toMatch(/--talos-pixel-safe-stage-height: 48px;[^}]*--talos-pixel-safe-bot-top: -2px;[^}]*--pixel-scale: 0\.75;/);
+		expect(layer).toMatch(/\.talos-ui-page-header__scene \{[^}]*height: 48px;/);
+		expect(layer).not.toContain("--talos-pixel-safe-stage-height: 34px");
+	});
 });

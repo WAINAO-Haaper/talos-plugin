@@ -4414,8 +4414,8 @@ body .talos-custom-api__kinds button.is-active {
 	}
 
 	.talos-console .talos-ui-page-header__scene {
-		height: 34px;
-		min-height: 34px;
+		height: 48px;
+		min-height: 48px;
 		border-top: 0;
 	}
 
@@ -4493,8 +4493,12 @@ body .talos-custom-api__kinds button.is-active {
 	.talos-console[data-talos-archetype]:not([data-talos-page="overview"]):not([data-talos-page="jarvis"])
 		.talos-ui-page-header.module-hero > .talos-pixel-patrol.talos-ui-page-header__scene.in-module-hero {
 		grid-area: scene;
-		--talos-pixel-safe-stage-height: 34px;
-		--pixel-scale: 0.6;
+		height: 48px;
+		min-height: 48px;
+		/* 小人以底边为基准缩放，布局高 43px：顶部 -2px（含倾斜动画外扩）才能整只落在 48px 带内（0.4.12 实机被裁）。 */
+		--talos-pixel-safe-stage-height: 48px;
+		--talos-pixel-safe-bot-top: -2px;
+		--pixel-scale: 0.75;
 	}
 }
 
