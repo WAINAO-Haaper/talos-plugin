@@ -4666,3 +4666,35 @@ body .talos-custom-api__kinds button.is-active {
 	min-width: 0;
 	max-width: 100%;
 }
+
+/* 资料库可移植（0.4.15）：页面缺失提示——单行，不占用整块模块高度。 */
+.talos-console .talos-setup-hint {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--talos-space-2);
+	margin: 0 0 var(--talos-space-3);
+	padding: 6px var(--talos-space-3);
+	border: 1.5px dashed var(--talos-status-warning, #e0a100);
+	border-radius: var(--talos-ui-radius-control);
+	background: color-mix(in srgb, var(--talos-status-warning, #e0a100) 8%, var(--talos-ui-surface));
+	font-size: var(--talos-type-meta);
+	color: var(--talos-ui-ink);
+}
+
+.talos-console .talos-setup-hint.is-optional {
+	border-color: var(--talos-ui-line-subtle);
+	background: transparent;
+	color: var(--talos-ui-muted);
+}
+
+.talos-console .talos-setup-hint__text {
+	flex: 1 1 260px;
+	min-width: 0;
+}
+
+.talos-console .talos-setup-hint__action {
+	min-height: 26px;
+	padding: 2px 10px;
+	font-size: var(--talos-type-meta);
+}

@@ -1,3 +1,4 @@
+import { VAULT_FILE_KEYS, defaultLocation, specFor, type VaultFileKey } from "./vault-files";
 import type { App } from "obsidian";
 // 刻意只做 type-only 导入：本模块是纯逻辑单一真源，不依赖 obsidian 运行时，
 // 这样单元测试可直接加载（目录判定改用鸭子类型，见 detectSchema）。
@@ -160,6 +161,8 @@ export interface SchemaDetectionResult {
 	/** 库内顶层目录总数（用于判断这个库是否值得自动接管） */
 	folderCount: number;
 	dataSources: Partial<Record<DataSourceKey, string>>;
+	/** 固定文件 / 目录的定位结果（只包含默认位置不存在、但在别处找到的项）。 */
+	files: Partial<Record<VaultFileKey, string>>;
 }
 
 function normalizeName(name: string): string {
@@ -221,8 +224,36 @@ export function listTopFolders(app: App): string[] {
  * 按分数从高到低贪心分配，避免「洞察」和「笔记」抢同一个目录。
  * 未命中的模块保留默认名（不会把不存在的目录硬塞给它）。
  */
+/**
+ * 候选目录：顶层目录 + 「系统」类目录下的二级目录（框架包把 Identity / 灵魂 放在 System 下）。
+ * 二级目录用完整路径作为取值、用目录名打分；同分时顶层优先，不改变已按顶层组织的库。
+ */
+export function listCandidateFolders(app: App): string[] {
+	const root = app.vault.getRoot() as unknown as { children?: unknown[] };
+	const tops = (Array.isArray(root?.children) ? root.children : [])
+		.map((child) => child as { name?: unknown; children?: unknown } | null)
+		.filter((child): child is { name: string; children: unknown[] } =>
+			!!child && typeof child === "object" && Array.isArray(child.children) && typeof child.name === "string" && !child.name.startsWith(".")
+		);
+	const nested: string[] = [];
+	for (const top of tops) {
+		if (scoreFolder(top.name, "system") === 0) continue;
+		for (const child of top.children) {
+			const entry = child as { name?: unknown; children?: unknown } | null;
+			if (entry && typeof entry === "object" && Array.isArray(entry.children) && typeof entry.name === "string" && !entry.name.startsWith(".")) {
+				nested.push(`${top.name}/${entry.name}`);
+			}
+		}
+	}
+	return [...tops.map((top) => top.name), ...nested];
+}
+
+function baseName(path: string): string {
+	return path.slice(path.lastIndexOf("/") + 1);
+}
+
 export function detectSchemaDetailed(app: App): SchemaDetectionResult {
-	const folders = listTopFolders(app);
+	const folders = listCandidateFolders(app);
 	const out = { ...SCHEMA_PRESET_CN };
 	const entries: SchemaDetectionEntry[] = [];
 
@@ -231,11 +262,13 @@ export function detectSchemaDetailed(app: App): SchemaDetectionResult {
 	const pairs: Pair[] = [];
 	for (const key of MODULE_KEYS) {
 		for (const folder of folders) {
-			const score = scoreFolder(folder, key);
+			if (key === "system" && folder.includes("/")) continue;
+			const score = scoreFolder(baseName(folder), key);
 			if (score > 0) pairs.push({ key, folder, score });
 		}
 	}
-	pairs.sort((a, b) => b.score - a.score);
+	// 同分时顶层目录优先（路径段更少），再按路径长度。
+	pairs.sort((a, b) => b.score - a.score || a.folder.split("/").length - b.folder.split("/").length || a.folder.length - b.folder.length);
 
 	const usedKeys = new Set<TalosSchemaKey>();
 	const usedFolders = new Set<string>();
@@ -261,9 +294,41 @@ export function detectSchemaDetailed(app: App): SchemaDetectionResult {
 		schema: out,
 		entries,
 		matchedCount: entries.filter((e) => e.how !== "none").length,
-		folderCount: folders.length,
+		folderCount: listTopFolders(app).length,
 		dataSources: detectDataSources(app, out),
+		files: detectVaultFiles(app, out),
 	};
+}
+
+/**
+ * 定位登记表中的固定文件 / 目录：默认位置存在时不覆盖；否则按名称在全库查找，
+ * 优先所属模块目录内、再取路径最短者。找不到就不写，保留默认位置。
+ */
+export function detectVaultFiles(app: App, schema: TalosVaultSchema): Partial<Record<VaultFileKey, string>> {
+	const vault = app.vault as unknown as { getAllLoadedFiles?: () => unknown[]; getAbstractFileByPath?: (path: string) => unknown };
+	if (typeof vault.getAllLoadedFiles !== "function" || typeof vault.getAbstractFileByPath !== "function") return {};
+	const paths = new VaultPaths(schema);
+	const all = vault.getAllLoadedFiles() as Array<{ path: string; name: string; children?: unknown }>;
+	const out: Partial<Record<VaultFileKey, string>> = {};
+	for (const key of VAULT_FILE_KEYS) {
+		const spec = specFor(key);
+		const fallback = paths.file(key);
+		if (vault.getAbstractFileByPath(fallback)) continue;
+		const wantDir = spec.kind === "dir";
+		const names = spec.hints.map((hint) => hint.toLowerCase());
+		const moduleDir = spec.module ? `${schema[spec.module]}/` : "";
+		const hits = all
+			.filter((item) => wantDir === Array.isArray(item.children) && names.includes(item.name.toLowerCase()))
+			.filter((item) => !item.path.split("/").some((part) => part.startsWith(".")))
+			.sort((a, b) => {
+				const aIn = moduleDir && a.path.startsWith(moduleDir) ? 0 : 1;
+				const bIn = moduleDir && b.path.startsWith(moduleDir) ? 0 : 1;
+				return aIn - bIn || a.path.length - b.path.length;
+			});
+		const best = hits[0];
+		if (best) out[key] = best.path;
+	}
+	return out;
 }
 
 /** 兼容旧签名：只要 schema */
@@ -304,7 +369,11 @@ export function detectDataSources(
 
 /** 由 schema 派生出全部具体路径。界面与数据层只用这里的方法，不拼裸字符串。 */
 export class VaultPaths {
-	constructor(readonly schema: TalosVaultSchema) {}
+	constructor(
+		readonly schema: TalosVaultSchema,
+		/** 设置页「文件位置」的覆盖；缺省时按模块目录 + 登记表默认相对路径解析。 */
+		readonly files: Partial<Record<VaultFileKey, string>> = {}
+	) {}
 
 	/** 模块根目录 */
 	dir(key: TalosSchemaKey): string {
@@ -321,22 +390,31 @@ export class VaultPaths {
 		return [this.schema[key], ...parts.filter(Boolean)].join("/");
 	}
 
-	// —— 常用具体位置（集中在此，避免散落拼接）——
-	get mocDir(): string { return this.join("insights", "MOC"); }
-	get mocReadme(): string { return this.join("insights", "MOC", "_README.md"); }
-	get outletFile(): string { return this.join("output", "统一出口.md"); }
-	get opsCandidatesFile(): string { return this.join("output", "运营", "运营候选池.md"); }
-	get personaFile(): string { return this.join("soul", "PERSONA.md"); }
-	get personaMemoryFile(): string { return this.join("soul", "persona-memory.md"); }
-	get contextFile(): string { return this.join("identity", "CONTEXT.md"); }
-	get telosFile(): string { return this.join("identity", "TELOS.md"); }
-	get profileFile(): string { return this.join("identity", "PROFILE.md"); }
+	/** 登记表中的固定文件 / 目录：设置覆盖优先，否则用默认位置。 */
+	file(key: VaultFileKey): string {
+		const override = this.files[key];
+		if (typeof override === "string" && override.trim()) {
+			return override.trim().replace(/^\/+|\/+$/g, "");
+		}
+		return defaultLocation(specFor(key), (module) => this.dir(module));
+	}
+
+	// —— 常用具体位置（集中在登记表，避免散落拼接）——
+	get mocDir(): string { return this.file("mocDir"); }
+	get mocReadme(): string { return `${this.mocDir}/_README.md`; }
+	get outletFile(): string { return this.file("outlet"); }
+	get opsCandidatesFile(): string { return this.file("opsCandidates"); }
+	get personaFile(): string { return this.file("persona"); }
+	get personaMemoryFile(): string { return this.file("personaMemory"); }
+	get contextFile(): string { return this.file("context"); }
+	get telosFile(): string { return this.file("telos"); }
+	get profileFile(): string { return this.file("profile"); }
 	get decisionsFile(): string { return this.join("identity", "decisions.md"); }
 	get workingMemoryDir(): string { return this.join("system", "working-memory"); }
-	get errorPatternsFile(): string { return this.join("system", "working-memory", "error-patterns.md"); }
-	get loopHealthFile(): string { return this.join("system", "working-memory", "loop-health-log.md"); }
-	get talosProjectDir(): string { return this.join("projects", "TALOS系统"); }
-	get sceneIndexFile(): string { return this.join("projects", "场景索引.md"); }
+	get errorPatternsFile(): string { return this.file("errorPatterns"); }
+	get loopHealthFile(): string { return this.file("loopHealth"); }
+	get talosProjectDir(): string { return this.file("talosProjectDir"); }
+	get sceneIndexFile(): string { return this.file("sceneIndex"); }
 
 	/** 输出平台子目录（抖音 / 小红书 …） */
 	outputPlatform(name: string): string { return this.join("output", name); }

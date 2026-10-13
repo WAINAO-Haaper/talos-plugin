@@ -1,3 +1,4 @@
+import { VAULT_FILE_KEYS, defaultLocation, specFor, type VaultFileKey } from "./data/vault-files";
 import {
 	App,
 	DropdownComponent,
@@ -15,6 +16,7 @@ import {
 	SCHEMA_PRESET_CN,
 	SCHEMA_PRESETS,
 	detectSchemaDetailed,
+	detectVaultFiles,
 	resolveSchema,
 	type DataSourceKey,
 	type SchemaDetectionResult,
@@ -175,6 +177,8 @@ export interface TalosSettings {
 	schemaAutoDetected: boolean;
 	/** 库目录映射：客户库命名与默认不同时在此覆盖（设置 → 目录映射，支持自动检测） */
 	vaultSchema: Partial<TalosVaultSchema>;
+	/** 固定文件 / 目录位置覆盖（设置 → 库与数据 → 固定文件位置）；空表示用默认位置。 */
+	vaultFiles: Partial<Record<VaultFileKey, string>>;
 }
 
 export const DEFAULT_SETTINGS: TalosSettings = {
@@ -261,6 +265,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	providerModuleAccess: {},
 	schemaAutoDetected: false,
 	vaultSchema: {},
+	vaultFiles: {},
 };
 
 type TextSettingKey = {
@@ -625,6 +630,7 @@ export class TalosSettingTab extends PluginSettingTab {
 					}
 					this.plugin.talosSettings.inboxFolder = result.schema.inbox;
 					this.plugin.talosSettings.dailyFolder = result.schema.logs;
+					this.plugin.talosSettings.vaultFiles = { ...this.plugin.talosSettings.vaultFiles, ...result.files };
 					await this.plugin.saveTalosSettings();
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
@@ -704,6 +710,8 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.textIn(c, "报告目录", "Lint / 周报输出", "reportsFolder");
 		this.textIn(c, "重估期启动日", "算冻结天数，YYYY-MM-DD", "freezeStartDate");
 
+		this.renderVaultFiles(c);
+
 		new Setting(c)
 			.setName("应用到控制台")
 			.setDesc("修改即自动保存；点「刷新」让控制台按新配置重新统计。")
@@ -726,6 +734,51 @@ export class TalosSettingTab extends PluginSettingTab {
 					this.rerender();
 				})
 			);
+	}
+
+	/** 固定文件位置：登记表中的每个文件 / 目录可单独指定；缺失项可一键补齐。 */
+	private renderVaultFiles(c: HTMLElement): void {
+		new Setting(c).setName("固定文件位置").setHeading();
+		new Setting(c)
+			.setDesc("各页面读取的固定文件。留空即使用默认位置；你的库结构不同时可逐项指定，或让插件按文件名查找。")
+			.addButton((b) =>
+				b.setButtonText("自动查找文件位置").onClick(async () => {
+					const schema = resolveSchema(this.plugin.talosSettings.vaultSchema);
+					const found = detectVaultFiles(this.app, schema);
+					this.plugin.talosSettings.vaultFiles = { ...this.plugin.talosSettings.vaultFiles, ...found };
+					await this.plugin.saveTalosSettings();
+					this.plugin.applyViewSettings();
+					this.plugin.refreshAllViews();
+					new Notice(`已定位 ${Object.keys(found).length} 个文件（默认位置已存在的不变）`);
+					this.rerender();
+				})
+			)
+			.addButton((b) =>
+				b.setButtonText("补齐库结构…").setCta().onClick(() => void this.plugin.openScaffold())
+			);
+		const paths = this.plugin.paths;
+		for (const key of VAULT_FILE_KEYS) {
+			const spec = specFor(key);
+			const location = paths.file(key);
+			const exists = this.app.vault.getAbstractFileByPath(location) !== null;
+			const fallback = defaultLocation(spec, (module) => paths.dir(module));
+			new Setting(c)
+				.setName(spec.label + (spec.personal ? "（个人体系，可选）" : ""))
+				.setDesc(exists ? `✅ ${location}` : `⚠️ 未找到 · 默认：${fallback}`)
+				.addText((t) =>
+					t
+						.setPlaceholder(fallback)
+						.setValue(this.plugin.talosSettings.vaultFiles[key] ?? "")
+						.onChange(async (v) => {
+							const next = { ...this.plugin.talosSettings.vaultFiles };
+							const trimmed = v.trim().replace(/^\/+|\/+$/g, "");
+							if (trimmed) next[key] = trimmed;
+							else delete next[key];
+							this.plugin.talosSettings.vaultFiles = next;
+							await this.plugin.saveTalosSettings();
+						})
+				);
+		}
 	}
 
 	/** 收件箱与日记的写入目录跟随模块映射（原先在数据源里重复设置）。 */

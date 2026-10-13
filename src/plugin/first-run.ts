@@ -67,6 +67,8 @@ export async function autoDetectVaultSchemaOnFirstRun(plugin: TalosPlugin): Prom
 		// 收件箱/日记目录跟随识别结果
 		plugin.talosSettings.inboxFolder = result.schema.inbox;
 		plugin.talosSettings.dailyFolder = result.schema.logs;
+		// 固定文件：默认位置不存在而别处找到时记下位置（例如框架包的 System/health-log.md）。
+		plugin.talosSettings.vaultFiles = { ...plugin.talosSettings.vaultFiles, ...result.files };
 
 		await plugin.saveTalosSettings();
 		plugin.refreshViews();

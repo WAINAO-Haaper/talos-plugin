@@ -175,6 +175,11 @@ export default class TalosPlugin extends Plugin {
 			callback: () => void this.executeTalosAskCommand(),
 		});
 		registerPageCommands(this, (pageKey) => this.openTalosPage(pageKey));
+		this.addCommand({
+			id: "scaffold-vault",
+			name: "补齐库结构",
+			callback: () => void this.openScaffold(),
+		});
 		registerInlineEditCommand(this);
 		this.addCommand({
 			id: "refresh-peer-status",
@@ -261,7 +266,7 @@ export default class TalosPlugin extends Plugin {
 	 * 不再各自拼裸字符串——客户改设置即可整体适配自己的目录命名。
 	 */
 	get paths(): VaultPaths {
-		return new VaultPaths(resolveSchema(this.talosSettings?.vaultSchema));
+		return new VaultPaths(resolveSchema(this.talosSettings?.vaultSchema), this.talosSettings?.vaultFiles ?? {});
 	}
 
 	applyViewSettings(): void {
@@ -426,6 +431,12 @@ export default class TalosPlugin extends Plugin {
 		}
 	}
 
+	/** 预览并补齐各页面需要的目录与文件（只新建 / 只追加，确认后才写入）。 */
+	async openScaffold(): Promise<void> {
+		const { ScaffoldModal, buildScaffoldPlan } = await import("./plugin/scaffold-modal");
+		new ScaffoldModal(this, await buildScaffoldPlan(this)).open();
+	}
+
 	/** 打开 TALOS 控制台并切到指定页面（命令面板入口）。 */
 	async openTalosPage(pageKey: string): Promise<void> {
 		const leaf = await this.openOrReviveTalosLeaf(false);
@@ -485,6 +496,7 @@ export default class TalosPlugin extends Plugin {
 		settings.quyuanLocalAsrModel = "";
 		settings.quyuanVadCdn = "";
 		settings.quyuanVadModel = "";
+		if (!isRecord(settings.vaultFiles)) settings.vaultFiles = {};
 		settings.visualTheme = normalizeVisualTheme(settings.visualTheme);
 		settings.uiLanguage = normalizeUiLanguage(settings.uiLanguage);
 		if (settings.lensAppearance !== "dark") settings.lensAppearance = "light";

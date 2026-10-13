@@ -238,6 +238,20 @@ set (inbox age / topics / recent; focus vs all projects; error patterns / loop s
 one tab group instead of separate modules. The 14 core display modules stay on each page's
 first row and are never placed behind a tab.
 
+### 6.6 Portable vault data (D-TLP-070, 2026-10-14)
+
+Users do not need the owner's exact vault layout. `src/data/vault-files.ts` is the single
+registry for every fixed file or folder a page reads: default location, lookup hints, the
+section markers its parser needs (the same rules as the parser, never stricter), the template
+for a new file and the per-section blocks that may be appended. Module folders are detected by
+alias at the top level and one level under the system folder (the framework kit keeps
+Identity and 灵魂 under `System/`); top-level wins ties. Every fixed path can be overridden in
+Settings → 库与数据 → 固定文件位置. "补齐库结构" previews, then only creates missing items and
+only appends missing sections to existing files — it never rewrites existing text. Pages show a
+one-line hint only on the information's home page when its source is missing or lacks sections;
+personal-system items (TALOS release war room, TALOS project folder) are marked optional and are
+never scaffolded.
+
 Reference check: at a 1470×920 window with both Obsidian sidebars open (console ≈718px),
 each business page should stay within about 1.35 screens, and the first screen must show the
 header plus the first full module row.

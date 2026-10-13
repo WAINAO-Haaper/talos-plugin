@@ -1,3 +1,6 @@
+import { readRegisteredFiles } from "./plugin/scaffold-modal";
+import { fileStatus, type AnyFileKey, type FileStatus } from "./data/vault-files";
+import { renderSetupHint, setupProblems } from "./ui/setup-hint";
 import {
 	ItemView,
 	Notice,
@@ -514,6 +517,10 @@ export class TalosView extends ItemView {
 		const projects = await collectProjectScenes(app, paths);
 		const knowledge = collectKnowledgeHub(app, paths);
 		const talosProduct = collectTalosProduct(app, paths);
+		const registered = await readRegisteredFiles(this.plugin);
+		const setup = Object.fromEntries(
+			registered.map(({ spec, content }) => [spec.key, fileStatus(spec, content)])
+		) as Partial<Record<AnyFileKey, FileStatus>>;
 
 		this.data = {
 			total,
@@ -533,6 +540,7 @@ export class TalosView extends ItemView {
 			projects,
 			knowledge,
 			talosProduct,
+			setup,
 		};
 
 		if (this.lens) {
@@ -723,11 +731,24 @@ export class TalosView extends ItemView {
 			case "vault": this.pageVault(page, d); break;
 			case "settings": this.pageSettings(page); break;
 		}
+		this.mountSetupHint(page, d);
 		this.wireModuleSelection(page, this.activePage);
 		this.syncPixelScene(d);
 		if (this.activePage !== "harness" && this.activePage !== "jarvis") {
 			this.contentEl.scrollTop = scrollTarget;
 		}
+	}
+
+	/** 本页依赖的数据文件缺失或缺分区时，在页头下方插入一条单行提示。 */
+	private mountSetupHint(page: HTMLElement, d: Collected): void {
+		const problems = setupProblems(this.activePage, d.setup);
+		if (problems.length === 0) return;
+		const hint = renderSetupHint(page, problems, {
+			onScaffold: () => void this.plugin.openScaffold(),
+			onSettings: () => this.navigateToPage("settings"),
+		});
+		const header = page.querySelector(".talos-ui-page-header");
+		if (hint && header) header.after(hint);
 	}
 
 	private syncPixelScene(d: Collected): void {
