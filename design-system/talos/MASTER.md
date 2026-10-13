@@ -2,7 +2,7 @@
 
 **version:** 2.0
 **status:** accepted direction
-**last_updated:** 2026-08-24
+**last_updated:** 2026-10-14
 **classification:** PUBLIC
 **decision:** D-TLP-019
 
@@ -200,6 +200,29 @@ benefits from the width.
 - approvals and blocking attention move before secondary statistics on narrow layouts;
 - lists show a useful preview and a clear “view all” route instead of arbitrary fixed
   page heights or nested scroll traps.
+
+> Amended 2026-10-14 by §6.4: the one-column threshold for business pages drops to 600px,
+> and long modules may scroll inside a capped module.
+
+### 6.4 One-screen principle (owner decision D-TLP-068, 2026-10-14)
+
+“功能模块尽量在一个页面显示”: a business page should let the user see and operate its
+functional modules within one screen. Adjust module position and proportion before adding
+height. Rules:
+
+- page header is a compact two-row band — title and metrics on row one, actions and the
+  pixel identity band on row two; actions never truncate their labels;
+- when the page container is 600px or wider, primary and secondary module rows stay two
+  columns; below 600px they stack;
+- business-page modules (`.talos-ui-panel`) are capped at `--talos-one-screen-module`
+  (max(280px, 40vh)); longer content scrolls inside the module, the module title stays
+  pinned, and scrolling does not chain to the page;
+- still no page-wide fixed height and no forced stretch of the last module (§2);
+- AI chat, voice, Harness and settings are exempt.
+
+Reference check: at a 1470×920 window with both Obsidian sidebars open (console ≈718px),
+each business page should stay within about 1.5 screens, and the first screen must show the
+header plus the first full module row.
 
 ## 7. Page archetypes
 
