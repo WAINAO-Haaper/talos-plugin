@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { transform } from "esbuild";
 
 const root = dirname(fileURLToPath(import.meta.url));
+const talosTokenSource = resolve(root, "styles.talos-tokens-v2.scoped.css");
 const talosSource = resolve(root, "styles.talos.css");
 const workbenchStyleRoot = resolve(root, "src/agent-workbench/ui/styles");
 const workbenchStyleIndex = resolve(workbenchStyleRoot, "index.css");
@@ -17,9 +18,11 @@ const uiV2Source = resolve(root, "styles.ui-v2.css");
 const lensHostSource = resolve(root, "styles.lens-host.css");
 const lensSource = resolve(root, "styles.lens.css");
 const lensVoiceSource = resolve(root, "styles.lens-voice.css");
+const superbrainLensSource = resolve(root, "styles.lens-ui.css");
 const output = resolve(root, "styles.css");
 const importPattern = /^\s*@import\s+(?:url\()?['"]([^'"]+)['"]\)?\s*;/gm;
 
+if (!existsSync(talosTokenSource)) throw new Error("Missing styles.talos-tokens-v2.scoped.css");
 if (!existsSync(talosSource)) throw new Error("Missing styles.talos.css");
 if (!existsSync(workbenchStyleIndex)) throw new Error("Missing TALOS agent workbench style/index.css");
 if (!existsSync(quyuanShellSource)) throw new Error("Missing styles.quyuan-shell.css");
@@ -28,6 +31,7 @@ if (!existsSync(uiV2Source)) throw new Error("Missing styles.ui-v2.css");
 if (!existsSync(lensHostSource)) throw new Error("Missing styles.lens-host.css");
 if (!existsSync(lensSource)) throw new Error("Missing styles.lens.css (run scripts/sync-lens-css.mjs)");
 if (!existsSync(lensVoiceSource)) throw new Error("Missing styles.lens-voice.css");
+if (!existsSync(superbrainLensSource)) throw new Error("Missing styles.lens-ui.css");
 
 const index = readFileSync(workbenchStyleIndex, "utf8");
 const imports = [...index.matchAll(importPattern)].map((match) => match[1]);
@@ -35,6 +39,8 @@ if (imports.length === 0) throw new Error("TALOS agent workbench style index has
 
 const parts = [
 	"/* GENERATED FILE — edit source CSS files, including styles.ui-v2.css */",
+	"/* TALOS design-system-v1 semantic tokens · scoped to .talos-scope (superbrain framework mode) */",
+	readFileSync(talosTokenSource, "utf8"),
 	readFileSync(talosSource, "utf8"),
 	// /*! */ 是许可证注释，压缩后仍保留归属说明
 	"\n/*! TALOS native agent workbench styles · visual baseline derived from Claudian 2.0.25 (MIT) */\n",
@@ -63,7 +69,9 @@ parts.push(
 	"\n/* TALOS Lens interface language · synced from TALOS Lens source */\n",
 	readFileSync(lensSource, "utf8"),
 	"\n/* TALOS Lens interface language · Quyuan voice panel in Lens composition */\n",
-	readFileSync(lensVoiceSource, "utf8")
+	readFileSync(lensVoiceSource, "utf8"),
+	"\n/* TALOS superbrain framework mode · canvas home and C/M pages (scoped to .talos-scope.talos-canvas-shell) */\n",
+	readFileSync(superbrainLensSource, "utf8")
 );
 
 /**

@@ -1,6 +1,6 @@
 // TALOS 控制台外壳、侧栏与导航；由 TalosView 委托调用。
 import { CreateModal, PublishBackfillModal, deepResearch, vaultLint } from "../actions";
-import { PRIMARY_NAVIGATION, primaryPage } from "./navigation-model";
+import { navigationFor, primaryPage, type TalosPrimaryPageKey } from "./navigation-model";
 import { SVG_NS } from "./talos-view-model";
 import { setIcon } from "obsidian";
 import type { TalosView } from "../view";
@@ -77,8 +77,10 @@ export function buildSidebar(view: TalosView, side: HTMLElement): void {
 	// 导航
 	const navCard = side.createEl("section", { cls: "card pagenav-card" });
 	navCard.setCssProps({ "--ac": "#4D8DFF" });
-	view.secTitle(navCard, "导航", `${PRIMARY_NAVIGATION.length} SECTIONS`);
+	view.secTitle(navCard, "导航", `${navigationFor(view.consoleMode).length} SECTIONS`);
 	view.pageNavEl = navCard.createEl("nav", { cls: "nav" });
+	// 框架模式的图标导航栏（框架页隐藏上面的导航卡）；个人体系模式保持为空。
+	view.canvasNavEl = side.createEl("nav", { cls: "talos-canvas-rail-nav", attr: { "aria-label": "TALOS 功能导航" } });
 	renderNav(view);
 	view.chatSwitchHostEl = navCard.createDiv({
 		cls: "talos-chat-nav-switch-host",
@@ -118,7 +120,7 @@ export function renderNav(view: TalosView): void {
 	const groupEl = view.pageNavEl.createDiv({ cls: "nav-group" });
 	groupEl.setAttribute("data-nav-group", "primary");
 	groupEl.createDiv({ cls: "nav-group-label", text: "主界面" });
-	for (const page of PRIMARY_NAVIGATION) {
+	for (const page of navigationFor(view.consoleMode)) {
 		const active = page.key === route.primary;
 		const item = groupEl.createDiv({
 			cls: `command${page.key === "settings" ? " talos-settings-nav-command" : ""}${active ? " active" : ""}`,
@@ -137,17 +139,7 @@ export function renderNav(view: TalosView): void {
 		item.setAttribute("role", "button");
 		item.setAttribute("tabindex", "0");
 		if (active) item.setAttribute("aria-current", "page");
-		const activate = () => {
-			// 助手：文字对话在右侧边栏打开（同 Claudian），主区切到同组的语音页。
-			if (page.key === "assistant") {
-				view.activePage = "jarvis";
-				void view.plugin.activateChatSidebar();
-			} else {
-				view.pageRouter.selectPrimary(page.key);
-			}
-			renderNav(view);
-			view.renderPage();
-		};
+		const activate = () => activatePrimary(view, page.key);
 		item.addEventListener("click", activate);
 		item.addEventListener("keydown", (event) => {
 			if (event.key !== "Enter" && event.key !== " ") return;
@@ -156,6 +148,44 @@ export function renderNav(view: TalosView): void {
 		});
 	}
 	renderSecondaryTabs(view);
+	renderCanvasRailNav(view);
+}
+
+function activatePrimary(view: TalosView, key: TalosPrimaryPageKey): void {
+	view.superbrainPages.activeDetailId = null;
+	// 助手：文字对话在右侧边栏打开（同 Claudian），主区切到同组的语音页。
+	if (key === "assistant") {
+		view.activePage = "jarvis";
+		void view.plugin.activateChatSidebar();
+	} else {
+		view.pageRouter.selectPrimary(key);
+	}
+	renderNav(view);
+	view.renderPage();
+}
+
+const RAIL_LABELS: Record<string, string> = {
+	"sb-loop": "首页", "sb-knowledge": "资料", "sb-memory": "记忆", "sb-output": "创作",
+	"sb-system": "系统", assistant: "助手", settings: "设置",
+};
+
+/** 框架模式的图标导航栏：与导航卡同一张导航表、同一套切页逻辑。 */
+export function renderCanvasRailNav(view: TalosView): void {
+	const rail = view.canvasNavEl;
+	if (!rail) return;
+	rail.empty();
+	if (view.consoleMode !== "superbrain") return;
+	const current = view.pageRouter.current().primary;
+	for (const page of navigationFor("superbrain")) {
+		const active = page.key === current;
+		const button = rail.createEl("button", {
+			cls: `talos-canvas-rail-item talos-focusable${active ? " is-active" : ""}`,
+			attr: { type: "button", "aria-label": page.label, ...(active ? { "aria-current": "page" } : {}) },
+		});
+		setIcon(button.createSpan({ attr: { "aria-hidden": "true" } }), page.icon);
+		button.createSpan({ text: RAIL_LABELS[page.key] ?? page.label });
+		button.addEventListener("click", () => activatePrimary(view, page.key));
+	}
 }
 
 export function navMeta(view: TalosView, key: string): { value: string; alert?: boolean } | null {

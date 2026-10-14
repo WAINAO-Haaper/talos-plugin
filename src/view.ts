@@ -49,11 +49,14 @@ import { showWelcomeEasterEgg } from "./ui/welcome-easter-egg";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
+	SUPERBRAIN_NAVIGATION,
+	homePageFor,
+	isSuperbrainPage,
+	pageBelongsTo,
 } from "./ui/navigation-model";
 import {
 	decodeTalosViewState,
 	encodeTalosViewState,
-	DEFAULT_PAGE_KEY,
 	TalosPageRouter,
 } from "./ui/page-router";
 import { TalosChatSurface } from "./quyuan/chat-surface";
@@ -76,6 +79,8 @@ import { createApprovalActionButton, createCandidateActionButton, renderApproval
 import { renderCosmosStats, syncPixelScene, updateCosmosHeader } from "./ui/view-cosmos";
 import { buildShell, renderNav, renderSecondaryTabs } from "./ui/view-chrome";
 import { addActionButtonContent, wireModuleSelection } from "./ui/view-modules";
+import { SuperbrainPages } from "./ui/pages/superbrain-pages";
+import { normalizeConsoleMode, type ConsoleMode } from "./ui/console-mode";
 // 屈原语音面板按需动态加载，避免完整工作台运行时影响 TALOS 主控制台启动。
 
 /** 经典页面键 → Lens 模块（命令面板等经典入口在 Lens 界面下的落点）。 */
@@ -98,6 +103,8 @@ export class TalosView extends ItemView {
 	dateEl!: HTMLElement;
 	weekEl!: HTMLElement;
 	pageNavEl!: HTMLElement;
+	/** 框架模式的图标导航栏（个人体系模式为空）。 */
+	canvasNavEl: HTMLElement | null = null;
 	chatSwitchHostEl!: HTMLElement;
 	cosmosNodesEl!: HTMLElement;
 	cosmosTitleEl!: HTMLElement;
@@ -135,6 +142,8 @@ export class TalosView extends ItemView {
 	embeddedSettingsTab: TalosSettingTab | null = null;
 	/** Lens 界面语言外壳；经典界面时为 null。 */
 	lens: LensConsole | null = null;
+	/** 超级大脑框架模式的五个工作页（画布首页、C/M 详情）；个人体系模式不渲染。 */
+	readonly superbrainPages = new SuperbrainPages(this);
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
 		super(leaf);
@@ -152,6 +161,8 @@ export class TalosView extends ItemView {
 			this.app.workspace.requestSaveLayout();
 		}
 	}
+
+	get consoleMode(): ConsoleMode { return normalizeConsoleMode(this.plugin.talosSettings.consoleMode); }
 
 	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
 	get paths() { return this.plugin.paths; }
@@ -235,6 +246,7 @@ export class TalosView extends ItemView {
 		this.chatMounted = false;
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
+		this.superbrainPages.teardown();
 		this.embeddedSettingsTab = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
@@ -251,8 +263,9 @@ export class TalosView extends ItemView {
 		await this.onOpen();
 	}
 
+	/** Lens 外壳只用于个人体系模式；框架模式有自己的画布首页。 */
 	private get usesLens(): boolean {
-		return this.plugin.talosSettings.uiLanguage === "lens";
+		return this.consoleMode === "personal" && this.plugin.talosSettings.uiLanguage === "lens";
 	}
 
 	private buildShell(): void {
@@ -421,9 +434,13 @@ export class TalosView extends ItemView {
 		for (const pageKey of [...LEGACY_PAGE_KEYS, "chat", "harness", "settings"]) {
 			this.contentEl.classList.remove(`page-${pageKey}`);
 		}
-		for (const page of PRIMARY_NAVIGATION) {
+		for (const page of [...PRIMARY_NAVIGATION, ...SUPERBRAIN_NAVIGATION]) {
 			this.contentEl.classList.remove(`section-${page.key}`);
 		}
+		// 框架模式的工作页使用框架令牌与画布样式（均限定在这两个 class 下，个人体系模式不受影响）。
+		const superbrainPage = isSuperbrainPage(this.activePage);
+		this.contentEl.classList.toggle("talos-scope", superbrainPage);
+		this.contentEl.classList.toggle("talos-canvas-shell", superbrainPage);
 		for (const pageKey of LEGACY_SECTION_PAGES) {
 			this.contentEl.classList.remove(`section-${pageKey}`);
 		}
@@ -683,9 +700,14 @@ export class TalosView extends ItemView {
 	renderPage(): void {
 		if (this.lens) return;
 		// AI 对话改为常驻右侧边栏：任何入口切到 chat 都转去右栏，主区留在当前页。
+		// 切换控制台模式后，不属于当前模式的页面回到该模式首页。
+		if (!pageBelongsTo(this.consoleMode, this.activePage)) {
+			this.activePage = homePageFor(this.consoleMode);
+			if (this.pageNavEl) this.renderNav();
+		}
 		if (this.activePage === "chat") {
 			const opened = this.renderedPage !== null;
-			this.activePage = this.renderedPage && this.renderedPage !== "chat" ? this.renderedPage : DEFAULT_PAGE_KEY;
+			this.activePage = this.renderedPage && this.renderedPage !== "chat" ? this.renderedPage : homePageFor(this.consoleMode);
 			if (this.pageNavEl) this.renderNav();
 			this.renderSecondaryTabs();
 			if (opened) void this.plugin.activateChatSidebar();
@@ -712,6 +734,7 @@ export class TalosView extends ItemView {
 		}
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
+		this.superbrainPages.teardown();
 		page.empty();
 		const d = this.data;
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
@@ -730,6 +753,7 @@ export class TalosView extends ItemView {
 			case "capability": this.pageCapability(page, d); break;
 			case "vault": this.pageVault(page, d); break;
 			case "settings": this.pageSettings(page); break;
+			default: if (isSuperbrainPage(this.activePage)) this.superbrainPages.render(page, d);
 		}
 		this.mountSetupHint(page, d);
 		this.wireModuleSelection(page, this.activePage);
@@ -943,11 +967,32 @@ export class TalosView extends ItemView {
 		tab?.closest(".talos-panel-tabs")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 	}
 
-	navigateToPage(pageKey: string): void {
+	/** 打开设置页（框架首页的「设置」入口）。 */
+	openSettingsPage(): void {
+		this.navigateToPage("settings");
+	}
+
+	/** 偏好与审批复核：框架模式在首页下方展开决策区，个人体系模式转到今日页「待决策」。 */
+	openPreferenceReview(): void {
+		if (this.consoleMode !== "superbrain") { this.openDecisions(); return; }
+		this.navigateToPage(homePageFor("superbrain"));
+		if (!this.data || !this.pageEl) return;
+		const host = this.pageEl.createDiv({ cls: "talos-canvas-review" });
+		this.renderDecisionWorkspace(host, this.data, 12);
+		host.scrollIntoView({ block: "nearest" });
+	}
+
+	/** 按 C/M 编号打开超级大脑功能详情页。 */
+	openSuperbrainDetailPage(id: string): void {
+		this.superbrainPages.openDetailPage(id);
+	}
+
+	navigateToPage(pageKey: string, superbrainDetailId: string | null = null): void {
 		if (this.lens) {
 			this.lens.navigate(LENS_PAGE_FOR_CLASSIC[pageKey] ?? "overview");
 			return;
 		}
+		this.superbrainPages.activeDetailId = superbrainDetailId;
 		this.activePage = pageKey;
 		if (this.pageNavEl) this.renderNav();
 		if (this.pageEl) this.renderPage();

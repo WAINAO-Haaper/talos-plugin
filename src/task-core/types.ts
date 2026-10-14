@@ -24,6 +24,13 @@ export interface TalosPartialTaskResult {
 	changes: TalosFileChange[];
 }
 
+export interface TalosCompletedTaskResult {
+ taskOutcome: "completed";
+ version: 1;
+ result?: unknown;
+ changes: TalosFileChange[];
+}
+
 export interface TalosTaskRun {
 	id: string;
 	idempotencyKey: string;

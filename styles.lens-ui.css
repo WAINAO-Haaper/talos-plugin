@@ -1,0 +1,681 @@
+/* TALOS Lens frontend adapter.
+   Modern plugin pages consume the shared TALOS semantic tokens. This file owns
+   their visual language; it never styles the host workspace or note panes. */
+
+/* Unlayered, scoped rules bridge Obsidian and the legacy console cascade. */
+.talos-scope .talos-legacy-aside-top,
+.talos-scope .talos-legacy-aside-bottom { display: contents; }
+.talos-scope .talos-canvas-rail-nav { display: none; }
+
+.talos-scope.talos-canvas-shell {
+	--bg: var(--talos-surface-raised);
+	--surface: var(--talos-surface-raised);
+	--surface-2: var(--talos-surface-canvas);
+	--ink: var(--talos-text-primary);
+	--muted: var(--talos-text-secondary);
+	--faint: var(--talos-text-tertiary);
+	--line: var(--talos-border-subtle);
+	--line-strong: var(--talos-border-default);
+	--ac: var(--talos-action-current-bg);
+	--blue: var(--talos-action-current-bg);
+	--violet: var(--talos-action-current-bg);
+	--green: var(--talos-text-secondary);
+	--rose: var(--talos-text-primary);
+	--talos-ui-canvas: var(--talos-surface-canvas);
+	--talos-ui-surface: var(--talos-surface-raised);
+	--talos-ui-surface-raised: var(--talos-surface-canvas);
+	--talos-ui-ink: var(--talos-text-primary);
+	--talos-ui-muted: var(--talos-text-secondary);
+	--talos-ui-line: var(--talos-border-default);
+	--talos-ui-line-subtle: var(--talos-border-subtle);
+	--talos-ui-accent: var(--talos-action-current-bg);
+	--talos-ui-accent-2: var(--talos-action-current-bg);
+	--talos-ui-on-accent: var(--talos-action-primary-text);
+	--talos-ui-radius-panel: var(--talos-radius-surface);
+	--talos-ui-radius-control: var(--talos-radius-control);
+	--talos-ui-shadow-panel: var(--talos-shadow-0);
+	--talos-lens-selected-bg: var(--talos-action-primary-bg);
+	--talos-lens-selected-text: var(--talos-action-primary-text);
+	background: var(--talos-surface-raised);
+	background-image: none;
+	color: var(--talos-text-primary);
+	font: var(--talos-type-body-md);
+	color-scheme: light;
+}
+.talos-scope.talos-canvas-shell[data-talos-theme="dark"] {
+	--talos-lens-selected-bg: var(--talos-action-secondary-bg-hover);
+	--talos-lens-selected-text: var(--talos-text-primary);
+	color-scheme: dark;
+}
+.talos-scope.talos-canvas-shell::before,
+.talos-scope.talos-canvas-shell .bg-fx,
+.talos-scope.talos-canvas-shell .hero,
+.talos-scope.talos-canvas-shell .cosmos-commandbar,
+.talos-scope.talos-canvas-shell .footer,
+.talos-scope.talos-canvas-shell .talos-legacy-aside-top,
+.talos-scope.talos-canvas-shell .talos-legacy-aside-bottom,
+.talos-scope.talos-canvas-shell .pagenav-card { display: none; }
+.talos-scope.talos-canvas-shell .app {
+	display: grid;
+	grid-template-columns: calc(var(--talos-space-12) + var(--talos-space-1)) minmax(0, 1fr);
+	gap: 0;
+	min-width: 0;
+	min-height: 100%;
+	max-width: none;
+	margin: 0;
+	padding: 0;
+	background: var(--talos-surface-raised);
+}
+.talos-scope.talos-canvas-shell .sidebar {
+	display: flex;
+	flex-direction: column;
+	width: calc(var(--talos-space-12) + var(--talos-space-1));
+	min-width: 0;
+	padding: var(--talos-space-3) var(--talos-space-2);
+	border: 0;
+	background: var(--talos-surface-canvas);
+	box-shadow: var(--talos-shadow-0);
+}
+.talos-scope.talos-canvas-shell .talos-canvas-rail-nav { display: flex; flex-direction: column; gap: var(--talos-space-2); width: 100%; }
+.talos-scope.talos-canvas-shell .talos-canvas-rail-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 100%;
+	min-height: calc(var(--talos-control-sm) + var(--talos-space-1));
+	margin: 0;
+	padding: var(--talos-space-2);
+	border: 0;
+	border-radius: var(--talos-radius-control);
+	background: transparent;
+	box-shadow: var(--talos-shadow-0);
+	color: var(--talos-text-secondary);
+}
+.talos-scope.talos-canvas-shell .talos-canvas-rail-item::after {
+	content: "";
+	position: absolute;
+	inset: 50% 0 auto;
+	block-size: max(100%, var(--talos-control-touch-min));
+	transform: translateY(-50%);
+}
+.talos-scope.talos-canvas-shell .talos-canvas-rail-item span:last-child { display: none; }
+.talos-scope.talos-canvas-shell .talos-canvas-rail-item svg { width: var(--talos-icon-default); height: var(--talos-icon-default); color: inherit; stroke: currentColor; fill: none; }
+.talos-scope.talos-canvas-shell .main { min-width: 0; width: 100%; margin: 0; padding: 0; background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell .page-content { min-width: 0; width: 100%; margin: 0; padding: var(--talos-space-6) var(--talos-space-8); background: transparent; }
+
+/* One focus treatment and one selected treatment across current pages. */
+.talos-scope.talos-canvas-shell :is(.talos-focusable, button, input, select, textarea, summary):focus-visible {
+	outline: var(--talos-stroke-focus) solid var(--talos-focus-ring);
+	outline-offset: var(--talos-space-0_5);
+}
+
+/* Headers, cards and controls use the same density as Lens content pages. */
+.talos-scope.talos-canvas-shell :is(.talos-canvas-heading, .talos-canvas-card-label, .talos-canvas-card-tools, .talos-canvas-editbar, .talos-superbrain-detail-header, .talos-superbrain-detail-actions, .talos-superbrain-detail-section-heading) {
+	display: flex;
+	align-items: center;
+	gap: var(--talos-space-2);
+}
+.talos-scope.talos-canvas-shell .talos-canvas-heading { justify-content: space-between; margin-block-end: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell :is(.talos-canvas-heading small, .talos-superbrain-detail-title small, .talos-superbrain-core-card-heading small) { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); letter-spacing: 0; }
+.talos-scope.talos-canvas-shell :is(.talos-canvas-heading h1, .talos-superbrain-detail-title h1) { margin: var(--talos-space-1) 0 0; color: var(--talos-text-primary); font: var(--talos-type-title-lg); font-weight: 600; }
+.talos-scope.talos-canvas-shell :is(.talos-canvas-button, .talos-canvas-icon-button, .talos-canvas-quick-button, .talos-canvas-tab, .talos-canvas-tab-add, .talos-superbrain-core-action, .talos-superbrain-detail-button, .talos-superbrain-detail-engine, .talos-superbrain-detail-file, .talos-superbrain-detail-back) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--talos-space-2);
+	min-height: var(--talos-control-sm);
+	padding: calc(var(--talos-space-1) + var(--talos-space-0_5)) var(--talos-space-3);
+	border: var(--talos-stroke-hairline) solid var(--talos-border-default);
+	border-radius: var(--talos-radius-control);
+	background: var(--talos-surface-raised);
+	color: var(--talos-text-primary);
+	-webkit-text-fill-color: currentColor;
+	font: var(--talos-type-label-md);
+	box-shadow: var(--talos-shadow-0);
+	text-shadow: none;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	transform: none;
+}
+.talos-scope.talos-canvas-shell :is(.talos-canvas-button.is-primary, .talos-superbrain-detail-page .mod-cta) {
+	background: var(--talos-action-primary-bg);
+	border-color: var(--talos-action-primary-bg);
+	color: var(--talos-action-primary-text);
+}
+.talos-scope.talos-canvas-shell :is(.talos-canvas-button-icon, .talos-canvas-icon-button) svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell .talos-canvas-icon-button { width: var(--talos-control-sm); height: var(--talos-control-sm); padding: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell :is(.talos-canvas-button, .talos-canvas-icon-button, .talos-superbrain-detail-button):disabled { background: var(--talos-action-disabled-bg); color: var(--talos-action-disabled-text); box-shadow: var(--talos-shadow-0); }
+
+.talos-scope.talos-canvas-shell :is(.talos-canvas-rail-item.is-active, .talos-canvas-tab.is-current, .talos-canvas-icon-button.is-selected, .talos-superbrain-detail-engine[aria-pressed="true"], .talos-agent-runtime-button.is-active, .talos-agent-model-option[aria-selected="true"], .talos-agent-permission-option[aria-selected="true"], .talos-agent-workflow button[aria-pressed="true"], .talos-settab.is-active) {
+	background: var(--talos-lens-selected-bg);
+	color: var(--talos-lens-selected-text);
+	border-color: transparent;
+	box-shadow: var(--talos-shadow-0);
+	-webkit-text-fill-color: currentColor;
+}
+.talos-scope.talos-canvas-shell :is(.talos-canvas-rail-item.is-active, .talos-agent-runtime-button.is-active, .talos-settab.is-active) svg { color: currentColor; }
+
+/* Home: personal placement, a quiet hero, search and real-content cards. */
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .page-content { max-width: calc(var(--talos-space-20) * 15); margin-inline: auto; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--talos-space-8); min-width: 0; padding-block: var(--talos-space-4) var(--talos-space-6); border-block-end: var(--talos-stroke-hairline) solid var(--talos-border-subtle); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero-copy { min-width: 0; max-width: calc(var(--talos-space-20) * 8); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-date { display: block; margin-block-end: var(--talos-space-3); color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero h1 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-headline-lg); font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero p { margin: var(--talos-space-3) 0 0; color: var(--talos-text-secondary); font: var(--talos-type-body-md); line-height: var(--talos-leading-relaxed); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit { display: flex; align-items: center; gap: var(--talos-space-3); padding: var(--talos-space-4) 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit-node { display: grid; place-items: center; width: var(--talos-space-16); height: var(--talos-space-16); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit-node:nth-child(2) { width: var(--talos-space-20); height: var(--talos-space-20); border-color: var(--talos-border-default); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit-node svg { width: calc(var(--talos-icon-default) + var(--talos-space-1)); height: calc(var(--talos-icon-default) + var(--talos-space-1)); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-commandbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--talos-space-2); margin-block: var(--talos-space-5) var(--talos-space-6); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search { position: relative; display: flex; align-items: center; flex: 1 1 calc(var(--talos-space-20) * 5); gap: var(--talos-space-3); min-width: 0; min-height: var(--talos-control-touch-min); padding: var(--talos-space-2) var(--talos-space-4); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search > svg { width: var(--talos-icon-default); height: var(--talos-icon-default); flex-shrink: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__input { flex: 1; width: 100%; min-width: 0; min-height: var(--talos-control-sm); padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--talos-text-primary); font: var(--talos-type-body-md); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__input::placeholder { color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search:focus-within { border-color: var(--talos-border-interactive); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__results { position: absolute; inset-inline: 0; inset-block-start: calc(100% + var(--talos-space-2)); z-index: var(--talos-layer-dropdown); display: grid; gap: var(--talos-space-1); max-height: calc(var(--talos-space-20) * 4); overflow-y: auto; padding: var(--talos-space-2); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-2); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__results[hidden] { display: none; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__result { display: flex; align-items: center; gap: var(--talos-space-3); width: 100%; min-width: 0; min-height: var(--talos-control-touch-min); padding: var(--talos-space-3); border: 0; border-radius: var(--talos-radius-control); background: transparent; color: var(--talos-text-primary); font: var(--talos-type-body-sm); text-align: start; white-space: normal; overflow-wrap: anywhere; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__result svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); flex-shrink: 0; color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__result > span:last-child { display: grid; min-width: 0; gap: var(--talos-space-1); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__result strong { color: var(--talos-text-primary); font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__result small { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search__empty { margin: 0; padding: var(--talos-space-4); color: var(--talos-text-secondary); font: var(--talos-type-body-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--talos-space-3); margin-block-end: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--talos-space-1); width: fit-content; max-width: 100%; margin: 0; padding: var(--talos-space-1); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-tab { border-color: transparent; background: transparent; color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-tab.is-current { background: var(--talos-lens-selected-bg); color: var(--talos-lens-selected-text); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-tab-add { padding-inline: var(--talos-space-2); border: 0; background: transparent; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-tab-add svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-editbar { flex-wrap: wrap; margin-block-end: var(--talos-space-4); padding: var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-editbar label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--talos-space-2); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-name { min-height: var(--talos-control-sm); width: min(20ch, 100%); padding-inline: var(--talos-space-2); border: var(--talos-stroke-hairline) solid var(--talos-border-interactive); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-library { display: flex; flex-wrap: wrap; gap: var(--talos-space-2); margin-inline-start: auto; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: minmax(var(--talos-space-20), auto); gap: var(--talos-space-4); min-width: 0; align-items: stretch; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card { position: relative; display: flex; flex-direction: column; grid-column: span 4; min-width: 0; padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-1); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card-focus { grid-column: span 6; grid-row: auto; padding: var(--talos-space-6); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) { grid-column: span 3; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card-recent { grid-column: span 8; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card-label { margin-block-end: var(--talos-space-3); color: var(--talos-text-secondary); font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card-label svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card h2 { margin: 0 0 var(--talos-space-2); color: var(--talos-text-primary); font: var(--talos-type-title-md); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-focus-condition { margin-block: var(--talos-space-2); color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-count { display: block; margin-block: var(--talos-space-2) var(--talos-space-4); font: var(--talos-type-headline-lg); font-variant-numeric: tabular-nums; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-path { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--talos-space-2); margin-block: var(--talos-space-5); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-path-step { display: flex; flex: 1 1 var(--talos-space-16); min-width: 0; min-height: var(--talos-space-16); flex-direction: column; align-items: center; justify-content: center; gap: var(--talos-space-2); padding: var(--talos-space-2); border: 0; border-radius: var(--talos-radius-control); background: transparent; color: var(--talos-text-primary); font: var(--talos-type-label-sm); box-shadow: var(--talos-shadow-0); white-space: normal; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-path-step > span:first-child { display: grid; place-items: center; width: var(--talos-control-md); height: var(--talos-control-md); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-path-step svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card-tools { flex-wrap: wrap; justify-content: flex-end; margin-block-end: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-drag-handle { display: inline-flex; align-items: center; justify-content: center; width: var(--talos-control-sm); min-height: var(--talos-control-sm); padding: var(--talos-space-2); margin-inline-end: auto; border: 0; border-radius: var(--talos-radius-control); background: transparent; color: var(--talos-text-secondary); cursor: grab; touch-action: none; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-drag-handle svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card.is-dragging { border-style: dashed; border-color: var(--talos-border-interactive); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card.is-drop-target { outline: var(--talos-stroke-focus) solid var(--talos-border-interactive); outline-offset: var(--talos-space-1); background: var(--talos-surface-canvas); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-quick-button { min-width: 0; flex-direction: column; min-height: var(--talos-space-16); padding: var(--talos-space-3) var(--talos-space-2); border-color: var(--talos-border-subtle); background: var(--talos-surface-canvas); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-quick-button svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list { display: grid; min-width: 0; gap: var(--talos-space-1); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-row { display: grid; grid-template-columns: var(--talos-icon-compact) minmax(0, 1fr) var(--talos-icon-compact); align-items: center; gap: var(--talos-space-3); width: 100%; min-width: 0; min-height: var(--talos-control-touch-min); padding: var(--talos-space-3) 0; border: 0; border-block-end: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: 0; background: transparent; color: var(--talos-text-primary); font: var(--talos-type-body-sm); text-align: start; white-space: normal; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-row:last-child { border-block-end: 0; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-row > span svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); flex-shrink: 0; color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-copy { display: grid; min-width: 0; gap: var(--talos-space-1); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-copy strong { color: var(--talos-text-primary); font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) :is(.talos-home-list-copy small, .talos-home-list-meta) { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-home-list-meta { margin-inline-start: auto; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-focus-secondary { display: grid; gap: var(--talos-space-1); margin-block-start: var(--talos-space-5); padding-block-start: var(--talos-space-3); border-block-start: var(--talos-stroke-hairline) solid var(--talos-border-subtle); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-card-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--talos-space-2); margin-block-start: auto; padding-block-start: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-add-content { display: inline-flex; align-items: center; justify-content: center; gap: var(--talos-space-2); min-height: var(--talos-control-sm); padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-label-md); box-shadow: var(--talos-shadow-0); white-space: normal; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-add-content svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-workflows { min-width: 0; margin-block-start: var(--talos-space-8); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-workflows > h2 { margin: 0 0 var(--talos-space-4); color: var(--talos-text-primary); font: var(--talos-type-title-sm); font-weight: 600; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) .talos-canvas-card-label { color: var(--talos-text-primary); font: var(--talos-type-label-lg); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) .talos-canvas-card-label > span:first-child { display: grid; place-items: center; width: var(--talos-control-sm); height: var(--talos-control-sm); background: var(--talos-surface-canvas); border-radius: var(--talos-radius-control); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) .talos-canvas-button { width: 100%; justify-content: space-between; padding: 0; border: 0; background: transparent; color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) .talos-canvas-button > span:first-child { order: 2; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-empty { grid-column: 1 / -1; padding: var(--talos-space-8); border: var(--talos-stroke-hairline) dashed var(--talos-border-default); border-radius: var(--talos-radius-surface); color: var(--talos-text-secondary); font: var(--talos-type-body-md); text-align: center; }
+
+/* The card library shows composition previews rather than invented metrics. */
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-modal { width: min(calc(var(--talos-space-20) * 10), calc(100% - var(--talos-space-8))); max-height: calc(100% - var(--talos-space-8)); overflow-y: auto; padding: var(--talos-space-6); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-dialog); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-body-md); box-shadow: var(--talos-shadow-3); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-modal::backdrop { background: var(--talos-surface-scrim); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--talos-space-3); margin-block-end: var(--talos-space-5); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-header h2 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-title-lg); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-close { display: inline-flex; align-items: center; justify-content: center; width: var(--talos-control-sm); min-height: var(--talos-control-sm); padding: var(--talos-space-2); border: 0; border-radius: var(--talos-radius-control); background: transparent; color: var(--talos-text-secondary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-close svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-search { display: block; width: 100%; min-width: 0; min-height: var(--talos-control-md); margin-block-end: var(--talos-space-3); padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); font: var(--talos-type-body-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--talos-space-2); margin-block-end: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-filter { min-height: var(--talos-control-sm); padding: var(--talos-space-2) var(--talos-space-3); border: 0; border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); font: var(--talos-type-label-md); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-filter[aria-pressed="true"] { background: var(--talos-lens-selected-bg); color: var(--talos-lens-selected-text); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--talos-space-3); min-width: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card { display: flex; flex-direction: column; align-items: stretch; gap: var(--talos-space-3); min-width: 0; padding: var(--talos-space-4); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); text-align: start; white-space: normal; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card :is(h3, strong) { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-title-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card > span:first-child { color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card > span:first-child svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: var(--talos-space-2); min-height: var(--talos-space-24); padding: var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview svg { width: var(--talos-icon-default); height: var(--talos-icon-default); grid-column: 1 / -1; margin-block-end: var(--talos-space-1); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview :is(i, span) { display: block; min-height: var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview :is(i, span):nth-child(2) { grid-column: span 2; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview[data-card="quick"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview[data-card="quick"] .talos-home-library-preview__block { grid-column: span 1; min-height: var(--talos-space-6); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview:is([data-card="recent"], [data-card="runs"], [data-card="recovery"]) .talos-home-library-preview__block { grid-column: 1 / -1; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-preview:is([data-card="inbox"], [data-card="pending"]) .talos-home-library-preview__block:first-child { grid-column: 1 / -1; width: var(--talos-space-10); min-height: var(--talos-space-6); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-description { margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card:disabled { color: var(--talos-action-disabled-text); background: var(--talos-surface-canvas); cursor: default; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card:disabled .talos-home-library-description { color: var(--talos-action-disabled-text); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-state { margin-block-start: auto; color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-empty { grid-column: 1 / -1; margin: 0; padding: var(--talos-space-6); color: var(--talos-text-secondary); font: var(--talos-type-body-sm); }
+
+/* Core entry pages have one featured route, live context and more workflows. */
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-context { min-width: 0; margin-block-end: var(--talos-space-6); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-context > :is(small, .talos-core-eyebrow) { display: block; color: var(--talos-text-secondary); font: var(--talos-type-label-sm); margin-block-end: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-context h1 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-title-lg); font-weight: 600; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-context p { max-width: calc(var(--talos-space-20) * 8); margin: var(--talos-space-3) 0 0; color: var(--talos-text-secondary); font: var(--talos-type-body-md); line-height: var(--talos-leading-relaxed); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-workspace { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--talos-space-4); align-items: stretch; min-width: 0; margin-block-end: var(--talos-space-8); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature { display: flex; flex-direction: column; align-items: flex-start; grid-column: span 8; gap: var(--talos-space-3); min-width: 0; min-height: calc(var(--talos-space-20) * 3); padding: var(--talos-space-6); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-canvas); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature-icon { display: grid; place-items: center; width: var(--talos-space-12); height: var(--talos-space-12); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature-icon svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature small { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature h2 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-headline-md); font-weight: 600; overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature p { margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-md); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-route { display: flex; flex-wrap: wrap; align-self: stretch; gap: var(--talos-space-2); margin: var(--talos-space-3) 0; padding: 0; list-style: none; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-route li { display: flex; align-items: center; flex: 1 1 calc(var(--talos-space-20) * 2); gap: var(--talos-space-2); min-width: 0; padding: var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-label-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-route svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); flex-shrink: 0; color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature > .talos-canvas-button { margin-block-start: auto; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-side { display: grid; grid-column: span 4; align-content: start; gap: var(--talos-space-4); min-width: 0; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status { min-width: 0; padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status > strong { display: block; margin-block: var(--talos-space-2); font: var(--talos-type-headline-md); font-variant-numeric: tabular-nums; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status:has(> div > strong) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status > div > strong { display: block; margin-block-end: var(--talos-space-2); color: var(--talos-text-primary); font: var(--talos-type-headline-md); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status > div > small { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status > :is(small, p) { margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-status h2 { margin: 0 0 var(--talos-space-3); color: var(--talos-text-primary); font: var(--talos-type-title-sm); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-core-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-subheading { grid-column: 1 / -1; margin: var(--talos-space-2) 0 0; color: var(--talos-text-secondary); font: var(--talos-type-label-lg); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card { position: relative; display: flex; flex-direction: column; gap: var(--talos-space-3); min-width: 0; min-height: calc(var(--talos-space-20) * 2 + var(--talos-space-6)); padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-1); color: var(--talos-text-primary); cursor: pointer; transform: none; animation: none; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card::before,
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card::after { display: none; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card-heading { display: flex; flex-direction: column; align-items: flex-start; gap: var(--talos-space-3); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card-id { position: absolute; inset-block-start: var(--talos-space-5); inset-inline-end: var(--talos-space-5); padding: var(--talos-space-1) var(--talos-space-2); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); font: var(--talos-type-code-sm); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card-heading h3 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-title-sm); font-weight: 600; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card-icon { display: grid; place-items: center; min-width: var(--talos-control-md); min-height: var(--talos-control-md); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card-icon svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-card-description { margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-action { position: static; width: 100%; justify-content: space-between; align-self: stretch; margin-block-start: auto; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-action::before { content: ""; position: absolute; inset: 0; border-radius: var(--talos-radius-surface); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-action svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); }
+.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card:is(:focus-within, .is-module-selected) { border-color: var(--talos-border-interactive); box-shadow: var(--talos-shadow-1); }
+
+/* Inline execution pages retain the shared Lens controls. */
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-header { margin-block-end: var(--talos-space-5); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-scope { margin-inline-start: auto; padding: var(--talos-space-2); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--talos-space-2); list-style: none; margin: 0 0 var(--talos-space-5); padding: 0; }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-steps li { display: flex; align-items: center; gap: var(--talos-space-2); padding: var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); font: var(--talos-type-body-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell :is(.talos-superbrain-detail-main, .talos-superbrain-detail-aside) { min-width: 0; }
+.talos-scope.talos-canvas-shell :is(.talos-superbrain-detail-operation, .talos-superbrain-detail-related, .talos-superbrain-detail-hosts) { margin-block-end: var(--talos-space-4); padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell :is(.talos-superbrain-detail-operation, .talos-superbrain-detail-related, .talos-superbrain-detail-hosts) h2 { margin: 0; color: var(--talos-text-primary); font: var(--talos-type-title-sm); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-operation h3 { font: var(--talos-type-label-lg); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-section-heading { margin-block-end: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-field { display: block; margin-block: var(--talos-space-3); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-field > span { display: block; margin-block-end: var(--talos-space-2); font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-input { width: 100%; min-height: var(--talos-control-sm); padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-interactive); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-input::placeholder { color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell textarea.talos-superbrain-detail-input { min-height: var(--talos-space-24); resize: vertical; }
+.talos-scope.talos-canvas-shell :is(.talos-superbrain-detail-source, .talos-superbrain-detail-engines, .talos-superbrain-detail-source-rows, .talos-superbrain-detail-actions) { display: flex; flex-wrap: wrap; gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-source { align-items: center; margin-block: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-result { display: block; margin-block-start: var(--talos-space-3); overflow-wrap: anywhere; }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-file { display: block; max-width: 100%; margin-block: var(--talos-space-2); text-align: start; }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-file:disabled { color: var(--talos-action-disabled-text); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-result[data-status="failed"] { border-inline-start: var(--talos-stroke-emphasis) double var(--talos-border-strong); padding-inline-start: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-result-heading { display: flex; align-items: center; gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-technical { margin-block-start: var(--talos-space-3); }
+.talos-scope.talos-canvas-shell .talos-superbrain-detail-technical pre { max-width: 100%; overflow-x: auto; }
+
+/* Native chat: compact toolbar, quiet message canvas, rounded composer. */
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .app { height: 100%; min-height: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .main { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .talos-chat-nav-switch-host { display: block; flex: 0 0 auto; width: min(100%, calc(var(--talos-space-20) * 5)); margin: var(--talos-space-3) var(--talos-space-4) 0 auto; padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); container: chat-nav-switch / inline-size; }
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .page-content { display: flex; flex: 1 1 0; min-height: 0; padding: var(--talos-space-3) var(--talos-space-4); overflow: hidden; }
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .talos-harness-switcher { flex: 1 1 0; min-width: 0; min-height: 0; border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="chat"] .talos-harness-switcher__body { background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell .talos-harness-switch__track.is-on { background: var(--talos-lens-selected-bg); border-color: var(--talos-lens-selected-bg); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .talos-harness__error { margin: var(--talos-space-6) auto; border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell .talos-agent-controls { padding: var(--talos-space-3) var(--talos-space-4); border-color: var(--talos-border-subtle); background: var(--talos-surface-canvas); }
+.talos-scope.talos-canvas-shell .talos-agent-runtime-button { width: var(--talos-control-sm); height: var(--talos-control-sm); padding: 0; border-radius: var(--talos-radius-control); }
+.talos-scope.talos-canvas-shell .talos-agent-runtime-button.is-active::after { display: none; }
+.talos-scope.talos-canvas-shell :is(.talos-agent-model-option[aria-selected="true"], .talos-agent-permission-option[aria-selected="true"]) :is(strong, small, svg) { color: currentColor; }
+.talos-scope.talos-canvas-shell :is(.talos-agent-model-trigger, .talos-agent-permission-trigger, .talos-agent-provider-picker, .talos-agent-controls select) { min-height: var(--talos-control-sm); border-radius: var(--talos-radius-control); color: var(--talos-text-primary); font: var(--talos-type-label-md); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .talos-agent-model-trigger { border-color: var(--talos-border-default); background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell .talos-agent-model-trigger::after { display: none; }
+.talos-scope.talos-canvas-shell :is(.talos-agent-model-menu, .talos-agent-permission-menu) { border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-3); }
+.talos-scope.talos-canvas-shell .claudian-container { --claudian-brand: var(--talos-text-primary); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .claudian-messages { padding: var(--talos-space-4) var(--talos-space-5); background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell .claudian-message-content { font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .claudian-input-wrapper { border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-dialog); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-1); }
+.talos-scope.talos-canvas-shell .claudian-input-wrapper textarea.claudian-input { padding: var(--talos-space-4); background: transparent; color: var(--talos-text-primary); font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .claudian-input-wrapper textarea.claudian-input::placeholder { color: var(--talos-text-secondary); }
+.talos-scope.talos-canvas-shell .claudian-submit-btn { background: var(--talos-action-primary-bg); color: var(--talos-action-primary-text); border-color: transparent; border-radius: var(--talos-radius-round); box-shadow: var(--talos-shadow-0); }
+
+/* Voice: Lens composition, existing TalosBall and audio lifecycle. */
+.talos-scope.talos-canvas-shell[data-talos-page="jarvis"] .app { height: 100%; min-height: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="jarvis"] .tq-voice {
+	--tq-surface: var(--talos-surface-raised);
+	--tq-surface-soft: var(--talos-surface-canvas);
+	--tq-panel: var(--talos-surface-raised);
+	--tq-panel-strong: var(--talos-surface-raised);
+	--tq-border: var(--talos-border-subtle);
+	--tq-text: var(--talos-text-primary);
+	--tq-muted: var(--talos-text-secondary);
+	--tq-faint: var(--talos-text-tertiary);
+	--tq-brand: var(--talos-action-current-bg);
+	--tq-on-brand: var(--talos-action-current-text);
+	--tq-state-listen: var(--talos-state-in-progress-marker);
+	--tq-state-reco: var(--talos-state-in-progress-marker);
+	--tq-state-think: var(--talos-state-pending-marker);
+	--tq-state-speak: var(--talos-state-in-progress-marker);
+	--tq-ball-surface: var(--talos-surface-raised);
+	--tq-ball-eye: var(--talos-text-primary);
+	color-scheme: inherit;
+	font: var(--talos-type-body-md);
+}
+.talos-scope.talos-canvas-shell .tq-body { grid-template-columns: minmax(0, 1.3fr) minmax(260px, .9fr); grid-template-rows: minmax(0, 1fr); }
+.talos-scope.talos-canvas-shell .tq-stage { --tq-ball-size: min(100%, calc(var(--talos-space-20) * 4)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--talos-space-4); padding: var(--talos-space-5); background: var(--talos-surface-raised); }
+.talos-scope.talos-canvas-shell .tq-talos-ball-host { --tq-ball-size: min(calc(var(--talos-space-20) * 4 + var(--talos-space-12)), 100cqi, 100cqh); width: var(--tq-ball-size); height: var(--tq-ball-size); max-width: 100%; max-height: 100%; }
+.talos-scope.talos-canvas-shell .tq-workspace-bar { position: relative; inset: auto; z-index: var(--talos-layer-raised); display: flex; flex-wrap: wrap; gap: var(--talos-space-2); align-items: center; justify-content: space-between; }
+.talos-scope.talos-canvas-shell .tq-workspace-identity { display: flex; gap: var(--talos-space-2); padding: 0; border: 0; background: transparent; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .tq-workspace-mark { width: var(--talos-control-sm); height: var(--talos-control-sm); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell .tq-workspace-copy strong { color: var(--talos-text-primary); font: var(--talos-type-label-lg); }
+.talos-scope.talos-canvas-shell .tq-workspace-copy small { color: var(--talos-text-secondary); font: var(--talos-type-overline); letter-spacing: 0; }
+.talos-scope.talos-canvas-shell .tq-workspace-meta { flex-wrap: wrap; justify-content: flex-start; gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .tq-workspace-meta > span { min-height: var(--talos-control-sm); padding: var(--talos-space-1) var(--talos-space-2); border: 0; border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); box-shadow: var(--talos-shadow-0); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell .tq-overlay-text { padding: 0; background: transparent; }
+.talos-scope.talos-canvas-shell .tq-overlay-reply { color: var(--talos-text-primary); font: var(--talos-type-body-md); line-height: var(--talos-leading-relaxed); max-height: calc(var(--talos-space-20) * 2); overflow-y: auto; }
+.talos-scope.talos-canvas-shell .tq-voice-dock { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(var(--talos-space-24), 1fr) auto auto auto; gap: var(--talos-space-4); max-height: none; padding: var(--talos-space-5); border-block-start: 0; border-inline-start: var(--talos-stroke-hairline) solid var(--talos-border-subtle); background: var(--talos-surface-canvas); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .tq-dock-status { display: grid; gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .tq-dock-live { display: grid; gap: var(--talos-space-1); }
+.talos-scope.talos-canvas-shell .tq-dock-live > span { font: var(--talos-type-label-md); white-space: normal; }
+.talos-scope.talos-canvas-shell .tq-dock-live > small { font: var(--talos-type-body-sm); white-space: normal; overflow: visible; }
+.talos-scope.talos-canvas-shell .tq-dock-badges { flex-wrap: wrap; justify-content: flex-start; overflow: visible; }
+.talos-scope.talos-canvas-shell .tq-dock-badges > span { padding: var(--talos-space-1) var(--talos-space-2); border-color: var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-secondary); font: var(--talos-type-label-sm); white-space: normal; }
+.talos-scope.talos-canvas-shell .tq-transcript-editor { grid-column: 1; display: flex; flex-direction: column; min-height: calc(var(--talos-space-20) * 2); padding: var(--talos-space-4); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .tq-transcript-head { flex-wrap: wrap; }
+.talos-scope.talos-canvas-shell .tq-transcript-head > span { font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell .tq-transcript-head > small { font: var(--talos-type-label-sm); white-space: normal; overflow: visible; }
+.talos-scope.talos-canvas-shell .tq-transcript-lines { flex: 1 1 auto; max-height: none; padding-block: var(--talos-space-3); overflow-y: auto; scrollbar-width: thin; }
+.talos-scope.talos-canvas-shell .tq-transcript-lines:empty { display: grid; place-items: center; }
+.talos-scope.talos-canvas-shell .tq-transcript-lines:empty::after { content: "等待语音转写"; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); }
+.talos-scope.talos-canvas-shell .tq-transcript-line { font: var(--talos-type-body-md); color: var(--talos-text-primary); }
+.talos-scope.talos-canvas-shell .tq-voice-controls { grid-column: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--talos-space-2); }
+.talos-scope.talos-canvas-shell .tq-voice .tq-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--talos-space-2); min-width: 0; min-height: var(--talos-control-sm); height: auto; padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); font: var(--talos-type-label-sm); white-space: normal; transform: none; animation: none; }
+.talos-scope.talos-canvas-shell .tq-voice .tq-btn::before { display: none; }
+.talos-scope.talos-canvas-shell .tq-voice .tq-btn svg { width: var(--talos-icon-compact); height: var(--talos-icon-compact); color: currentColor; }
+.talos-scope.talos-canvas-shell .tq-voice .tq-control-btn { min-height: var(--talos-control-md); }
+.talos-scope.talos-canvas-shell .tq-control-label { min-width: 0; white-space: normal; }
+.talos-scope.talos-canvas-shell .tq-voice :is(.tq-control-btn--mic, .tq-send-btn) { border-color: var(--talos-action-primary-bg); background: var(--talos-action-primary-bg); color: var(--talos-action-primary-text); }
+.talos-scope.talos-canvas-shell .tq-voice .tq-btn:not(.tq-control-btn--mic)[aria-pressed="true"] { background: var(--talos-lens-selected-bg); color: var(--talos-lens-selected-text); }
+.talos-scope.talos-canvas-shell .tq-voice .tq-btn:disabled { background: var(--talos-action-disabled-bg); color: var(--talos-action-disabled-text); border-color: var(--talos-border-subtle); opacity: 1; }
+.talos-scope.talos-canvas-shell .tq-readonly-query { grid-template-columns: minmax(0, 1fr) var(--talos-control-sm); gap: var(--talos-space-2); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell .tq-readonly-query__copy { grid-column: 1 / -1; }
+.talos-scope.talos-canvas-shell .tq-readonly-query__copy b { font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell .tq-readonly-query__copy small { font: var(--talos-type-label-sm); white-space: normal; overflow: visible; }
+.talos-scope.talos-canvas-shell .tq-readonly-query > textarea { min-height: var(--talos-control-md); max-height: calc(var(--talos-space-20) * 2); padding: var(--talos-space-2); border: var(--talos-stroke-hairline) solid var(--talos-border-interactive); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .tq-voice-safety { align-items: flex-start; color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell .tq-approval-card { border: var(--talos-stroke-emphasis) double var(--talos-border-strong); border-radius: var(--talos-radius-control); background: var(--talos-state-pending-surface); color: var(--talos-state-pending-text); }
+.talos-scope.talos-canvas-shell .tq-approval-card button { color: var(--talos-text-primary); }
+
+/* Expanded local operations: a roomy action grid within one Lens panel. */
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced {
+ margin-block-start: var(--talos-space-8);
+ padding: var(--talos-space-6);
+ border: var(--talos-stroke-hairline) solid var(--talos-border-subtle);
+ border-radius: var(--talos-radius-surface);
+ background: var(--talos-surface-raised);
+ color: var(--talos-text-primary);
+ box-shadow: var(--talos-shadow-0);
+ transform: none;
+ animation: none;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced::before,
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced::after,
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .talos-module-command-bar::before,
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .talos-module-command-bar::after { display: none; }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced > summary {
+ min-height: var(--talos-control-touch-min);
+ align-content: center;
+ font: var(--talos-type-label-lg);
+ white-space: normal;
+ overflow-wrap: anywhere;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced-actions { margin-block-start: var(--talos-space-5); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .talos-module-command-bar {
+ min-width: 0;
+ margin: 0;
+ padding: 0;
+ border: 0;
+ border-radius: 0;
+ background: transparent;
+ box-shadow: var(--talos-shadow-0);
+ transform: none;
+ animation: none;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-actions {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--talos-space-20) * 2 + var(--talos-space-16))), 1fr));
+ grid-area: auto;
+ gap: var(--talos-space-4);
+ margin: 0;
+ padding: 0;
+ align-content: start;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-action {
+ display: flex;
+ flex-direction: column;
+ align-items: flex-start;
+ justify-content: center;
+ gap: var(--talos-space-2);
+ width: 100%;
+ min-width: 0;
+ min-height: var(--talos-space-16);
+ height: auto;
+ margin: 0;
+ padding: var(--talos-space-4) var(--talos-space-5);
+ border: var(--talos-stroke-hairline) solid var(--talos-border-subtle);
+ border-radius: var(--talos-radius-control);
+ background: var(--talos-surface-canvas);
+ color: var(--talos-text-primary);
+ font: var(--talos-type-label-lg);
+ text-align: start;
+ white-space: normal;
+ box-shadow: var(--talos-shadow-0);
+ transform: none;
+ animation: none;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-action > span {
+ min-width: 0;
+ overflow: visible;
+ text-overflow: clip;
+ white-space: normal;
+ overflow-wrap: anywhere;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-action small,
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .talos-module-command-status {
+ margin: 0;
+ color: var(--talos-text-secondary);
+ font: var(--talos-type-body-sm);
+ white-space: normal;
+ overflow-wrap: anywhere;
+}
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .talos-module-command-status:not(:empty) { margin-block-start: var(--talos-space-4); }
+.talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-action:disabled {
+ background: var(--talos-action-disabled-bg);
+ color: var(--talos-action-disabled-text);
+ opacity: 1;
+ cursor: default;
+}
+@media (hover: hover) {
+ .talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced:hover { border-color: var(--talos-border-subtle); box-shadow: var(--talos-shadow-0); transform: none; }
+ .talos-scope.talos-canvas-shell[data-talos-page="sb-system"] .talos-superbrain-advanced .module-hero-action:not(:disabled):hover {
+  background: var(--talos-action-ghost-bg-hover);
+  border-color: var(--talos-border-default);
+  color: var(--talos-text-primary);
+  box-shadow: var(--talos-shadow-0);
+  transform: none;
+ }
+}
+
+/* Native and embedded settings share one Lens layout and readable type scale. */
+.talos-scope.talos-settings[data-talos-theme] {
+	--talos-lens-selected-bg: var(--talos-action-primary-bg);
+	--talos-lens-selected-text: var(--talos-action-primary-text);
+	container: talos-settings / inline-size;
+	display: block;
+	width: 100%;
+	max-width: calc(var(--talos-space-20) * 15);
+	min-width: 0;
+	margin-inline: auto;
+	padding: 0;
+	background: var(--talos-surface-raised);
+	color: var(--talos-text-primary);
+	font: var(--talos-type-body-md);
+	box-shadow: var(--talos-shadow-0);
+	overflow: visible;
+	overscroll-behavior: auto;
+}
+.talos-scope.talos-settings[data-talos-theme="dark"] {
+	--talos-lens-selected-bg: var(--talos-action-secondary-bg-hover);
+	--talos-lens-selected-text: var(--talos-text-primary);
+}
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-layout { display: grid; grid-template-columns: calc(var(--talos-space-20) * 2 + var(--talos-space-12)) minmax(0, 1fr); align-items: start; gap: var(--talos-space-6); width: 100%; min-width: 0; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-layout > .talos-settabs { position: static; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--talos-space-2); min-width: 0; margin: 0; padding: var(--talos-space-2); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-canvas); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab { appearance: none; position: relative; display: grid; grid-template-columns: var(--talos-control-sm) minmax(0, 1fr); align-items: center; gap: var(--talos-space-3); width: 100%; min-width: 0; min-height: var(--talos-space-16); margin: 0; padding: var(--talos-space-3); overflow: visible; border: 0; border-radius: var(--talos-radius-control); background: transparent; color: var(--talos-text-primary); -webkit-text-fill-color: currentColor; font: var(--talos-type-body-md); text-align: start; white-space: normal; box-shadow: var(--talos-shadow-0); opacity: 1; transform: none; animation: none; transition: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab::before { display: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab .talos-settab-icon { display: grid; place-items: center; width: var(--talos-control-sm); height: var(--talos-control-sm); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: currentColor; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab .talos-settab-icon svg { width: var(--talos-icon-default); height: var(--talos-icon-default); color: currentColor; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settab .talos-settab-copy { display: grid; gap: var(--talos-space-1); min-width: 0; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settab .talos-settab-copy strong { display: block; overflow: visible; text-overflow: clip; white-space: normal; color: currentColor; font: var(--talos-type-label-lg); overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settab .talos-settab-copy small { display: block; overflow: visible; text-overflow: clip; white-space: normal; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab.is-active { background: var(--talos-lens-selected-bg); color: var(--talos-lens-selected-text); border-color: transparent; box-shadow: var(--talos-shadow-0); transform: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab.is-active .talos-settab-icon { border-color: currentColor; background: transparent; color: currentColor; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab.is-active .talos-settab-copy small { color: currentColor; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-layout > .talos-setcontent { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--talos-space-3); min-width: 0; padding: 0; background: transparent; animation: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .talos-settings-section-intro { display: grid; grid-template-columns: var(--talos-control-md) minmax(0, 1fr); align-items: center; gap: var(--talos-space-4); min-width: 0; margin: 0 0 var(--talos-space-2); padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-canvas); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro .talos-settings-section-intro__mark { display: grid; place-items: center; width: var(--talos-control-md); height: var(--talos-control-md); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro__mark svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro .talos-settings-section-intro__copy { display: grid; min-width: 0; gap: var(--talos-space-2); }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro__copy > small { display: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro__copy .talos-settings-section-intro__title { display: block; margin: 0; background: transparent; color: var(--talos-text-primary); -webkit-text-fill-color: currentColor; font: var(--talos-type-title-sm); overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-settings-section-intro__copy p { display: block; margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item:not(.setting-item-heading) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, min(45%, calc(var(--talos-space-20) * 4))); align-items: center; gap: var(--talos-space-6); min-width: 0; margin: 0; padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); transform: none; animation: none; transition: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-info { width: auto; min-width: 0; margin: 0; padding: 0; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-name { color: var(--talos-text-primary); font: var(--talos-type-label-lg); white-space: normal; overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-description { margin-block-start: var(--talos-space-2); color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); white-space: normal; overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--talos-space-2); width: 100%; min-width: 0; margin: 0; padding: 0; color: var(--talos-text-primary); font: var(--talos-type-body-md); }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control :is(input[type="text"], input[type="url"], input[type="password"], input[type="search"], input[type="number"], select, textarea) { width: 100%; max-width: 100%; min-width: 0; min-height: var(--talos-control-md); height: auto; padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); -webkit-text-fill-color: currentColor; font: var(--talos-type-body-md); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control :is(input[type="checkbox"], input[type="range"]) { flex: 0 0 auto; width: auto; max-width: none; min-height: 0; padding: 0; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control textarea { min-height: var(--talos-space-24); line-height: var(--talos-leading-relaxed); resize: vertical; white-space: pre-wrap; overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control button { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--talos-space-2); min-height: var(--talos-control-md); padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-control); background: var(--talos-surface-raised); color: var(--talos-text-primary); -webkit-text-fill-color: currentColor; font: var(--talos-type-label-md); white-space: normal; overflow-wrap: anywhere; box-shadow: var(--talos-shadow-0); transform: none; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control button.mod-cta { background: var(--talos-action-primary-bg); border-color: var(--talos-action-primary-bg); color: var(--talos-action-primary-text); }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control button:disabled { background: var(--talos-action-disabled-bg); color: var(--talos-action-disabled-text); cursor: default; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item.setting-item-heading { display: block; grid-column: 1 / -1; margin: var(--talos-space-3) 0 0; padding: var(--talos-space-4) 0 var(--talos-space-2); border: 0; border-radius: 0; background: transparent; box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item.setting-item-heading .setting-item-name { color: var(--talos-text-primary); font: var(--talos-type-title-sm); }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item.setting-item-heading .setting-item-control { display: none; }
+.talos-scope.talos-settings[data-talos-theme] :is(button, input, select, textarea, summary):focus-visible { outline: var(--talos-stroke-focus) solid var(--talos-focus-ring); outline-offset: var(--talos-space-0_5); }
+.talos-scope.talos-settings[data-talos-theme] .talos-schema-report { min-width: 0; padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-canvas); color: var(--talos-text-primary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); overflow-wrap: anywhere; }
+.talos-scope.talos-settings[data-talos-theme] .talos-setcontent :is(code, pre) { color: var(--talos-text-primary); font: var(--talos-type-code-md); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Embedded header is outside the shared settings renderer. */
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__header { width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--talos-space-4); max-width: calc(var(--talos-space-20) * 15); margin: 0 0 var(--talos-space-6); padding: var(--talos-space-5); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); animation: none; }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__identity { display: flex; align-items: center; gap: var(--talos-space-3); min-width: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__icon { display: grid; place-items: center; flex: 0 0 auto; width: var(--talos-control-md); height: var(--talos-control-md); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__icon svg { width: var(--talos-icon-default); height: var(--talos-icon-default); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__title { display: grid; gap: var(--talos-space-2); min-width: 0; }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__title h1 { margin: 0; background: transparent; color: var(--talos-text-primary); -webkit-text-fill-color: currentColor; font: var(--talos-type-title-lg); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__title p { margin: 0; color: var(--talos-text-secondary); font: var(--talos-type-body-sm); line-height: var(--talos-leading-relaxed); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__status { display: flex; align-items: center; gap: var(--talos-space-2); padding: var(--talos-space-2) var(--talos-space-3); border: var(--talos-stroke-hairline) solid var(--talos-border-subtle); border-radius: var(--talos-radius-control); background: var(--talos-surface-canvas); color: var(--talos-text-secondary); box-shadow: var(--talos-shadow-0); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__status-dot { width: var(--talos-space-2); height: var(--talos-space-2); border-radius: var(--talos-radius-round); background: var(--talos-state-verified-marker); box-shadow: var(--talos-shadow-0); animation: none; }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__status-copy { display: grid; gap: var(--talos-space-1); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__status-copy strong { color: var(--talos-text-primary); font: var(--talos-type-label-md); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__status-copy small { color: var(--talos-text-secondary); font: var(--talos-type-label-sm); }
+.talos-scope.talos-canvas-shell[data-talos-page="settings"] .talos-inline-settings__body { min-width: 0; padding: 0; overflow: visible; overscroll-behavior: auto; }
+
+@media (hover: hover) {
+	.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab:not(.is-active):hover { background: var(--talos-action-ghost-bg-hover); color: var(--talos-text-primary); transform: none; box-shadow: var(--talos-shadow-0); }
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item:not(.setting-item-heading):hover { border-color: var(--talos-border-subtle); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-0); transform: none; }
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control button:not(.mod-cta):not(:disabled):hover { background: var(--talos-action-ghost-bg-hover); color: var(--talos-text-primary); }
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control button.mod-cta:not(:disabled):hover { background: var(--talos-action-primary-bg-hover); color: var(--talos-action-primary-text); }
+}
+@container talos-settings (max-width: 760px) {
+	.talos-scope.talos-settings[data-talos-theme] .talos-settings-layout { grid-template-columns: minmax(0, 1fr); gap: var(--talos-space-4); }
+	.talos-scope.talos-settings[data-talos-theme] .talos-settings-layout > .talos-settabs { display: flex; flex-wrap: wrap; gap: var(--talos-space-2); }
+	.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab { flex: 1 1 calc(var(--talos-space-20) * 2); width: auto; }
+}
+@container talos-settings (max-width: 520px) {
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item:not(.setting-item-heading) { grid-template-columns: minmax(0, 1fr); gap: var(--talos-space-4); padding: var(--talos-space-4); }
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .setting-item .setting-item-control { justify-content: flex-start; }
+	.talos-scope.talos-settings[data-talos-theme] .talos-settabs .talos-settab { flex-basis: 100%; }
+	.talos-scope.talos-settings[data-talos-theme] .talos-setcontent > .talos-settings-section-intro { padding: var(--talos-space-4); }
+}
+
+@media (hover: hover) {
+	.talos-scope.talos-canvas-shell .talos-canvas-rail-item:not(.is-active):hover,
+	.talos-scope.talos-canvas-shell .talos-canvas-path-step:hover,
+	.talos-scope.talos-canvas-shell .talos-canvas-quick-button:hover,
+	.talos-scope.talos-canvas-shell .talos-canvas-button:not(.is-primary):hover { background: var(--talos-action-ghost-bg-hover); color: var(--talos-text-primary); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-home-search__result, button.talos-home-list-row, .talos-home-library-close):hover { background: var(--talos-action-ghost-bg-hover); color: var(--talos-text-primary); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-card:not(:disabled):hover { border-color: var(--talos-border-interactive); box-shadow: var(--talos-shadow-1); }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-card:hover { border-color: var(--talos-border-default); box-shadow: var(--talos-shadow-1); transform: none; }
+	.talos-scope.talos-canvas-shell .tq-voice .tq-btn:not(:disabled):not(.tq-control-btn--mic):not(.tq-send-btn):hover { background: var(--talos-action-ghost-bg-hover); color: var(--talos-text-primary); transform: none; }
+	.talos-scope.talos-canvas-shell :is(.talos-canvas-button.is-primary, .tq-control-btn--mic, .tq-send-btn):not(:disabled):hover { background: var(--talos-action-primary-bg-hover); color: var(--talos-action-primary-text); }
+}
+@container talos-app (max-width: 900px) {
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) { grid-column: span 6; }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-superbrain-core-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-workspace { grid-template-columns: minmax(0, 1fr); }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) :is(.talos-core-feature, .talos-core-side) { grid-column: 1 / -1; }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card { grid-column: span 6; }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-focus, .talos-canvas-card-recent) { grid-column: 1 / -1; grid-row: auto; }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero { gap: var(--talos-space-4); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit { gap: var(--talos-space-2); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit-node { width: var(--talos-space-12); height: var(--talos-space-12); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit-node:nth-child(2) { width: var(--talos-space-16); height: var(--talos-space-16); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.talos-scope.talos-canvas-shell .tq-body { grid-template-columns: minmax(0, 1fr) minmax(240px, .9fr); }
+}
+@container talos-app (max-width: 640px) {
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] :is(.talos-canvas-card-inbox, .talos-canvas-card-pending) { grid-column: 1 / -1; }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-loop"], [data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) :is(.talos-superbrain-core-grid, .talos-core-side) { grid-template-columns: minmax(0, 1fr); }
+	.talos-scope.talos-canvas-shell:is([data-talos-page="sb-knowledge"], [data-talos-page="sb-memory"], [data-talos-page="sb-output"], [data-talos-page="sb-system"]) .talos-core-feature { min-height: 0; padding: var(--talos-space-5); }
+	.talos-scope.talos-canvas-shell .page-content { padding: var(--talos-space-4); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero { grid-template-columns: minmax(0, 1fr); gap: var(--talos-space-3); padding-block-start: var(--talos-space-2); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-hero h1 { font: var(--talos-type-headline-md); font-weight: 600; }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-orbit { justify-content: flex-start; padding: 0; }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-commandbar { margin-block: var(--talos-space-4); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-search { flex-basis: 100%; }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-card { grid-column: 1 / -1; grid-row: auto; padding: var(--talos-space-4); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-canvas-quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-modal { width: calc(100% - var(--talos-space-4)); max-height: calc(100% - var(--talos-space-4)); padding: var(--talos-space-4); }
+	.talos-scope.talos-canvas-shell[data-talos-page="sb-loop"] .talos-home-library-grid { grid-template-columns: minmax(0, 1fr); }
+	.talos-scope.talos-canvas-shell .talos-canvas-heading { align-items: flex-start; }
+	.talos-scope.talos-canvas-shell .talos-superbrain-detail-grid,
+	.talos-scope.talos-canvas-shell .talos-superbrain-detail-steps { grid-template-columns: minmax(0, 1fr); }
+	.talos-scope.talos-canvas-shell .talos-superbrain-detail-header { flex-wrap: wrap; }
+	.talos-scope.talos-canvas-shell .talos-superbrain-detail-title { order: -1; flex: 1 0 100%; min-width: 0; }
+	.talos-scope.talos-canvas-shell .tq-body { display: block; overflow-y: auto; }
+	.talos-scope.talos-canvas-shell .tq-stage { container-type: inline-size; grid-template-rows: auto minmax(calc(var(--talos-space-20) * 2), auto) auto; min-height: calc(var(--talos-space-20) * 4); height: auto; overflow: visible; }
+	.talos-scope.talos-canvas-shell .tq-voice-dock { border-inline-start: 0; border-block-start: var(--talos-stroke-hairline) solid var(--talos-border-subtle); }
+	.talos-scope.talos-canvas-shell .tq-workspace-meta > .tq-workspace-boundary { display: none; }
+	.talos-scope.talos-canvas-shell .tq-voice-controls { grid-template-columns: minmax(0, 1fr); }
+	.talos-scope.talos-canvas-shell[data-talos-page="chat"] .talos-chat-nav-switch-host { width: calc(100% - var(--talos-space-6)); margin-inline: var(--talos-space-3); }
+	.talos-scope.talos-canvas-shell[data-talos-page="chat"] .page-content { padding: var(--talos-space-3); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.talos-scope.talos-canvas-shell *,
+	.talos-scope.talos-canvas-shell *::before,
+	.talos-scope.talos-canvas-shell *::after { animation-duration: 0s; transition-duration: 0s; scroll-behavior: auto; }
+}
+
+/* The icon rail exists only for framework pages; elsewhere the classic nav card is used. */
+.talos-console:not(.talos-canvas-shell) .talos-canvas-rail-nav { display: none; }
+/* Obsidian gives buttons a fixed height; two-line list rows need their natural height. */
+.talos-scope.talos-canvas-shell .talos-home-list-row { height: auto; }

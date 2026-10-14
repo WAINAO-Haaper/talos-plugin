@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { TalosAskService } from "../src/ai/ask-service";
+import { describe, expect, it, vi } from "vitest";
+import { TalosAskService, type AskInput } from "../src/ai/ask-service";
 import { ProviderFacade } from "../src/ai/provider/provider-facade";
 import type {
 	AskEvent,
@@ -321,5 +321,87 @@ describe("TalosAskService", () => {
 				audit: { deniedModules: ["identity"] },
 			},
 		]);
+	});
+});
+
+describe("TalosAskService cancellation", () => {
+	const input = (signal?: AbortSignal): AskInput => ({
+		sessionId: "cancel-session", namespace: "command", runId: "cancel-run",
+		turnId: "cancel-turn", providerId: "cancel-provider", query: "请总结", signal,
+	});
+	function setup(provider = new RecordingProvider("cancel-provider")) {
+		const facade = new ProviderFacade(); facade.register(provider);
+		const retrieve = vi.fn(async (): Promise<VaultRetrievalResult> => ({ hits: [], blocked: [] }));
+		const auditSink = vi.fn(async () => {});
+		const propose = vi.fn(async () => ({ taskId: "proposal" }));
+		const service = new TalosAskService({ facade, retriever: { retrieve }, manualReview: () => true, auditSink, toolGateway: { propose } });
+		return { provider, facade, retrieve, auditSink, propose, service };
+	}
+
+	it("does not retrieve or start a provider for an already cancelled request", async () => {
+		const abort = new AbortController(); abort.abort("private cancellation reason");
+		const { service, provider, retrieve } = setup();
+		await expect(collect(service.ask(input(abort.signal)))).rejects.toMatchObject({ name: "AbortError", message: "已取消本次提问" });
+		expect(retrieve).not.toHaveBeenCalled(); expect(provider.requests).toHaveLength(0);
+	});
+
+	it("stops after retrieval when cancellation arrives while retrieval is pending", async () => {
+		const abort = new AbortController(); const { service, provider, retrieve, auditSink } = setup();
+		retrieve.mockImplementationOnce(async () => { await Promise.resolve(); abort.abort(); return { hits: [], blocked: [] }; });
+		await expect(collect(service.ask(input(abort.signal)))).rejects.toMatchObject({ name: "AbortError" });
+		expect(provider.requests).toHaveLength(0); expect(auditSink).not.toHaveBeenCalled();
+	});
+
+	it("stops after the egress audit sink before any provider request", async () => {
+		const abort = new AbortController(); const { service, provider, auditSink } = setup();
+		auditSink.mockImplementationOnce(async () => { await Promise.resolve(); abort.abort(); });
+		await expect(collect(service.ask(input(abort.signal)))).rejects.toMatchObject({ name: "AbortError" });
+		expect(auditSink).toHaveBeenCalledOnce(); expect(provider.requests).toHaveLength(0);
+	});
+
+	it("calls the active provider cancel while next() is pending and never forwards done", async () => {
+		const provider = new RecordingProvider("cancel-provider");
+		let release = (): void => {};
+		const waiting = new Promise<void>(resolve => { release = resolve; });
+		provider.chat = async function* (request): AsyncIterable<AskEvent> {
+			this.requests.push(request); yield { type: "text", text: "partial" };
+			await waiting; yield { type: "done", sessionId: request.sessionId };
+		};
+		provider.cancel = async function (runId): Promise<void> { this.cancelled.push(runId); release(); };
+		const { service, propose } = setup(provider); const abort = new AbortController();
+		const removed = vi.spyOn(abort.signal, "removeEventListener");
+		const iterator = service.ask(input(abort.signal))[Symbol.asyncIterator]();
+		expect(await iterator.next()).toMatchObject({ value: { type: "text", text: "partial" } });
+		const pending = iterator.next(); abort.abort();
+		await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+		expect(provider.cancelled).toEqual(["cancel-run"]); expect(propose).not.toHaveBeenCalled();
+		expect(removed).toHaveBeenCalledWith("abort", expect.any(Function));
+	});
+
+	it("checks cancellation before proposing a late provider tool request", async () => {
+		const { service, provider, propose } = setup(); const abort = new AbortController();
+		const iterator = service.ask(input(abort.signal))[Symbol.asyncIterator]();
+		await iterator.next(); abort.abort();
+		await expect(iterator.next()).rejects.toMatchObject({ name: "AbortError" });
+		expect(provider.cancelled).toEqual(["cancel-run"]); expect(propose).not.toHaveBeenCalled();
+	});
+
+	it("does not fake confirmation if the provider rejects cancellation", async () => {
+		const { service, provider } = setup(); const abort = new AbortController();
+		provider.cancel = async () => { throw new Error("private transport detail"); };
+		const iterator = service.ask(input(abort.signal))[Symbol.asyncIterator]();
+		await iterator.next(); abort.abort();
+		await expect(iterator.next()).rejects.toThrow("Provider 未确认停止");
+	});
+
+	it("removes abort listeners after success and errors without affecting no-signal callers", async () => {
+		const { service, provider } = setup(); const abort = new AbortController();
+		const removed = vi.spyOn(abort.signal, "removeEventListener");
+		await collect(service.ask(input(abort.signal))); abort.abort();
+		expect(provider.cancelled).toEqual([]); expect(removed).toHaveBeenCalledOnce();
+		const failedAbort = new AbortController(); const failedRemoved = vi.spyOn(failedAbort.signal, "removeEventListener");
+		provider.chat = async function* (): AsyncIterable<AskEvent> { yield { type: "text", text: "partial" }; throw new Error("provider failed"); };
+		await expect(collect(service.ask({ ...input(failedAbort.signal), runId: "failed-run" }))).rejects.toThrow("provider failed");
+		failedAbort.abort(); expect(provider.cancelled).toEqual([]); expect(failedRemoved).toHaveBeenCalledOnce();
 	});
 });

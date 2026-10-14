@@ -1,3 +1,6 @@
+import { SuperbrainRuntime } from "./plugin/superbrain-runtime";
+import { detectConsoleMode, parseModuleInvocation } from "./ui/console-mode";
+import { MODULE_ACTIONS, MODULE_COMMAND_GROUPS } from "./module-commands/catalog";
 import { FileSystemAdapter, Notice, Plugin, TFile, WorkspaceLeaf, addIcon, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeUiLanguage, normalizeVisualTheme } from "./settings";
 import { TalosView, VIEW_TYPE_TALOS } from "./view";
@@ -99,6 +102,7 @@ export default class TalosPlugin extends Plugin {
 	async onload(): Promise<void> {
 		configureClaudeSdkBundle(this.claudeSdkBundlePath());
 		await this.loadTalosSettings();
+		await this.detectConsoleModeOnce();
 		this.talosActionRuntime = this.createTalosActionRuntime();
 		registerApprovalTaskRuntime(
 			this.app,
@@ -174,7 +178,8 @@ export default class TalosPlugin extends Plugin {
 			name: "全库问答",
 			callback: () => void this.executeTalosAskCommand(),
 		});
-		registerPageCommands(this, (pageKey) => this.openTalosPage(pageKey));
+		registerPageCommands(this, (pageKey) => this.openTalosPage(pageKey), this.talosSettings.consoleMode);
+		if (this.talosSettings.consoleMode === "superbrain") this.registerSuperbrainCommands();
 		this.addCommand({
 			id: "scaffold-vault",
 			name: "补齐库结构",
@@ -220,6 +225,8 @@ export default class TalosPlugin extends Plugin {
 		);
 		this.registerEvent(this.app.vault.on("delete", () => refresh()));
 	}
+
+	private superbrainRuntime: SuperbrainRuntime | null = null;
 
 	refreshViews(): void {
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TALOS)) {
@@ -278,8 +285,8 @@ export default class TalosPlugin extends Plugin {
 	}
 
 	private applyVaultTheme(): void {
-		// Lens 界面语言自带完整视觉规范；全库主题同步只服务经典界面，避免全局按钮规则覆盖 Lens。
-		if (!this.talosSettings.syncVaultTheme || this.talosSettings.uiLanguage === "lens") {
+		// Lens 界面语言与超级大脑框架模式各自带完整视觉规范；全库主题同步只服务经典个人体系界面，避免全局按钮规则覆盖它们。
+		if (!this.talosSettings.syncVaultTheme || this.talosSettings.uiLanguage === "lens" || this.talosSettings.consoleMode === "superbrain") {
 			activeDocument.body.removeAttribute("data-talos-vault-theme");
 			return;
 		}
@@ -429,6 +436,54 @@ export default class TalosPlugin extends Plugin {
 			this.recordQuyuanRuntimeError("prefillChatSidebar", error);
 			return false;
 		}
+	}
+
+	/** 超级大脑框架运行层：首次使用时创建（模块命令、本地工具 / 工作流执行、API 直写与收据）。 */
+	get superbrain(): SuperbrainRuntime {
+		this.superbrainRuntime ??= new SuperbrainRuntime(this);
+		return this.superbrainRuntime;
+	}
+
+	/** 控制台模式只在首次运行时按库内容判定一次；之后只由使用者在设置中改。 */
+	private async detectConsoleModeOnce(): Promise<void> {
+		if (this.talosSettings.consoleModeDetected) return;
+		this.talosSettings.consoleMode = await detectConsoleMode((path) => this.app.vault.adapter.exists(path));
+		this.talosSettings.consoleModeDetected = true;
+		await this.saveTalosSettings();
+	}
+
+	/** 超级大脑框架模式的命令面板入口：模块操作组与具体动作（个人体系模式不注册）。 */
+	private registerSuperbrainCommands(): void {
+		for (const group of MODULE_COMMAND_GROUPS) {
+			this.addCommand({ id: `module-${group.id}`, name: `${group.label} · 模块操作`, callback: () => { void this.openModuleCommand(group.id); } });
+		}
+		for (const action of MODULE_ACTIONS) {
+			this.addCommand({ id: `module-action-${action.id.replace(/\./g, "-")}`, name: `${action.label} · ${action.group}`, callback: () => { void this.openModuleCommand(action.id); } });
+		}
+	}
+
+	/** 打开模块操作或超级大脑 C/M 详情页（`superbrain` / `superbrain:C02` 形式）。 */
+	openModuleCommand(invocation: string): Promise<void> {
+		const route = parseModuleInvocation(invocation);
+		if (route.kind === "home") return this.openTalosPage("sb-loop");
+		if (route.kind === "detail") return this.openSuperbrainDetailPage(route.id);
+		if (route.kind === "invalid") {
+			new Notice("未知的超级大脑工作流或机制");
+			return Promise.resolve();
+		}
+		return this.superbrain.moduleCommands.open(route.invocation);
+	}
+
+	private async openSuperbrainDetailPage(id: string): Promise<void> {
+		const leaf = await this.openOrReviveTalosLeaf(false);
+		if (!leaf || !(leaf.view instanceof TalosView)) throw new Error("TALOS 功能页面尚未就绪");
+		leaf.view.openSuperbrainDetailPage(id);
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	/** 「导出与系统保障」页的扩展本地操作（媒体、修复与兼容命令）。 */
+	getAdvancedModuleCommandEntries(): Array<{ id: string; label: string; description: string; disabled: boolean; disabledReason?: string }> {
+		return MODULE_COMMAND_GROUPS.map((group) => ({ id: group.id, label: group.label, description: group.description, disabled: false }));
 	}
 
 	/** 预览并补齐各页面需要的目录与文件（只新建 / 只追加，确认后才写入）。 */

@@ -4,7 +4,11 @@ export type TalosPrimaryPageKey =
 	| "projects"
 	| "assistant"
 	| "system"
-	| "settings";
+	| "settings"
+	| SuperbrainPageKey;
+
+/** 超级大脑框架模式的五组页面（一级、二级同 key）；与个人体系的 knowledge / output / system 分开命名。 */
+export type SuperbrainPageKey = "sb-loop" | "sb-knowledge" | "sb-memory" | "sb-output" | "sb-system";
 
 export type TalosSecondaryPageKey =
 	| "today"
@@ -21,7 +25,8 @@ export type TalosSecondaryPageKey =
 	| "vault"
 	| "capability"
 	| "identity"
-	| "settings";
+	| "settings"
+	| SuperbrainPageKey;
 
 export interface TalosSecondaryPage {
 	key: TalosSecondaryPageKey;
@@ -110,6 +115,50 @@ export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
 	},
 ] as const;
 
+const ASSISTANT_NAVIGATION = PRIMARY_NAVIGATION.find((page) => page.key === "assistant") as TalosPrimaryPage;
+const SETTINGS_NAVIGATION = PRIMARY_NAVIGATION.find((page) => page.key === "settings") as TalosPrimaryPage;
+
+const superbrainGroup = (key: SuperbrainPageKey, label: string, icon: string, subtitle: string): TalosPrimaryPage => ({
+	key, label, icon, subtitle, children: [{ key, label, icon }],
+});
+
+/** 超级大脑框架模式导航：五组工作流与机制 + 共用的助手与设置。 */
+export const SUPERBRAIN_NAVIGATION: readonly TalosPrimaryPage[] = [
+	superbrainGroup("sb-loop", "今日与循环", "layout-dashboard", "晨间、全量整理和周度复盘"),
+	superbrainGroup("sb-knowledge", "资料与检索", "library", "资料入库、知识检索和资料库维护"),
+	superbrainGroup("sb-memory", "记忆与规则", "brain", "工作记忆、偏好消化和规则发现"),
+	superbrainGroup("sb-output", "创作与成果", "send", "创作、统一出口、署名与经营反馈"),
+	superbrainGroup("sb-system", "导出与系统保障", "shield-check", "可移植导出、运行机制和本地工具"),
+	ASSISTANT_NAVIGATION,
+	SETTINGS_NAVIGATION,
+];
+
+/** 超级大脑页面 → 工作流目录中的核心分组（与 superbrain-catalog 的 SUPERBRAIN_CORE_GROUPS 键一致）。 */
+export const SUPERBRAIN_PAGE_GROUP: Readonly<Record<SuperbrainPageKey, "overview" | "knowledge" | "memory" | "output" | "system">> = {
+	"sb-loop": "overview",
+	"sb-knowledge": "knowledge",
+	"sb-memory": "memory",
+	"sb-output": "output",
+	"sb-system": "system",
+};
+
+export function isSuperbrainPage(key: string): key is SuperbrainPageKey {
+	return Object.prototype.hasOwnProperty.call(SUPERBRAIN_PAGE_GROUP, key);
+}
+
+export function navigationFor(mode: "personal" | "superbrain"): readonly TalosPrimaryPage[] {
+	return mode === "superbrain" ? SUPERBRAIN_NAVIGATION : PRIMARY_NAVIGATION;
+}
+
+export function homePageFor(mode: "personal" | "superbrain"): string {
+	return mode === "superbrain" ? "sb-loop" : "today";
+}
+
+/** 页面是否属于该模式的导航（助手与设置两种模式共用）。 */
+export function pageBelongsTo(mode: "personal" | "superbrain", pageKey: string): boolean {
+	return navigationFor(mode).some((group) => group.children.some((child) => child.key === pageKey));
+}
+
 export const LEGACY_PAGE_KEYS = [
 	"overview",
 	"today",
@@ -152,6 +201,11 @@ const PAGE_ROUTES: Readonly<Record<string, TalosPageRoute>> = {
 	capability: { primary: "system", secondary: "capability" },
 	identity: { primary: "system", secondary: "identity" },
 	settings: { primary: "settings", secondary: "settings" },
+	"sb-loop": { primary: "sb-loop", secondary: "sb-loop" },
+	"sb-knowledge": { primary: "sb-knowledge", secondary: "sb-knowledge" },
+	"sb-memory": { primary: "sb-memory", secondary: "sb-memory" },
+	"sb-output": { primary: "sb-output", secondary: "sb-output" },
+	"sb-system": { primary: "sb-system", secondary: "sb-system" },
 };
 
 export interface WorkbenchModuleEntry {
@@ -190,7 +244,8 @@ export function resolvePageRoute(pageKey: string): TalosPageRoute | null {
 export function primaryPage(
 	key: TalosPrimaryPageKey
 ): TalosPrimaryPage {
-	const page = PRIMARY_NAVIGATION.find((item) => item.key === key);
+	const page = PRIMARY_NAVIGATION.find((item) => item.key === key)
+		?? SUPERBRAIN_NAVIGATION.find((item) => item.key === key);
 	if (!page) throw new Error(`未知一级页面：${key}`);
 	return page;
 }

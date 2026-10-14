@@ -23,6 +23,7 @@ export interface AskInput extends VaultRetrievalInput {
 	turnId: string;
 	providerId: string;
 	query: string;
+	signal?: AbortSignal;
 }
 
 export interface ToolProposalInput {
@@ -68,6 +69,13 @@ interface RunRecord {
 	text: string;
 }
 
+function throwIfCancelled(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	const error = new Error("已取消本次提问");
+	error.name = "AbortError";
+	throw error;
+}
+
 export class TalosAskService {
 	private readonly sessions = new Map<string, string>();
 	private readonly runs = new Map<string, RunRecord>();
@@ -75,6 +83,7 @@ export class TalosAskService {
 	constructor(private readonly options: TalosAskServiceOptions) {}
 
 	async *ask(input: AskInput): AsyncIterable<AskEvent> {
+		throwIfCancelled(input.signal);
 		const sessionKey = `${input.namespace}:${input.sessionId}`;
 		const activeProvider = this.sessions.get(sessionKey);
 		if (!activeProvider) {
@@ -99,6 +108,7 @@ export class TalosAskService {
 			engineResultPaths: input.engineResultPaths,
 			recentConfirmedPaths: input.recentConfirmedPaths,
 		});
+		throwIfCancelled(input.signal);
 		const assembled = assembleVaultContext(input.query, retrieval, {
 			configDir: this.options.configDir,
 		});
@@ -111,6 +121,7 @@ export class TalosAskService {
 			vaultSchema: this.options.vaultSchema?.(),
 			configDir: this.options.configDir,
 		});
+		throwIfCancelled(input.signal);
 		await this.options.auditSink?.({
 			runId: input.runId,
 			turnId: input.turnId,
@@ -118,12 +129,14 @@ export class TalosAskService {
 			namespace: input.namespace,
 			audit: egress.audit,
 		});
+		throwIfCancelled(input.signal);
 		if (!egress.allowed) {
 			yield {
 				type: "error",
 				message: "Provider 出库隐私审计未通过",
 				retryable: false,
 			};
+			throwIfCancelled(input.signal);
 			yield { type: "done", sessionId: sessionKey };
 			return;
 		}
@@ -137,30 +150,59 @@ export class TalosAskService {
 
 		const proposed = new Set<string>();
 		const manualReview = this.options.manualReview();
-		for await (const event of this.options.facade.chat(sessionKey, {
-			runId: input.runId,
-			turnId: input.turnId,
-			text: egress.redactedText,
-			toolsAllowed: !manualReview,
-		})) {
-			if (
-				event.type === "tool-request" &&
-				manualReview &&
-				!proposed.has(event.toolCallId)
-			) {
-				proposed.add(event.toolCallId);
-				await this.options.toolGateway.propose({
-					runId: input.runId,
-					turnId: input.turnId,
-					sessionId: sessionKey,
-					namespace: input.namespace,
-					providerId: input.providerId,
-					toolCallId: event.toolCallId,
-					name: event.name,
-					input: event.input,
-				});
+		let cancelRequested = false;
+		let cancelFailed = false;
+		let cancellation: Promise<void> | undefined;
+		const cancel = (): void => {
+			if (cancelRequested) return;
+			cancelRequested = true;
+			cancellation = this.options.facade.cancel(sessionKey, input.runId).catch(() => {
+				cancelFailed = true;
+			});
+		};
+		throwIfCancelled(input.signal);
+		input.signal?.addEventListener("abort", cancel, { once: true });
+		try {
+			throwIfCancelled(input.signal);
+			for await (const event of this.options.facade.chat(sessionKey, {
+				runId: input.runId,
+				turnId: input.turnId,
+				text: egress.redactedText,
+				toolsAllowed: !manualReview,
+			})) {
+				throwIfCancelled(input.signal);
+				if (
+					event.type === "tool-request" &&
+					manualReview &&
+					!proposed.has(event.toolCallId)
+				) {
+					proposed.add(event.toolCallId);
+					await this.options.toolGateway.propose({
+						runId: input.runId,
+						turnId: input.turnId,
+						sessionId: sessionKey,
+						namespace: input.namespace,
+						providerId: input.providerId,
+						toolCallId: event.toolCallId,
+						name: event.name,
+						input: event.input,
+					});
+					throwIfCancelled(input.signal);
+				}
+				yield event;
 			}
-			yield event;
+			throwIfCancelled(input.signal);
+		} catch (error) {
+			await cancellation;
+			if (cancelFailed) {
+				const cancelled = new Error("已请求取消，但 Provider 未确认停止；未将本次提问标记为完成。");
+				cancelled.name = "AbortError";
+				throw cancelled;
+			}
+			throwIfCancelled(input.signal);
+			throw error;
+		} finally {
+			input.signal?.removeEventListener("abort", cancel);
 		}
 	}
 

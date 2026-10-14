@@ -1,3 +1,5 @@
+import { normalizeConsoleMode, type ConsoleMode } from "./ui/console-mode";
+import { DEFAULT_SUPERBRAIN_CANVAS_LAYOUT, type SuperbrainCanvasLayout } from "./ui/superbrain-canvas-layout";
 import { VAULT_FILE_KEYS, defaultLocation, specFor, type VaultFileKey } from "./data/vault-files";
 import {
 	App,
@@ -179,6 +181,15 @@ export interface TalosSettings {
 	vaultSchema: Partial<TalosVaultSchema>;
 	/** 固定文件 / 目录位置覆盖（设置 → 库与数据 → 固定文件位置）；空表示用默认位置。 */
 	vaultFiles: Partial<Record<VaultFileKey, string>>;
+	/** 控制台模式：个人体系（主线页面）或超级大脑框架（C/M 五组）；框架部署包的库首次运行自动判定。 */
+	consoleMode: ConsoleMode;
+	/** 是否已按库内容自动判定过控制台模式（之后只由使用者在设置中改）。 */
+	consoleModeDetected: boolean;
+	/** 超级大脑首页画布的卡片与页签布局（按库保存；笔记内容仍在 Markdown 中）。 */
+	superbrainCanvasLayout: SuperbrainCanvasLayout;
+	mediaWhisperCliPath: string; // 可选本机 whisper.cpp whisper-cli 绝对路径
+	mediaWhisperModelPath: string; // 可选本机模型文件绝对路径
+	mediaFfmpegCliPath: string; // 可选本机 FFmpeg 可执行文件绝对路径
 }
 
 export const DEFAULT_SETTINGS: TalosSettings = {
@@ -266,6 +277,12 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	schemaAutoDetected: false,
 	vaultSchema: {},
 	vaultFiles: {},
+	consoleMode: "personal",
+	consoleModeDetected: false,
+	superbrainCanvasLayout: DEFAULT_SUPERBRAIN_CANVAS_LAYOUT,
+	mediaWhisperCliPath: "",
+	mediaWhisperModelPath: "",
+	mediaFfmpegCliPath: "",
 };
 
 type TextSettingKey = {
@@ -275,6 +292,7 @@ type FreeTextSettingKey = Exclude<
 	TextSettingKey,
 	| "visualTheme"
 	| "uiLanguage"
+	| "consoleMode"
 	| "lensAppearance"
 	| "quyuanBackground"
 	| "quyuanVoiceInputMode"
@@ -529,6 +547,23 @@ export class TalosSettingTab extends PluginSettingTab {
 	// ---------- Tab：界面 ----------
 	private renderUi(c: HTMLElement): void {
 		new Setting(c)
+			.setName("控制台模式")
+			.setDesc("个人体系：今日 / 内容流 / 项目 / 助手 / 系统。超级大脑框架：按 C01–C15 工作流与 M01–M10 机制分为五组。两种模式共用同一份资料、对话与审批；框架部署包的库会自动进入超级大脑框架模式。")
+			.addDropdown((d) =>
+				d
+					.addOption("personal", "个人体系")
+					.addOption("superbrain", "超级大脑框架")
+					.setValue(this.plugin.talosSettings.consoleMode)
+					.onChange(async (v) => {
+						this.plugin.talosSettings.consoleMode = normalizeConsoleMode(v);
+						this.plugin.talosSettings.consoleModeDetected = true;
+						await this.plugin.saveTalosSettings();
+						this.plugin.applyViewSettings();
+						this.plugin.refreshAllViews();
+						this.rerender();
+					})
+			);
+		new Setting(c)
 			.setName("界面语言")
 			.setDesc("TALOS 经典控制台，或按 TALOS Lens 的布局与视觉语言重排的版本；两者共用同一份数据，切换立即生效。")
 			.addDropdown((d) =>
@@ -711,6 +746,12 @@ export class TalosSettingTab extends PluginSettingTab {
 		this.textIn(c, "重估期启动日", "算冻结天数，YYYY-MM-DD", "freezeStartDate");
 
 		this.renderVaultFiles(c);
+
+		new Setting(c).setName("本地媒体识别").setHeading();
+		new Setting(c).setDesc("超级大脑资料入库的图片文字识别使用本机 Vision；音视频转写需自行配置已安装的 whisper.cpp、模型文件与 FFmpeg。媒体只在本机处理，未配置时动作显示缺失原因。");
+		this.textIn(c, "whisper.cpp 可执行文件", "whisper-cli 的本机绝对路径", "mediaWhisperCliPath");
+		this.textIn(c, "whisper.cpp 模型", "已下载模型文件的本机绝对路径", "mediaWhisperModelPath");
+		this.textIn(c, "FFmpeg 可执行文件", "本机 ffmpeg 的绝对路径", "mediaFfmpegCliPath");
 
 		new Setting(c)
 			.setName("应用到控制台")

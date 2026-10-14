@@ -16,6 +16,7 @@ export interface TalosAskCommandInput extends Partial<VaultRetrievalInput> {
 	query: string;
 	writebackIntent: WritebackIntent;
 	approvalState: CanonicalApprovalState;
+	signal?: AbortSignal;
 }
 
 export interface TalosAskCommandOptions {
@@ -32,7 +33,9 @@ export class TalosAskCommand {
 	constructor(private readonly options: TalosAskCommandOptions) {}
 
 	async *execute(input: TalosAskCommandInput): AsyncIterable<AskEvent> {
+		throwIfCancelled(input.signal);
 		await this.options.registryReader.read();
+		throwIfCancelled(input.signal);
 		const requestId = (this.options.requestId ?? defaultRequestId)();
 		const timestamp = (this.options.now ?? (() => new Date()))().toISOString();
 		await this.options.requestWriter.write({
@@ -45,6 +48,7 @@ export class TalosAskCommand {
 			writebackIntent: input.writebackIntent,
 			approvalState: input.approvalState,
 		});
+		throwIfCancelled(input.signal);
 		yield* this.options.askService.ask({
 			sessionId: "canonical",
 			namespace: "command",
@@ -56,8 +60,16 @@ export class TalosAskCommand {
 			currentPath: input.currentPath,
 			engineResultPaths: input.engineResultPaths,
 			recentConfirmedPaths: input.recentConfirmedPaths,
+			signal: input.signal,
 		});
 	}
+}
+
+function throwIfCancelled(signal?: AbortSignal): void {
+	if (!signal?.aborted) return;
+	const error = new Error("已取消本次提问");
+	error.name = "AbortError";
+	throw error;
 }
 
 let requestSequence = 0;

@@ -5,6 +5,7 @@ import type { RecoveryStore } from "./recovery-store";
 import type { MemoryTaskStore } from "./task-store";
 import type {
 	TalosFileChange,
+	TalosCompletedTaskResult,
 	TalosPartialTaskResult,
 	TalosTaskRun,
 	TalosTaskRunInput,
@@ -88,6 +89,17 @@ function isPartialTaskResult(value: unknown): value is TalosPartialTaskResult {
 		typeof candidate.error === "string" &&
 		Array.isArray(candidate.changes)
 	);
+}
+
+export function completedTaskResult(result: unknown, changes: TalosFileChange[]): TalosCompletedTaskResult {
+ return { taskOutcome: "completed", version: 1, result, changes: changes.map(change => ({ ...change })) };
+}
+
+function isCompletedTaskResult(value: unknown): value is TalosCompletedTaskResult {
+ if (!value || typeof value !== "object") return false;
+ const candidate = value as Partial<TalosCompletedTaskResult>;
+ return candidate.taskOutcome === "completed" && candidate.version === 1 && Array.isArray(candidate.changes)
+  && candidate.changes.every(change => change && typeof change.path === "string" && ["create", "modify", "move", "delete"].includes(change.kind));
 }
 
 export class TalosTaskRunner {
@@ -217,8 +229,10 @@ export class TalosTaskRunner {
 					finishedAt: new Date().toISOString(),
 				});
 			}
+			const completed = isCompletedTaskResult(result) ? result : null;
 			return this.store.transition(task.id, "completed", {
-				result,
+				result: completed ? completed.result : result,
+				changes: completed ? completed.changes.map(change => ({ ...change })) : [],
 				finishedAt: new Date().toISOString(),
 			});
 		} catch (error) {

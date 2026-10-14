@@ -256,6 +256,20 @@ Reference check: at a 1470×920 window with both Obsidian sidebars open (console
 each business page should stay within about 1.35 screens, and the first screen must show the
 header plus the first full module row.
 
+### 6.7 Console modes: personal system and superbrain framework (D-TLP-072, 2026-10-14)
+
+One plugin serves two kinds of vault. The mode is decided once on first run: a vault that ships
+the framework workflow catalog (`System/interface/talos-superbrain-ui/catalog.json`) opens in
+superbrain framework mode, every other vault in personal system mode; afterwards only the user
+changes it (Settings → 界面 → 控制台模式). Personal mode is the mainline console unchanged:
+same pages, same navigation, same commands. Framework mode replaces the business pages with five
+workflow pages (`sb-loop` canvas home, `sb-knowledge`, `sb-memory`, `sb-output`, `sb-system`
+with C01–C15 / M01–M10 detail pages) and keeps the shared assistant and settings. Framework
+styles live only under `.talos-scope.talos-canvas-shell`, which is set only on framework pages;
+framework pages use an icon rail instead of the nav card, and vault theme sync and Lens are off
+in that mode. Module commands (10 groups, 32 actions) are registered only in framework mode;
+switching modes needs a plugin reload for the command palette.
+
 ## 7. Page archetypes
 
 ### 7.1 Data dashboard

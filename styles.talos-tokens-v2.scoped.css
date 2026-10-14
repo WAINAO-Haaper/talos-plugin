@@ -1,0 +1,608 @@
+/* ============================================================================
+ * TALOS 视觉语言系统 v1 — 令牌实现层（.talos-scope 作用域版 · Obsidian / 宿主环境用）
+ * 生成物，请勿手改。源：design-system-v1/tokens/talos-tokens-v2.json (DTCG 2025.10)
+ * 生成器：~/vls/css.py  ·  层级：L0 内核 + L1 语义  ·  门：D-DS-001 / D-DS-002
+ * 四色封闭：全部色值由 Cloud Blue / Signal Yellow / Deep Ink / Apple White 派生
+ * ==========================================================================*/
+@layer talos.reset, talos.token, talos.primitive, talos.component, talos.utility;
+
+@layer talos.token {
+  /* ── 与主题无关的常量 ── */
+  .talos-scope {
+    --talos-brand-cloud-blue: #76B0FA;
+    --talos-brand-signal-yellow: #FAD861;
+    --talos-brand-deep-ink: #17191F;
+    --talos-brand-apple-white: #F5F5F7;
+
+    --talos-alpha-ink-4: rgba(23, 25, 31, 0.04);
+    --talos-alpha-ink-8: rgba(23, 25, 31, 0.08);
+    --talos-alpha-ink-12: rgba(23, 25, 31, 0.12);
+    --talos-alpha-ink-16: rgba(23, 25, 31, 0.16);
+    --talos-alpha-ink-24: rgba(23, 25, 31, 0.24);
+    --talos-alpha-ink-32: rgba(23, 25, 31, 0.32);
+    --talos-alpha-ink-48: rgba(23, 25, 31, 0.48);
+    --talos-alpha-ink-64: rgba(23, 25, 31, 0.64);
+    --talos-alpha-ink-80: rgba(23, 25, 31, 0.8);
+    --talos-alpha-white-4: rgba(245, 245, 247, 0.04);
+    --talos-alpha-white-8: rgba(245, 245, 247, 0.08);
+    --talos-alpha-white-12: rgba(245, 245, 247, 0.12);
+    --talos-alpha-white-16: rgba(245, 245, 247, 0.16);
+    --talos-alpha-white-24: rgba(245, 245, 247, 0.24);
+    --talos-alpha-white-32: rgba(245, 245, 247, 0.32);
+    --talos-alpha-white-48: rgba(245, 245, 247, 0.48);
+    --talos-alpha-white-64: rgba(245, 245, 247, 0.64);
+    --talos-alpha-white-80: rgba(245, 245, 247, 0.8);
+
+    --talos-font-brand: Inter, "Noto Sans CJK SC", system-ui, sans-serif;
+    --talos-font-ui: Inter, "Noto Sans CJK SC", system-ui, sans-serif;
+    --talos-font-technical: "Geist Mono", "Noto Sans Mono CJK SC", ui-monospace, monospace;
+    --talos-weight-regular: 400;
+    --talos-weight-medium: 500;
+    --talos-size-11: 11px;
+    --talos-size-12: 12px;
+    --talos-size-13: 13px;
+    --talos-size-14: 14px;
+    --talos-size-16: 16px;
+    --talos-size-18: 18px;
+    --talos-size-20: 20px;
+    --talos-size-24: 24px;
+    --talos-size-30: 30px;
+    --talos-size-36: 36px;
+    --talos-size-48: 48px;
+    --talos-size-60: 60px;
+    --talos-leading-tight: 1.05;
+    --talos-leading-snug: 1.2;
+    --talos-leading-normal: 1.4;
+    --talos-leading-relaxed: 1.55;
+    --talos-leading-loose: 1.65;
+
+    --talos-type-display-lg: 500 48px/1.05 var(--talos-font-brand);
+    --talos-type-display-lg-tracking: -2.4px;
+    --talos-type-display-md: 500 36px/1.1 var(--talos-font-brand);
+    --talos-type-display-md-tracking: -1.62px;
+    --talos-type-headline-lg: 500 30px/1.15 var(--talos-font-brand);
+    --talos-type-headline-lg-tracking: -1.2px;
+    --talos-type-headline-md: 500 24px/1.2 var(--talos-font-brand);
+    --talos-type-headline-md-tracking: -0.84px;
+    --talos-type-title-lg: 500 20px/1.3 var(--talos-font-ui);
+    --talos-type-title-lg-tracking: -0.4px;
+    --talos-type-title-md: 500 18px/1.35 var(--talos-font-ui);
+    --talos-type-title-md-tracking: -0.27px;
+    --talos-type-title-sm: 500 16px/1.4 var(--talos-font-ui);
+    --talos-type-title-sm-tracking: -0.16px;
+    --talos-type-body-lg: 400 16px/1.65 var(--talos-font-ui);
+    --talos-type-body-lg-tracking: 0px;
+    --talos-type-body-md: 400 14px/1.6 var(--talos-font-ui);
+    --talos-type-body-md-tracking: 0px;
+    --talos-type-body-sm: 400 13px/1.55 var(--talos-font-ui);
+    --talos-type-body-sm-tracking: 0px;
+    --talos-type-label-lg: 500 14px/1.3 var(--talos-font-ui);
+    --talos-type-label-lg-tracking: 0px;
+    --talos-type-label-md: 500 13px/1.3 var(--talos-font-ui);
+    --talos-type-label-md-tracking: 0px;
+    --talos-type-label-sm: 500 12px/1.3 var(--talos-font-ui);
+    --talos-type-label-sm-tracking: 0.06px;
+    --talos-type-overline: 500 11px/1.3 var(--talos-font-ui);
+    --talos-type-overline-tracking: 0.88px;
+    --talos-type-code-md: 400 13px/1.55 var(--talos-font-technical);
+    --talos-type-code-md-tracking: 0px;
+    --talos-type-code-sm: 400 12px/1.5 var(--talos-font-technical);
+    --talos-type-code-sm-tracking: 0px;
+
+    --talos-control-sm: 32px;
+    --talos-control-md: 40px;
+    --talos-control-lg: 48px;
+    --talos-control-touch-min: 44px;
+
+    --talos-space-0: 0px;
+    --talos-space-0_5: 2px;
+    --talos-space-1: 4px;
+    --talos-space-2: 8px;
+    --talos-space-3: 12px;
+    --talos-space-4: 16px;
+    --talos-space-5: 20px;
+    --talos-space-6: 24px;
+    --talos-space-8: 32px;
+    --talos-space-10: 40px;
+    --talos-space-12: 48px;
+    --talos-space-16: 64px;
+    --talos-space-20: 80px;
+    --talos-space-24: 96px;
+
+    --talos-radius-none: 0px;
+    --talos-radius-control: 10px;
+    --talos-radius-surface: 16px;
+    --talos-radius-dialog: 22px;
+    --talos-radius-round: 999px;
+
+    --talos-stroke-hairline: 1px;
+    --talos-stroke-focus: 2px;
+    --talos-stroke-emphasis: 2px;
+
+    --talos-icon-xs: 12px;
+    --talos-icon-compact: 16px;
+    --talos-icon-default: 20px;
+    --talos-icon-feature: 24px;
+    --talos-icon-lg: 32px;
+
+    --talos-logo-compact: 24px;
+    --talos-logo-default: 32px;
+    --talos-logo-feature: 48px;
+    --talos-logo-character: 96px;
+
+    --talos-bp-floor: 320px;
+    --talos-bp-xs: 480px;
+    --talos-bp-sm: 640px;
+    --talos-bp-md: 768px;
+    --talos-bp-lg: 1024px;
+    --talos-bp-xl: 1280px;
+    --talos-bp-2xl: 1536px;
+
+    --talos-motion-instant: 0ms;
+    --talos-motion-fast: 160ms;
+    --talos-motion-base: 200ms;
+    --talos-motion-slow: 240ms;
+    --talos-motion-deliberate: 320ms;
+    --talos-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --talos-ease-entrance: cubic-bezier(0, 0, 0.2, 1);
+    --talos-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --talos-ease-linear: cubic-bezier(0, 0, 1, 1);
+
+    --talos-layer-base: 0;
+    --talos-layer-raised: 10;
+    --talos-layer-sticky: 100;
+    --talos-layer-dropdown: 200;
+    --talos-layer-overlay: 300;
+    --talos-layer-modal: 400;
+    --talos-layer-popover: 500;
+    --talos-layer-toast: 600;
+    --talos-layer-tooltip: 700;
+  }
+
+  /* ── 亮色（默认） ── */
+  .talos-scope, .talos-scope[data-talos-theme="light"] {
+    color-scheme: light;
+
+    /* — 12 阶色阶 — */
+    --talos-neutral-1: #FFFFFF;
+    --talos-neutral-2: #F5F5F7;
+    --talos-neutral-3: #EEEFF2;
+    --talos-neutral-4: #E7E8ED;
+    --talos-neutral-5: #DFE1E7;
+    --talos-neutral-6: #D6D9DF;
+    --talos-neutral-7: #CACDD4;
+    --talos-neutral-8: #B6B9C2;
+    --talos-neutral-9: #878990;
+    --talos-neutral-10: #76797F;
+    --talos-neutral-11: #63666D;
+    --talos-neutral-12: #17191F;
+    --talos-blue-1: #FFFFFF;
+    --talos-blue-2: #F0F6FD;
+    --talos-blue-3: #E5F0FF;
+    --talos-blue-4: #DAEAFF;
+    --talos-blue-5: #CEE3FF;
+    --talos-blue-6: #C0DBFF;
+    --talos-blue-7: #ABD0FF;
+    --talos-blue-8: #8DBCFA;
+    --talos-blue-9: #76B0FA;
+    --talos-blue-10: #68A4F1;
+    --talos-blue-11: #436797;
+    --talos-blue-12: #0E2138;
+    --talos-yellow-1: #FFFFFF;
+    --talos-yellow-2: #F8F5EC;
+    --talos-yellow-3: #F7EFD5;
+    --talos-yellow-4: #F4E9C2;
+    --talos-yellow-5: #F0E1AE;
+    --talos-yellow-6: #EBD89B;
+    --talos-yellow-7: #E2CC83;
+    --talos-yellow-8: #D3B85B;
+    --talos-yellow-9: #FAD861;
+    --talos-yellow-10: #EFCC4C;
+    --talos-yellow-11: #79630E;
+    --talos-yellow-12: #271F00;
+
+    /* — 语义令牌 — */
+    --talos-surface-canvas: #F5F5F7; /* neutral-2 */
+    --talos-surface-raised: #FFFFFF; /* neutral-1 */
+    --talos-surface-sunken: #EEEFF2; /* neutral-3 */
+    --talos-surface-subtle: #E5F0FF; /* blue-3 */
+    --talos-surface-subtle-hover: #DAEAFF; /* blue-4 */
+    --talos-surface-subtle-active: #CEE3FF; /* blue-5 */
+    --talos-surface-attention: #F7EFD5; /* yellow-3 */
+    --talos-surface-attention-hover: #F4E9C2; /* yellow-4 */
+    --talos-surface-inverse: #17191F; /* neutral-12 */
+    --talos-text-primary: #17191F; /* neutral-12 */
+    --talos-text-secondary: #63666D; /* neutral-11 */
+    --talos-text-tertiary: #76797F; /* neutral-10 */
+    --talos-text-disabled: #B6B9C2; /* neutral-8 */
+    --talos-text-inverse: #FFFFFF; /* neutral-1 */
+    --talos-text-link: #436797; /* blue-11 */
+    --talos-text-code: #63666D; /* neutral-11 */
+    --talos-border-subtle: #DFE1E7; /* neutral-5 */
+    --talos-border-default: #D6D9DF; /* neutral-6 */
+    --talos-border-strong: #B6B9C2; /* neutral-8 */
+    --talos-border-interactive: #878990; /* neutral-9 */
+    --talos-border-current: #ABD0FF; /* blue-7 */
+    --talos-border-attention: #E2CC83; /* yellow-7 */
+    --talos-action-primary-bg: #17191F; /* neutral-12 */
+    --talos-action-primary-bg-hover: #63666D; /* neutral-11 */
+    --talos-action-primary-text: #FFFFFF; /* neutral-1 */
+    --talos-action-secondary-bg: #FFFFFF; /* neutral-1 */
+    --talos-action-secondary-bg-hover: #EEEFF2; /* neutral-3 */
+    --talos-action-secondary-text: #17191F; /* neutral-12 */
+    --talos-action-current-bg: #76B0FA; /* blue-9 */
+    --talos-action-current-bg-hover: #68A4F1; /* blue-10 */
+    --talos-action-current-text: #17191F; /* brand.deep-ink */
+    --talos-action-attention-bg: #FAD861; /* yellow-9 */
+    --talos-action-attention-bg-hover: #EFCC4C; /* yellow-10 */
+    --talos-action-attention-text: #17191F; /* brand.deep-ink */
+    --talos-action-ghost-bg-hover: #EEEFF2; /* neutral-3 */
+    --talos-action-disabled-bg: #E7E8ED; /* neutral-4 */
+    --talos-action-disabled-text: #76797F; /* neutral-10 */
+    --talos-focus-ring: #76B0FA; /* blue-9 */
+    --talos-focus-ring-outer: #17191F; /* neutral-12 */
+    --talos-state-in-progress-surface: #E5F0FF; /* blue-3 */
+    --talos-state-in-progress-marker: #76B0FA; /* blue-9 */
+    --talos-state-in-progress-text: #436797; /* blue-11 */
+    --talos-state-pending-surface: #F7EFD5; /* yellow-3 */
+    --talos-state-pending-marker: #FAD861; /* yellow-9 */
+    --talos-state-pending-text: #17191F; /* neutral-12 */
+    --talos-state-verified-surface: #EEEFF2; /* neutral-3 */
+    --talos-state-verified-marker: #17191F; /* neutral-12 */
+    --talos-state-verified-text: #17191F; /* neutral-12 */
+    --talos-state-failed-surface: #EEEFF2; /* neutral-3 */
+    --talos-state-failed-marker: #17191F; /* neutral-12 */
+    --talos-state-failed-text: #17191F; /* neutral-12 */
+    --talos-state-blocked-surface: #F7EFD5; /* yellow-3 */
+    --talos-state-blocked-marker: #FAD861; /* yellow-9 */
+    --talos-state-blocked-text: #17191F; /* neutral-12 */
+    --talos-state-unverified-surface: #F5F5F7; /* neutral-2 */
+    --talos-state-unverified-marker: #B6B9C2; /* neutral-8 */
+    --talos-state-unverified-text: #63666D; /* neutral-11 */
+    --talos-surface-scrim: rgba(23, 25, 31,0.48); /* alpha.ink.48 */
+    --talos-border-overlay: rgba(23, 25, 31,0.12); /* alpha.ink.12 */
+    --talos-surface-hover-veil: rgba(23, 25, 31,0.04); /* alpha.ink.4 */
+
+    /* — 可视化槽位 — */
+    --talos-viz-cat-1: #326AAE;
+    --talos-viz-cat-2: #A98B00;
+    --talos-viz-seq-100: #C9E0FF;
+    --talos-viz-seq-200: #A2CAFF;
+    --talos-viz-seq-250: #7AB4FE;
+    --talos-viz-seq-400: #619BE3;
+    --talos-viz-seq-500: #4A82C8;
+    --talos-viz-seq-600: #326AAE;
+    --talos-viz-seq-700: #195295;
+    --talos-viz-div-neg-3: #195295;
+    --talos-viz-div-neg-2: #3E76BB;
+    --talos-viz-div-neg-1: #619BE3;
+    --talos-viz-div-mid: #D6D9DF;
+    --talos-viz-div-pos-1: #B59500;
+    --talos-viz-div-pos-2: #8B7200;
+    --talos-viz-div-pos-3: #635100;
+
+    /* — 高度 — */
+    --talos-shadow-0: none;
+    --talos-shadow-1: 0px 1px 2px 0px rgba(23, 25, 31, 0.06);
+    --talos-shadow-2: 0px 2px 6px 0px rgba(23, 25, 31, 0.08);
+    --talos-shadow-3: 0px 8px 24px 0px rgba(23, 25, 31, 0.1);
+    --talos-shadow-4: 0px 18px 52px 0px rgba(23, 25, 31, 0.12);
+    --talos-shadow-5: 0px 32px 88px 0px rgba(23, 25, 31, 0.16);
+  }
+
+  /* ── 暗色（显式） ── */
+  .talos-scope[data-talos-theme="dark"] {
+    color-scheme: dark;
+
+    /* — 12 阶色阶 — */
+    --talos-neutral-1: #17191F;
+    --talos-neutral-2: #1C1D20;
+    --talos-neutral-3: #25262A;
+    --talos-neutral-4: #2D2E34;
+    --talos-neutral-5: #34363C;
+    --talos-neutral-6: #3F4148;
+    --talos-neutral-7: #4F5259;
+    --talos-neutral-8: #6A6D76;
+    --talos-neutral-9: #82848B;
+    --talos-neutral-10: #93969C;
+    --talos-neutral-11: #A3A7B1;
+    --talos-neutral-12: #F5F5F7;
+    --talos-blue-1: #131A22;
+    --talos-blue-2: #111E2F;
+    --talos-blue-3: #112743;
+    --talos-blue-4: #122F52;
+    --talos-blue-5: #16375F;
+    --talos-blue-6: #1E426E;
+    --talos-blue-7: #2B5385;
+    --talos-blue-8: #416FA9;
+    --talos-blue-9: #76B0FA;
+    --talos-blue-10: #86BBFF;
+    --talos-blue-11: #74AAF0;
+    --talos-blue-12: #DDECFF;
+    --talos-yellow-1: #1D190D;
+    --talos-yellow-2: #241D03;
+    --talos-yellow-3: #302500;
+    --talos-yellow-4: #392D00;
+    --talos-yellow-5: #433500;
+    --talos-yellow-6: #504000;
+    --talos-yellow-7: #635000;
+    --talos-yellow-8: #836B00;
+    --talos-yellow-9: #FAD861;
+    --talos-yellow-10: #FFE48B;
+    --talos-yellow-11: #C4A42E;
+    --talos-yellow-12: #F8EABE;
+
+    /* — 语义令牌 — */
+    --talos-surface-canvas: #17191F; /* neutral-1 */
+    --talos-surface-raised: #25262A; /* neutral-3 */
+    --talos-surface-sunken: #1C1D20; /* neutral-2 */
+    --talos-surface-subtle: #122F52; /* blue-4 */
+    --talos-surface-subtle-hover: #16375F; /* blue-5 */
+    --talos-surface-subtle-active: #1E426E; /* blue-6 */
+    --talos-surface-attention: #433500; /* yellow-5 */
+    --talos-surface-attention-hover: #504000; /* yellow-6 */
+    --talos-surface-inverse: #F5F5F7; /* neutral-12 */
+    --talos-text-primary: #F5F5F7; /* neutral-12 */
+    --talos-text-secondary: #A3A7B1; /* neutral-11 */
+    --talos-text-tertiary: #93969C; /* neutral-10 */
+    --talos-text-disabled: #6A6D76; /* neutral-8 */
+    --talos-text-inverse: #17191F; /* neutral-1 */
+    --talos-text-link: #74AAF0; /* blue-11 */
+    --talos-text-code: #A3A7B1; /* neutral-11 */
+    --talos-border-subtle: #34363C; /* neutral-5 */
+    --talos-border-default: #3F4148; /* neutral-6 */
+    --talos-border-strong: #6A6D76; /* neutral-8 */
+    --talos-border-interactive: #6A6D76; /* neutral-8 */
+    --talos-border-current: #2B5385; /* blue-7 */
+    --talos-border-attention: #635000; /* yellow-7 */
+    --talos-action-primary-bg: #F5F5F7; /* neutral-12 */
+    --talos-action-primary-bg-hover: #A3A7B1; /* neutral-11 */
+    --talos-action-primary-text: #17191F; /* neutral-1 */
+    --talos-action-secondary-bg: #25262A; /* neutral-3 */
+    --talos-action-secondary-bg-hover: #2D2E34; /* neutral-4 */
+    --talos-action-secondary-text: #F5F5F7; /* neutral-12 */
+    --talos-action-current-bg: #76B0FA; /* blue-9 */
+    --talos-action-current-bg-hover: #86BBFF; /* blue-10 */
+    --talos-action-current-text: #17191F; /* brand.deep-ink */
+    --talos-action-attention-bg: #FAD861; /* yellow-9 */
+    --talos-action-attention-bg-hover: #FFE48B; /* yellow-10 */
+    --talos-action-attention-text: #17191F; /* brand.deep-ink */
+    --talos-action-ghost-bg-hover: #2D2E34; /* neutral-4 */
+    --talos-action-disabled-bg: #2D2E34; /* neutral-4 */
+    --talos-action-disabled-text: #93969C; /* neutral-10 */
+    --talos-focus-ring: #FAD861; /* yellow-9 */
+    --talos-focus-ring-outer: #F5F5F7; /* neutral-12 */
+    --talos-state-in-progress-surface: #122F52; /* blue-4 */
+    --talos-state-in-progress-marker: #76B0FA; /* blue-9 */
+    --talos-state-in-progress-text: #74AAF0; /* blue-11 */
+    --talos-state-pending-surface: #433500; /* yellow-5 */
+    --talos-state-pending-marker: #FAD861; /* yellow-9 */
+    --talos-state-pending-text: #F5F5F7; /* neutral-12 */
+    --talos-state-verified-surface: #25262A; /* neutral-3 */
+    --talos-state-verified-marker: #F5F5F7; /* neutral-12 */
+    --talos-state-verified-text: #F5F5F7; /* neutral-12 */
+    --talos-state-failed-surface: #25262A; /* neutral-3 */
+    --talos-state-failed-marker: #F5F5F7; /* neutral-12 */
+    --talos-state-failed-text: #F5F5F7; /* neutral-12 */
+    --talos-state-blocked-surface: #433500; /* yellow-5 */
+    --talos-state-blocked-marker: #FAD861; /* yellow-9 */
+    --talos-state-blocked-text: #F5F5F7; /* neutral-12 */
+    --talos-state-unverified-surface: #1C1D20; /* neutral-2 */
+    --talos-state-unverified-marker: #6A6D76; /* neutral-8 */
+    --talos-state-unverified-text: #A3A7B1; /* neutral-11 */
+    --talos-surface-scrim: rgba(23, 25, 31,0.64); /* alpha.ink.64 */
+    --talos-border-overlay: rgba(245, 245, 247,0.16); /* alpha.white.16 */
+    --talos-surface-hover-veil: rgba(245, 245, 247,0.08); /* alpha.white.8 */
+
+    /* — 可视化槽位 — */
+    --talos-viz-cat-1: #568ED6;
+    --talos-viz-cat-2: #B29200;
+    --talos-viz-seq-100: #003670;
+    --talos-viz-seq-200: #124C8E;
+    --talos-viz-seq-250: #2C64A8;
+    --talos-viz-seq-400: #447CC2;
+    --talos-viz-seq-500: #5B94DC;
+    --talos-viz-seq-600: #74AEF7;
+    --talos-viz-seq-700: #9CC7FF;
+    --talos-viz-div-neg-3: #9CC7FF;
+    --talos-viz-div-neg-2: #68A1EA;
+    --talos-viz-div-neg-1: #447CC2;
+    --talos-viz-div-mid: #3F4148;
+    --talos-viz-div-pos-1: #927800;
+    --talos-viz-div-pos-2: #BC9B0A;
+    --talos-viz-div-pos-3: #E3C148;
+
+    /* — 高度 — */
+    --talos-shadow-0: none;
+    --talos-shadow-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.24);
+    --talos-shadow-2: 0px 3px 8px 0px rgba(0, 0, 0, 0.28);
+    --talos-shadow-3: 0px 10px 28px 0px rgba(0, 0, 0, 0.3);
+    --talos-shadow-4: 0px 22px 64px 0px rgba(0, 0, 0, 0.3);
+    --talos-shadow-5: 0px 36px 96px 0px rgba(0, 0, 0, 0.38);
+  }
+
+  /* ── 暗色（跟随系统） ── */
+  @media (prefers-color-scheme: dark) {
+    .talos-scope:not([data-talos-theme="light"]) {
+      color-scheme: dark;
+
+      /* — 12 阶色阶 — */
+      --talos-neutral-1: #17191F;
+      --talos-neutral-2: #1C1D20;
+      --talos-neutral-3: #25262A;
+      --talos-neutral-4: #2D2E34;
+      --talos-neutral-5: #34363C;
+      --talos-neutral-6: #3F4148;
+      --talos-neutral-7: #4F5259;
+      --talos-neutral-8: #6A6D76;
+      --talos-neutral-9: #82848B;
+      --talos-neutral-10: #93969C;
+      --talos-neutral-11: #A3A7B1;
+      --talos-neutral-12: #F5F5F7;
+      --talos-blue-1: #131A22;
+      --talos-blue-2: #111E2F;
+      --talos-blue-3: #112743;
+      --talos-blue-4: #122F52;
+      --talos-blue-5: #16375F;
+      --talos-blue-6: #1E426E;
+      --talos-blue-7: #2B5385;
+      --talos-blue-8: #416FA9;
+      --talos-blue-9: #76B0FA;
+      --talos-blue-10: #86BBFF;
+      --talos-blue-11: #74AAF0;
+      --talos-blue-12: #DDECFF;
+      --talos-yellow-1: #1D190D;
+      --talos-yellow-2: #241D03;
+      --talos-yellow-3: #302500;
+      --talos-yellow-4: #392D00;
+      --talos-yellow-5: #433500;
+      --talos-yellow-6: #504000;
+      --talos-yellow-7: #635000;
+      --talos-yellow-8: #836B00;
+      --talos-yellow-9: #FAD861;
+      --talos-yellow-10: #FFE48B;
+      --talos-yellow-11: #C4A42E;
+      --talos-yellow-12: #F8EABE;
+
+      /* — 语义令牌 — */
+      --talos-surface-canvas: #17191F; /* neutral-1 */
+      --talos-surface-raised: #25262A; /* neutral-3 */
+      --talos-surface-sunken: #1C1D20; /* neutral-2 */
+      --talos-surface-subtle: #122F52; /* blue-4 */
+      --talos-surface-subtle-hover: #16375F; /* blue-5 */
+      --talos-surface-subtle-active: #1E426E; /* blue-6 */
+      --talos-surface-attention: #433500; /* yellow-5 */
+      --talos-surface-attention-hover: #504000; /* yellow-6 */
+      --talos-surface-inverse: #F5F5F7; /* neutral-12 */
+      --talos-text-primary: #F5F5F7; /* neutral-12 */
+      --talos-text-secondary: #A3A7B1; /* neutral-11 */
+      --talos-text-tertiary: #93969C; /* neutral-10 */
+      --talos-text-disabled: #6A6D76; /* neutral-8 */
+      --talos-text-inverse: #17191F; /* neutral-1 */
+      --talos-text-link: #74AAF0; /* blue-11 */
+      --talos-text-code: #A3A7B1; /* neutral-11 */
+      --talos-border-subtle: #34363C; /* neutral-5 */
+      --talos-border-default: #3F4148; /* neutral-6 */
+      --talos-border-strong: #6A6D76; /* neutral-8 */
+      --talos-border-interactive: #6A6D76; /* neutral-8 */
+      --talos-border-current: #2B5385; /* blue-7 */
+      --talos-border-attention: #635000; /* yellow-7 */
+      --talos-action-primary-bg: #F5F5F7; /* neutral-12 */
+      --talos-action-primary-bg-hover: #A3A7B1; /* neutral-11 */
+      --talos-action-primary-text: #17191F; /* neutral-1 */
+      --talos-action-secondary-bg: #25262A; /* neutral-3 */
+      --talos-action-secondary-bg-hover: #2D2E34; /* neutral-4 */
+      --talos-action-secondary-text: #F5F5F7; /* neutral-12 */
+      --talos-action-current-bg: #76B0FA; /* blue-9 */
+      --talos-action-current-bg-hover: #86BBFF; /* blue-10 */
+      --talos-action-current-text: #17191F; /* brand.deep-ink */
+      --talos-action-attention-bg: #FAD861; /* yellow-9 */
+      --talos-action-attention-bg-hover: #FFE48B; /* yellow-10 */
+      --talos-action-attention-text: #17191F; /* brand.deep-ink */
+      --talos-action-ghost-bg-hover: #2D2E34; /* neutral-4 */
+      --talos-action-disabled-bg: #2D2E34; /* neutral-4 */
+      --talos-action-disabled-text: #93969C; /* neutral-10 */
+      --talos-focus-ring: #FAD861; /* yellow-9 */
+      --talos-focus-ring-outer: #F5F5F7; /* neutral-12 */
+      --talos-state-in-progress-surface: #122F52; /* blue-4 */
+      --talos-state-in-progress-marker: #76B0FA; /* blue-9 */
+      --talos-state-in-progress-text: #74AAF0; /* blue-11 */
+      --talos-state-pending-surface: #433500; /* yellow-5 */
+      --talos-state-pending-marker: #FAD861; /* yellow-9 */
+      --talos-state-pending-text: #F5F5F7; /* neutral-12 */
+      --talos-state-verified-surface: #25262A; /* neutral-3 */
+      --talos-state-verified-marker: #F5F5F7; /* neutral-12 */
+      --talos-state-verified-text: #F5F5F7; /* neutral-12 */
+      --talos-state-failed-surface: #25262A; /* neutral-3 */
+      --talos-state-failed-marker: #F5F5F7; /* neutral-12 */
+      --talos-state-failed-text: #F5F5F7; /* neutral-12 */
+      --talos-state-blocked-surface: #433500; /* yellow-5 */
+      --talos-state-blocked-marker: #FAD861; /* yellow-9 */
+      --talos-state-blocked-text: #F5F5F7; /* neutral-12 */
+      --talos-state-unverified-surface: #1C1D20; /* neutral-2 */
+      --talos-state-unverified-marker: #6A6D76; /* neutral-8 */
+      --talos-state-unverified-text: #A3A7B1; /* neutral-11 */
+      --talos-surface-scrim: rgba(23, 25, 31,0.64); /* alpha.ink.64 */
+      --talos-border-overlay: rgba(245, 245, 247,0.16); /* alpha.white.16 */
+      --talos-surface-hover-veil: rgba(245, 245, 247,0.08); /* alpha.white.8 */
+
+      /* — 可视化槽位 — */
+      --talos-viz-cat-1: #568ED6;
+      --talos-viz-cat-2: #B29200;
+      --talos-viz-seq-100: #003670;
+      --talos-viz-seq-200: #124C8E;
+      --talos-viz-seq-250: #2C64A8;
+      --talos-viz-seq-400: #447CC2;
+      --talos-viz-seq-500: #5B94DC;
+      --talos-viz-seq-600: #74AEF7;
+      --talos-viz-seq-700: #9CC7FF;
+      --talos-viz-div-neg-3: #9CC7FF;
+      --talos-viz-div-neg-2: #68A1EA;
+      --talos-viz-div-neg-1: #447CC2;
+      --talos-viz-div-mid: #3F4148;
+      --talos-viz-div-pos-1: #927800;
+      --talos-viz-div-pos-2: #BC9B0A;
+      --talos-viz-div-pos-3: #E3C148;
+
+      /* — 高度 — */
+      --talos-shadow-0: none;
+      --talos-shadow-1: 0px 1px 2px 0px rgba(0, 0, 0, 0.24);
+      --talos-shadow-2: 0px 3px 8px 0px rgba(0, 0, 0, 0.28);
+      --talos-shadow-3: 0px 10px 28px 0px rgba(0, 0, 0, 0.3);
+      --talos-shadow-4: 0px 22px 64px 0px rgba(0, 0, 0, 0.3);
+      --talos-shadow-5: 0px 36px 96px 0px rgba(0, 0, 0, 0.38);
+  }
+  }
+
+  /* ── 高对比覆盖 ── */
+  .talos-scope[data-talos-contrast="high"] {
+    --talos-stroke-focus: 3px;
+  --talos-text-secondary: #17191F; /* neutral-12 */
+  --talos-text-tertiary: #63666D; /* neutral-11 */
+  --talos-border-subtle: #CACDD4; /* neutral-7 */
+  --talos-border-default: #B6B9C2; /* neutral-8 */
+  --talos-border-strong: #76797F; /* neutral-10 */
+  --talos-text-disabled: #878990; /* neutral-9 */
+  }
+  [data-talos-contrast="high"].talos-scope[data-talos-theme="dark"] {
+  --talos-text-secondary: #F5F5F7; /* neutral-12 */
+  --talos-text-tertiary: #A3A7B1; /* neutral-11 */
+  --talos-border-subtle: #4F5259; /* neutral-7 */
+  --talos-border-default: #6A6D76; /* neutral-8 */
+  --talos-border-strong: #93969C; /* neutral-10 */
+  --talos-text-disabled: #82848B; /* neutral-9 */
+  }
+  @media (prefers-contrast: more) {
+    .talos-scope { --talos-stroke-focus: 3px;
+  --talos-text-secondary: #17191F; /* neutral-12 */
+  --talos-text-tertiary: #63666D; /* neutral-11 */
+  --talos-border-subtle: #CACDD4; /* neutral-7 */
+  --talos-border-default: #B6B9C2; /* neutral-8 */
+  --talos-border-strong: #76797F; /* neutral-10 */
+  --talos-text-disabled: #878990; /* neutral-9 */
+    }
+    .talos-scope[data-talos-theme="dark"] {
+  --talos-text-secondary: #F5F5F7; /* neutral-12 */
+  --talos-text-tertiary: #A3A7B1; /* neutral-11 */
+  --talos-border-subtle: #4F5259; /* neutral-7 */
+  --talos-border-default: #6A6D76; /* neutral-8 */
+  --talos-border-strong: #93969C; /* neutral-10 */
+  --talos-text-disabled: #82848B; /* neutral-9 */
+    }
+  }
+
+  /* ── 减少动效 ── */
+  @media (prefers-reduced-motion: reduce) {
+    .talos-scope {
+      --talos-motion-fast: 0ms; --talos-motion-base: 0ms;
+      --talos-motion-slow: 0ms; --talos-motion-deliberate: 0ms;
+    }
+  }
+
+  /* ── v1 兼容别名（talos-tokens-v1.css 的消费者无需改动即可升级）── */
+  .talos-scope {
+    --talos-shadow-raised: var(--talos-shadow-4);
+    --talos-action-primary: var(--talos-action-primary-bg);
+    --talos-action-current: var(--talos-action-current-bg);
+  }
+}

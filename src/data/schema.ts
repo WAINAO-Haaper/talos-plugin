@@ -419,3 +419,27 @@ export class VaultPaths {
 	/** 输出平台子目录（抖音 / 小红书 …） */
 	outputPlatform(name: string): string { return this.join("output", name); }
 }
+
+/** The Superbrain kit's config is the source for its nested module roots. */
+export function schemaFromSuperbrainConfig(raw: string): TalosVaultSchema {
+	let parsed: unknown;
+	try { parsed = JSON.parse(raw); } catch { throw new Error("超级大脑目录配置不是有效 JSON"); }
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("超级大脑目录配置无效");
+	const config = parsed as Record<string, unknown>;
+	const mapped = config.module_paths;
+	const defaults: TalosVaultSchema = {
+		...SCHEMA_PRESET_CN,
+		identity: "System/Identity", soul: "System/灵魂", templates: "System/模板",
+		automation: "System/自动化", config: "System/配置",
+	};
+	if (mapped === undefined) return defaults;
+	if (!mapped || typeof mapped !== "object" || Array.isArray(mapped)) throw new Error("超级大脑模块映射无效");
+	const paths = mapped as Record<string, unknown>;
+	for (const key of MODULE_KEYS) {
+		const value = paths[key];
+		if (value === undefined) continue;
+		if (typeof value !== "string" || !value.trim() || value.startsWith("/") || value.includes("\\") || value.split("/").some(part => !part || part === "." || part === "..") || /^[A-Za-z]:/.test(value)) throw new Error(`超级大脑模块路径无效：${key}`);
+		defaults[key] = value;
+	}
+	return defaults;
+}

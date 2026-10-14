@@ -1,6 +1,7 @@
 // 每个控制台页面一条 Obsidian 命令，从同一张导航注册表生成（与 Lens 的模块搜索同理：
 // 侧栏、二级页签与命令面板共用一处定义）。已有独立命令的页面不重复注册。
-import { PRIMARY_NAVIGATION } from "../ui/navigation-model";
+import { navigationFor } from "../ui/navigation-model";
+import type { ConsoleMode } from "../ui/console-mode";
 
 export interface PageCommand {
 	id: string;
@@ -11,8 +12,8 @@ export interface PageCommand {
 /** 已由其他命令覆盖的页面：AI 对话（open-quyuan-v2）。 */
 const COVERED_PAGES = new Set(["chat"]);
 
-export function pageCommands(): PageCommand[] {
-	return PRIMARY_NAVIGATION.flatMap((group) =>
+export function pageCommands(mode: ConsoleMode = "personal"): PageCommand[] {
+	return navigationFor(mode).flatMap((group) =>
 		group.children
 			.filter((child) => !COVERED_PAGES.has(child.key))
 			.map((child) => ({
@@ -27,8 +28,8 @@ interface CommandHost {
 	addCommand(command: { id: string; name: string; callback: () => void }): unknown;
 }
 
-export function registerPageCommands(host: CommandHost, open: (pageKey: string) => Promise<void>): void {
-	for (const command of pageCommands()) {
+export function registerPageCommands(host: CommandHost, open: (pageKey: string) => Promise<void>, mode: ConsoleMode = "personal"): void {
+	for (const command of pageCommands(mode)) {
 		host.addCommand({
 			id: command.id,
 			name: command.name,
