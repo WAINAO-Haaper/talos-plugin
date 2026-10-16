@@ -13,7 +13,8 @@ vi.mock("../vendor/serena-post/src/utils/image", async (importOriginal) => {
 });
 
 import { prepareArticle, verifyPreparedArticle } from "../src/publishing/content";
-import type { ArticleInput } from "../src/publishing/types";
+import type { ArticleInput, WechatPresentation } from "../src/publishing/types";
+import { DEFAULT_WECHAT_PRESENTATION, normalizeWechatPresentation, PUBLISHING_THEME_CSS, wechatPresentationCss } from "../src/publishing/theme";
 import { toUploadable } from "../vendor/serena-post/src/utils/image";
 import { sanitizeHTMLToDom } from "obsidian";
 import { XRelayAdapter } from "../src/publishing/x-relay";
@@ -29,6 +30,74 @@ const now = () => new Date("2026-10-17T00:00:00Z");
 const resolve = vi.fn(async (reference: string) => ({ source: `附件/${reference}`, fileName: reference, mime: "image/png", bytes: png() }));
 
 describe("offline frozen publishing content", () => {
+	it("preserves the neutral default HTML and source H1 when presentation is omitted or explicit", async () => {
+		const markdown = "# 正文原有标题\n\n正文 [链接](https://example.com)\n\n> 引用";
+		const implicit = await prepareArticle(input({ markdown }), { resolveLocalAsset: resolve, now });
+		const explicit = await prepareArticle(input({ markdown, presentation: { ...DEFAULT_WECHAT_PRESENTATION, accent: "#576B95" } }), { resolveLocalAsset: resolve, now });
+		expect(wechatPresentationCss()).toBe(PUBLISHING_THEME_CSS);
+		expect(explicit.wechatHtml).toBe(implicit.wechatHtml);
+		expect(explicit.fingerprint).toBe(implicit.fingerprint);
+		expect(implicit.markdown).toBe(markdown);
+		expect(implicit.xMarkdown).toBe(markdown);
+		const dom = sanitizeHTMLToDom(implicit.wechatHtml);
+		expect(dom.querySelector("h1")?.textContent).toBe("正文原有标题");
+		expect(dom.querySelector<HTMLElement>(".note-to-mp")?.style.fontSize).toBe("15px");
+		expect(dom.querySelector<HTMLElement>("p")?.style.lineHeight).toBe("1.75");
+		expect(normalizeWechatPresentation()).toEqual({ fontSize: 15, lineHeight: 1.75, accent: "#576b95" });
+	});
+
+	it("applies bounded WeChat typography as real inline styles while leaving X and source content unchanged", async () => {
+		const markdown = "# 正文标题\n\n正文 [链接](https://example.com)\n\n> 引用\n\n- 列表";
+		const base = await prepareArticle(input({ markdown }), { resolveLocalAsset: resolve, now });
+		const styled = await prepareArticle(input({ markdown, presentation: { fontSize: 20, lineHeight: 2.25, accent: "#C06030" } }), { resolveLocalAsset: resolve, now });
+		const dom = sanitizeHTMLToDom(styled.wechatHtml);
+		expect(dom.querySelector<HTMLElement>(".note-to-mp")?.style.fontSize).toBe("20px");
+		expect(dom.querySelector<HTMLElement>("p")?.style.fontSize).toBe("20px");
+		expect(dom.querySelector<HTMLElement>("p")?.style.lineHeight).toBe("2.25");
+		expect(dom.querySelector<HTMLElement>("h1")?.style.fontSize).toBe("29px");
+		expect(dom.querySelector<HTMLElement>("h1")?.style.color).toBe("#c06030");
+		expect(dom.querySelector<HTMLElement>("a")?.style.color).toBe("#c06030");
+		expect(dom.querySelector<HTMLElement>("blockquote")?.style.borderLeftColor).toBe("#c06030");
+		expect(dom.querySelector<HTMLElement>("li")?.style.lineHeight).toBe("2.25");
+		expect(styled.xMarkdown).toBe(base.xMarkdown);
+		expect(styled.markdown).toBe(markdown);
+		expect(styled.fingerprint).not.toBe(base.fingerprint);
+		expect(() => verifyPreparedArticle(styled)).not.toThrow();
+	});
+
+	it.each([
+		{ fontSize: 14, lineHeight: 1.75, accent: "#576b95" },
+		{ fontSize: 15, lineHeight: 1.5, accent: "#576b95" },
+		{ fontSize: 15, lineHeight: 2, accent: "#576b95" },
+		{ fontSize: 15, lineHeight: 1.75, accent: "#123abc" },
+	])("hashes each effective presentation change without altering the X payload: %j", async presentation => {
+		const base = await prepareArticle(input({ markdown: "# 标题\n\n正文 ![[image.png]]" }), { resolveLocalAsset: resolve, now });
+		const styled = await prepareArticle(input({ markdown: base.markdown, presentation }), { resolveLocalAsset: resolve, now });
+		expect(styled.wechatHtml).not.toBe(base.wechatHtml);
+		expect(styled.fingerprint).not.toBe(base.fingerprint);
+		expect(styled.xMarkdown).toBe(base.xMarkdown);
+		expect(styled.assets[0].sha256).toBe(base.assets[0].sha256);
+		expect(() => verifyPreparedArticle(styled)).not.toThrow();
+	});
+
+	it.each([
+		{ fontSize: 13 }, { fontSize: 21 }, { fontSize: 14.5 }, { fontSize: NaN }, { fontSize: Infinity }, { fontSize: -Infinity }, { fontSize: Number.MAX_VALUE },
+		{ lineHeight: 1.49 }, { lineHeight: 2.5 }, { lineHeight: NaN }, { lineHeight: Infinity },
+		{ accent: "red" }, { accent: "#abc" }, { accent: "#12345678" }, { accent: " #123456" }, { accent: "#123456\n" }, { accent: "#123456; background: url(https://example.com/leak)" },
+	])("rejects invalid or injectable presentation before reading media: %j", async change => {
+		const resolver = vi.fn();
+		await expect(prepareArticle(input({ markdown: "![[image.png]]", presentation: { ...DEFAULT_WECHAT_PRESENTATION, ...change } }), { resolveLocalAsset: resolver, now })).rejects.toThrow("公众号");
+		expect(resolver).not.toHaveBeenCalled();
+	});
+
+	it("rejects malformed runtime parameters and normalizes valid hex colors without accepting arbitrary CSS", () => {
+		for (const malformed of [null, [], { fontSize: "15", lineHeight: 1.75, accent: "#576b95" }, { fontSize: 15, lineHeight: "1.75", accent: "#576b95" }, {}]) {
+			expect(() => wechatPresentationCss(malformed as unknown as WechatPresentation)).toThrow("公众号");
+		}
+		expect(normalizeWechatPresentation({ fontSize: 16, lineHeight: 2, accent: "#AABBCC" })).toEqual({ fontSize: 16, lineHeight: 2, accent: "#aabbcc" });
+		expect(wechatPresentationCss({ fontSize: 16, lineHeight: 2, accent: "#AABBCC" })).not.toMatch(/url\(|@import/);
+	});
+
 	it("uses the upstream marked renderer and inline CSS for real Markdown structures", async () => {
 		const article = await prepareArticle(input({ markdown: "---\nprivate: omitted\n---\n# 标题\n\n**粗体**\n\n- 列表\n\n> 引文\n\n|列|值|\n|--|--|\n|甲|乙|\n\n```ts\nconst image = '![[secret.md]]';\n```\n\n`![[code.png]]`" }), { resolveLocalAsset: resolve, now });
 		const dom = document.createElement("div");

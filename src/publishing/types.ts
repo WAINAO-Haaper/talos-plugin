@@ -19,6 +19,12 @@ export interface PublishingAsset {
 	sha256: string;
 }
 
+export interface WechatPresentation {
+	fontSize: number;
+	lineHeight: number;
+	accent: string;
+}
+
 export interface ArticleInput {
 	sourcePath: string;
 	title: string;
@@ -26,6 +32,8 @@ export interface ArticleInput {
 	digest: string;
 	author: string;
 	coverPath?: string;
+	/** Local, bounded WeChat typography only; never applied to X Markdown. */
+	presentation?: WechatPresentation;
 }
 
 export interface PreparedArticle {

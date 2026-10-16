@@ -5,10 +5,11 @@
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Window } from 'happy-dom';
-import { mkdtemp, mkdir, readFile, realpath, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, readFile, realpath, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type TalosPlugin from '../src/main';
+import { TFile } from 'obsidian';
 import type { WeChatDraftArticle } from '../src/publishing/wechat';
 import type { DraftAdapterContext, DraftReceipt, PreparedArticle, PublishingAccount } from '../src/publishing/types';
 
@@ -67,6 +68,17 @@ function dependencies(): ConsoleActionDependencies {
 		publishBackfill: vi.fn(), decideApproval: vi.fn(), decidePreference: vi.fn(),
 	};
 }
+function fileMetadata(path: string): TFile {
+	const name = path.split('/').pop() ?? path;
+	const dot = name.lastIndexOf('.');
+	const file = new TFile();
+	file.path = path; file.name = name;
+	file.basename = dot < 0 ? name : name.slice(0, dot);
+	file.extension = dot < 0 ? '' : name.slice(dot + 1);
+	return file;
+}
+type WatchEvent = 'modify' | 'delete' | 'rename';
+interface WatchRef { event: WatchEvent; callback: (file: { path: string }, oldPath?: string) => void; }
 async function fixture() {
 	const directory = await mkdtemp(join(tmpdir(), 'talos-publishing-host-'));
 	directories.push(directory);
@@ -85,10 +97,27 @@ async function fixture() {
 		dependencies: dependencies(), recoveryStore: new MemoryRecoveryStore(),
 		timers: { schedule: (callback, timeoutMs) => setTimeout(callback, timeoutMs), cancel: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
 	});
+	const files = [fileMetadata('notes/article.md'), fileMetadata('media/cover.png')];
+	const watchers = new Set<WatchRef>();
+	const vault = {
+		configDir: '.config',
+		adapter: {
+			getBasePath: () => root,
+			exists: vi.fn(async (path: string) => { try { await lstat(join(root, path)); return true; } catch { return false; } }),
+		},
+		getFiles: () => [...files],
+		getMarkdownFiles: () => files.filter(file => file.extension === 'md'),
+		getAbstractFileByPath: vi.fn((path: string) => files.find(file => file.path === path) ?? null),
+		on: vi.fn((event: WatchEvent, callback: WatchRef['callback']) => { const ref = { event, callback }; watchers.add(ref); return ref; }),
+		offref: vi.fn((ref: WatchRef) => { watchers.delete(ref); }),
+	};
+	const emit = (event: WatchEvent, path: string, oldPath?: string) => {
+		for (const ref of [...watchers]) if (ref.event === event) ref.callback({ path }, oldPath);
+	};
 	const plugin = {
 		app: {
 			secretStorage,
-			vault: { configDir: '.config', adapter: { getBasePath: () => root }, getMarkdownFiles: () => [{ path: 'notes/article.md' }] },
+			vault,
 			metadataCache: { getFirstLinkpathDest: (reference: string) => reference === 'cover.png' ? { path: 'media/cover.png' } : null },
 		},
 		getConsoleActionRuntime: () => runtime,
@@ -96,7 +125,7 @@ async function fixture() {
 	const host = new PublishingHost(plugin);
 	hosts.push(host);
 	const folder = join(root, '.talos/private/publishing');
-	return { host, root, directory, folder, values, secretStorage, runtime };
+	return { host, root, directory, folder, values, secretStorage, runtime, vault, files, watchers, emit };
 }
 async function configuredFixture(includeX = false) {
 	const f = await fixture();
@@ -149,7 +178,88 @@ describe('publishing source boundaries in a real temporary Vault', () => {
 	});
 });
 
+describe('publishing file selection and source watching', () => {
+	it('lists supported image metadata while filtering protected paths and non-images without reading bytes', async () => {
+		const { host, files, vault, secretStorage } = await fixture();
+		const supported = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif', 'JPG'].map((extension, index) => `附件/封面${index}.${extension}`);
+		files.splice(0, files.length, ...[
+			...supported, '.config/hidden.png', '.talos/private/hidden.png', '.talos/secrets/image.png',
+			'附件/api-key.png', '附件/video.mp4', '附件/document.pdf', 'notes/article.md',
+		].map(fileMetadata));
+		expect(host.listImages().map(file => file.path)).toEqual(supported);
+		expect(vault.adapter.exists).not.toHaveBeenCalled();
+		expect(secretStorage.getSecret).not.toHaveBeenCalled();
+	});
+
+	it('notifies only for the selected source, follows its rename, and unregisters all listeners', async () => {
+		const { host, emit, watchers, vault } = await fixture();
+		const changed = vi.fn();
+		const stop = host.watchSource('notes/article.md', changed);
+		expect(watchers.size).toBe(3);
+		emit('modify', 'notes/other.md');
+		emit('delete', 'notes/other.md');
+		emit('rename', 'notes/renamed-other.md', 'notes/other.md');
+		expect(changed).not.toHaveBeenCalled();
+		emit('modify', 'notes/article.md');
+		emit('rename', 'notes/renamed.md', 'notes/article.md');
+		emit('modify', 'notes/article.md');
+		emit('modify', 'notes/renamed.md');
+		emit('delete', 'notes/renamed.md');
+		expect(changed.mock.calls).toEqual([
+			['notes/article.md'], ['notes/renamed.md'], ['notes/renamed.md'], ['notes/renamed.md'],
+		]);
+		stop(); stop();
+		expect(watchers.size).toBe(0);
+		expect(vault.offref).toHaveBeenCalledTimes(3);
+		emit('modify', 'notes/renamed.md');
+		expect(changed).toHaveBeenCalledTimes(4);
+	});
+
+	it('removes source listeners on host disposal and cannot add new listeners afterward', async () => {
+		const { host, emit, watchers, vault } = await fixture();
+		const changed = vi.fn();
+		host.watchSource('notes/article.md', changed);
+		await host.dispose();
+		expect(watchers.size).toBe(0);
+		host.watchSource('notes/article.md', changed)();
+		expect(vault.on).toHaveBeenCalledTimes(3);
+		emit('modify', 'notes/article.md');
+		expect(changed).not.toHaveBeenCalled();
+	});
+
+	it.each([true, false])('resolves a complete Chinese Vault cover path when indexed=%s without prepending the note folder', async indexed => {
+		const { host, root, files, vault } = await fixture();
+		const path = '附件/封面/中文封面.png';
+		await mkdir(join(root, '附件/封面'), { recursive: true });
+		await writeFile(join(root, path), png);
+		if (indexed) files.push(fileMetadata(path));
+		const prepared = await host.prepare({ sourcePath: 'notes/article.md', title: '中文封面测试', author: '', digest: '', coverPath: path });
+		expect(prepared.cover?.bytes).toEqual(png);
+		expect(vault.getAbstractFileByPath).toHaveBeenCalledWith(path);
+		if (!indexed) expect(vault.adapter.exists).toHaveBeenCalledWith(path);
+	});
+
+	it('keeps the realpath boundary for complete cover paths pointing outside the Vault', async () => {
+		const { host, root, directory } = await fixture();
+		await writeFile(join(directory, 'outside.png'), png);
+		await symlink(join(directory, 'outside.png'), join(root, '中文封面.png'));
+		await expect(host.prepare({ sourcePath: 'notes/article.md', title: '不可外发', author: '', digest: '', coverPath: '中文封面.png' })).rejects.toThrow('超出当前库范围');
+	});
+});
+
 describe('PublishingHost account and approval integration', () => {
+	it('releases revoked preview snapshots and rejects their tokens before any transport', async () => {
+		const { host, article, accounts, secretStorage } = await configuredFixture();
+		secretStorage.getSecret.mockClear();
+		const approval = await host.proposal(article, accounts.map(account => account.id));
+		host.revokeApproval(approval.id);
+		host.revokeApproval(approval.id);
+		await expect(host.confirm(approval.id, vi.fn())).rejects.toThrow('确认已失效');
+		expect(secretStorage.getSecret).not.toHaveBeenCalled();
+		expect(boundary.getAccessToken).not.toHaveBeenCalled();
+		expect(boundary.addDraft).not.toHaveBeenCalled();
+	});
+
 	it('prepares and proposes offline without reading credentials, starting adapters or opening a task', async () => {
 		const { host, article, accounts, secretStorage, runtime } = await configuredFixture(true);
 		secretStorage.getSecret.mockClear();

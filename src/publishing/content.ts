@@ -6,7 +6,7 @@ import { checkMarkdownStyle } from "../../vendor/serena-post/vendor/kaitox/x-art
 import type { ArticleInput, PreparedArticle, PublishingAsset } from "./types";
 import { assetDataUrl, assertSupportedMedia, freezeAsset, sha256, wechatImage, type LocalPublishingResolver } from "./media";
 import { assertPublishingContentSafe, PublishingCheckError } from "./security";
-import { PUBLISHING_THEME_CSS } from "./theme";
+import { wechatPresentationCss } from "./theme";
 
 export interface PrepareArticleOptions {
 	resolveLocalAsset: LocalPublishingResolver;
@@ -87,6 +87,7 @@ export function verifyPreparedArticle(article: PreparedArticle): void {
 /** Offline only. The injected host resolver owns vault and realpath/symlink checks. */
 export async function prepareArticle(input: ArticleInput, options: PrepareArticleOptions): Promise<PreparedArticle> {
 	if (!input.title.trim()) throw new PublishingCheckError("请填写文章标题。");
+	const wechatCss = wechatPresentationCss(input.presentation);
 	const markdown = stripFrontmatter(input.markdown);
 	assertPublishingContentSafe({ ...input, markdown });
 	const protectedCode = protectCode(markdown);
@@ -160,7 +161,7 @@ export async function prepareArticle(input: ArticleInput, options: PrepareArticl
 	}
 	let cover: PublishingAsset | undefined;
 	if (input.coverPath?.trim()) cover = await wechatImage(await load(input.coverPath));
-	const wechatHtml = await MarkedFormatter.markdownToHtml(protectedCode.restore(wechatMarkdown), PUBLISHING_THEME_CSS);
+	const wechatHtml = await MarkedFormatter.markdownToHtml(protectedCode.restore(wechatMarkdown), wechatCss);
 	// Renderer output is checked as well: no hidden network-bearing element survives.
 	const container = sanitizeHTMLToDom(wechatHtml);
 	for (const element of Array.from(container.querySelectorAll("[src], [srcset], [poster], iframe, object, embed, link, style, script"))) {

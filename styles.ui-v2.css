@@ -4381,6 +4381,77 @@ body .talos-custom-api__kinds button.is-active {
 	outline-offset: 2px;
 }
 
+/* Native draft publishing: bounded editor and local previews; article CSS stays in shadow roots. */
+.talos-publishing-entry { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:16px; margin:12px 0; border:1px solid var(--talos-ui-line, var(--background-modifier-border)); border-radius:var(--talos-ui-radius-panel, 8px); }
+.talos-publishing-entry span { flex:1 1 240px; color:var(--talos-ui-muted, var(--text-muted)); }
+.modal.talos-publishing-modal { width:min(1280px,96vw); max-width:96vw; height:min(860px,94vh); max-height:94vh; display:flex; flex-direction:column; }
+.talos-publishing-modal .modal-content.talos-publishing-workspace { display:flex; flex:1; flex-direction:column; gap:12px; min-height:0; overflow:hidden; }
+.talos-publishing-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.talos-publishing-header p { margin:0; color:var(--text-muted); font-size:var(--font-ui-small); }
+.talos-publishing-body { display:grid; grid-template-columns:280px minmax(0,1fr); gap:20px; flex:1; min-height:220px; overflow:hidden; }
+.talos-publishing-editor { min-width:0; overflow:auto; padding-right:14px; border-right:1px solid var(--background-modifier-border); scrollbar-gutter:stable; }
+.talos-publishing-editor h3 { margin:4px 0 10px; font-size:var(--font-ui-small); }
+.talos-publishing-field { display:flex; flex-direction:column; gap:5px; margin-bottom:10px; min-width:0; font-size:var(--font-ui-small); }
+.talos-publishing-field input, .talos-publishing-field select { width:100%; min-width:0; font-size:var(--font-ui-small); }
+.talos-publishing-field input[type=color] { width:100%; height:30px; padding:2px; cursor:pointer; }
+.talos-publishing-inline-actions { display:flex; gap:6px; flex-wrap:wrap; margin:-3px 0 12px; }
+.talos-publishing-editor button { font-size:var(--font-ui-smaller); }
+.talos-publishing-cover-thumb { display:flex; align-items:center; justify-content:center; min-height:52px; margin-bottom:12px; border:1px dashed var(--background-modifier-border); border-radius:var(--radius-s); color:var(--text-muted); font-size:var(--font-ui-smaller); }
+.talos-publishing-cover-thumb img { width:100%; max-height:100px; object-fit:contain; border-radius:var(--radius-s); }
+.talos-publishing-details { border-top:1px solid var(--background-modifier-border); padding:10px 0; }
+.talos-publishing-details summary { cursor:pointer; font-size:var(--font-ui-small); margin-bottom:8px; }
+.talos-publishing-typography { border-top:1px solid var(--background-modifier-border); padding:12px 0; }
+.talos-publishing-typography .setting-item-description { margin:0 0 10px; font-size:var(--font-ui-smaller); }
+.talos-publishing-targets { display:flex; flex-direction:column; gap:7px; padding:12px 0; border-top:1px solid var(--background-modifier-border); }
+.talos-publishing-target { display:flex; align-items:center; gap:7px; padding:7px; border:1px solid var(--background-modifier-border); border-radius:var(--radius-s); font-size:var(--font-ui-small); }
+.talos-publishing-target input { flex-shrink:0; }
+.talos-publishing-targets p { margin:0; color:var(--text-muted); font-size:var(--font-ui-smaller); }
+.talos-publishing-preview-area { display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0; overflow:hidden; }
+.talos-publishing-preview-toolbar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.talos-publishing-preview-modes { display:flex; gap:4px; }
+.talos-publishing-preview-modes button { font-size:var(--font-ui-small); }
+.talos-publishing-preview-modes button[aria-pressed=true] { background:var(--interactive-accent); color:var(--text-on-accent); }
+.talos-publishing-preview-badge { color:var(--text-muted); font-size:var(--font-ui-smaller); }
+.talos-publishing-checks { overflow-wrap:anywhere; font-size:var(--font-ui-smaller); max-height:110px; overflow:auto; }
+.talos-publishing-checks:empty { display:none; }
+.talos-publishing-checks summary { color:var(--text-warning); cursor:pointer; }
+.talos-publishing-checks p { margin:6px 0; }
+.talos-publishing-previews { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; flex:1; min-height:0; overflow:hidden; }
+.talos-publishing-previews[data-stale=true] .talos-publishing-preview-pane { opacity:.65; }
+.talos-publishing-previews[data-preview-mode=wechat], .talos-publishing-previews[data-preview-mode=x] { grid-template-columns:minmax(0,1fr); }
+.talos-publishing-previews[data-preview-mode=wechat] [data-platform=x], .talos-publishing-previews[data-preview-mode=x] [data-platform=wechat] { display:none; }
+.talos-publishing-preview-pane { display:flex; flex-direction:column; min-width:0; min-height:0; gap:8px; }
+.talos-publishing-preview-pane h3 { margin:0; font-size:var(--font-ui-small); }
+.talos-publishing-preview-body { display:block; flex:1; min-height:0; overflow:auto; border:1px solid var(--background-modifier-border); border-radius:var(--radius-m); scrollbar-gutter:stable; }
+.talos-publishing-empty { grid-column:1/-1; align-self:center; justify-self:center; text-align:center; color:var(--text-muted); max-width:340px; padding:24px; }
+.talos-publishing-empty h3 { font-size:var(--font-ui-medium); }
+.talos-publishing-empty p { font-size:var(--font-ui-small); }
+.talos-publishing-footer { flex-shrink:0; border-top:1px solid var(--background-modifier-border); padding-top:10px; max-height:30vh; overflow:auto; }
+.talos-publishing-status { font-size:var(--font-ui-small); margin-bottom:6px; }
+.talos-publishing-confirm:empty { display:none; }
+.talos-publishing-confirm p { margin:5px 0; font-size:var(--font-ui-smaller); }
+.talos-publishing-confirm label { display:flex; align-items:center; gap:8px; font-size:var(--font-ui-small); margin-top:8px; }
+.talos-publishing-x-account { color:var(--text-muted); }
+.talos-publishing-footer-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+.talos-publishing-footer-actions button[hidden] { display:none; }
+.talos-publishing-record { overflow-wrap:anywhere; border-top:1px solid var(--background-modifier-border); padding:8px 0; font-size:var(--font-ui-smaller); }
+.talos-publishing-record button { margin:4px 4px 0 0; }
+.talos-publishing-history { max-height:220px; overflow:auto; }
+.talos-publishing-settings input { width:100%; }
+@media(max-width:850px) {
+ .modal.talos-publishing-modal { width:96vw; height:94vh; }
+ .talos-publishing-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,.85fr) minmax(0,1fr); overflow:hidden; gap:14px; }
+ .talos-publishing-editor { min-height:0; padding-right:8px; border-right:0; border-bottom:1px solid var(--background-modifier-border); }
+ .talos-publishing-preview-area { min-height:0; overflow:hidden; }
+ .talos-publishing-preview-body { max-height:none; }
+ .talos-publishing-footer { max-height:29vh; }
+}
+@media(max-width:560px) {
+ .talos-publishing-previews { grid-template-columns:minmax(0,1fr); grid-auto-rows:minmax(220px,1fr); overflow:auto; }
+ .talos-publishing-preview-pane { min-height:220px; }
+ .talos-publishing-header { align-items:flex-start; }
+}
+
 /* ============================================================
    单页原则（D-TLP-068，2026-10-14）：一个页面的功能模块尽量一屏看完。
    不定死整页高度（MASTER §2）；只做三件事：
@@ -4698,25 +4769,3 @@ body .talos-custom-api__kinds button.is-active {
 	padding: 2px 10px;
 	font-size: var(--talos-type-meta);
 }
-/* Native draft publishing: scoped to its entry and modal, article styles stay in shadow roots. */
-.talos-publishing-entry { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:16px; margin:12px 0; border:1px solid var(--talos-ui-line, var(--background-modifier-border)); border-radius:var(--talos-ui-radius-panel, 8px); }
-.talos-publishing-entry span { flex:1 1 240px; color:var(--talos-ui-muted, var(--text-muted)); }
-.modal.talos-publishing-modal { width:min(1100px, 94vw); max-width:94vw; }
-.talos-publishing-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.talos-publishing-field { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
-.talos-publishing-field input { width:100%; }
-.talos-publishing-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:14px 0; }
-.talos-publishing-targets { display:flex; flex-wrap:wrap; gap:18px; margin:16px 0; }
-.talos-publishing-targets label, .talos-publishing-confirm label { display:flex; align-items:center; gap:8px; }
-.talos-publishing-previews { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-.talos-publishing-preview-pane { min-width:0; }
-.talos-publishing-preview-body { display:block; max-height:48vh; overflow:auto; border:1px solid var(--background-modifier-border); border-radius:6px; }
-.talos-publishing-checks, .talos-publishing-record { overflow-wrap:anywhere; }
-.talos-publishing-warning { color:var(--talos-ui-warning, var(--text-warning)); }
-.talos-publishing-confirm:not(:empty) { border:1px solid var(--background-modifier-border); padding:16px; margin-top:16px; }
-.talos-publishing-confirm button { margin-top:12px; }
-.talos-publishing-record { border-top:1px solid var(--background-modifier-border); padding:12px 0; }
-.talos-publishing-record button { margin:4px 8px; }
-.talos-publishing-history { max-height:28vh; overflow:auto; }
-.talos-publishing-settings input { width:100%; }
-@media(max-width:700px) { .talos-publishing-form, .talos-publishing-previews { grid-template-columns:1fr; } }

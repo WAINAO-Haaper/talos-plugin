@@ -54,6 +54,7 @@ export class PublishingHost {
 	private pending = new Map<string, PublishingApproval>();
 	private activeTasks = new Set<string>();
 	private disposed = false;
+	private sourceWatches = new Set<() => void>();
 	constructor(readonly plugin: TalosPlugin) {}
 
 	private vaultRoot(): string {
@@ -66,6 +67,37 @@ export class PublishingHost {
 		return this.plugin.app.vault.getMarkdownFiles().filter(file => !inspectVaultPath(file.path, { configDir: this.plugin.app.vault.configDir }).blocked);
 	}
 
+	/** Picker metadata only; bytes are read later through the realpath boundary. */
+	listImages(): TFile[] {
+		return this.plugin.app.vault.getFiles().filter(file => /^(?:png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(file.extension)
+			&& !inspectVaultPath(file.path, { configDir: this.plugin.app.vault.configDir }).blocked);
+	}
+
+	/** Watch the selected note only, and follow its path when that note is renamed. */
+	watchSource(path: string, onChange: (currentPath: string) => void): () => void {
+		if (this.disposed) return () => {};
+		const vault = this.plugin.app.vault;
+		let selectedPath = path;
+		let active = true;
+		const refs = [
+			vault.on("modify", file => { if (active && file.path === selectedPath) onChange(selectedPath); }),
+			vault.on("delete", file => { if (active && file.path === selectedPath) onChange(selectedPath); }),
+			vault.on("rename", (file, oldPath) => {
+				if (!active || (oldPath !== selectedPath && file.path !== selectedPath)) return;
+				selectedPath = file.path;
+				onChange(selectedPath);
+			}),
+		];
+		const stop = () => {
+			if (!active) return;
+			active = false;
+			for (const ref of refs) vault.offref(ref);
+			this.sourceWatches.delete(stop);
+		};
+		this.sourceWatches.add(stop);
+		return stop;
+	}
+
 	async prepare(input: Omit<ArticleInput, "markdown">): Promise<PreparedArticle> {
 		const root = this.vaultRoot();
 		const source = await assertPublishingSource(root, input.sourcePath, this.plugin.app.vault.configDir);
@@ -74,8 +106,15 @@ export class PublishingHost {
 		return prepareArticle({ ...input, markdown }, {
 			resolveLocalAsset: async (reference, sourcePath) => {
 				const clean = reference.replace(/^<|>$/g, "");
+				const vault = this.plugin.app.vault;
 				const file = this.plugin.app.metadataCache.getFirstLinkpathDest(clean, sourcePath);
-				const path = file?.path ?? join(dirname(sourcePath), clean).replace(/\\/g, "/");
+				let path = file?.path;
+				if (!path && !inspectVaultPath(clean, { configDir: vault.configDir }).blocked) {
+					const direct = vault.getAbstractFileByPath(clean);
+					if (direct) path = direct.path;
+					else if (await vault.adapter.exists(clean)) path = clean;
+				}
+				path ??= join(dirname(sourcePath), clean).replace(/\\/g, "/");
 				const safe = await assertPublishingSource(root, path, this.plugin.app.vault.configDir);
 				const info = await lstat(safe);
 				if (!info.isFile() || info.size > 100 * 1024 * 1024) throw new Error("附件不存在或超过首版 100 MB 限制");
@@ -186,6 +225,9 @@ export class PublishingHost {
 		return structuredClone(approval);
 	}
 
+	/** Release a superseded preview and its potentially large media snapshot immediately. */
+	revokeApproval(approvalId: string): void { this.pending.delete(approvalId); }
+
 	async confirm(approvalId: string, onRecord: (record: PublishRecord) => void): Promise<PublishRecord> {
 		const approval = this.pending.get(approvalId);
 		if (!approval) throw new Error("确认已失效，请重新生成预览");
@@ -218,5 +260,5 @@ export class PublishingHost {
 	async records(): Promise<PublishRecord[]> { return (await this.getService()).listRecords(); }
 	async reconcile(id: string): Promise<PublishRecord> { return (await this.getService()).reconcile(id, (await this.loadConfig()).accounts); }
 	cancel(): void { for (const id of this.activeTasks) this.plugin.getConsoleActionRuntime().runner.cancel(id); }
-	async dispose(): Promise<void> { this.disposed = true; this.pending.clear(); this.cancel(); await this.xAdapter?.dispose(); }
+	async dispose(): Promise<void> { this.disposed = true; this.pending.clear(); this.cancel(); for (const stop of this.sourceWatches) stop(); await this.xAdapter?.dispose(); }
 }
