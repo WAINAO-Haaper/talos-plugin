@@ -32,6 +32,11 @@ export function renderOutputPage(view: TalosView, page: HTMLElement, d: Collecte
 		],
 	});
 	mountFlowPipeline(view, hero, d, "output");
+	const drafts = page.createDiv({ cls: "talos-publishing-entry" });
+	drafts.createEl("strong", { text: "排版与平台草稿" });
+	drafts.createSpan({ text: "预览同一篇笔记的公众号与 X 效果，再送到指定账号草稿箱。" });
+	const draftButton = drafts.createEl("button", { text: "打开草稿工作区", cls: "mod-cta", attr: { type: "button" } });
+	draftButton.addEventListener("click", () => { void view.plugin.openPublishing(); });
 
 	const primary = page.createDiv({
 		cls: "workflow-v2-primary output-v2-primary",

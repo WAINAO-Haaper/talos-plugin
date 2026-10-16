@@ -27,6 +27,7 @@ export interface SuperbrainDetailPorts {
 	runSchedule(token: unknown, signal: AbortSignal): Promise<unknown>;
 	openPreferenceReview?(): void | Promise<void>;
 	openSettings?(): void | Promise<void>;
+	openPublishing?(): void | Promise<void>;
 	hostStatus?(): Readonly<Record<"codex" | "claude" | "api", string>>;
 }
 
@@ -165,6 +166,12 @@ export function renderSuperbrainDetailPage(
 
 	const grid = node(root, "div", "talos-superbrain-detail-grid");
 	const main = node(grid, "div", "talos-superbrain-detail-main");
+	if (entry.id === "C09" && ports.openPublishing) {
+		const drafts = node(main, "section", "talos-superbrain-detail-operation");
+		node(drafts, "h2", undefined, "排版与平台草稿");
+		node(drafts, "p", undefined, "在 TALOS 中预览并创建公众号与 X 草稿，正式发布保留手动。");
+		button(drafts, "打开草稿工作区", () => { void ports.openPublishing?.(); }, "mod-cta");
+	}
 	const aside = node(grid, "aside", "talos-superbrain-detail-aside");
 	const related = node(aside, "section", "talos-superbrain-detail-related");
 	const relatedHead = node(related, "div", "talos-superbrain-detail-section-heading");

@@ -396,6 +396,7 @@ export class SuperbrainRuntime {
 				const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_TALOS)[0]?.view;
 				if (view instanceof TalosView) view.openSettingsPage();
 			},
+			openPublishing: () => this.plugin.openPublishing(),
 			hostStatus: () => ({ codex: "按需预检", claude: "按需预检", api: officialProviders().length ? "官方 API 已配置" : "未配置官方 API" }),
 		};
 	}

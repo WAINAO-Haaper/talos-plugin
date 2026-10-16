@@ -68,6 +68,7 @@ import { createTalosActionRuntime } from "./plugin/action-runtime";
 import { initializeFirstRunContext } from "./plugin/first-run";
 import { registerPageCommands } from "./plugin/page-commands";
 import { registerInlineEditCommand } from "./plugin/inline-edit-command";
+import type { PublishingHost } from "./publishing/host";
 
 // 统一的 TALOS 品牌图标：TalosBall 0.3.0 的固定 blob 静态姿态。Ribbon 与视图标签共用。
 export const TALOS_ICON = "talos-logo";
@@ -91,6 +92,8 @@ export default class TalosPlugin extends Plugin {
 	talosProviderFacade: ProviderFacade | null = null;
 	private talosActionRuntime: ConsoleActionRuntime | null = null;
 	private harnessManager: DshProcessManager | null = null;
+	private publishingHost: PublishingHost | null = null;
+	private publishingInitialization: Promise<PublishingHost> | null = null;
 	quyuanChatAuditSequence = 0;
 	private readonly handleWindowError = (event: ErrorEvent): void => {
 		this.recordQuyuanRuntimeError("window.error", event.error ?? event.message);
@@ -103,6 +106,7 @@ export default class TalosPlugin extends Plugin {
 		configureClaudeSdkBundle(this.claudeSdkBundlePath());
 		await this.loadTalosSettings();
 		await this.detectConsoleModeOnce();
+		this.addCommand({ id: "open-draft-publishing", name: "排版与平台草稿", callback: () => { void this.openPublishing(); } });
 		this.talosActionRuntime = this.createTalosActionRuntime();
 		registerApprovalTaskRuntime(
 			this.app,
@@ -323,6 +327,8 @@ export default class TalosPlugin extends Plugin {
 	}
 
 	onunload(): void {
+		void this.publishingHost?.dispose();
+		this.publishingHost = null;
 		unregisterApprovalTaskRuntime(this.app);
 		this.talosActionRuntime = null;
 		void this.harnessManager?.dispose();
@@ -464,6 +470,7 @@ export default class TalosPlugin extends Plugin {
 
 	/** 打开模块操作或超级大脑 C/M 详情页（`superbrain` / `superbrain:C02` 形式）。 */
 	openModuleCommand(invocation: string): Promise<void> {
+		if (invocation.trim().replace(/^\//, "") === "output") return this.openPublishing();
 		const route = parseModuleInvocation(invocation);
 		if (route.kind === "home") return this.openTalosPage("sb-loop");
 		if (route.kind === "detail") return this.openSuperbrainDetailPage(route.id);
@@ -472,6 +479,18 @@ export default class TalosPlugin extends Plugin {
 			return Promise.resolve();
 		}
 		return this.superbrain.moduleCommands.open(route.invocation);
+	}
+
+	/** Both console modes use one draft publishing service; no model execution is involved. */
+	async openPublishing(): Promise<void> {
+		try {
+			this.publishingInitialization ??= import("./publishing/host").then(({ PublishingHost: Host }) => {
+				this.publishingHost = new Host(this); return this.publishingHost;
+			});
+			const host = await this.publishingInitialization;
+			const { openPublishingModal } = await import("./publishing/modal");
+			openPublishingModal(this.app, host);
+		} catch { new Notice("草稿工作区加载失败，请重新加载 TALOS 后重试"); }
 	}
 
 	private async openSuperbrainDetailPage(id: string): Promise<void> {

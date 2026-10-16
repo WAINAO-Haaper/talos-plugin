@@ -143,3 +143,97 @@ TALOS 的 Claude CLI 通道使用 `@anthropic-ai/claude-agent-sdk`。
 - 其他 OpenCode、Pi、模型网关、MCP Server、千问、Edge TTS、ElevenLabs 等服务：以各自供应商条款为准
 
 推荐商业模式为 BYOK（客户自带 API Key/CLI 账号）。若 TALOS 运营方统一付费并向客户提供模型额度，应在上线前单独确认对应供应商是否允许转售、托管或多租户使用。
+
+
+## Native draft publishing — SerenaPost 1.1.5
+
+Source: https://github.com/SerenaMugua/serena-post/tree/1.1.5 (`5b4cb53d0545154ef0b61c1d257e444c3891acf8`). Source fingerprints and local changes: `vendor/serena-post/SOURCE.md`. No Serena avatar or brand image is included. The following MIT notices remain applicable to the borrowed modules and distributed bundle.
+
+```text
+MIT License
+
+Copyright (c) 2026 Serena 木瓜
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+# Third-party notices
+
+## WeChatPB
+
+Source: https://github.com/Kianzzz/wechatPB (author: zhouxing / Kianzzz)
+
+```
+MIT License
+
+Copyright (c) 2025-2026
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Kaitox (@kaitox/relay-protocol, @kaitox/x-article, @kaitox/relay, Kaitox for Obsidian)
+
+Source: https://github.com/kuangjiajia/kaitox-toolkit — vendored under vendor/kaitox/ (relay image resizing rewritten to use canvas; pidfile removed).
+
+```
+MIT License
+
+Copyright (c) 2026 kaitox (https://kaitox.ai)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## marked
+
+https://github.com/markedjs/marked — MIT License, bundled in main.js.
+
+
+Additional production packages: `marked` (9.1.6), `marked18` (npm alias for marked 18.0.14), `postcss` (8.5.19), `https-proxy-agent` (7.0.6), `socks-proxy-agent` (8.0.5). Full package licenses are generated in `THIRD-PARTY-LICENSES.txt`.

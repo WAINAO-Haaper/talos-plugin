@@ -1,0 +1,209 @@
+/**
+ * @kaitox/x-article 预览样式 —— 配合 renderPreviewHtml() 输出的 .xp-article 结构。
+ *
+ * 排版近似 X Article 阅读页（结构级近似，非像素复刻）。
+ * 主题：颜色全部走 --xp-* CSS 变量（带亮色默认值），宿主在任意祖先上
+ * 重设变量即可换肤/暗色，无需覆盖具体规则。
+ *
+ * 引入方式：import '@kaitox/x-article/preview.css'（打包器），
+ * 或把本文件拷进产物后用 <link> / content_scripts css 注入。
+ */
+
+.xp-article {
+  --xp-text-default: #0f1419;
+  --xp-text-muted-default: #536471;
+  --xp-border-default: #cfd9de;
+  --xp-box-default: #f7f9f9;
+  --xp-link-default: #1d9bf0;
+  --xp-placeholder-default: #eff3f4;
+
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 8px 28px 72px;
+  color: var(--xp-text, var(--xp-text-default));
+  font-size: 17px;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+
+.xp-cover {
+  display: block;
+  width: 100%;
+  /* X Article 封面的实际比例 */
+  aspect-ratio: 5 / 2;
+  object-fit: cover;
+  border-radius: 16px;
+  margin: 12px 0 24px;
+  background: var(--xp-placeholder, var(--xp-placeholder-default));
+}
+
+.xp-title {
+  margin: 0 0 24px;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.xp-title-empty {
+  color: var(--xp-text-muted, var(--xp-text-muted-default));
+  font-weight: 600;
+}
+
+.xp-h1 {
+  margin: 32px 0 12px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.xp-h2 {
+  margin: 26px 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.xp-p {
+  margin: 0 0 20px;
+}
+
+.xp-quote {
+  margin: 0 0 20px;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--xp-border, var(--xp-border-default));
+  color: var(--xp-text-muted, var(--xp-text-muted-default));
+}
+
+.xp-ul,
+.xp-ol {
+  margin: 0 0 20px;
+  padding-left: 28px;
+}
+
+.xp-ul li,
+.xp-ol li {
+  margin: 0 0 8px;
+}
+
+.xp-fig {
+  margin: 0 0 20px;
+}
+
+.xp-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 12px;
+  background: var(--xp-placeholder, var(--xp-placeholder-default));
+}
+
+.xp-img-loading,
+.xp-img-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 16px;
+  border-radius: 12px;
+  color: var(--xp-text-muted, var(--xp-text-muted-default));
+  font-size: 14px;
+  text-align: center;
+}
+
+.xp-img-loading {
+  background: var(--xp-placeholder, var(--xp-placeholder-default));
+}
+
+.xp-img-missing {
+  margin: 0 0 20px;
+  border: 1.5px dashed var(--xp-border, var(--xp-border-default));
+  word-break: break-all;
+}
+
+.xp-divider {
+  margin: 28px auto;
+  border: none;
+  border-top: 1px solid var(--xp-border, var(--xp-border-default));
+}
+
+/* 内嵌帖子（TWEET 实体）：预览拿不到帖子正文，画一张近似 X 引用卡的占位卡片。 */
+.xp-tweet {
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--xp-border, var(--xp-border-default));
+  border-radius: 16px;
+  background: var(--xp-box, var(--xp-box-default));
+}
+
+.xp-tweet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--xp-link, var(--xp-link-default));
+  font-size: 15px;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.xp-tweet-link::before {
+  content: '𝕏';
+  font-weight: 700;
+  color: var(--xp-text, var(--xp-text-default));
+}
+
+.xp-table-wrap {
+  margin: 0 0 20px;
+  overflow-x: auto;
+}
+
+.xp-table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.xp-table th,
+.xp-table td {
+  border: 1px solid var(--xp-border, var(--xp-border-default));
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.xp-table th {
+  font-weight: 700;
+  background: var(--xp-box, var(--xp-box-default));
+}
+
+.xp-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--xp-box, var(--xp-box-default));
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+.xp-md {
+  margin: 0 0 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--xp-box, var(--xp-box-default));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.xp-link {
+  color: var(--xp-link, var(--xp-link-default));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.xp-empty {
+  padding: 48px 0;
+  color: var(--xp-text-muted, var(--xp-text-muted-default));
+  text-align: center;
+}

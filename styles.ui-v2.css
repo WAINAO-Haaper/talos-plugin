@@ -4698,3 +4698,25 @@ body .talos-custom-api__kinds button.is-active {
 	padding: 2px 10px;
 	font-size: var(--talos-type-meta);
 }
+/* Native draft publishing: scoped to its entry and modal, article styles stay in shadow roots. */
+.talos-publishing-entry { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:16px; margin:12px 0; border:1px solid var(--talos-ui-line, var(--background-modifier-border)); border-radius:var(--talos-ui-radius-panel, 8px); }
+.talos-publishing-entry span { flex:1 1 240px; color:var(--talos-ui-muted, var(--text-muted)); }
+.modal.talos-publishing-modal { width:min(1100px, 94vw); max-width:94vw; }
+.talos-publishing-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.talos-publishing-field { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.talos-publishing-field input { width:100%; }
+.talos-publishing-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:14px 0; }
+.talos-publishing-targets { display:flex; flex-wrap:wrap; gap:18px; margin:16px 0; }
+.talos-publishing-targets label, .talos-publishing-confirm label { display:flex; align-items:center; gap:8px; }
+.talos-publishing-previews { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.talos-publishing-preview-pane { min-width:0; }
+.talos-publishing-preview-body { display:block; max-height:48vh; overflow:auto; border:1px solid var(--background-modifier-border); border-radius:6px; }
+.talos-publishing-checks, .talos-publishing-record { overflow-wrap:anywhere; }
+.talos-publishing-warning { color:var(--talos-ui-warning, var(--text-warning)); }
+.talos-publishing-confirm:not(:empty) { border:1px solid var(--background-modifier-border); padding:16px; margin-top:16px; }
+.talos-publishing-confirm button { margin-top:12px; }
+.talos-publishing-record { border-top:1px solid var(--background-modifier-border); padding:12px 0; }
+.talos-publishing-record button { margin:4px 8px; }
+.talos-publishing-history { max-height:28vh; overflow:auto; }
+.talos-publishing-settings input { width:100%; }
+@media(max-width:700px) { .talos-publishing-form, .talos-publishing-previews { grid-template-columns:1fr; } }

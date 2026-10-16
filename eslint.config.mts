@@ -6,6 +6,9 @@ import { globalIgnores } from 'eslint/config';
 export default tseslint.config(
 	globalIgnores([
 		'node_modules',
+		// Pinned MIT source is reviewed with its local adaptations and focused publishing tests.
+		'vendor/serena-post/**',
+		'scripts/publishing-host-smoke.mjs',
 		'dist',
 		'prototype',
 		// TalosBallRuntime 固定来源副本由哈希与 288 帧测试验证，不做 lint 重写
