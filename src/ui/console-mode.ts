@@ -13,6 +13,32 @@ export async function detectConsoleMode(exists: (path: string) => Promise<boolea
 	return (await exists(SUPERBRAIN_CATALOG_PATH)) ? "superbrain" : "personal";
 }
 
+/** Safe release display defaults; never imports a user's plugin settings. */
+export interface PackageDisplayDefaults {
+    consoleMode?: ConsoleMode;
+    uiLanguage?: "classic" | "lens";
+}
+
+export function readPackageDisplayDefaults(raw: string): PackageDisplayDefaults | null {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid release metadata");
+    const preset = (parsed as Record<string, unknown>).plugin_defaults;
+    if (preset === undefined) return null;
+    if (!preset || typeof preset !== "object" || Array.isArray(preset)) throw new Error("Invalid display defaults");
+    const values = preset as Record<string, unknown>;
+    if (Object.keys(values).some((key) => key !== "consoleMode" && key !== "uiLanguage")) throw new Error("Only display defaults are allowed");
+    const result: PackageDisplayDefaults = {};
+    if (values.consoleMode !== undefined) {
+        if (values.consoleMode !== "personal" && values.consoleMode !== "superbrain") throw new Error("Invalid console mode");
+        result.consoleMode = values.consoleMode;
+    }
+    if (values.uiLanguage !== undefined) {
+        if (values.uiLanguage !== "classic" && values.uiLanguage !== "lens") throw new Error("Invalid UI language");
+        result.uiLanguage = values.uiLanguage;
+    }
+    return result;
+}
+
 export type ModuleInvocation =
 	| { kind: "home" }
 	| { kind: "detail"; id: string }

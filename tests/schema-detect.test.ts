@@ -4,6 +4,7 @@ import {
 	SCHEMA_PRESET_EN,
 	detectSchemaDetailed,
 	listTopFolders,
+	readSuperbrainDirectoryConfig,
 } from "../src/data/schema";
 
 /** 构造一个最小 App 替身：只提供检测用到的 vault API */
@@ -146,5 +147,34 @@ describe("detectDataSources · 统计来源文件", () => {
 	it("文件不存在时不返回该项（不写脏路径）", () => {
 		const r = detectSchemaDetailed(fakeApp(["System"], []));
 		expect(r.dataSources.tasksPath).toBeUndefined();
+	});
+});
+
+
+describe("Superbrain config directory contracts", () => {
+	it("defaults to nested kit roots and remaps legacy content lists by explicit module paths", () => {
+		const result = readSuperbrainDirectoryConfig(JSON.stringify({
+			module_paths: { inbox: "资料/收集", identity: "画像/本人" },
+			content_dirs: ["00-收件箱", "System/Identity", "读书笔记"],
+			search_dirs: ["System/Identity", "读书笔记"], asset_dirs: ["图片", "图片"],
+		}));
+		expect(result.schema.soul).toBe("System/灵魂");
+		expect(result.contentDirs).toEqual(["资料/收集", "画像/本人", "读书笔记"]);
+		expect(result.searchDirs).toEqual(["画像/本人", "读书笔记"]);
+		expect(result.assetDirs).toEqual(["图片"]);
+		expect(result.extraContentDirs).toEqual(["读书笔记"]);
+	});
+
+	it.each(["../Outside", "/tmp/notes", "C:/notes", "Notes\\Secret", "Notes//Secret", "Notes/./Secret", "Notes/../Secret", ".hidden-control", "Notes/.hidden", "", "Notes/\u0000Secret"])("rejects unsafe module, content, search and attachment paths: %s", path => {
+		for (const key of ["content_dirs", "search_dirs", "asset_dirs"]) {
+			expect(() => readSuperbrainDirectoryConfig(JSON.stringify({ [key]: [path] }))).toThrow("路径无效");
+		}
+		expect(() => readSuperbrainDirectoryConfig(JSON.stringify({ module_paths: { inbox: path } }))).toThrow("路径无效");
+	});
+
+	it("validates every supplied module path and list shape before application", () => {
+		expect(() => readSuperbrainDirectoryConfig(JSON.stringify({ module_paths: { unknown: "../escape" } }))).toThrow("路径无效");
+		expect(() => readSuperbrainDirectoryConfig(JSON.stringify({ content_dirs: "Notes" }))).toThrow("目录列表无效");
+		expect(() => readSuperbrainDirectoryConfig(JSON.stringify({ schema_version: 2 }))).toThrow("版本不支持");
 	});
 });

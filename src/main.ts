@@ -1,5 +1,5 @@
 import { SuperbrainRuntime } from "./plugin/superbrain-runtime";
-import { detectConsoleMode, parseModuleInvocation } from "./ui/console-mode";
+import { detectConsoleMode, parseModuleInvocation, readPackageDisplayDefaults } from "./ui/console-mode";
 import { MODULE_ACTIONS, MODULE_COMMAND_GROUPS } from "./module-commands/catalog";
 import { FileSystemAdapter, Notice, Plugin, TFile, WorkspaceLeaf, addIcon, debounce } from "obsidian";
 import { DEFAULT_SETTINGS, TalosSettingTab, TalosSettings, normalizeUiLanguage, normalizeVisualTheme } from "./settings";
@@ -66,6 +66,8 @@ import { initializeQuyuanWorkbench } from "./plugin/quyuan-workbench-init";
 import { executeTalosAskCommand, getTalosProviderFacade, syncAgentWorkbenchProviderProfiles, syncCodexHarnessEnvironment } from "./plugin/provider-runtime";
 import { createTalosActionRuntime } from "./plugin/action-runtime";
 import { initializeFirstRunContext } from "./plugin/first-run";
+import { syncSuperbrainDirectoryConfig } from "./plugin/superbrain-config";
+import { SUPERBRAIN_CATALOG_PATH } from "./module-commands/superbrain-catalog";
 import { registerPageCommands } from "./plugin/page-commands";
 import { registerInlineEditCommand } from "./plugin/inline-edit-command";
 import type { PublishingHost } from "./publishing/host";
@@ -75,6 +77,8 @@ export const TALOS_ICON = "talos-logo";
 
 export default class TalosPlugin extends Plugin {
 	talosSettings!: TalosSettings;
+	hasSuperbrainCatalog = false;
+	private storedDisplayFields = new Set<string>();
 	agentWorkbenchService: AgentWorkbenchService | null = null;
 	agentWorkbenchStorage: ObsidianWorkbenchStorage | null = null;
 	agentWorkbenchSurface: "dsh" | "codex" = "dsh";
@@ -105,6 +109,8 @@ export default class TalosPlugin extends Plugin {
 	async onload(): Promise<void> {
 		configureClaudeSdkBundle(this.claudeSdkBundlePath());
 		await this.loadTalosSettings();
+		this.hasSuperbrainCatalog = await this.app.vault.adapter.exists(SUPERBRAIN_CATALOG_PATH);
+		await syncSuperbrainDirectoryConfig(this);
 		await this.detectConsoleModeOnce();
 		this.addCommand({ id: "open-draft-publishing", name: "排版与平台草稿", callback: () => { void this.openPublishing(); } });
 		this.talosActionRuntime = this.createTalosActionRuntime();
@@ -182,8 +188,8 @@ export default class TalosPlugin extends Plugin {
 			name: "全库问答",
 			callback: () => void this.executeTalosAskCommand(),
 		});
-		registerPageCommands(this, (pageKey) => this.openTalosPage(pageKey), this.talosSettings.consoleMode);
-		if (this.talosSettings.consoleMode === "superbrain") this.registerSuperbrainCommands();
+		registerPageCommands(this, (pageKey) => this.openTalosPage(pageKey), this.talosSettings.consoleMode, this.hasSuperbrainCatalog);
+		if (this.hasSuperbrainCatalog || this.talosSettings.consoleMode === "superbrain") this.registerSuperbrainCommands();
 		this.addCommand({
 			id: "scaffold-vault",
 			name: "补齐库结构",
@@ -217,14 +223,22 @@ export default class TalosPlugin extends Plugin {
 		});
 
 		const refresh = debounce(() => this.refreshViews(), 1500, true);
+        const refreshChangedFile = (file: unknown) => {
+            if (!(file instanceof TFile)) return;
+            if (file.path === "System/config.json") {
+                void syncSuperbrainDirectoryConfig(this).then(() => refresh()).catch((error: unknown) => {
+                    recordQuyuanRuntimeError(this, "superbrainDirectoryConfig", error);
+                });
+            } else if (file.extension === "md") refresh();
+        };
 		this.registerEvent(
 			this.app.vault.on("modify", (f) => {
-				if (f instanceof TFile && f.extension === "md") refresh();
+				refreshChangedFile(f);
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (f) => {
-				if (f instanceof TFile && f.extension === "md") refresh();
+				refreshChangedFile(f);
 			})
 		);
 		this.registerEvent(this.app.vault.on("delete", () => refresh()));
@@ -453,12 +467,26 @@ export default class TalosPlugin extends Plugin {
 	/** 控制台模式只在首次运行时按库内容判定一次；之后只由使用者在设置中改。 */
 	private async detectConsoleModeOnce(): Promise<void> {
 		if (this.talosSettings.consoleModeDetected) return;
-		this.talosSettings.consoleMode = await detectConsoleMode((path) => this.app.vault.adapter.exists(path));
+        let preset = null;
+        try {
+            if (await this.app.vault.adapter.exists("System/release.json")) {
+                preset = readPackageDisplayDefaults(await this.app.vault.adapter.read("System/release.json"));
+            }
+        } catch (error) {
+            recordQuyuanRuntimeError(this, "packageDisplayDefaults", error);
+        }
+        if (!this.storedDisplayFields.has("consoleMode")) {
+            this.talosSettings.consoleMode = preset?.consoleMode
+                ?? await detectConsoleMode((path) => this.app.vault.adapter.exists(path));
+        }
+        if (!this.storedDisplayFields.has("uiLanguage") && preset?.uiLanguage) {
+            this.talosSettings.uiLanguage = preset.uiLanguage;
+        }
 		this.talosSettings.consoleModeDetected = true;
 		await this.saveTalosSettings();
 	}
 
-	/** 超级大脑框架模式的命令面板入口：模块操作组与具体动作（个人体系模式不注册）。 */
+	/** 超级大脑框架模式的命令面板入口：模块操作组与具体动作（能力独立于控制台外壳）。 */
 	private registerSuperbrainCommands(): void {
 		for (const group of MODULE_COMMAND_GROUPS) {
 			this.addCommand({ id: `module-${group.id}`, name: `${group.label} · 模块操作`, callback: () => { void this.openModuleCommand(group.id); } });
@@ -554,6 +582,9 @@ export default class TalosPlugin extends Plugin {
 		const loaded: unknown = await this.loadData();
 		const stored = isRecord(loaded) ? loaded : {};
 		const namespaced = isRecord(stored.talos) ? stored.talos : stored;
+        this.storedDisplayFields = new Set(
+            ["consoleMode", "uiLanguage"].filter((key) => Object.prototype.hasOwnProperty.call(namespaced, key))
+        );
 		const knownSettings = Object.fromEntries(
 			Object.entries(namespaced).filter(([key]) =>
 				Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)

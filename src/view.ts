@@ -142,7 +142,7 @@ export class TalosView extends ItemView {
 	embeddedSettingsTab: TalosSettingTab | null = null;
 	/** Lens 界面语言外壳；经典界面时为 null。 */
 	lens: LensConsole | null = null;
-	/** 超级大脑框架模式的五个工作页（画布首页、C/M 详情）；个人体系模式不渲染。 */
+	/** C/M 分组与详情复用同一渲染器；框架模式另有画布首页。 */
 	readonly superbrainPages = new SuperbrainPages(this);
 
 	constructor(leaf: WorkspaceLeaf, plugin: TalosPlugin) {
@@ -163,6 +163,8 @@ export class TalosView extends ItemView {
 	}
 
 	get consoleMode(): ConsoleMode { return normalizeConsoleMode(this.plugin.talosSettings.consoleMode); }
+
+	get hasSuperbrainCatalog(): boolean { return this.plugin.hasSuperbrainCatalog; }
 
 	/** 库目录映射（单一真源，随设置页「目录映射」实时生效） */
 	get paths() { return this.plugin.paths; }
@@ -263,9 +265,10 @@ export class TalosView extends ItemView {
 		await this.onOpen();
 	}
 
-	/** Lens 外壳只用于个人体系模式；框架模式有自己的画布首页。 */
+	/** C/M 页暂用经典个人外壳；返回个人页后恢复 Lens，不改界面偏好。 */
 	private get usesLens(): boolean {
-		return this.consoleMode === "personal" && this.plugin.talosSettings.uiLanguage === "lens";
+		return this.consoleMode === "personal" && this.plugin.talosSettings.uiLanguage === "lens"
+			&& !isSuperbrainPage(this.activePage);
 	}
 
 	private buildShell(): void {
@@ -291,7 +294,7 @@ export class TalosView extends ItemView {
 		this.actionPanel = null;
 		this.embeddedSettingsTab = null;
 		root.empty();
-		root.removeClass("talos-console");
+		root.removeClass("talos-console", "talos-scope", "talos-canvas-shell");
 		for (const cls of Array.from(root.classList)) {
 			if (cls.startsWith("theme-") || cls.startsWith("page-") || cls.startsWith("section-")) root.removeClass(cls);
 		}
@@ -437,10 +440,10 @@ export class TalosView extends ItemView {
 		for (const page of [...PRIMARY_NAVIGATION, ...SUPERBRAIN_NAVIGATION]) {
 			this.contentEl.classList.remove(`section-${page.key}`);
 		}
-		// 框架模式的工作页使用框架令牌与画布样式（均限定在这两个 class 下，个人体系模式不受影响）。
+		// 只有框架模式切换外壳；个人 C/M 内容的样式作用域由页面渲染器局部提供。
 		const superbrainPage = isSuperbrainPage(this.activePage);
-		this.contentEl.classList.toggle("talos-scope", superbrainPage);
-		this.contentEl.classList.toggle("talos-canvas-shell", superbrainPage);
+		this.contentEl.classList.toggle("talos-scope", superbrainPage && this.consoleMode === "superbrain");
+		this.contentEl.classList.toggle("talos-canvas-shell", superbrainPage && this.consoleMode === "superbrain");
 		for (const pageKey of LEGACY_SECTION_PAGES) {
 			this.contentEl.classList.remove(`section-${pageKey}`);
 		}
@@ -698,13 +701,23 @@ export class TalosView extends ItemView {
 	}
 
 	renderPage(): void {
-		if (this.lens) return;
-		// AI 对话改为常驻右侧边栏：任何入口切到 chat 都转去右栏，主区留在当前页。
-		// 切换控制台模式后，不属于当前模式的页面回到该模式首页。
-		if (!pageBelongsTo(this.consoleMode, this.activePage)) {
+		// 页面能力独立于界面模式；没有目录时保持个人界面的原有回退。
+		if (!pageBelongsTo(this.consoleMode, this.activePage, this.hasSuperbrainCatalog)) {
 			this.activePage = homePageFor(this.consoleMode);
+			this.superbrainPages.activeDetailId = null;
 			if (this.pageNavEl) this.renderNav();
 		}
+		if (this.usesLens !== (this.lens !== null)) {
+			const leavingLens = this.lens !== null;
+			this.buildShell();
+			if (leavingLens) new Notice("工作流与机制将在经典界面打开；返回个人页面后恢复 Lens。");
+			if (this.lens) {
+				if (this.data) this.lens.setData(this.data, this.peerStatus);
+				this.lens.navigate(LENS_PAGE_FOR_CLASSIC[this.activePage] ?? "overview");
+			}
+		}
+		if (this.lens) return;
+		// AI 对话改为常驻右侧边栏：任何入口切到 chat 都转去右栏，主区留在当前页。
 		if (this.activePage === "chat") {
 			const opened = this.renderedPage !== null;
 			this.activePage = this.renderedPage && this.renderedPage !== "chat" ? this.renderedPage : homePageFor(this.consoleMode);
@@ -988,14 +1001,18 @@ export class TalosView extends ItemView {
 	}
 
 	navigateToPage(pageKey: string, superbrainDetailId: string | null = null): void {
-		if (this.lens) {
+		if (isSuperbrainPage(pageKey) && !pageBelongsTo(this.consoleMode, pageKey, this.hasSuperbrainCatalog)) {
+			pageKey = homePageFor(this.consoleMode);
+			superbrainDetailId = null;
+		}
+		if (this.lens && !isSuperbrainPage(pageKey)) {
 			this.lens.navigate(LENS_PAGE_FOR_CLASSIC[pageKey] ?? "overview");
 			return;
 		}
 		this.superbrainPages.activeDetailId = superbrainDetailId;
 		this.activePage = pageKey;
 		if (this.pageNavEl) this.renderNav();
-		if (this.pageEl) this.renderPage();
+		if (this.pageEl || this.lens) this.renderPage();
 	}
 
 	// 主页「屈原」入口 → 控制台内的屈原语音页（QuyuanVoicePanel）。

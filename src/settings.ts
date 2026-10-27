@@ -1,3 +1,4 @@
+import { applyDetectedDirectorySettings, getSuperbrainDirectoryConfig, markDirectorySettingsAutomatic, markDirectorySettingsManual, syncSuperbrainDirectoryConfig, type DirectoryConfigState, type DirectoryManagedKey } from "./plugin/superbrain-config";
 import { normalizeConsoleMode, type ConsoleMode } from "./ui/console-mode";
 import { DEFAULT_SUPERBRAIN_CANVAS_LAYOUT, type SuperbrainCanvasLayout } from "./ui/superbrain-canvas-layout";
 import { VAULT_FILE_KEYS, defaultLocation, specFor, type VaultFileKey } from "./data/vault-files";
@@ -181,6 +182,8 @@ export interface TalosSettings {
 	vaultSchema: Partial<TalosVaultSchema>;
 	/** 固定文件 / 目录位置覆盖（设置 → 库与数据 → 固定文件位置）；空表示用默认位置。 */
 	vaultFiles: Partial<Record<VaultFileKey, string>>;
+	/** 框架目录设置的来源与自动应用基线；配置内容仍以 System/config.json 为准。 */
+	directoryConfig: DirectoryConfigState | null;
 	/** 控制台模式：个人体系（主线页面）或超级大脑框架（C/M 五组）；框架部署包的库首次运行自动判定。 */
 	consoleMode: ConsoleMode;
 	/** 是否已按库内容自动判定过控制台模式（之后只由使用者在设置中改）。 */
@@ -277,6 +280,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	schemaAutoDetected: false,
 	vaultSchema: {},
 	vaultFiles: {},
+	directoryConfig: null,
 	consoleMode: "personal",
 	consoleModeDetected: false,
 	superbrainCanvasLayout: DEFAULT_SUPERBRAIN_CANVAS_LAYOUT,
@@ -480,6 +484,9 @@ export class TalosSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.talosSettings[key])
 					.onChange(async (v) => {
 						this.plugin.talosSettings[key] = v.trim();
+						if (["tasksPath", "pendingApprovalsPath", "candidatesPath", "healthLogPath"].includes(key)) {
+							markDirectorySettingsManual(this.plugin.talosSettings, [key as DataSourceKey]);
+						}
 						await this.plugin.saveTalosSettings();
 					})
 			);
@@ -646,27 +653,34 @@ export class TalosSettingTab extends PluginSettingTab {
 	// 目录映射与统计来源合并在一处：一次扫描同时定位目录和来源文件。
 	// 收件箱与日志目录的写入位置跟随映射，不再单独设置。
 	private renderLibrary(c: HTMLElement): void {
+		const framework = getSuperbrainDirectoryConfig(this.plugin);
+		const origin = this.plugin.talosSettings.directoryConfig;
+		if (framework) {
+			new Setting(c).setName("框架目录配置").setDesc("来源：System/config.json。明确手动设置优先；框架配置优先于目录扫描。配置变更会同步更新自动值。");
+			if (framework.extraContentDirs.length) new Setting(c).setName("额外内容目录").setDesc(`${framework.extraContentDirs.join("、")}。这些目录由框架 C/M 工具按配置处理，未自动归入现有模块；控制台模块统计和四类检索的范围保持原设置。`);
+			if (framework.assetDirs.length) new Setting(c).setName("框架附件目录").setDesc(framework.assetDirs.join("、"));
+		}
+		if (origin?.conflicts.length) {
+			new Setting(c).setName("旧设置与框架配置冲突").setDesc("以下旧值无法判断是手动设置还是旧自动检测，已保留。可逐项编辑以确认手动值，或采用这些项的框架路径。").addButton(b => b.setButtonText("采用冲突中的框架路径").onClick(async () => {
+				const current = this.plugin.talosSettings.directoryConfig;
+				const keys = (current?.conflicts ?? []).filter(item => !current?.manualKeys.includes(item.key)).map(item => item.key);
+				markDirectorySettingsAutomatic(this.plugin.talosSettings, keys);
+				await syncSuperbrainDirectoryConfig(this.plugin);
+				this.plugin.applyViewSettings();
+				this.plugin.refreshAllViews();
+				this.rerender();
+			}));
+			for (const item of origin.conflicts) new Setting(c).setName(item.key).setDesc(`保留：${item.current || "默认位置"}；框架：${item.configured}`);
+		}
 		new Setting(c)
 			.setName("自动识别")
 			.setDesc("扫描当前库，按名称匹配各模块目录（支持「笔记」「Projects」等任意命名），并定位任务、待审批、候选池、健康日志等统计来源文件。")
 			.addButton((b) =>
 				b.setButtonText("扫描当前库").setCta().onClick(async () => {
 					const result = detectSchemaDetailed(this.app);
-					this.plugin.talosSettings.vaultSchema = { ...result.schema };
-					const sourceKeys: DataSourceKey[] = [
-						"tasksPath",
-						"pendingApprovalsPath",
-						"candidatesPath",
-						"healthLogPath",
-					];
-					for (const key of sourceKeys) {
-						const found = result.dataSources[key];
-						if (found) this.plugin.talosSettings[key] = found;
-					}
-					this.plugin.talosSettings.inboxFolder = result.schema.inbox;
-					this.plugin.talosSettings.dailyFolder = result.schema.logs;
-					this.plugin.talosSettings.vaultFiles = { ...this.plugin.talosSettings.vaultFiles, ...result.files };
+					applyDetectedDirectorySettings(this.plugin.talosSettings, result);
 					await this.plugin.saveTalosSettings();
+					await syncSuperbrainDirectoryConfig(this.plugin);
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					this.lastDetection = result;
@@ -687,7 +701,9 @@ export class TalosSettingTab extends PluginSettingTab {
 					if (!preset) return;
 					this.plugin.talosSettings.vaultSchema = { ...preset };
 					this.syncWriteFolders();
+					markDirectorySettingsManual(this.plugin.talosSettings, this.moduleDirectoryKeys());
 					await this.plugin.saveTalosSettings();
+					await syncSuperbrainDirectoryConfig(this.plugin);
 					this.plugin.applyViewSettings();
 					new Notice(`已套用${v === "en" ? "英文" : "中文"}目录预设`);
 					this.rerender();
@@ -731,7 +747,9 @@ export class TalosSettingTab extends PluginSettingTab {
 							else delete next[key];
 							this.plugin.talosSettings.vaultSchema = next;
 							this.syncWriteFolders();
+							markDirectorySettingsManual(this.plugin.talosSettings, [`schema.${key}`, ...(key === "inbox" ? ["inboxFolder" as const] : key === "logs" ? ["dailyFolder" as const] : [])]);
 							await this.plugin.saveTalosSettings();
+							await syncSuperbrainDirectoryConfig(this.plugin);
 						})
 				);
 		}
@@ -760,7 +778,9 @@ export class TalosSettingTab extends PluginSettingTab {
 				b.setButtonText("恢复默认目录").setWarning().onClick(async () => {
 					this.plugin.talosSettings.vaultSchema = {};
 					this.syncWriteFolders();
+					markDirectorySettingsManual(this.plugin.talosSettings, this.moduleDirectoryKeys());
 					await this.plugin.saveTalosSettings();
+					await syncSuperbrainDirectoryConfig(this.plugin);
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice("已恢复默认目录映射");
@@ -786,8 +806,11 @@ export class TalosSettingTab extends PluginSettingTab {
 				b.setButtonText("自动查找文件位置").onClick(async () => {
 					const schema = resolveSchema(this.plugin.talosSettings.vaultSchema);
 					const found = detectVaultFiles(this.app, schema);
-					this.plugin.talosSettings.vaultFiles = { ...this.plugin.talosSettings.vaultFiles, ...found };
+					const keys = VAULT_FILE_KEYS.filter(key => found[key] !== undefined && !this.plugin.talosSettings.directoryConfig?.manualKeys.includes(`file.${key}`));
+					for (const key of keys) this.plugin.talosSettings.vaultFiles[key] = found[key];
+					markDirectorySettingsAutomatic(this.plugin.talosSettings, keys.map(key => `file.${key}` as const));
 					await this.plugin.saveTalosSettings();
+					await syncSuperbrainDirectoryConfig(this.plugin);
 					this.plugin.applyViewSettings();
 					this.plugin.refreshAllViews();
 					new Notice(`已定位 ${Object.keys(found).length} 个文件（默认位置已存在的不变）`);
@@ -816,10 +839,15 @@ export class TalosSettingTab extends PluginSettingTab {
 							if (trimmed) next[key] = trimmed;
 							else delete next[key];
 							this.plugin.talosSettings.vaultFiles = next;
+							markDirectorySettingsManual(this.plugin.talosSettings, [`file.${key}`]);
 							await this.plugin.saveTalosSettings();
 						})
 				);
 		}
+	}
+
+	private moduleDirectoryKeys(): DirectoryManagedKey[] {
+		return [...MODULE_KEYS.map(key => `schema.${key}` as const), "inboxFolder", "dailyFolder"];
 	}
 
 	/** 收件箱与日记的写入目录跟随模块映射（原先在数据源里重复设置）。 */

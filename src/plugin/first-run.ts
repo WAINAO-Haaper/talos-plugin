@@ -1,5 +1,6 @@
 // TALOS 插件首次运行的库结构检测与上下文初始化；由 TalosPlugin 委托调用。
-import { type DataSourceKey, detectSchemaDetailed } from "../data/schema";
+import { SUPERBRAIN_CONFIG_PATH, applyDetectedDirectorySettings, syncSuperbrainDirectoryConfig } from "./superbrain-config";
+import { detectSchemaDetailed } from "../data/schema";
 import { Notice } from "obsidian";
 import { bootstrapTalosVault, createObsidianVaultBootstrapHost } from "../bootstrap/vault-bootstrap";
 import { createVaultCanonicalRegistryReader } from "../canonical/registry-reader";
@@ -39,6 +40,8 @@ export async function initializeFirstRunContext(plugin: TalosPlugin): Promise<vo
 
 export async function autoDetectVaultSchemaOnFirstRun(plugin: TalosPlugin): Promise<void> {
 	try {
+		await syncSuperbrainDirectoryConfig(plugin);
+		if (plugin.hasSuperbrainCatalog && plugin.app.vault.getAbstractFileByPath(SUPERBRAIN_CONFIG_PATH)) return;
 		const configured = plugin.talosSettings.vaultSchema;
 		if (configured && Object.keys(configured).length > 0) return; // 用户已配置，不动
 		if (plugin.talosSettings.schemaAutoDetected) return; // 已自动检测过，不重复打扰
@@ -52,23 +55,7 @@ export async function autoDetectVaultSchemaOnFirstRun(plugin: TalosPlugin): Prom
 			return;
 		}
 
-		plugin.talosSettings.vaultSchema = { ...result.schema };
-		// 统计来源文件：只在识别到时覆盖，避免把用户已改的路径冲掉
-		const sourceKeys: DataSourceKey[] = [
-			"tasksPath",
-			"pendingApprovalsPath",
-			"candidatesPath",
-			"healthLogPath",
-		];
-		for (const key of sourceKeys) {
-			const found = result.dataSources[key];
-			if (found) plugin.talosSettings[key] = found;
-		}
-		// 收件箱/日记目录跟随识别结果
-		plugin.talosSettings.inboxFolder = result.schema.inbox;
-		plugin.talosSettings.dailyFolder = result.schema.logs;
-		// 固定文件：默认位置不存在而别处找到时记下位置（例如框架包的 System/health-log.md）。
-		plugin.talosSettings.vaultFiles = { ...plugin.talosSettings.vaultFiles, ...result.files };
+		applyDetectedDirectorySettings(plugin.talosSettings, result);
 
 		await plugin.saveTalosSettings();
 		plugin.refreshViews();

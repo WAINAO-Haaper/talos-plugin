@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectConsoleMode, normalizeConsoleMode } from "../src/ui/console-mode";
+import { detectConsoleMode, normalizeConsoleMode, readPackageDisplayDefaults } from "../src/ui/console-mode";
 import { SUPERBRAIN_CATALOG_PATH } from "../src/module-commands/superbrain-catalog";
 import {
 	PRIMARY_NAVIGATION,
@@ -46,4 +46,18 @@ describe("console mode (dual mode, per vault)", () => {
 		expect(personal.some(isSuperbrainPage)).toBe(false);
 		expect(pageCommands("superbrain").map((command) => command.pageKey)).toEqual(expect.arrayContaining(["sb-loop", "sb-system", "settings"]));
 	});
+});
+
+
+describe("package display defaults", () => {
+    it("reads only safe display defaults and supports legacy releases", () => {
+        expect(readPackageDisplayDefaults('{"version":"legacy"}')).toBeNull();
+        expect(readPackageDisplayDefaults('{"plugin_defaults":{"consoleMode":"personal","uiLanguage":"classic"}}'))
+            .toEqual({ consoleMode: "personal", uiLanguage: "classic" });
+    });
+    it("rejects permission, credential and invalid display presets", () => {
+        for (const defaults of [{ providerVaultAccess: true }, { anthropicApiKey: "synthetic" }, { consoleMode: "invalid" }, { uiLanguage: "invalid" }]) {
+            expect(() => readPackageDisplayDefaults(JSON.stringify({ plugin_defaults: defaults }))).toThrow();
+        }
+    });
 });

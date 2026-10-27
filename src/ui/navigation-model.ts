@@ -146,8 +146,16 @@ export function isSuperbrainPage(key: string): key is SuperbrainPageKey {
 	return Object.prototype.hasOwnProperty.call(SUPERBRAIN_PAGE_GROUP, key);
 }
 
-export function navigationFor(mode: "personal" | "superbrain"): readonly TalosPrimaryPage[] {
-	return mode === "superbrain" ? SUPERBRAIN_NAVIGATION : PRIMARY_NAVIGATION;
+// 个人界面沿用原有页面与设置位置；有目录时复用框架的五组 C/M 入口。
+const PERSONAL_CATALOG_NAVIGATION: readonly TalosPrimaryPage[] = [
+	...PRIMARY_NAVIGATION.filter((page) => page.key !== "settings"),
+	...SUPERBRAIN_NAVIGATION.filter((page) => isSuperbrainPage(page.key)),
+	SETTINGS_NAVIGATION,
+];
+
+export function navigationFor(mode: "personal" | "superbrain", hasSuperbrainCatalog = false): readonly TalosPrimaryPage[] {
+	if (mode === "superbrain") return SUPERBRAIN_NAVIGATION;
+	return hasSuperbrainCatalog ? PERSONAL_CATALOG_NAVIGATION : PRIMARY_NAVIGATION;
 }
 
 export function homePageFor(mode: "personal" | "superbrain"): string {
@@ -155,8 +163,8 @@ export function homePageFor(mode: "personal" | "superbrain"): string {
 }
 
 /** 页面是否属于该模式的导航（助手与设置两种模式共用）。 */
-export function pageBelongsTo(mode: "personal" | "superbrain", pageKey: string): boolean {
-	return navigationFor(mode).some((group) => group.children.some((child) => child.key === pageKey));
+export function pageBelongsTo(mode: "personal" | "superbrain", pageKey: string, hasSuperbrainCatalog = false): boolean {
+	return navigationFor(mode, hasSuperbrainCatalog).some((group) => group.children.some((child) => child.key === pageKey));
 }
 
 export const LEGACY_PAGE_KEYS = [

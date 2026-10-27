@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	LEGACY_PAGE_KEYS,
 	PRIMARY_NAVIGATION,
+	SUPERBRAIN_NAVIGATION,
+	navigationFor,
+	pageBelongsTo,
+	isSuperbrainPage,
 	WORKBENCH_MODULES,
 	resolvePageRoute,
 	routeContextLabel,
@@ -16,6 +20,31 @@ import { viewSource as readViewSource } from "./helpers/source-text";
 const viewSource = readViewSource();
 
 describe("TALOS navigation model", () => {
+	it("adds the same C/M groups to the personal navigation only when its catalog exists", () => {
+		expect(navigationFor("personal")).toBe(PRIMARY_NAVIGATION);
+		expect(navigationFor("personal", false)).toBe(PRIMARY_NAVIGATION);
+		const navigation = navigationFor("personal", true);
+		expect(navigation.filter((page) => !isSuperbrainPage(page.key))).toEqual(PRIMARY_NAVIGATION);
+		expect(navigation.filter((page) => isSuperbrainPage(page.key))).toEqual(
+			SUPERBRAIN_NAVIGATION.filter((page) => isSuperbrainPage(page.key))
+		);
+		expect(navigation.at(-1)?.key).toBe("settings");
+		expect(new Set(navigation.map((page) => page.key)).size).toBe(navigation.length);
+		for (const group of SUPERBRAIN_NAVIGATION.filter((page) => isSuperbrainPage(page.key))) {
+			expect(pageBelongsTo("personal", group.key)).toBe(false);
+			expect(pageBelongsTo("personal", group.key, true)).toBe(true);
+			expect(new TalosPageRouter(group.key).renderKey()).toBe(group.key);
+		}
+	});
+
+	it("keeps the framework navigation compatible regardless of the capability argument", () => {
+		expect(navigationFor("superbrain")).toBe(SUPERBRAIN_NAVIGATION);
+		expect(navigationFor("superbrain", true)).toBe(SUPERBRAIN_NAVIGATION);
+		expect(pageBelongsTo("superbrain", "sb-loop")).toBe(true);
+		expect(pageBelongsTo("personal", "today", true)).toBe(true);
+		expect(pageBelongsTo("personal", "unknown", true)).toBe(false);
+	});
+
 	it("groups the console into five task-ordered destinations plus settings at the bottom", () => {
 		expect(PRIMARY_NAVIGATION.map((item) => item.key)).toEqual([
 			"today",

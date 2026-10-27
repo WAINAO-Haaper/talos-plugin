@@ -12,8 +12,8 @@ export interface PageCommand {
 /** 已由其他命令覆盖的页面：AI 对话（open-quyuan-v2）。 */
 const COVERED_PAGES = new Set(["chat"]);
 
-export function pageCommands(mode: ConsoleMode = "personal"): PageCommand[] {
-	return navigationFor(mode).flatMap((group) =>
+export function pageCommands(mode: ConsoleMode = "personal", hasSuperbrainCatalog = false): PageCommand[] {
+	return navigationFor(mode, hasSuperbrainCatalog).flatMap((group) =>
 		group.children
 			.filter((child) => !COVERED_PAGES.has(child.key))
 			.map((child) => ({
@@ -28,8 +28,8 @@ interface CommandHost {
 	addCommand(command: { id: string; name: string; callback: () => void }): unknown;
 }
 
-export function registerPageCommands(host: CommandHost, open: (pageKey: string) => Promise<void>, mode: ConsoleMode = "personal"): void {
-	for (const command of pageCommands(mode)) {
+export function registerPageCommands(host: CommandHost, open: (pageKey: string) => Promise<void>, mode: ConsoleMode = "personal", hasSuperbrainCatalog = false): void {
+	for (const command of pageCommands(mode, hasSuperbrainCatalog)) {
 		host.addCommand({
 			id: command.id,
 			name: command.name,

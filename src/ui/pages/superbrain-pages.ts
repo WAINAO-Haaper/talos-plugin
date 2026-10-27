@@ -1,6 +1,6 @@
 // 超级大脑框架模式页面（D-TLP-072，移植自超级大脑分支线 branch-convergence-v0.5 的 view.ts）：
 // 「今日与循环」首页画布（自定义页签与卡片）、其余四组核心页（重点工作流 + 状态侧栏 + C/M 卡片）与 C/M 详情页。
-// 页面状态集中在本类，个人体系模式不创建、不渲染。
+// 页面状态集中在本类；个人界面有目录时复用 C/M 分组与详情。
 import { Notice, setIcon } from "obsidian";
 import { openFile } from "../../actions";
 import type { TalosView } from "../../view";
@@ -383,6 +383,10 @@ export class SuperbrainPages {
   const pageKey = SUPERBRAIN_PAGE_GROUP[this.view.activePage as SuperbrainPageKey];
   const ids = SUPERBRAIN_CORE_GROUPS[pageKey];
   if (!ids) return;
+  // 个人外壳只在内容区复用现有 C/M 样式；其中没有 app、sidebar 或首页画布。
+  if (this.view.consoleMode === "personal") {
+   page = page.createDiv({ cls: "talos-scope talos-canvas-shell", attr: { "data-talos-page": this.view.activePage } });
+  }
   if (this.activeDetailId) {
    page.createDiv({ cls: "talos-superbrain-core-loading", text: "正在读取功能页面…" });
    void this.loadSuperbrainDetailPage(page, this.activeDetailId); return;
@@ -390,7 +394,7 @@ export class SuperbrainPages {
   const section = primaryPage(this.view.pageRouter.current().primary);
   const inboxRoot = this.view.plugin.talosSettings.inboxFolder.replace(/\/$/, "");
   const inboxFiles = this.view.app.vault.getFiles().filter(file => file.path.startsWith(`${inboxRoot}/`) && file.basename !== "_README").length;
-  if (pageKey === "overview") { this.renderSuperbrainCanvasHome(page, d, inboxFiles); return; }
+  if (pageKey === "overview" && this.view.consoleMode === "superbrain") { this.renderSuperbrainCanvasHome(page, d, inboxFiles); return; }
   const heading = page.createEl("header", { cls: "talos-core-context" });
   heading.createEl("small", { text: this.view.app.vault.getName() });
   heading.createEl("h1", { text: section.label });

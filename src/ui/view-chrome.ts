@@ -77,7 +77,7 @@ export function buildSidebar(view: TalosView, side: HTMLElement): void {
 	// 导航
 	const navCard = side.createEl("section", { cls: "card pagenav-card" });
 	navCard.setCssProps({ "--ac": "#4D8DFF" });
-	view.secTitle(navCard, "导航", `${navigationFor(view.consoleMode).length} SECTIONS`);
+	view.secTitle(navCard, "导航", `${navigationFor(view.consoleMode, view.hasSuperbrainCatalog).length} SECTIONS`);
 	view.pageNavEl = navCard.createEl("nav", { cls: "nav" });
 	// 框架模式的图标导航栏（框架页隐藏上面的导航卡）；个人体系模式保持为空。
 	view.canvasNavEl = side.createEl("nav", { cls: "talos-canvas-rail-nav", attr: { "aria-label": "TALOS 功能导航" } });
@@ -120,7 +120,7 @@ export function renderNav(view: TalosView): void {
 	const groupEl = view.pageNavEl.createDiv({ cls: "nav-group" });
 	groupEl.setAttribute("data-nav-group", "primary");
 	groupEl.createDiv({ cls: "nav-group-label", text: "主界面" });
-	for (const page of navigationFor(view.consoleMode)) {
+	for (const page of navigationFor(view.consoleMode, view.hasSuperbrainCatalog)) {
 		const active = page.key === route.primary;
 		const item = groupEl.createDiv({
 			cls: `command${page.key === "settings" ? " talos-settings-nav-command" : ""}${active ? " active" : ""}`,

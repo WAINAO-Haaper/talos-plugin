@@ -420,26 +420,68 @@ export class VaultPaths {
 	outputPlatform(name: string): string { return this.join("output", name); }
 }
 
-/** The Superbrain kit's config is the source for its nested module roots. */
-export function schemaFromSuperbrainConfig(raw: string): TalosVaultSchema {
+/** 框架配置只接受库内可见目录；不替用户猜测任意目录的模块语义。 */
+export function safeSuperbrainDirectory(value: unknown, label: string): string {
+	if (typeof value !== "string") throw new Error(`超级大脑路径无效：${label}`);
+	const path = value.trim();
+	const hasControl = Array.from(path).some(char => {
+		const code = char.charCodeAt(0);
+		return code <= 0x1f || code === 0x7f;
+	});
+	if (!path || path.startsWith("/") || path.includes("\\") || path.includes(":") || hasControl
+		|| path.split("/").some(part => !part || part.startsWith("."))) {
+		throw new Error(`超级大脑路径无效：${label}`);
+	}
+	return path;
+}
+
+export interface SuperbrainDirectoryConfig {
+	schema: TalosVaultSchema;
+	contentDirs: string[];
+	searchDirs: string[];
+	assetDirs: string[];
+	/** 仍由框架工具处理，但无法可靠对应到现有模块的内容目录。 */
+	extraContentDirs: string[];
+}
+
+export function readSuperbrainDirectoryConfig(raw: string): SuperbrainDirectoryConfig {
 	let parsed: unknown;
 	try { parsed = JSON.parse(raw); } catch { throw new Error("超级大脑目录配置不是有效 JSON"); }
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("超级大脑目录配置无效");
 	const config = parsed as Record<string, unknown>;
-	const mapped = config.module_paths;
-	const defaults: TalosVaultSchema = {
+	if (config.schema_version !== undefined && config.schema_version !== 1) throw new Error("超级大脑目录配置版本不支持");
+	const schema: TalosVaultSchema = {
 		...SCHEMA_PRESET_CN,
 		identity: "System/Identity", soul: "System/灵魂", templates: "System/模板",
 		automation: "System/自动化", config: "System/配置",
 	};
-	if (mapped === undefined) return defaults;
-	if (!mapped || typeof mapped !== "object" || Array.isArray(mapped)) throw new Error("超级大脑模块映射无效");
-	const paths = mapped as Record<string, unknown>;
-	for (const key of MODULE_KEYS) {
-		const value = paths[key];
-		if (value === undefined) continue;
-		if (typeof value !== "string" || !value.trim() || value.startsWith("/") || value.includes("\\") || value.split("/").some(part => !part || part === "." || part === "..") || /^[A-Za-z]:/.test(value)) throw new Error(`超级大脑模块路径无效：${key}`);
-		defaults[key] = value;
+	const mapped = config.module_paths;
+	if (mapped !== undefined && (!mapped || typeof mapped !== "object" || Array.isArray(mapped))) throw new Error("超级大脑模块映射无效");
+	const paths: Record<string, string> = Object.create(null) as Record<string, string>;
+	for (const [key, value] of Object.entries((mapped ?? {}) as Record<string, unknown>)) {
+		paths[key] = safeSuperbrainDirectory(value, `module_paths.${key}`);
 	}
-	return defaults;
+	for (const key of MODULE_KEYS) if (paths[key] !== undefined) schema[key] = paths[key];
+	const legacy: Record<string, TalosSchemaKey> = {
+		...Object.fromEntries(MODULE_KEYS.map(key => [SCHEMA_PRESET_CN[key], key])),
+		"System/Identity": "identity", "System/灵魂": "soul",
+	};
+	const list = (key: string, fallback: string[], remap: boolean): string[] => {
+		const value = config[key];
+		if (value === undefined) return fallback;
+		if (!Array.isArray(value)) throw new Error(`超级大脑目录列表无效：${key}`);
+		return [...new Set(value.map((item: unknown) => {
+			const path = safeSuperbrainDirectory(item, key);
+			return remap ? paths[path] ?? (legacy[path] ? paths[legacy[path]] : undefined) ?? path : path;
+		}))];
+	};
+	const contentDirs = list("content_dirs", [...CONTENT_KEYS, "output", "identity", "soul"].map(key => schema[key as TalosSchemaKey]), true);
+	const searchDirs = list("search_dirs", ["insights", "assets", "projects", "archive", "output", "identity", "soul"].map(key => schema[key as TalosSchemaKey]), true);
+	const assetDirs = list("asset_dirs", [], false);
+	return { schema, contentDirs, searchDirs, assetDirs, extraContentDirs: contentDirs.filter(path => !Object.values(schema).includes(path)) };
+}
+
+/** The Superbrain kit's config is the source for its nested module roots. */
+export function schemaFromSuperbrainConfig(raw: string): TalosVaultSchema {
+	return readSuperbrainDirectoryConfig(raw).schema;
 }
