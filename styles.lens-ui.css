@@ -679,3 +679,119 @@
 .talos-console:not(.talos-canvas-shell) .talos-canvas-rail-nav { display: none; }
 /* Obsidian gives buttons a fixed height; two-line list rows need their natural height. */
 .talos-scope.talos-canvas-shell .talos-home-list-row { height: auto; }
+
+/* 插件统一组件规范：使用现有主题色，复用同一组圆角、间距与阴影。 */
+.talos-console[data-talos-theme] {
+    --talos-ui-radius-panel: 16px;
+    --talos-ui-radius-control: 10px;
+    --talos-ui-shadow-panel: inset 0 1px 0 color-mix(in srgb, var(--talos-ui-surface) 75%, white),
+        0 2px 4px color-mix(in srgb, var(--talos-ui-ink) 8%, transparent),
+        0 10px 24px color-mix(in srgb, var(--talos-ui-ink) 10%, transparent);
+}
+.talos-console[data-talos-theme] :is(.card, .hero, .panel, .talos-ui-panel, .talos-page-tabs, .talos-inline-settings__header, .talos-settings--console .talos-settabs, .talos-settings--console .talos-setcontent > .setting-item, .talos-settings--console .talos-embedded-workbench-settings .setting-item, .today-v1-slot, .today-v1-focus, .approval .item, .note, .barrow, .stat, .empty, .quick-card, .metric-card, .platform-card, .cluster-card, .project-card, .talos-module, .module-hero-main, .module-hero-stat, .overview-v2-priority, .detail-row, .daily-item, .focus, .gate),
+.talos-scope.talos-canvas-shell[data-talos-page] :is(.talos-canvas-card, .talos-home-library-card, .talos-superbrain-core-card),
+#talos-data-app-preview :is(.v-panel, .lens-collection-card, .lens-reading-card, .ta-dialog, .lb-asset-card),
+:is(.modal.talos-publishing-modal, .modal.talos-publishing-settings, .modal.talos-custom-api-modal, .modal.talos-inline-edit-modal, .talos-home-library-modal, .talos-welcome-card) {
+    border-radius: var(--talos-ui-radius-panel, 16px) !important;
+}
+.talos-console[data-talos-theme] :is(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea, .talos-page-tab, .talos-settab, .command, .nav a, .today-v1-slot__tag, .signal-pill, .metric-aux .chip, .daily-slot-badge, .proj-progress-track, .proj-progress-fill, .talos-settab-icon, .talos-inline-settings__icon, .talos-inline-settings__status),
+.talos-quyuan-shell :is(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea, .claudian-model-dropdown, .claudian-thinking-options, .claudian-history-menu, .claudian-external-context-dropdown, .claudian-mcp-selector-dropdown),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn {
+    border-radius: var(--talos-ui-radius-control, 10px) !important;
+}
+.talos-console[data-talos-theme] :is(.talos-ui-panel, .talos-ui-page-header.module-hero, .talos-inline-settings__header, .talos-settings--console .talos-settabs, .talos-settings--console .talos-setcontent > .setting-item, .talos-settings--console .talos-embedded-workbench-settings .setting-item) {
+    border-width: 1px !important;
+    box-shadow: var(--talos-ui-shadow-panel) !important;
+}
+.talos-scope.talos-canvas-shell[data-talos-page] :is(.talos-canvas-card, .talos-home-library-card, .talos-superbrain-core-card),
+#talos-data-app-preview :is(.v-panel, .lens-collection-card, .lens-reading-card, .ta-dialog, .lb-asset-card) {
+    border-width: 1px;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--talos-surface-raised, var(--ta-bg, var(--background-primary))) 75%, white),
+        0 2px 4px color-mix(in srgb, var(--talos-text-primary, var(--ta-ink, var(--text-normal))) 8%, transparent),
+        0 10px 24px color-mix(in srgb, var(--talos-text-primary, var(--ta-ink, var(--text-normal))) 10%, transparent);
+}
+.talos-quyuan-shell :is(.claudian-model-dropdown, .claudian-thinking-options, .claudian-history-menu, .claudian-external-context-dropdown, .claudian-mcp-selector-dropdown),
+body[data-talos-vault-theme] .talos-quyuan-shell :is(.claudian-model-dropdown, .claudian-thinking-options, .claudian-history-menu, .claudian-external-context-dropdown, .claudian-mcp-selector-dropdown) {
+    border-width: 1px;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--talos-qy-paper-strong) 75%, white),
+        0 2px 4px color-mix(in srgb, var(--talos-qy-ink) 8%, transparent),
+        0 12px 28px color-mix(in srgb, var(--talos-qy-ink) 16%, transparent);
+}
+.talos-console[data-talos-page="settings"] .talos-inline-settings,
+.talos-console[data-talos-page="settings"] .talos-settings--console,
+.talos-console[data-talos-page="settings"] .talos-settings--console .talos-setcontent {
+    gap: var(--talos-space-4);
+}
+.talos-console[data-talos-page="settings"] .talos-settings--console .talos-setcontent > .setting-item {
+    min-width: 0;
+    padding: var(--talos-space-4);
+}
+.talos-console[data-talos-page="settings"] .talos-settings--console .talos-settabs {
+    gap: var(--talos-space-2);
+    padding: var(--talos-space-2);
+}
+
+/* 旧主题的悬停与语音控件沿用统一的柔和层次；颜色和焦点轮廓保留原主题。 */
+.talos-console.theme-geometric-modern :is(.overview-command, .overview-primary-card, .overview-command-metric, .overview-secondary-item, .overview-health-score, .overview-stat-bar, .overview-action-row, .overview-card, .quick-card, .metric-card, .platform-card, .cluster-card, .project-card, .talos-module, .detail-row, .note, .focus, .gate, .signal-pill, .approval .item, .barrow, .stat, .module-hero-main, .module-hero-stat, .daily-item):is(:hover, :focus-visible, .is-module-selected) {
+    box-shadow: var(--talos-ui-shadow-panel) !important;
+}
+.tq-voice .tq-btn:is(.tq-control-btn, .tq-go-chat, .tq-send-btn),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn, .tq-go-chat, .tq-send-btn):not(.tq-btn--tab):not(.tq-btn--row),
+.tq-voice .tq-btn:is(.tq-control-btn, .tq-go-chat, .tq-send-btn):is(:hover:not(:disabled), :focus-visible, :active:not(:disabled)),
+body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn, .tq-go-chat, .tq-send-btn):not(.tq-btn--tab):not(.tq-btn--row):is(:hover:not(:disabled), :focus-visible, :active:not(:disabled)) {
+    border-width: 1px !important;
+    border-radius: var(--talos-ui-radius-control, 10px) !important;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tq-module-surface) 75%, white),
+        0 2px 4px color-mix(in srgb, var(--tq-module-shadow) 12%, transparent),
+        0 8px 16px color-mix(in srgb, var(--tq-module-shadow) 16%, transparent) !important;
+}
+
+/* 页面结构与尺寸：共享间距，按容器宽度布局。 */
+.talos-console[data-talos-theme] .talos-ui-panel {
+    padding: var(--talos-space-4);
+}
+.talos-console[data-talos-theme] .talos-ui-panel-header {
+    gap: var(--talos-space-3);
+    margin-bottom: var(--talos-space-4);
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero {
+    gap: var(--talos-space-3) var(--talos-space-4) !important;
+    padding: var(--talos-space-4) !important;
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero > :is(.module-hero-main, .module-hero-stats, .module-hero-actions, .talos-pixel-patrol) {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    min-width: 0;
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr)) !important;
+    gap: var(--talos-space-2) !important;
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero .module-hero-stat {
+    min-height: 0 !important;
+    padding: var(--talos-space-2) !important;
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-actions {
+    gap: var(--talos-space-2);
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+}
+.talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .talos-pixel-patrol.in-module-hero {
+    height: 48px;
+    min-height: 48px;
+    margin: 0;
+}
+.talos-console[data-talos-theme] .today-v1-grid {
+    gap: var(--talos-space-4);
+}
+@container (min-width: 600px) {
+    .talos-console[data-talos-theme] .talos-ui-page-header.module-hero {
+        grid-template-columns: minmax(200px, .8fr) minmax(0, 1.6fr) !important;
+        grid-template-areas: "main metrics" "actions scene" !important;
+    }
+    .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-main { grid-area: main; }
+    .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-stats { grid-area: metrics; }
+    .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-actions { grid-area: actions; }
+    .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .talos-pixel-patrol { grid-area: scene; }
+}

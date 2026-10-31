@@ -61,28 +61,8 @@ export async function renderChatPage(view: TalosView, page: HTMLElement): Promis
 
 export function renderSettingsPage(view: TalosView, page: HTMLElement): void {
 	const shell = page.createDiv({ cls: "talos-inline-settings" });
-	const header = shell.createEl("header", {
-		cls: "talos-inline-settings__header",
-	});
-	const identity = header.createDiv({
-		cls: "talos-inline-settings__identity",
-	});
-	const icon = identity.createSpan({ cls: "talos-inline-settings__icon" });
-	setIcon(icon, "settings");
-	const title = identity.createDiv({ cls: "talos-inline-settings__title" });
-	title.createEl("h1", { text: "TALOS 设置" });
-	title.createEl("p", {
-		text: "界面、库与数据、对话模型与屈原语音",
-	});
-	const status = header.createDiv({
-		cls: "talos-inline-settings__status",
-	});
-	status.createSpan({ cls: "talos-inline-settings__status-dot" });
-	const statusCopy = status.createSpan({
-		cls: "talos-inline-settings__status-copy",
-	});
-	statusCopy.createEl("strong", { text: "本地配置" });
-	statusCopy.createEl("small", { text: "修改后自动保存" });
+	shell.setAttribute("role", "region");
+	shell.setAttribute("aria-label", "TALOS 设置");
 	const body = shell.createDiv({
 		cls: "talos-inline-settings__body",
 	});

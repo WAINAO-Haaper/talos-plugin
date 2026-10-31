@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { viewSource as readViewSource } from "./helpers/source-text";
+import { functionSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const view = readViewSource();
@@ -32,8 +32,11 @@ describe("embedded TALOS settings", () => {
 	});
 
 	it("renders the shared settings surface as an application workspace", () => {
-		expect(view).toContain("talos-inline-settings__status");
-		expect(view).toContain("修改后自动保存");
+		const settingsPage = functionSource(view, "renderSettingsPage");
+		expect(settingsPage).not.toContain("talos-inline-settings__header");
+		expect(settingsPage).not.toContain("talos-inline-settings__status");
+		expect(settingsPage).toContain("view.embeddedSettingsTab.renderInto(body)");
+		expect(settingsPage).toContain('shell.setAttribute("aria-label", "TALOS 设置")');
 		expect(shellCss).toMatch(
 			/\.talos-settings--console\s*\{[^}]*grid-template-columns:\s*minmax\(154px, 184px\)\s+minmax\(0, 1fr\)/s
 		);
