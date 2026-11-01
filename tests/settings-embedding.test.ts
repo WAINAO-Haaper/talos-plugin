@@ -24,7 +24,7 @@ describe("embedded TALOS settings", () => {
 		expect(view).toContain("talos-settings-nav-command");
 		expect(view).toContain('case "settings": this.pageSettings(page); break;');
 		expect(shellCss).toMatch(
-			/\.talos-console\[data-talos-page\] \.sidebar \{[^}]*box-shadow: var\(--talos-shadow-0, none\);/s
+			/\.sidebar:is\(:hover,\s*:focus-within\)\s*\{[^}]*box-shadow:\s*none\s*!important/s
 		);
 		expect(shellCss).toContain(
 			".talos-console.section-settings .page-content"

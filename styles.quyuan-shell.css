@@ -846,39 +846,34 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   display: none !important;
 }
 
-/* Compact icon rail: expanded labels keep the same row and icon anchors. */
-.talos-console[data-talos-page] .app {
-  --talos-navigation-rail: var(--talos-space-12, calc(var(--talos-space-6) * 2));
-  grid-template-columns: var(--talos-navigation-rail) minmax(0, 1fr);
+.talos-console .app {
+  grid-template-columns: 72px minmax(0, 1fr) !important;
   align-items: start;
-  gap: 0;
-  padding: 0;
+  gap: 0 !important;
+  padding: 0 !important;
 }
 
-.talos-console[data-talos-page] .sidebar {
-  --talos-navigation-width: var(--talos-navigation-rail);
-  --talos-navigation-item-width: calc(var(--talos-control-sm, var(--talos-space-8)) + var(--talos-space-1));
-  --talos-navigation-label-display: none;
+.talos-console .sidebar {
   position: sticky;
   top: 0;
   align-self: start;
   z-index: 60;
-  display: flex;
+  display: flex !important;
   flex-direction: column;
-  width: var(--talos-navigation-width);
+  width: 72px;
   min-width: 0;
-  height: fit-content;
   max-height: 100svh;
-  padding: var(--talos-space-1) calc(var(--talos-space-1) / 2);
-  overflow: visible;
+  padding: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
-  box-shadow: var(--talos-shadow-0, none);
-  transition: none;
+  box-shadow: none;
+  transition: width 180ms ease;
 }
 
 .talos-console[data-talos-page="jarvis"] .sidebar {
-  height: fit-content;
-  max-height: 100%;
+  height: 100%;
+  max-height: none;
   visibility: visible;
   opacity: 1;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -886,7 +881,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 }
 
 .talos-console[data-talos-page="jarvis"] .pagenav-card {
-  display: block;
+  display: block !important;
   visibility: visible;
   opacity: 1;
 }
@@ -895,100 +890,112 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   align-items: stretch;
 }
 
-.talos-console .sidebar:focus-within {
-  --talos-navigation-width: min(calc(var(--talos-space-8) * 6 + var(--talos-space-4)), calc(100vw - var(--talos-space-2)));
-  --talos-navigation-item-width: 100%;
-  --talos-navigation-label-display: block;
+.talos-console
+  .sidebar:is(:hover, :focus-within) {
+  width: 296px;
+  box-shadow: none !important;
 }
 
-@media (hover: hover) {
-  .talos-console .sidebar:hover {
-    --talos-navigation-width: min(calc(var(--talos-space-8) * 6 + var(--talos-space-4)), calc(100vw - var(--talos-space-2)));
-    --talos-navigation-item-width: 100%;
-    --talos-navigation-label-display: block;
-  }
+.talos-console
+  .sidebar > .card:not(.pagenav-card) {
+  display: none !important;
 }
 
-.talos-console .sidebar > .card:not(.pagenav-card) {
-  display: none;
-}
-
-.talos-console[data-talos-page] .sidebar .pagenav-card {
-  animation: none;
-  transition: none;
-  transform: none;
+.talos-console .pagenav-card {
   display: block;
   width: 100%;
   margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: var(--talos-shadow-0, none);
+}
+
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   overflow: visible;
 }
 
-.talos-console .sidebar .pagenav-card::before,
-.talos-console .sidebar .pagenav-card::after {
-  display: none;
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card::before,
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
+  .pagenav-card::after {
+  display: none !important;
 }
 
 .talos-console .pagenav-card .section-title,
-.talos-console .pagenav-card .nav-group-label {
-  display: none;
-}
-
+.talos-console .pagenav-card .nav-group-label,
 .talos-console .pagenav-card .nav-label {
-  display: var(--talos-navigation-label-display);
+  display: none;
 }
 
 .talos-console .pagenav-card .nav {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--talos-space-2);
+  align-items: center;
+  gap: 8px;
 }
 
 .talos-console .pagenav-card .nav-group {
-  width: 100%;
-  justify-items: start;
-  gap: var(--talos-space-2);
+  width: 50px;
+  justify-items: center;
+  gap: 8px;
 }
 
-.talos-console[data-talos-page] .sidebar .pagenav-card .nav-group .command {
-  position: relative;
-  display: flex;
+.talos-console .pagenav-card .command {
   box-sizing: border-box;
-  align-items: center;
+  justify-content: center;
+  width: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  margin: 0 !important;
+  padding: 9px;
+  overflow: hidden;
+}
+
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .section-title,
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-group-label {
+  display: flex;
+}
+
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-label {
+  display: block;
+}
+
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav {
+  align-items: stretch;
+  gap: 14px;
+}
+
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .nav-group {
+  width: auto;
+  justify-items: stretch;
+  gap: 6px;
+}
+
+.talos-console
+  .sidebar:is(:hover, :focus-within)
+  .pagenav-card .command {
   justify-content: flex-start;
-  width: var(--talos-navigation-item-width);
+  width: 100%;
   min-width: 0;
-  min-height: calc(var(--talos-control-sm, var(--talos-space-8)) + var(--talos-space-1));
-  margin: 0;
-  padding: 0 var(--talos-space-2);
-  gap: var(--talos-space-2);
+  min-height: 48px;
+  padding: 9px 10px;
   overflow: visible;
-  transform: none;
-}
-
-.talos-console[data-talos-page] .sidebar .pagenav-card .nav-group .command::after {
-  content: "";
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 0;
-  inline-size: max(100%, var(--talos-control-touch-min, calc(var(--talos-space-8) + var(--talos-space-3))));
-  block-size: max(100%, var(--talos-control-touch-min, calc(var(--talos-space-8) + var(--talos-space-3))));
-  transform: translateY(-50%);
-}
-
-.talos-console .sidebar .pagenav-card .nav-group .mark {
-  flex: 0 0 var(--talos-icon-default, var(--talos-space-5, calc(var(--talos-space-4) + var(--talos-space-1))));
-  width: var(--talos-icon-default, var(--talos-space-5, calc(var(--talos-space-4) + var(--talos-space-1))));
-  height: var(--talos-icon-default, var(--talos-space-5, calc(var(--talos-space-4) + var(--talos-space-1))));
-}
-
-.talos-console .sidebar .pagenav-card .nav-group .mark svg {
-  width: var(--talos-icon-compact, var(--talos-space-4));
-  height: var(--talos-icon-compact, var(--talos-space-4));
 }
 
 .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"])
@@ -1026,7 +1033,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .talos-console[data-talos-page="jarvis"] .app {
   display: grid !important;
-  grid-template-columns: var(--talos-navigation-rail) minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr) !important;
   width: 100% !important;
   height: var(--tq-view-height) !important;
   min-height: var(--tq-view-height) !important;
@@ -1837,25 +1844,115 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 @media (max-width: 1080px) {
+  .talos-console .app {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+  }
+
+  .talos-console .sidebar {
+    padding: 10px;
+  }
+
+  .talos-console
+    .sidebar:is(:hover, :focus-within) {
+    width: 260px;
+  }
+
   .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"]) .main {
     padding: var(--talos-space-3);
+  }
+
+}
+
+@media (max-width: 760px) {
+  .talos-console .app {
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+  }
+
+  .talos-console .sidebar {
+    width: 54px;
+    padding-inline: 5px;
+  }
+
+  .talos-console
+    .sidebar:is(:hover, :focus-within) {
+    width: min(260px, calc(100vw - 12px));
+  }
+
+  .talos-console .pagenav-card .command {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .talos-console
+    .sidebar:is(:hover, :focus-within)
+    .pagenav-card .command {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 44px;
+  }
+
+  .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"]) .main {
+    padding: var(--talos-space-2);
+  }
+
+}
+
+/* 助手入口展开期间固定保留侧栏轨道，鼠标/焦点跨越时语音页签不移动。
+   百分比相对当前应用面板，窄分栏仍给主区保留可换行的操作空间。 */
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+  --tq-assistant-nav-min: 72px;
+  --tq-assistant-nav-max: 296px;
+  --tq-assistant-command-height: 48px;
+  grid-template-columns: clamp(var(--tq-assistant-nav-min), 45%, var(--tq-assistant-nav-max)) minmax(0, 1fr) !important;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar {
+  width: 100%;
+  transition: none;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card :is(.section-title, .nav-group-label) {
+  display: flex;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav-label {
+  display: block;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav {
+  align-items: stretch;
+  gap: 14px;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav-group {
+  width: auto;
+  justify-items: stretch;
+  gap: 6px;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .command {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: var(--tq-assistant-command-height);
+  overflow: visible;
+}
+
+@media (max-width: 1080px) {
+  .talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+    --tq-assistant-nav-max: 260px;
   }
 }
 
 @media (max-width: 760px) {
-  .talos-console:not([data-talos-page="overview"]):not([data-talos-page="jarvis"]) .main {
-    padding: var(--talos-space-2);
+  .talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+    --tq-assistant-nav-min: 54px;
+    --tq-assistant-command-height: 44px;
   }
-}
-
-/* Assistant tabs retain the same compact rail independently of hover/focus. */
-.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
-  grid-template-columns: var(--talos-navigation-rail) minmax(0, 1fr);
-}
-
-.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar {
-  width: var(--talos-navigation-width);
-  transition: none;
 }
 
 /* 控制台内嵌设置：复用 TalosSettingTab 的单一设置渲染与保存逻辑。 */
