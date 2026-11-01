@@ -827,7 +827,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   container: tq-dock / size;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: fit-content(25%) minmax(0, 1fr) fit-content(40%);
+  grid-template-rows: fit-content(30%) minmax(0, 1fr) fit-content(40%);
   align-items: stretch;
   gap: var(--talos-space-2);
   width: 100%;
@@ -860,7 +860,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-conversation {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 3fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 3fr) minmax(calc(var(--talos-space-8) * 3 + var(--talos-space-4)), 1fr);
   gap: var(--talos-space-2);
   overflow: hidden;
 }
@@ -1031,7 +1031,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   }
 }
 
-@container tq-dock (max-height: 760px) or (max-width: 400px) {
+@container tq-dock (max-height: 600px) or (max-width: 400px) {
   :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-header {
     max-block-size: 20cqh;
   }
