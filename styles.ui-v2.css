@@ -4782,3 +4782,123 @@ body .talos-custom-api__kinds button.is-active {
 	.talos-home-v3 .talos-home-v3-grid { grid-template-columns: 1fr; }
 	.talos-home-v3-summary { grid-template-columns: 1fr; }
 }
+
+/* 主页面正文与阅读界面共享字号；对话、语音和设置保留各自样式。 */
+.talos-console:not([data-talos-page="chat"]):not([data-talos-page="harness"]):not([data-talos-page="jarvis"]):not([data-talos-page="settings"]) .talos-ui-page,
+.talos-console.talos-lens-native[aria-label="系统总览"] {
+	--talos-readable-body-size: max(16px, var(--font-text-size, 16px));
+	--talos-type-body: var(--talos-readable-body-size);
+	--talos-type-supporting: var(--talos-readable-body-size);
+	--talos-type-module: max(18px, calc(var(--talos-readable-body-size) * 1.1));
+	font-size: var(--talos-readable-body-size);
+	line-height: 1.55;
+}
+
+.talos-console :is(.talos-home-v3-bar, .talos-home-v3-age-legend, .talos-home-v3-summary-item span) {
+	font-size: var(--talos-readable-body-size, max(16px, var(--font-text-size, 16px)));
+}
+
+/* 工作台正文跟随 Obsidian 阅读字号；窄分栏优先保证文字完整。 */
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) {
+	container: talos-workbench / inline-size;
+	--talos-workbench-body-size: max(16px, var(--font-text-size, 16px));
+	--talos-type-body: var(--talos-workbench-body-size);
+	--talos-type-supporting: var(--talos-workbench-body-size);
+	--talos-type-meta: max(14px, calc(var(--talos-workbench-body-size) * 0.875));
+	--talos-type-module: max(18px, calc(var(--talos-workbench-body-size) * 1.1));
+	font-size: var(--talos-workbench-body-size);
+	line-height: 1.55;
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) :is(.workbench-data-column, .workbench-data-preview, .knowledge-v2-recent-group, .workbench-data-detail-content) {
+	min-width: 0;
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) .talos-ui-panel-header {
+	flex-wrap: wrap;
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) :is(.inbox-triage__summary, .inbox-triage-card__meta, .inbox-triage-card__related-label, .inbox-triage-card__tag, .inbox-triage-card__status) {
+	font-size: var(--talos-type-meta);
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) .module-hero-action {
+	font-size: var(--talos-workbench-body-size);
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) .knowledge-v2-recent-group {
+	display: grid;
+	gap: var(--talos-space-2);
+}
+
+:is(.talos-console .workbench-category-content, .talos-console.talos-lens-native[aria-label="工作台"]) .knowledge-v2-recent-group .module-hero-action {
+	justify-content: flex-start;
+	min-width: 0;
+	height: auto;
+	text-align: left;
+}
+
+/* 展开详情位于卡片内，始终单列，避免二次分栏导致中文逐字换行。 */
+.talos-console .workbench-data-detail-content :is(.workflow-v2-primary, .workflow-v2-secondary) {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+@container talos-workbench (max-width: 1024px) {
+	.talos-console :is(.workbench-data-grid, .workbench-projects-grid, .workbench-system-grid) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* 系统总览使用当前面板的可用高度，窗口变小时由页面自然滚动。 */
+.talos-console[data-talos-page="today"] > .app {
+	min-height: 100%;
+}
+
+.talos-console[data-talos-page="today"] .main > .page-content {
+	flex: 1 0 auto;
+}
+
+.talos-console[data-talos-page="today"] .talos-home-v3,
+.talos-console.talos-lens-native[aria-label="系统总览"] .talos-home-v3 {
+	--talos-one-screen-module: none;
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.talos-console .talos-home-v3 .talos-ui-page-header__scene,
+.talos-console[data-talos-theme] .talos-home-v3 .talos-ui-page-header.module-hero > .talos-pixel-patrol.in-module-hero {
+	height: 32px;
+	min-height: 32px;
+}
+
+.talos-console .talos-home-v3-grid {
+	flex: 1 0 auto;
+	grid-auto-rows: minmax(190px, 1fr);
+	align-items: stretch;
+}
+
+.talos-console .talos-home-v3-chart {
+	display: flex;
+	flex-direction: column;
+	min-height: 190px;
+}
+
+.talos-console .talos-home-v3-bars {
+	flex: 1 0 auto;
+	align-content: space-evenly;
+}
+
+.talos-console .talos-home-v3-heat {
+	flex: 1 0 auto;
+	align-items: center;
+}
+
+.talos-console .talos-home-v3-line {
+	flex: 1 0 100px;
+	min-height: 100px;
+	height: auto;
+}
