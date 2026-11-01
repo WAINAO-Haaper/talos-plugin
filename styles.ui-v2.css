@@ -4902,3 +4902,29 @@ body .talos-custom-api__kinds button.is-active {
 	min-height: 100px;
 	height: auto;
 }
+
+/* Lens 总览的页签和面板共享剩余高度；内容过多时仍由页面滚动。 */
+#talos-data-app-preview[data-workspace="overview"] .ta-page {
+	display: flex;
+	flex-direction: column;
+}
+
+#talos-data-app-preview[data-workspace="overview"] .ta-page > .lens-workspace-tabs {
+	flex: 0 0 auto;
+}
+
+#talos-data-app-preview[data-workspace="overview"] .ta-page > #lens-workspace-panel,
+#talos-data-app-preview[data-workspace="overview"] #lens-workspace-panel > .talos-lens-native[aria-label="系统总览"] {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+/* Lens 的通用图标尺寸不应用到健康趋势图。 */
+#talos-data-app-preview .talos-lens-native svg.talos-home-v3-line:not(.ta-git-edges) {
+	width: 100%;
+	height: auto;
+	min-height: 100px;
+	flex: 1 0 100px;
+}
