@@ -950,3 +950,54 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* 右侧状态在上，回复和转写占据中间，语音操作与查询分层放在下方。 */
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-overlay-text {
+  flex: 2 0 180px;
+  min-height: 180px;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-transcript-editor {
+  flex: 1 0 120px;
+  min-height: 120px;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock .tq-overlay-reply {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@container tq-voice-layout (max-width: 760px) {
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-overlay-text,
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-transcript-editor {
+    flex: 0 0 auto;
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock .tq-overlay-reply {
+    min-height: 120px;
+    max-height: 320px;
+  }
+}
+
+/* 转写区域利用卡片空间，内容较长时可滚动查看。 */
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-editor {
+  display: flex;
+  flex-direction: column;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+@container tq-voice-layout (max-width: 760px) {
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines {
+    max-height: 200px;
+  }
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
