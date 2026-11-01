@@ -738,9 +738,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
 body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn, .tq-go-chat, .tq-send-btn):not(.tq-btn--tab):not(.tq-btn--row):is(:hover:not(:disabled), :focus-visible, :active:not(:disabled)) {
     border-width: 1px !important;
     border-radius: var(--talos-ui-radius-control, 10px) !important;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tq-module-surface) 75%, white),
-        0 2px 4px color-mix(in srgb, var(--tq-module-shadow) 12%, transparent),
-        0 8px 16px color-mix(in srgb, var(--tq-module-shadow) 16%, transparent) !important;
+    box-shadow: var(--talos-shadow-1, none);
 }
 
 /* 页面结构与尺寸：共享间距，按容器宽度布局。 */
@@ -810,7 +808,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   height: 100%;
-  padding: 16px;
+  padding: var(--talos-space-4);
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-talos-stage {
   width: 100%;
@@ -829,17 +827,17 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: var(--talos-space-2);
   width: 100%;
   min-width: 0;
   min-height: 0;
   height: 100%;
   max-height: none;
-  padding: clamp(14px, 2cqi, 24px);
+  padding: var(--talos-space-3);
   overflow-x: hidden;
   overflow-y: auto;
   border-top: 0;
-  border-left: 1px solid var(--tq-module-border, var(--tq-border));
+  border-left: 0;
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-workspace-bar {
   position: static;
@@ -847,7 +845,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--talos-space-2);
   width: 100%;
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-workspace-meta,
@@ -864,60 +862,125 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
   display: inline-flex;
   white-space: normal;
 }
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-text {
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > :is(.tq-overlay-text, .tq-transcript-editor) {
   display: flex;
+  flex: 0 1 calc(var(--talos-space-8) * 3 + var(--talos-space-6));
   flex-direction: column;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: var(--talos-space-2);
   width: 100%;
+  min-width: 0;
+  min-height: var(--talos-space-24, calc(var(--talos-space-8) * 3));
   max-height: none;
   margin: 0;
-  padding: 14px;
-  overflow: visible;
-  border: 1px solid var(--tq-border);
-  background: var(--tq-panel);
+  padding: var(--talos-space-2);
+  overflow: hidden;
+  border: var(--talos-stroke-emphasis, calc(var(--talos-space-1) / 2)) solid var(--talos-text-primary, var(--tq-module-border));
+  border-radius: var(--talos-radius-none, 0);
+  background: var(--talos-surface-raised, var(--tq-module-surface));
+  box-shadow: var(--talos-shadow-1, calc(var(--talos-space-1) / 2) calc(var(--talos-space-1) / 2) 0 var(--tq-module-shadow));
 }
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head {
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-head {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px;
-  color: var(--tq-text);
+  gap: var(--talos-space-2);
+  color: var(--talos-text-primary, var(--tq-text));
 }
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head small {
-  color: var(--tq-muted);
-  line-height: 1.45;
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head small,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-head small {
+  color: var(--talos-text-secondary, var(--tq-muted));
+  font: var(--talos-type-body-sm, inherit);
+  line-height: var(--talos-leading-loose, 1.65);
 }
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-reply {
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-overlay-reply, .tq-transcript-lines) {
   display: block;
-  min-height: 100px;
-  max-height: min(34vh, 360px);
-  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   text-align: left;
   user-select: text;
+  font: var(--talos-type-body-lg, inherit);
   font-size: max(16px, var(--font-text-size, 16px));
-  line-height: 1.6;
+  line-height: var(--talos-leading-loose, 1.65);
   text-shadow: none;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-line {
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-reply:empty::before {
   content: "等待回复";
-  color: var(--tq-muted);
+  color: var(--talos-text-secondary, var(--tq-muted));
 }
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-editor {
-  min-height: 120px;
-  max-height: none;
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-overlay-reply, .tq-transcript-lines)::-webkit-scrollbar {
+  display: block;
+  width: var(--talos-space-1);
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--talos-space-3);
+  padding-block: calc(var(--talos-space-3) / 2);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-btn.tq-control-btn {
+  --tq-btn-height: var(--talos-control-sm, var(--talos-space-8));
+  position: relative;
+  block-size: auto;
+  min-block-size: var(--talos-control-sm, var(--talos-space-8));
+  min-height: var(--talos-control-sm, var(--talos-space-8));
+  padding: var(--talos-space-1) var(--talos-space-2);
+  gap: var(--talos-space-1);
+  overflow: visible;
+  white-space: normal;
+  font: var(--talos-type-body-md, inherit);
+  font-size: 14px;
+  line-height: 1.6;
+  box-shadow: var(--talos-shadow-1, none);
+  transform: none;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-btn.tq-control-btn::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: max(100%, var(--talos-control-touch-min, calc(var(--talos-space-8) + var(--talos-space-3))));
+  block-size: max(100%, var(--talos-control-touch-min, calc(var(--talos-space-8) + var(--talos-space-3))));
+  transform: translate(-50%, -50%);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-btn.tq-control-btn svg {
+  width: calc(var(--talos-icon-compact, var(--talos-space-4)) - var(--talos-space-1) / 2);
+  height: calc(var(--talos-icon-compact, var(--talos-space-4)) - var(--talos-space-1) / 2);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls > .tq-control-btn:nth-child(n + 5) {
+  display: inline-flex;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-dock-live > span, .tq-dock-live > small, .tq-control-label) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-readonly-query {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-readonly-query__copy {
   grid-column: 1 / -1;
+}
+@media (hover: hover) {
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-btn.tq-control-btn:hover:not(:disabled) {
+    transform: none;
+    box-shadow: var(--talos-shadow-1, none);
+  }
 }
 @container tq-voice-layout (max-width: 760px) {
   :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-body {
@@ -926,78 +989,24 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
     overflow-y: auto;
   }
   :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-stage {
-    min-height: 220px !important;
-    max-height: none !important;
+    min-height: 220px;
+    max-height: none;
   }
   :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock {
     height: auto;
     overflow: visible;
     border-left: 0;
-    border-top: 1px solid var(--tq-module-border, var(--tq-border));
+    border-top: 0;
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > :is(.tq-overlay-text, .tq-transcript-editor) {
+    flex: 0 0 auto;
+    height: auto;
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-overlay-reply, .tq-transcript-lines) {
+    min-height: 3lh;
+    max-height: 8lh;
   }
   :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-/* 语音设置和引擎状态在两种界面均保持可见。 */
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls > .tq-control-btn:nth-child(n + 5) {
-  display: inline-flex;
-}
-
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-dock-live > span, .tq-dock-live > small, .tq-control-label) {
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* 右侧状态在上，回复和转写占据中间，语音操作与查询分层放在下方。 */
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-overlay-text {
-  flex: 2 0 180px;
-  min-height: 180px;
-}
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-transcript-editor {
-  flex: 1 0 120px;
-  min-height: 120px;
-}
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock .tq-overlay-reply {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  overflow-y: auto;
-}
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-@container tq-voice-layout (max-width: 760px) {
-  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-overlay-text,
-  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock > .tq-transcript-editor {
-    flex: 0 0 auto;
-  }
-  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock .tq-overlay-reply {
-    min-height: 120px;
-    max-height: 320px;
-  }
-}
-
-/* 转写区域利用卡片空间，内容较长时可滚动查看。 */
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-editor {
-  display: flex;
-  flex-direction: column;
-}
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-@container tq-voice-layout (max-width: 760px) {
-  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines {
-    max-height: 200px;
-  }
-}
-:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-lines::-webkit-scrollbar {
-  display: block;
-  width: 6px;
 }

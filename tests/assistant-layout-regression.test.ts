@@ -64,10 +64,10 @@ describe("assistant layout regression", () => {
 
 	it("keeps the primary navigation visible on the voice page", () => {
 		expect(quyuanStyles).toMatch(
-			/\.talos-console\[data-talos-page="jarvis"\] \.sidebar \{[^}]*height: 100%;[^}]*visibility: visible;[^}]*opacity: 1;/s
+			/\.talos-console\[data-talos-page="jarvis"\] \.sidebar \{[^}]*height: fit-content;[^}]*visibility: visible;[^}]*opacity: 1;/s
 		);
 		expect(quyuanStyles).toMatch(
-			/\.talos-console\[data-talos-page="jarvis"\] \.pagenav-card \{[^}]*display: block !important;[^}]*visibility: visible;[^}]*opacity: 1;/s
+			/\.talos-console\[data-talos-page="jarvis"\] \.pagenav-card \{[^}]*display: block;[^}]*visibility: visible;[^}]*opacity: 1;/s
 		);
 	});
 

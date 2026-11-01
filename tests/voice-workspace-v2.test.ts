@@ -201,7 +201,7 @@ describe("voice focus workspace v2", () => {
 			"--tq-module-red: #e7473e",
 			"--tq-module-blue: #3362c7",
 			".tq-btn.tq-control-btn--mic",
-			"box-shadow: 5px 5px 0 var(--tq-module-shadow)",
+			"box-shadow: var(--talos-shadow-1, none)",
 			"border-radius: 0 !important",
 		]) expect(shellCss).toContain(contract);
 		expect(uiCss).toContain("background: var(--tq-module-surface)");
