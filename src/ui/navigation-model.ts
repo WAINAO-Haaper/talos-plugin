@@ -49,30 +49,10 @@ export interface TalosPageRoute {
 	secondary?: TalosSecondaryPageKey;
 }
 
-// 2026-10-07 导航重构：按「今天做什么 → 内容怎么流转 → 项目推进 → 助手 → 系统」组织，
+// 主导航按「工作台 → 助手 → 系统 → 设置」组织，
 // 每项数据只有一个主场页面，其他页面只放带跳转的提醒。二级页 key 沿用原页面 key，
 // 页面实现与样式不受分组变化影响。
 export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
-	{
-		key: "today",
-		label: "系统总览",
-		icon: "sun",
-		subtitle: "资料、项目与系统状态统计",
-		children: [
-			{ key: "today", label: "系统总览", icon: "sun" },
-		],
-	},
-	{
-		key: "assistant",
-		label: "语音助手",
-		icon: "audio-lines",
-		subtitle: "AI 对话、语音与 DeepSeek Harness",
-		children: [
-			{ key: "jarvis", label: "语音", icon: "audio-lines" },
-			{ key: "chat", label: "AI 对话", icon: "messages-square" },
-			{ key: "harness", label: "Harness", icon: "square-terminal" },
-		],
-	},
 	{
 		key: "workbench",
 		label: "工作台",
@@ -87,6 +67,26 @@ export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
 			{ key: "health", label: "系统健康", icon: "activity" },
 			{ key: "capability", label: "能力中心", icon: "blocks" },
 			{ key: "identity", label: "身份上下文", icon: "fingerprint" },
+		],
+	},
+	{
+		key: "assistant",
+		label: "语音助手",
+		icon: "audio-lines",
+		subtitle: "AI 对话、语音与 DeepSeek Harness",
+		children: [
+			{ key: "jarvis", label: "语音", icon: "audio-lines" },
+			{ key: "chat", label: "AI 对话", icon: "messages-square" },
+			{ key: "harness", label: "Harness", icon: "square-terminal" },
+		],
+	},
+	{
+		key: "today",
+		label: "系统总览",
+		icon: "sun",
+		subtitle: "资料、项目与系统状态统计",
+		children: [
+			{ key: "today", label: "系统总览", icon: "sun" },
 		],
 	},
 	// 与 Lens 一致：设置单独放在导航底部，不混入业务分组。

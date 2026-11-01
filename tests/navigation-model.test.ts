@@ -45,17 +45,17 @@ describe("TALOS navigation model", () => {
 		expect(pageBelongsTo("personal", "unknown", true)).toBe(false);
 	});
 
-	it("puts the overview, voice, workbench and settings in the requested order", () => {
+	it("puts the workbench, voice, overview and settings in the requested order", () => {
 		expect(PRIMARY_NAVIGATION.map((item) => item.key)).toEqual([
-			"today",
-			"assistant",
 			"workbench",
+			"assistant",
+			"today",
 			"settings",
 		]);
 		expect(PRIMARY_NAVIGATION.map((item) => item.children.map((child) => child.key))).toEqual([
-			["today"],
-			["jarvis", "chat", "harness"],
 			["inbox", "knowledge", "output", "projects", "tasks", "health", "capability", "identity"],
+			["jarvis", "chat", "harness"],
+			["today"],
 			["settings"],
 		]);
 		expect(resolvePageRoute("settings")).toEqual({ primary: "settings", secondary: "settings" });

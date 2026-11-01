@@ -28,13 +28,13 @@ export interface LensModule {
 }
 
 export const LENS_MODULES: readonly LensModule[] = [
-	{ id: "overview", title: "系统总览", icon: "house", tabs: [["today", "总览"]] },
-	{ id: "assistant", title: "语音助手", icon: "audio-lines", tabs: [["voice", "语音"], ["chat", "对话"], ["harness", "Harness"]] },
 	{ id: "workbench", title: "工作台", icon: "layout-dashboard", tabs: [["inbox", "资料"], ["projects", "项目与任务"], ["health", "系统与记忆"]] },
+	{ id: "assistant", title: "语音助手", icon: "audio-lines", tabs: [["voice", "语音"], ["chat", "对话"], ["harness", "Harness"]] },
+	{ id: "overview", title: "系统总览", icon: "house", tabs: [["today", "总览"]] },
 	{ id: "preferences", title: "设置", icon: "settings", bottom: true },
 ];
 
-export const LENS_RAIL_SHORTCUTS: readonly LensModuleId[] = ["overview", "assistant", "workbench"];
+export const LENS_RAIL_SHORTCUTS: readonly LensModuleId[] = ["workbench", "assistant", "overview"];
 
 export function lensModule(id: LensModuleId): LensModule {
 	const found = LENS_MODULES.find((module) => module.id === id);

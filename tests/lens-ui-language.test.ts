@@ -43,9 +43,9 @@ describe("Lens interface language", () => {
 		expect(read("src/main.ts")).toContain('this.talosSettings.uiLanguage === "lens"');
 	});
 
-	it("organises overview, voice and the compact workbench like the classic interface", () => {
-		expect(LENS_MODULES.map((m) => m.title)).toEqual(["系统总览", "语音助手", "工作台", "设置"]);
-		expect(LENS_RAIL_SHORTCUTS).toEqual(["overview", "assistant", "workbench"]);
+	it("organises the compact workbench, voice and overview like the classic interface", () => {
+		expect(LENS_MODULES.map((m) => m.title)).toEqual(["工作台", "语音助手", "系统总览", "设置"]);
+		expect(LENS_RAIL_SHORTCUTS).toEqual(["workbench", "assistant", "overview"]);
 		expect(LENS_MODULES.find((m) => m.id === "workbench")?.tabs?.map(([id]) => id)).toEqual(["inbox", "projects", "health"]);
 		expect(LENS_MODULES.find((m) => m.id === "assistant")?.tabs?.map(([id]) => id)).toEqual(["voice", "chat", "harness"]);
 		expect(defaultTab("overview")).toBe("today");
