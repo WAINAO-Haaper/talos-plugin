@@ -792,3 +792,161 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn:is(.tq-control-btn
     .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .module-hero-actions { grid-area: actions; }
     .talos-console[data-talos-theme] .talos-ui-page-header.module-hero > .talos-pixel-patrol { grid-area: scene; }
 }
+
+/* 语音工作台：球体与信息区按 4:3 分栏，窄窗口自然上下排列。 */
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice {
+  container: tq-voice-layout / inline-size;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-body {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 3fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  height: 100%;
+  padding: 16px;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-talos-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  place-items: center;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-talos-ball-host {
+  width: min(78cqi, 78cqh, 560px);
+  height: min(78cqi, 78cqh, 560px);
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  padding: clamp(14px, 2cqi, 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-top: 0;
+  border-left: 1px solid var(--tq-module-border, var(--tq-border));
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-workspace-bar {
+  position: static;
+  inset: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-workspace-meta,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-badges,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-status,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-live {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  white-space: normal;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-workspace-boundary,
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-dock-badges > span {
+  display: inline-flex;
+  white-space: normal;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 14px;
+  overflow: visible;
+  border: 1px solid var(--tq-border);
+  background: var(--tq-panel);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--tq-text);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-reply-head small {
+  color: var(--tq-muted);
+  line-height: 1.45;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-reply {
+  display: block;
+  min-height: 100px;
+  max-height: min(34vh, 360px);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+  user-select: text;
+  font-size: max(16px, var(--font-text-size, 16px));
+  line-height: 1.6;
+  text-shadow: none;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-overlay-reply:empty::before {
+  content: "等待回复";
+  color: var(--tq-muted);
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-transcript-editor {
+  min-height: 120px;
+  max-height: none;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-readonly-query {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-readonly-query__copy {
+  grid-column: 1 / -1;
+}
+@container tq-voice-layout (max-width: 760px) {
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 38vh) auto;
+    overflow-y: auto;
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-stage {
+    min-height: 220px !important;
+    max-height: none !important;
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-dock {
+    height: auto;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--tq-module-border, var(--tq-border));
+  }
+  :is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 语音设置和引擎状态在两种界面均保持可见。 */
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice .tq-voice-controls > .tq-control-btn:nth-child(n + 5) {
+  display: inline-flex;
+}
+
+:is(.talos-console, .talos-scope.talos-canvas-shell, #talos-data-app-preview) .tq-voice :is(.tq-dock-live > span, .tq-dock-live > small, .tq-control-label) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

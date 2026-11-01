@@ -11,7 +11,7 @@ const shellCss = readFileSync(`${root}styles.quyuan-shell.css`, "utf8");
 const uiCss = readFileSync(`${root}styles.ui-v2.css`, "utf8");
 
 describe("voice focus workspace v2", () => {
-	it("mounts TALOS Ball as the single center visual with a lower control dock", () => {
+	it("mounts TALOS Ball alongside the voice control dock", () => {
 		expect(panel).toContain('root.dataset.talosComponent = "voice-workspace"');
 		expect(panel).toContain("tq-workspace-bar");
 		expect(panel).toContain("VOICE WORKSPACE");

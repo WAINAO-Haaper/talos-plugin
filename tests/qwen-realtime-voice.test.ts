@@ -843,6 +843,40 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 		expect(sentTypes(h.peer.channel)).toEqual(["response.create"]);
 	});
 
+	it("ignores late transcript and completion events from an interrupted response", async () => {
+		const h = createHarness();
+		await h.session.start();
+		h.session.setAwake(true);
+		h.peer.channel.message({ type: "response.created", response: { id: "old" } });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", response_id: "old", item_id: "first", delta: "旧" });
+		h.peer.channel.message({ type: "input_audio_buffer.speech_started" });
+		h.peer.channel.message({ type: "response.created", response: { id: "new" } });
+		h.output.mockClear();
+		h.peer.channel.message({ type: "response.audio_transcript.delta", response_id: "old", item_id: "first", delta: "迟到" });
+		h.peer.channel.message({ type: "response.audio_transcript.done", response_id: "old", item_id: "first", transcript: "旧迟到" });
+		h.peer.channel.message({ type: "response.done", response: { id: "old", status: "cancelled" } });
+		expect(h.output).not.toHaveBeenCalled();
+		h.peer.channel.message({ type: "response.audio_transcript.delta", response_id: "new", item_id: "second", delta: "新" });
+		expect(h.output).toHaveBeenCalledWith("新", false, "second:0:0");
+		expect(h.error).not.toHaveBeenCalled();
+	});
+
+	it("identifies interleaved output segments and resets them for the next response", async () => {
+		const h = createHarness();
+		await h.session.start();
+		h.peer.channel.message({ type: "response.created" });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", item_id: "a", output_index: 0, content_index: 0, delta: "甲" });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", item_id: "b", output_index: 1, content_index: 0, delta: "乙" });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", item_id: "a", output_index: 0, content_index: 1, delta: "丙" });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", item_id: "a", output_index: 0, content_index: 0, delta: "续" });
+		expect(h.output).toHaveBeenCalledWith("甲续", false, "a:0:0");
+		expect(h.output).toHaveBeenCalledWith("乙", false, "b:1:0");
+		expect(h.output).toHaveBeenCalledWith("丙", false, "a:0:1");
+		h.peer.channel.message({ type: "response.created" });
+		h.peer.channel.message({ type: "response.audio_transcript.delta", item_id: "a", output_index: 0, content_index: 0, delta: "新" });
+		expect(h.output).toHaveBeenLastCalledWith("新", false, "a:0:0");
+	});
+
 	it("streams transcripts, reports barge-in, and sleeps without creating another response", async () => {
 		const h = createHarness();
 		await h.session.start();
@@ -872,8 +906,8 @@ describe("Qwen Omni Realtime WebRTC session", () => {
 			response_id: "response",
 			transcript: "好的，我在听。",
 		});
-		expect(h.output).toHaveBeenCalledWith("好的", false);
-		expect(h.output).toHaveBeenCalledWith("好的，我在听。", true);
+		expect(h.output).toHaveBeenCalledWith("好的", false, "response:0:0");
+		expect(h.output).toHaveBeenCalledWith("好的，我在听。", true, "response:0:0");
 
 		h.peer.channel.sent.length = 0;
 		h.peer.channel.message({

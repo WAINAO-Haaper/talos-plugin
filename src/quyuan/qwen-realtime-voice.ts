@@ -29,7 +29,8 @@ export interface QwenRealtimeHandlers {
 	onWakeChange?(awake: boolean): void;
 	onState?(state: RealtimeVoiceState): void;
 	onInputTranscript?(text: string, final: boolean): void;
-	onOutputTranscript?(text: string, final: boolean): void;
+	onOutputTranscript?(text: string, final: boolean, segmentKey: string): void;
+	onOutputTurnStart?(): void;
 	onUsage?(usage: ProviderUsageMetrics): void;
 	onBargeIn?(): void;
 	onError?(message: string): void;
@@ -351,6 +352,15 @@ function eventKey(event: Record<string, unknown>): string {
 	);
 }
 
+/** A response may contain multiple output items and content segments. */
+function outputTranscriptKey(event: Record<string, unknown>): string {
+	const output = typeof event.output_index === "number" || typeof event.output_index === "string"
+		? String(event.output_index) : "0";
+	const content = typeof event.content_index === "number" || typeof event.content_index === "string"
+		? String(event.content_index) : "0";
+	return `${eventKey(event)}:${output}:${content}`;
+}
+
 const LEGACY_WAKE_ALIASES = [
 	"屈原", "曲原", "去原", "屈源", "渠原", "趋原", "区原", "取原",
 	"屈园", "曲园", "驱原", "瞿原", "屈元", "曲元", "居原", "取源",
@@ -391,6 +401,8 @@ export class QwenRealtimeVoiceSession {
 	}>();
 	private readonly inputTranscripts = new Map<string, string>();
 	private readonly outputTranscripts = new Map<string, string>();
+	private activeOutputResponseId = "";
+	private readonly retiredOutputResponseIds = new Set<string>();
 	private peer: RealtimePeerConnectionPort | null = null;
 	private channel: RealtimeDataChannelPort | null = null;
 	private stream: RealtimeMediaStreamPort | null = null;
@@ -488,6 +500,7 @@ export class QwenRealtimeVoiceSession {
 	setAwake(awake: boolean): void {
 		if (this.awake === awake) return;
 		if (!awake) {
+			this.retireOutputResponse();
 			if (this.responseActive) this.send({ type: "response.cancel" });
 			this.turnGeneration += 1;
 			this.responseActive = false;
@@ -720,6 +733,12 @@ export class QwenRealtimeVoiceSession {
 
 	private handleServerEvent(event: Record<string, unknown>): void {
 		const type = stringValue(event.type);
+		const responseId = stringValue(event.response_id) || stringValue(record(event.response)?.id);
+		if (type === "response.audio_transcript.delta" || type === "response.audio_transcript.done" || type === "response.done") {
+			if (responseId && (this.retiredOutputResponseIds.has(responseId)
+				|| (this.activeOutputResponseId && responseId !== this.activeOutputResponseId))) return;
+			if (responseId && !this.activeOutputResponseId) this.activeOutputResponseId = responseId;
+		}
 		if (type === "session.created") {
 			const openChannel = [...this.channels].find((item) => item.readyState === "open");
 			if (!openChannel) {
@@ -782,6 +801,11 @@ export class QwenRealtimeVoiceSession {
 			return;
 		}
 		if (type === "response.created") {
+			if (responseId && this.retiredOutputResponseIds.has(responseId)) return;
+			if (this.activeOutputResponseId && this.activeOutputResponseId !== responseId) this.retireOutputResponse();
+			this.activeOutputResponseId = responseId;
+			this.outputTranscripts.clear();
+			this.handlers.onOutputTurnStart?.();
 			this.clearFirstResponseTimer();
 			this.responseActive = true;
 			if (this.awake) this.emitState("thinking");
@@ -793,25 +817,26 @@ export class QwenRealtimeVoiceSession {
 		}
 		if (type === "response.audio_transcript.delta") {
 			this.clearFirstResponseTimer();
-			const key = eventKey(event);
+			const key = outputTranscriptKey(event);
 			const value = (this.outputTranscripts.get(key) ?? "") + stringValue(event.delta);
 			this.outputTranscripts.set(key, value);
 			this.emitState("assistant-speaking");
-			this.handlers.onOutputTranscript?.(value, false);
+			this.handlers.onOutputTranscript?.(value, false, key);
 			return;
 		}
 		if (type === "response.audio_transcript.done") {
-			const key = eventKey(event);
+			const key = outputTranscriptKey(event);
 			const value = (
 				stringValue(event.transcript)
 				|| this.outputTranscripts.get(key)
 				|| ""
-			).trim();
+			);
 			this.outputTranscripts.delete(key);
-			if (value) this.handlers.onOutputTranscript?.(value, true);
+			if (value.trim()) this.handlers.onOutputTranscript?.(value, true, key);
 			return;
 		}
 		if (type === "response.done") {
+			this.retireOutputResponse();
 			this.responseActive = false;
 			this.clearFirstResponseTimer();
 			const response = record(event.response);
@@ -843,6 +868,7 @@ export class QwenRealtimeVoiceSession {
 			const code = stringValue(error?.code);
 			const message = stringValue(error?.message) || "Qwen Realtime session error";
 			if (/cancel|not_active/i.test(code)) {
+				this.retireOutputResponse();
 				this.turnGeneration += 1;
 				this.responseActive = false;
 				this.pendingToolCalls.clear();
@@ -987,7 +1013,19 @@ export class QwenRealtimeVoiceSession {
 		);
 	}
 
+	private retireOutputResponse(): void {
+		if (this.activeOutputResponseId) {
+			this.retiredOutputResponseIds.add(this.activeOutputResponseId);
+			if (this.retiredOutputResponseIds.size > 128) {
+				const oldest = this.retiredOutputResponseIds.values().next().value;
+				if (oldest) this.retiredOutputResponseIds.delete(oldest);
+			}
+		}
+		this.activeOutputResponseId = "";
+	}
+
 	private beginUserTurn(text = ""): void {
+		this.retireOutputResponse();
 		this.turnGeneration += 1;
 		this.clearTimers();
 		this.pendingToolCalls.clear();
@@ -1034,6 +1072,7 @@ export class QwenRealtimeVoiceSession {
 	}
 
 	private failTurn(message: string, reasonCode: string): void {
+		this.retireOutputResponse();
 		this.handlers.onAudit?.({ type: "turn-recovery", reasonCode, generation: this.turnGeneration });
 		this.handlers.onError?.(message);
 		this.emitState("error");
@@ -1092,6 +1131,8 @@ export class QwenRealtimeVoiceSession {
 	}
 
 	private cleanup(notify: boolean, finalState: "idle" | "error" | "disconnected"): void {
+		this.activeOutputResponseId = "";
+		this.retiredOutputResponseIds.clear();
 		const wasConnected = this.connected;
 		this.clearTimers();
 		this.connected = false;

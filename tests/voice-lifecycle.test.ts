@@ -18,6 +18,7 @@ import { evaluateVoiceTurnAdmission } from "../src/quyuan/voice-turn-admission";
 import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
 import type { AgentRuntimeAdapter } from "../src/agent-workbench/contracts/runtime-adapter";
 import { unavailableCapabilities } from "../src/agent-workbench/contracts/runtime-capabilities";
+import { createObsidianHost } from "./helpers/obsidian-dom";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -37,6 +38,86 @@ class Deferred<T> {
 afterEach(() => {
 	vi.useRealTimers();
 	vi.unstubAllGlobals();
+});
+
+describe("voice reply display", () => {
+	it("retains a complete long reply through streaming and status changes", async () => {
+		const { QuyuanVoicePanel } = await import("../src/quyuan/voice-panel");
+		const reply = createObsidianHost().element;
+		const hint = createObsidianHost().element;
+		Object.assign(reply, { scrollHeight: 1000, scrollTop: 0, clientHeight: 200 });
+		const initial = Array.from({ length: 12 }, (_, i) => `第${i + 1}句。 \n  缩进 and spaces  `).join("\n\n");
+		const panel = Object.assign(Object.create(QuyuanVoicePanel.prototype) as object, {
+			overlayReply: reply, overlayHint: hint, activeReplySource: "driver", replyBuffer: initial,
+		}) as unknown as { replyBuffer: string; feedOverlayLine(delta: string): void; setOverlayMessage(text: string): void };
+		panel.feedOverlayLine("");
+		expect(reply.textContent).toBe(initial);
+		panel.replyBuffer += "追加的完整回答。";
+		panel.feedOverlayLine("");
+		expect(reply.textContent).toBe(initial + "追加的完整回答。");
+		expect((reply as unknown as { scrollTop: number }).scrollTop).toBe(0);
+		panel.setOverlayMessage("语音已休眠");
+		expect(hint.textContent).toBe("语音已休眠");
+		expect(reply.textContent).toBe(initial + "追加的完整回答。");
+	});
+
+	it("combines multiple realtime segments without duplicating streamed prefixes", async () => {
+		const { QuyuanVoicePanel } = await import("../src/quyuan/voice-panel");
+		const reply = createObsidianHost().element;
+		Object.assign(reply, { scrollHeight: 100, scrollTop: 0, clientHeight: 200 });
+		const segments = new Map<string, string>();
+		const panel = Object.assign(Object.create(QuyuanVoicePanel.prototype) as object, {
+			overlayReply: reply, realtimeReplySegments: segments, activeReplySource: "realtime", replyBuffer: "",
+		}) as unknown as { updateRealtimeReply(text: string, key: string): void };
+		panel.updateRealtimeReply("第一", "item-a:0:0");
+		panel.updateRealtimeReply("第二段", "item-b:1:0");
+		panel.updateRealtimeReply("内容十", "item-a:0:10");
+		panel.updateRealtimeReply("内容二", "item-a:0:2");
+		panel.updateRealtimeReply("第一段。", "item-a:0:0");
+		expect(reply.textContent).toBe("第一段。内容二内容十第二段");
+		(panel as unknown as { activeReplySource: string }).activeReplySource = "driver";
+		reply.setText("文字查询回复");
+		panel.updateRealtimeReply("迟到的语音", "item-c:2:0");
+		expect(reply.textContent).toBe("文字查询回复");
+		segments.clear();
+		(panel as unknown as { activeReplySource: string }).activeReplySource = "realtime";
+		panel.updateRealtimeReply("新一轮", "item-c:0:0");
+		expect(reply.textContent).toBe("新一轮");
+	});
+
+	it("shows the complete final voice response even when streamed text differs", async () => {
+		const { QuyuanVoicePanel } = await import("../src/quyuan/voice-panel");
+		const reply = createObsidianHost().element;
+		Object.assign(reply, { scrollHeight: 0, scrollTop: 0, clientHeight: 200 });
+		const driver = {
+			isBusy: () => false,
+			send: async (_input: unknown, callbacks: { onText(text: string): void; onDone(text: string): void }) => {
+				callbacks.onText("部分");
+				callbacks.onDone("最终完整语音回答");
+			},
+		};
+		const panel = Object.assign(Object.create(QuyuanVoicePanel.prototype) as object, {
+			driver, mounted: true, navigatingToChat: false, lifecycleGeneration: 1, responseGeneration: 0,
+			activeReplySource: "driver", overlayReply: reply, replyBuffer: "",
+			voiceMode: { setReplyText: vi.fn() }, voiceSessionStore: null, markdownComponent: null,
+			ttsEnabled: false, ttsPending: false, controlStatusEl: null,
+			setState: vi.fn(), setTalosBallState: vi.fn(), restingState: () => "idle",
+		}) as unknown as { respond(text: string, channel: "voice"): Promise<void> };
+		await panel.respond("问题", "voice");
+		expect(reply.textContent).toBe("最终完整语音回答");
+	});
+
+	it("preserves long output without sentence punctuation", async () => {
+		const { QuyuanVoicePanel } = await import("../src/quyuan/voice-panel");
+		const reply = createObsidianHost().element;
+		Object.assign(reply, { scrollHeight: 1000, scrollTop: 800, clientHeight: 200 });
+		const full = "长内容".repeat(1800);
+		const panel = Object.assign(Object.create(QuyuanVoicePanel.prototype) as object, {
+			overlayReply: reply, activeReplySource: "driver", replyBuffer: full,
+		}) as unknown as { feedOverlayLine(delta: string): void };
+		panel.feedOverlayLine("");
+		expect(reply.textContent).toBe(full);
+	});
 });
 
 describe("voice microphone lifecycle", () => {

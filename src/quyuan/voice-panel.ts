@@ -116,11 +116,13 @@ export class QuyuanVoicePanel {
 	private ballStateTimer: number | null = null;
 	private markdownComponent: Component | null = null;
 	private replyBuffer = "";
+	private readonly realtimeReplySegments = new Map<string, string>();
+	private activeReplySource: "realtime" | "driver" = "realtime";
 	private overlayTranscriptEl: HTMLElement | null = null;
 	private overlayTranscriptLinesEl: HTMLElement | null = null;
 	private partialTranscriptEl: HTMLElement | null = null;
 	private overlayReply: HTMLElement | null = null;
-	private overlayLines: HTMLElement[] = [];
+	private overlayHint: HTMLElement | null = null;
 	private controlStatusEl: HTMLElement | null = null;
 	private workspaceStatusEl: HTMLElement | null = null;
 	private confirmHostEl: HTMLElement | null = null;
@@ -257,7 +259,25 @@ export class QuyuanVoicePanel {
 				"data-workspace-section": "voice-stage",
 			},
 		});
-		const workspaceBar = stage.createDiv({
+
+		// 既有粒子人物保留为弱氛围层；TALOS Ball 是唯一中心主视觉。
+		this.characterStage = new QuyuanVoiceCharacterStage(stage);
+		const visual = stage.createDiv({
+			cls: "tq-talos-stage",
+			attr: { "aria-label": "TALOS Ball 状态视觉" },
+		});
+		const ballHost = visual.createDiv({ cls: "tq-talos-ball-host" });
+		this.mountTalosBall(ballHost);
+
+		const dock = body.createDiv({
+			cls: "tq-voice-dock",
+			attr: {
+				role: "region",
+				"aria-label": "语音转写与控制",
+				"data-workspace-section": "voice-controls",
+			},
+		});
+		const workspaceBar = dock.createDiv({
 			cls: "tq-workspace-bar",
 			attr: { role: "group", "aria-label": "语音工作台状态与导航" },
 		});
@@ -288,30 +308,6 @@ export class QuyuanVoicePanel {
 		chatButton.createSpan({ text: "转到 AI 对话" });
 		chatButton.addEventListener("click", () => this.goToChat());
 
-		// 既有粒子人物保留为弱氛围层；TALOS Ball 是唯一中心主视觉。
-		this.characterStage = new QuyuanVoiceCharacterStage(stage);
-		const visual = stage.createDiv({
-			cls: "tq-talos-stage",
-			attr: { "aria-label": "TALOS Ball 状态视觉" },
-		});
-		const ballHost = visual.createDiv({ cls: "tq-talos-ball-host" });
-		this.mountTalosBall(ballHost);
-
-		const overlay = stage.createDiv({
-			cls: "tq-overlay-text",
-			attr: { "aria-live": "polite", "aria-label": "助手回复" },
-		});
-		this.overlayReply = overlay.createDiv({ cls: "tq-overlay-reply" });
-		this.setOverlayMessage(`说「${this.wakeWord}」唤醒，或在下方输入只读查询。`);
-
-		const dock = body.createDiv({
-			cls: "tq-voice-dock",
-			attr: {
-				role: "region",
-				"aria-label": "语音转写与控制",
-				"data-workspace-section": "voice-controls",
-			},
-		});
 		const statusRow = dock.createDiv({ cls: "tq-dock-status" });
 		const liveStatus = statusRow.createDiv({ cls: "tq-dock-live" });
 		this.wakeStatusEl = liveStatus.createSpan({
@@ -330,6 +326,21 @@ export class QuyuanVoicePanel {
 			text: "千问 Realtime",
 		});
 		badges.createSpan({ text: `模型 · ${this.modelLabel()}` });
+
+		const overlay = dock.createDiv({
+			cls: "tq-overlay-text",
+			attr: { role: "region", "aria-label": "助手回复" },
+		});
+		const replyHead = overlay.createDiv({ cls: "tq-reply-head" });
+		replyHead.createEl("strong", { text: "助手回复" });
+		this.overlayHint = replyHead.createEl("small", {
+			attr: { role: "status", "aria-live": "polite" },
+		});
+		this.overlayReply = overlay.createDiv({
+			cls: "tq-overlay-reply",
+			attr: { "aria-label": "完整回复", tabindex: "0" },
+		});
+		this.setOverlayMessage(`说「${this.wakeWord}」唤醒，或在下方输入只读查询。`);
 
 		this.overlayTranscriptEl = dock.createDiv({
 			cls: "tq-transcript-editor is-visible",
@@ -788,7 +799,12 @@ export class QuyuanVoicePanel {
 				}
 			},
 			onState: (state) => {
-				if (current()) this.applyRealtimeState(state);
+				if (!current()) return;
+				if (state === "user-speaking") {
+					this.realtimeReplySegments.clear();
+					this.activeReplySource = "realtime";
+				}
+				this.applyRealtimeState(state);
 			},
 			onInputTranscript: (text, final) => {
 				if (!current() || this.navigatingToChat) return;
@@ -798,6 +814,7 @@ export class QuyuanVoicePanel {
 				}
 				const trimmed = text.trim();
 				if (!trimmed) return;
+				this.activeReplySource = "realtime";
 				this.voiceMode.setTranscript(trimmed);
 				void this.voiceSessionStore?.appendFinalTranscript({
 					id: `voice-user-${Date.now()}`,
@@ -813,16 +830,16 @@ export class QuyuanVoicePanel {
 					this.renderPushToTalkReady();
 				}
 			},
-			onOutputTranscript: (text, final) => {
+			onOutputTurnStart: () => {
+				if (current()) this.realtimeReplySegments.clear();
+			},
+			onOutputTranscript: (text, final, segmentKey) => {
 				if (!current() || this.navigatingToChat) return;
-				if (!final) {
-					this.replyBuffer = text;
-					this.feedOverlayLine("");
-					return;
-				}
+				const realtimeReply = this.updateRealtimeReply(text, segmentKey);
+				if (!final) return;
 				const trimmed = text.trim();
 				if (trimmed) {
-					this.voiceMode.setReplyText(trimmed);
+					this.voiceMode.setReplyText(realtimeReply);
 					void this.voiceSessionStore?.appendMessage({
 						id: `voice-assistant-${Date.now()}`,
 						role: "assistant",
@@ -830,8 +847,6 @@ export class QuyuanVoicePanel {
 						modality: "speech",
 						createdAt: Date.now(),
 					});
-					this.replyBuffer = trimmed;
-					this.feedOverlayLine("");
 				}
 				this.responseActive = false;
 			},
@@ -863,6 +878,7 @@ export class QuyuanVoicePanel {
 			},
 			onBargeIn: () => {
 				if (!current()) return;
+				this.realtimeReplySegments.clear();
 				this.responseActive = false;
 				this.setTalosBallState("stop", 700);
 				this.controlStatusEl?.setText("已接住打断，继续听你说");
@@ -1116,8 +1132,8 @@ export class QuyuanVoicePanel {
 		} else {
 			this.controlStatusEl?.setText("文本查询已提交 · 遵循审批合同");
 		}
+		this.activeReplySource = "driver";
 		if (this.overlayReply) this.overlayReply.empty();
-		this.overlayLines = [];
 		void this.respond(trimmed, channel);
 	}
 
@@ -1178,57 +1194,36 @@ export class QuyuanVoicePanel {
 		this.partialTranscriptEl = null;
 	}
 
-	/**
-	 * 字幕式逐行追加：把流式 delta 累积到 replyBuffer，按句末标点切行。
-	 * 每次重建 overlay 显示——保留最后 N 行，避免内容重复或残留。
-	 */
+
+	/** 按输出和内容索引合并同轮片段；缺省索引相同时保留到达顺序。 */
+	private updateRealtimeReply(text: string, segmentKey: string): string {
+		this.realtimeReplySegments.set(segmentKey, text);
+		const segments = Array.from(this.realtimeReplySegments, ([key, value], order) => {
+			const indices = key.match(/:(\d+):(\d+)$/);
+			return { value, order, output: Number(indices?.[1] ?? 0), content: Number(indices?.[2] ?? 0) };
+		});
+		segments.sort((a, b) => a.output - b.output || a.content - b.content || a.order - b.order);
+		const fullText = segments.map((segment) => segment.value).join("");
+		if (this.activeReplySource === "realtime") this.renderReplyText(fullText);
+		return fullText;
+	}
+
+	/** 显示完整原文；只有用户靠近底部时才跟随流式内容。 */
+	private renderReplyText(text: string): void {
+		if (!this.overlayReply) return;
+		const reply = this.overlayReply;
+		const follow = reply.scrollHeight - reply.scrollTop - reply.clientHeight <= 48;
+		reply.setText(text);
+		if (follow) reply.scrollTop = reply.scrollHeight;
+	}
+
 	private feedOverlayLine(_delta: string): void {
-		if (!this.overlayReply) return;
-		// replyBuffer 已在 onText 里累积完整内容，这里按句切分
-		const allLines = this.replyBuffer
-			.split(/(?<=[。！？!?\n])/)
-			.map((s) => s.trim())
-			.filter((s) => s.length > 0);
-		// 只保留最后 5 行显示（旧行已滚出视野）
-		const visible = allLines.slice(-5);
-		// 仅当窗口未滑动（除最后一行外内容逐行一致）时，只更新最后一行避免闪烁；
-		// 超过 5 行后每来一句窗口整体滑动一位，行数不变但前几行内容已换，必须重建，
-		// 否则前 4 行会永远停留在过期内容上。
-		if (this.overlayLines.length === visible.length && visible.length > 0) {
-			const stable = visible
-				.slice(0, -1)
-				.every((text, i) => this.overlayLines[i]?.textContent === text);
-			if (stable) {
-				this.overlayLines[visible.length - 1]?.setText(visible[visible.length - 1] ?? "");
-				return;
-			}
-		}
-		// 行数变了或窗口滑动了：重建可见行
-		this.overlayReply.empty();
-		this.overlayLines = [];
-		for (const text of visible) {
-			const el = this.overlayReply.createDiv({ cls: "tq-overlay-line", text });
-			this.overlayLines.push(el);
-		}
+		if (this.activeReplySource === "driver") this.renderReplyText(this.replyBuffer);
 	}
 
-	private pushOverlayLine(text: string): void {
-		if (!this.overlayReply) return;
-		const el = this.overlayReply.createDiv({ cls: "tq-overlay-line", text });
-		this.overlayLines.push(el);
-		// 超过 5 行：移除最旧的（CSS 会处理淡出，这里直接移除保持 DOM 干净）
-		while (this.overlayLines.length > 5) {
-			const oldest = this.overlayLines.shift();
-			oldest?.remove();
-		}
-	}
-
-	/** 单条提示文字（唤醒/休眠/错误等）：清空 overlay + 显示一行 */
+	/** 状态提示单独显示，不覆盖已经收到的回复。 */
 	private setOverlayMessage(text: string): void {
-		if (!this.overlayReply) return;
-		this.overlayReply.empty();
-		this.overlayLines = [];
-		this.pushOverlayLine(text);
+		this.overlayHint?.setText(text);
 	}
 
 	// 双通道驱动：语音回复为纯口语并自动朗读；文字回复保留 Markdown 且静默。
@@ -1301,9 +1296,8 @@ export class QuyuanVoicePanel {
 					modality: channel === "voice" ? "speech" : "text",
 					createdAt: Date.now(),
 				});
-				if (channel === "text" && this.overlayReply && this.markdownComponent) {
+				if (this.activeReplySource === "driver" && channel === "text" && this.overlayReply && this.markdownComponent) {
 					this.overlayReply.empty();
-					this.overlayLines = [];
 					void MarkdownRenderer.render(
 						this.app,
 						fullText,
@@ -1311,6 +1305,9 @@ export class QuyuanVoicePanel {
 						"",
 						this.markdownComponent
 					);
+				} else if (this.activeReplySource === "driver" && this.overlayReply) {
+					this.replyBuffer = fullText;
+					this.feedOverlayLine("");
 				}
 				if (channel === "voice" && this.ttsEnabled) this.tts?.flush();
 				this.replyBuffer = "";
@@ -1444,11 +1441,13 @@ export class QuyuanVoicePanel {
 		this.overlayTranscriptLinesEl = null;
 		this.partialTranscriptEl = null;
 		this.overlayReply = null;
-		this.overlayLines = [];
+		this.overlayHint = null;
 		this.controlStatusEl = null;
 		this.workspaceStatusEl = null;
 		this.confirmHostEl = null;
 		this.replyBuffer = "";
+		this.realtimeReplySegments.clear();
+		this.activeReplySource = "realtime";
 		this.navigatingToChat = false;
 	}
 }
