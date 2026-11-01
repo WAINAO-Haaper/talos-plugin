@@ -91,14 +91,9 @@ export class ClaudianReadonlyImporter {
 			catch { report.corrupt += 1; continue; }
 			const previous = state.imports[sourceDigest];
 			const existingManifest = existing.get(sourceDigest);
-			if (previous || existingManifest) {
-				if (!previous || previous.legacyConversationId !== metadata.id) {
-					state.imports[sourceDigest] = {
-						conversationId: previous?.conversationId ?? existingManifest!.conversationId,
-						sourceDigest,
-						transcript: previous?.transcript ?? existingManifest!.importedFrom!.transcript,
-						legacyConversationId: metadata.id,
-					};
+			if (previous) {
+				if (previous.legacyConversationId !== metadata.id) {
+					state.imports[sourceDigest] = { ...previous, legacyConversationId: metadata.id };
 					await this.stateHost.write(state);
 				}
 				report.skipped += 1;
@@ -116,6 +111,14 @@ export class ClaudianReadonlyImporter {
 			}
 			const title = sanitizeText(metadata.title);
 			if (title.redacted) transcript = "partial";
+			// Determine the final import metadata before publishing the manifest.
+			// Appending events may update activity or other fields, so never replay
+			// the original manifest after the transcript has been written.
+			const sanitizedMessages = messages.map((message) => {
+				const sanitized = sanitizeText(message.content);
+				if (sanitized.redacted) transcript = "partial";
+				return { ...message, content: sanitized.text };
+			});
 			const conversationId = `claudian-${digest(`${metadata.id}\0${sourceDigest}`).slice(0, 24)}`;
 			const manifest: ConversationManifest = {
 				schemaVersion: 1, conversationId, title: title.text.trim() || "导入会话",
@@ -123,21 +126,25 @@ export class ClaudianReadonlyImporter {
 				lifecycle: "active", selection: { runtimeId: metadata.providerId === "claude" ? "claude" : "codex" },
 				importedFrom: { kind: "claudian", sourceDigest, transcript },
 			};
-			await this.conversations.store.create(manifest);
-			for (const [index, message] of messages.entries()) {
-				const sanitized = sanitizeText(message.content);
-				if (sanitized.redacted) transcript = "partial";
+			if (existingManifest && existingManifest.conversationId !== conversationId) {
+				throw new Error("导入会话身份不匹配，恢复已停止");
+			}
+			// The index is a projection: create can publish a manifest before the
+			// index replace succeeds. Validate the deterministic on-disk identity.
+			const published = await this.conversations.store.recoverImportedManifest(conversationId, sourceDigest);
+			if (!published) await this.conversations.store.create(manifest);
+			// A manifest without a completion receipt may be an interrupted import.
+			// Replay deterministic source events; the store deduplicates identical
+			// events and rejects conflicts without overwriting existing content.
+			for (const [index, message] of sanitizedMessages.entries()) {
 				await this.conversations.append({
 					eventId: `legacy-${digest(`${sourceDigest}:${message.id ?? index}`).slice(0, 32)}`,
 					conversationId, turnId: `legacy-turn-${Math.floor(index / 2)}`, runtimeId: manifest.selection.runtimeId,
 					type: message.role === "user" ? "user.message" : "assistant.final",
-					timestamp: new Date(message.timestamp ?? metadata.updatedAt).toISOString(), payload: { text: sanitized.text, imported: true },
+					timestamp: new Date(message.timestamp ?? metadata.updatedAt).toISOString(), payload: { text: message.content, imported: true },
 				});
 			}
-			if (transcript !== manifest.importedFrom!.transcript) {
-				manifest.importedFrom = { ...manifest.importedFrom!, transcript };
-				await this.conversations.store.updateManifest(manifest);
-			}
+			await this.conversations.store.setImportTranscript(conversationId, sourceDigest, transcript);
 			state.imports[sourceDigest] = { conversationId, sourceDigest, transcript, legacyConversationId: metadata.id };
 			await this.stateHost.write(state);
 			report[transcript] += 1;

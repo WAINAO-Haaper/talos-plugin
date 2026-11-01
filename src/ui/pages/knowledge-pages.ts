@@ -7,14 +7,19 @@ import type { TalosView } from "../../view";
 import { fillCapabilityDistribution, fillDist, fillSignalList } from "../charts/talos-view-charts";
 import { commandActionHint, moduleHero } from "../view-modules";
 import { mountFlowPipeline } from "../flow-pipeline";
+import { CONTENT_KEYS } from "../../data/schema";
 
 export function renderKnowledgePage(view: TalosView, page: HTMLElement, d: Collected): void {
+	const mocFolder = view.app.vault.getAbstractFileByPath(view.paths.mocDir);
+	const mocReady = !!mocFolder && "children" in mocFolder;
 	const hero = moduleHero(view, page, {
 		ac: "#A78BFA",
 		icon: "brain",
-		title: "知识枢纽",
-		desc: "收件消化后的原创洞察与外部素材，以及按概念组织的 MOC 入口。",
-		stats: [],
+		title: "知识资料",
+		desc: "汇总内容分布、近期资料与目录结构；创建时间可能因迁移变化。",
+		stats: [
+			{ label: "MOC", value: mocReady ? d.knowledge.metrics.find((metric) => metric.label === "MOC 枢纽")?.value ?? "—" : "—", sub: mocReady ? "概念入口 · MOC 目录" : "MOC 目录未找到", path: view.paths.mocReadme, tone: "default" },
+		],
 		actions: [
 			{
 				label: "MOC",
@@ -95,10 +100,12 @@ export function renderKnowledgePage(view: TalosView, page: HTMLElement, d: Colle
 		d.knowledge.mocs,
 		"暂无 MOC"
 	);
+	renderVaultStatistics(view, page, d);
 }
 
 export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collected): void {
 	const pendingTotal = d.approvals.length + d.candidates.length;
+	const decisionsReady = d.setup?.pendingApprovalsPath === "ok" && d.setup?.candidatesPath === "ok";
 	moduleHero(view, page, {
 		ac: "#6366F1",
 		icon: "fingerprint",
@@ -115,14 +122,14 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 			{
 				label: "AI 灵魂",
 				value: String(view.moduleCount(d, "soul")),
-				sub: "人格契约与立场账本",
+				sub: "角色设定与记忆",
 				path: view.paths.readme("soul"),
 				tone: "default",
 			},
 			{
 				label: "待确认",
-				value: String(pendingTotal),
-				sub: `${d.approvals.length} 审批 · ${d.candidates.length} 偏好 · 去今日处理`,
+				value: decisionsReady ? String(pendingTotal) : "—",
+				sub: decisionsReady ? `${d.approvals.length} 审批 · ${d.candidates.length} 偏好 · 去今日处理` : "待决策来源缺失或格式待检查",
 				onActivate: () => view.openDecisions(),
 				tone: pendingTotal > 0 ? "warn" : "good",
 			},
@@ -158,12 +165,12 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 		contextColumn,
 		"#4D8DFF",
 		"身份底座",
-		"Haaper · Identity / 屈原 · 灵魂"
+		"用户身份 / 助手人格"
 	);
 	foundation.addClass("identity-v2-foundation");
 	for (const group of [
 		{
-			title: "Haaper · Identity",
+			title: "用户身份",
 			meta: "身份事实与当前状态",
 			items: [
 				{
@@ -190,7 +197,7 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 			empty: "Identity 文件未找到",
 		},
 		{
-			title: "屈原 · 灵魂",
+			title: "助手人格",
 			meta: "人格契约与独立判断",
 			items: [
 				{
@@ -229,7 +236,7 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 		"data-knowledge-section",
 		"attention-and-actions"
 	);
-	// 模块整合：当前焦点的主场是执行节奏，审批与偏好的主场是今日 · 待决策；这里只保留治理入口（数字 + 跳转）。
+	// 这里只提供来源入口，审批与偏好的处理集中在今日 · 待决策。
 	const governance = view.panel(
 		attentionColumn,
 		"#34D399",
@@ -246,17 +253,17 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 		[
 			{
 				title: "任务池",
-				meta: `${d.focus.length} 个当前焦点`,
+				meta: d.setup?.tasksPath === "ok" && d.focusTotal !== undefined ? `${d.focusTotal} 个当前焦点` : "任务池缺失或格式待检查",
 				path: view.plugin.talosSettings.tasksPath,
 			},
 			{
 				title: "审批池",
-				meta: `${d.approvals.length} 项待决策`,
+				meta: d.setup?.pendingApprovalsPath === "ok" ? `${d.approvals.length} 项待决策 · 今日处理` : "审批来源缺失或格式待检查",
 				path: view.plugin.talosSettings.pendingApprovalsPath,
 			},
 			{
 				title: "偏好候选",
-				meta: `${d.candidates.length} 条待确认`,
+				meta: d.setup?.candidatesPath === "ok" ? `${d.candidates.length} 条待确认 · 今日处理` : "候选来源缺失或格式待检查",
 				path: view.plugin.talosSettings.candidatesPath,
 			},
 			{
@@ -270,56 +277,13 @@ export function renderIdentityPage(view: TalosView, page: HTMLElement, d: Collec
 }
 
 export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected): void {
-	const activeDays =
-		d.heatmap.meta.split(" · ")[0] || d.heatmap.meta;
-	const missingModules = d.modules.filter(
-		(module) => !module.readmeExists
-	);
+	renderKnowledgePage(view, page, d);
+}
+
+function renderVaultStatistics(view: TalosView, page: HTMLElement, d: Collected): void {
+	const missingModules = d.modules.filter((module) => !module.readmeExists);
 	const missingReadmes = missingModules.length;
-
-	moduleHero(view, page, {
-		ac: "#38E1FF",
-		icon: "database",
-		title: "全库视图",
-		desc: "从内容分布、顶层模块到创建热力图，给整个外脑系统做一次横向巡航。",
-		stats: [
-			{
-				label: "知识笔记",
-				value: String(d.total),
-				sub: "六大内容目录",
-				path: view.paths.readme("projects"),
-				tone: "default",
-			},
-			{
-				label: "顶层模块",
-				value: String(d.modules.length),
-				sub: `${missingReadmes} 个 README 异常`,
-				path: view.paths.readme("system"),
-				tone: missingReadmes > 0 ? "warn" : "good",
-			},
-			{
-				label: "活跃天数",
-				value: activeDays,
-				sub: d.heatmap.meta.split(" · ")[1] || "近 12 个月",
-				path: view.paths.readme("logs"),
-				tone: "good",
-			},
-		],
-		actions: [
-			{
-				label: "系统地图",
-				icon: "map",
-				path: view.paths.readme("system"),
-			},
-			{
-				label: "项目地图",
-				icon: "folder-kanban",
-				path: view.paths.readme("projects"),
-			},
-			{ label: "周重置", icon: "copy", command: "/weekly-reset" },
-		],
-	});
-
+	const completeContent = CONTENT_KEYS.every((key) => { const node = view.app.vault.getAbstractFileByPath(view.paths.dir(key)); return !!node && "children" in node; });
 	const primary = page.createDiv({
 		cls: "system-v2-primary vault-v2-primary",
 	});
@@ -329,7 +293,7 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 		primary,
 		"#34D399",
 		"知识库分布",
-		`共 ${d.total} 篇`
+		completeContent ? `六大内容目录 · ${d.total} 篇` : `部分目录缺失 · 已找到 ${d.total} 篇`
 	);
 	distribution.setAttribute("data-system-section", "core-data");
 	fillDist(view, 
@@ -416,7 +380,7 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 					host,
 					"#A78BFA",
 					"笔记创建热力图",
-					d.heatmap.meta
+					`${d.heatmap.meta} · 文件创建时间，迁移可能改变`
 				);
 				heat.addClass("vault-v2-heat-panel");
 				heat.setAttribute("data-system-section", "activity-heatmap");
@@ -465,12 +429,18 @@ export function renderVaultPage(view: TalosView, page: HTMLElement, d: Collected
 }
 
 export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Collected): void {
-	const groupCount = (key: string) =>
-		d.capGroups.find((group) => group.key === key)?.items.length ?? 0;
+	const groupCount = (key: string) => {
+		const group = d.capGroups.find((item) => item.key === key);
+		if (!group || group.sourceStatus === "unavailable" || !group.sourceStatus) return "—";
+		const count = group.items.filter((item) => item.origin === "discovered").length;
+		return group.sourceStatus === "partial" ? `≥${count}` : String(count);
+	};
+	const knownGroups = d.capGroups.map((group) => ({ ...group, items: group.items.filter((item) => item.origin === "discovered") }));
 	const capabilityTotal = d.capGroups.reduce(
-		(sum, group) => sum + group.items.length,
+		(sum, group) => sum + group.items.filter((item) => item.origin === "discovered").length,
 		0
 	);
+	const capabilityComplete = d.capGroups.every((group) => group.sourceStatus === "ready");
 	if (!d.capGroups.some((group) => group.key === view.activeCap)) {
 		view.activeCap = d.capGroups[0]?.key ?? "commands";
 	}
@@ -482,23 +452,23 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 		desc: "把命令、Agents 和工作流做成可复制入口，需要调用时不再从规则文件里翻。",
 		stats: [
 			{
-				label: "能力总数",
-				value: String(capabilityTotal),
-				sub: "可复制调用入口",
+				label: "已发现能力",
+				value: capabilityComplete ? String(capabilityTotal) : `≥${capabilityTotal}`,
+				sub: capabilityComplete ? "已发现的命令、Agent 与工作流" : "部分目录不可用 · 仅显示已发现项",
 				path: ".claude/commands/morning.md",
 				tone: "good",
 			},
 			{
 				label: "命令",
-				value: String(groupCount("commands")),
-				sub: "对话中直接调用",
+				value: groupCount("commands"),
+				sub: "实际发现的命令文件",
 				path: ".claude/commands/morning.md",
 				tone: "default",
 			},
 			{
 				label: "Agents",
-				value: String(groupCount("agents")),
-				sub: "子代理与技能",
+				value: groupCount("agents"),
+				sub: "实际发现的 Agent 文件",
 				tone: "default",
 			},
 		],
@@ -518,14 +488,14 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 		primary,
 		"#38E1FF",
 		"能力分布",
-		"库内真实命令 / Agents / 工作流"
+		capabilityComplete ? "已发现命令 / Agents / 工作流" : "部分来源不可用，图表仅含已发现项"
 	);
 	distribution.setAttribute("data-knowledge-section", "core-data");
 	fillCapabilityDistribution(view, 
 		distribution.createDiv({
 			cls: "capability-v2-distribution",
 		}),
-		d.capGroups
+		knownGroups
 	);
 
 	// 模块整合：分组控制是调用入口的筛选，并入调用入口顶部；调用入口上移到第一行右栏。
@@ -566,6 +536,7 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 			const card = grid.createDiv({ cls: "command" });
 			const top = card.createDiv({ cls: "cap-top" });
 			top.createEl("code", { text: item.name });
+			if (item.origin === "fallback") top.createEl("small", { text: "推荐入口 · 未发现对应文件" });
 			const actions = top.createDiv({ cls: "cap-actions" });
 			actions.createSpan({ text: "复制调用" });
 			if (item.path) {
@@ -613,7 +584,7 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 		});
 		summary.createEl("span", {
 			text: active
-				? `${active.items.length} 个调用入口`
+				? `${active.items.filter((item) => item.origin === "discovered").length} 已发现 · ${active.items.filter((item) => item.origin === "fallback").length} 推荐${active.sourceStatus !== "ready" ? " · 来源不完整" : ""}`
 				: "暂无可用分组",
 		});
 		for (const group of d.capGroups) {
@@ -623,7 +594,7 @@ export function renderCapabilityPage(view: TalosView, page: HTMLElement, d: Coll
 			tab.type = "button";
 			view.addActionButtonContent(
 				tab,
-				`${group.label} ${group.items.length}`,
+				`${group.label} ${groupCount(group.key)}`,
 				"compact"
 			);
 			tab.setAttribute(

@@ -24,6 +24,7 @@ import {
 import { evaluateVoiceTurnAdmission } from "./voice-turn-admission";
 import {
 	QwenRealtimeVoiceSession,
+	resolveVoiceWake,
 	type RealtimeVoiceState,
 } from "./qwen-realtime-voice";
 import type { VoiceVaultToolName } from "./voice-vault-tools";
@@ -78,12 +79,12 @@ interface StateMeta {
 }
 
 const STATES: Record<VoiceState, StateMeta> = {
-	sleep: { color: "#475569", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说「屈原」开始对话" },
+	sleep: { color: "#475569", speed: "4.8s", icon: "moon", caption: "等待唤醒", sub: "说唤醒词开始对话" },
 	idle: { color: "#64748b", speed: "3.6s", icon: "mic-off", caption: "麦克风已关闭", sub: "点击下方按钮恢复监听" },
 	listen: { color: "#38bdf8", speed: "2s", icon: "ear", caption: "我在听", sub: "说完，我会接住。" },
 	reco: { color: "#7dd3fc", speed: "0.9s", icon: "audio-lines", caption: "正在识别", sub: "把你的声音变成清晰意图" },
 	think: { color: "#a78bfa", speed: "1.4s", icon: "loader", caption: "正在想透", sub: "按超级大脑规则理解意图" },
-	speak: { color: "#5eead4", speed: "1s", icon: "volume-2", caption: "屈原在回答", sub: "开口即可打断" },
+	speak: { color: "#5eead4", speed: "1s", icon: "volume-2", caption: "助手在回答", sub: "开口即可打断" },
 };
 
 // 样式见 styles.quyuan-shell.css（.tq- 作用域），由 build-styles.mjs 合入 styles.css。
@@ -136,14 +137,15 @@ export class QuyuanVoicePanel {
 
 	private state: VoiceState = "sleep";
 	private mounted = false;
-	// 本地 Whisper 对中文专有名词识别不稳，"屈原"常被听成近音字或拼音；
-	// 唤醒用这组别名做模糊匹配，命中任一即唤醒（云端千问准，一般直接命中"屈原"）。
-	private readonly wakeAliases = [
-		"屈原", "曲原", "去原", "屈源", "渠原", "趋原", "区原", "取原",
-		"屈园", "曲园", "驱原", "瞿原", "屈元", "曲元", "居原", "取源",
-		"quyuan", "qu yuan", "chuyuan", "chu yuan", "qvyuan",
-	];
 	private readonly sleepWord = "退下";
+
+	private get wakeWord(): string {
+		return resolveVoiceWake(this.settings.voiceWakeWord).word;
+	}
+
+	private get wakeAliases(): readonly string[] {
+		return resolveVoiceWake(this.settings.voiceWakeWord).aliases;
+	}
 
 	constructor(
 		app: App,
@@ -237,14 +239,12 @@ export class QuyuanVoicePanel {
 		const root = container.createDiv({ cls: "tq-voice" });
 		this.rootEl = root;
 		root.dataset.talosComponent = "voice-workspace";
-		root.setAttribute("aria-label", "屈原语音工作台");
+		root.setAttribute("aria-label", "语音工作台");
 		root.setAttribute("data-wake-state", "sleep");
 		root.setAttribute("data-session-namespace", "voice");
 		root.setAttribute("data-input-mode", this.voiceMode.snapshot().inputMode);
-		root.setAttribute(
-			"data-voice-recognition",
-			this.settings.quyuanVoiceRecognitionEnabled === false ? "off" : "on"
-		);
+		// 入页只展示控制台：每次会话都由用户主动开启麦克风。
+		root.setAttribute("data-voice-recognition", "off");
 
 		const body = root.createDiv({ cls: "tq-body" });
 		this.bodyEl = body;
@@ -259,14 +259,14 @@ export class QuyuanVoicePanel {
 		});
 		const workspaceBar = stage.createDiv({
 			cls: "tq-workspace-bar",
-			attr: { role: "group", "aria-label": "屈原语音工作台状态与导航" },
+			attr: { role: "group", "aria-label": "语音工作台状态与导航" },
 		});
 		const workspaceIdentity = workspaceBar.createDiv({ cls: "tq-workspace-identity" });
 		const workspaceMark = workspaceIdentity.createSpan({ cls: "tq-workspace-mark" });
 		setIcon(workspaceMark, "audio-lines");
 		const workspaceCopy = workspaceIdentity.createSpan({ cls: "tq-workspace-copy" });
 		workspaceCopy.createEl("small", { text: "VOICE WORKSPACE" });
-		workspaceCopy.createEl("strong", { text: "屈原语音" });
+		workspaceCopy.createEl("strong", { text: "语音助手" });
 		const workspaceMeta = workspaceBar.createDiv({ cls: "tq-workspace-meta" });
 		const boundary = workspaceMeta.createSpan({ cls: "tq-workspace-boundary" });
 		setIcon(boundary.createSpan(), "shield-check");
@@ -299,10 +299,10 @@ export class QuyuanVoicePanel {
 
 		const overlay = stage.createDiv({
 			cls: "tq-overlay-text",
-			attr: { "aria-live": "polite", "aria-label": "屈原回复" },
+			attr: { "aria-live": "polite", "aria-label": "助手回复" },
 		});
 		this.overlayReply = overlay.createDiv({ cls: "tq-overlay-reply" });
-		this.setOverlayMessage("说「屈原」唤醒，或在下方输入只读查询。");
+		this.setOverlayMessage(`说「${this.wakeWord}」唤醒，或在下方输入只读查询。`);
 
 		const dock = body.createDiv({
 			cls: "tq-voice-dock",
@@ -317,7 +317,7 @@ export class QuyuanVoicePanel {
 		this.wakeStatusEl = liveStatus.createSpan({
 			text: this.settings.quyuanVoiceRecognitionEnabled === false
 				? "语音已退出 · 点击开启"
-				: "待唤醒 · 说「屈原」",
+				: `待唤醒 · 说「${this.wakeWord}」`,
 			attr: { role: "status", "aria-live": "polite" },
 		});
 		this.controlStatusEl = liveStatus.createEl("small", {
@@ -402,7 +402,7 @@ export class QuyuanVoicePanel {
 				rows: "1",
 				maxlength: "1200",
 				placeholder: "输入要查询的状态、统计或进度",
-				"aria-label": "给屈原发送文本查询",
+				"aria-label": "发送文本查询",
 			},
 		});
 		this.sendBtn = query.createEl("button", {
@@ -446,7 +446,6 @@ export class QuyuanVoicePanel {
 			this.renderPushToTalkReady();
 		} else if (recognitionEnabled) {
 			this.renderMicActivationRequired();
-			void this.autoStartRealtimeIfPermitted();
 		} else {
 			this.renderVoiceRecognitionOff();
 		}
@@ -660,10 +659,14 @@ export class QuyuanVoicePanel {
 			this.renderPushToTalkReady();
 			return;
 		}
-		this.settings.quyuanVoiceRecognitionEnabled = true;
 		this.realtime?.setAwake(false);
-		this.realtime?.setInputEnabled(true);
-		await this.setVoiceRecognitionEnabled(true, false);
+		if (this.realtime?.isConnected()) {
+			this.realtime.setInputEnabled(true);
+			this.renderMicBtn(true);
+			this.wakeStatusEl?.setText(`待唤醒 · 说「${this.wakeWord}」`);
+		} else {
+			this.renderMicActivationRequired();
+		}
 	}
 
 	private renderPushToTalkReady(): void {
@@ -683,9 +686,9 @@ export class QuyuanVoicePanel {
 		this.rootEl?.setAttribute("data-voice-recognition", "off");
 		this.renderMicBtn(false);
 		this.wakeStatusEl?.setText("点击开启持续监听");
-		this.controlStatusEl?.setText("麦克风等待操作；已授权后会自动恢复");
+		this.controlStatusEl?.setText("麦克风等待操作，点击开启语音后连接");
 		if (this.overlayReply) {
-			this.setOverlayMessage("点击「开启语音」连接千问实时语音；连接后可随时说「屈原」唤醒。");
+			this.setOverlayMessage(`点击「开启语音」连接千问实时语音；连接后可随时说「${this.wakeWord}」唤醒。`);
 		}
 		if (this.mounted) this.setState("idle");
 	}
@@ -774,13 +777,13 @@ export class QuyuanVoicePanel {
 				this.rootEl?.setAttribute("data-wake-state", awake ? "awake" : "sleep");
 				this.renderMicBtn(this.realtime?.isConnected() ?? false);
 				this.wakeStatusEl?.setText(
-					awake ? "已唤醒 · 实时对话中" : "待唤醒 · 说「屈原」"
+					awake ? "已唤醒 · 实时对话中" : `待唤醒 · 说「${this.wakeWord}」`
 				);
 				if (this.overlayReply) {
 					this.setOverlayMessage(
 						awake
 							? "已唤醒，可以连续对话，开口即可打断。"
-							: "已休眠，说「屈原」可以再次唤醒。"
+							: `已休眠，说「${this.wakeWord}」可以再次唤醒。`
 					);
 				}
 			},
@@ -876,7 +879,7 @@ export class QuyuanVoicePanel {
 
 	private realtimeInstructions(): string {
 		const persona = this.settings.voicePersona.trim()
-			|| "你是屈原，TALOS 超级大脑中的中文语音助手。";
+			|| "你是 TALOS 中的中文语音助手，回答简洁、自然，适合朗读。";
 		return [
 			persona,
 			"这是原生实时语音对话。回答自然、简洁、有温度，通常不超过三句话；不要朗读 Markdown 标记。",
@@ -920,25 +923,6 @@ export class QuyuanVoicePanel {
 		this.responseActive = false;
 		this.setState("idle");
 	}
-
-	private async autoStartRealtimeIfPermitted(): Promise<void> {
-		if (
-			!this.mounted
-			|| this.settings.quyuanVoiceRecognitionEnabled === false
-			|| this.voiceMode.snapshot().inputMode !== "continuous"
-		) return;
-		try {
-			const result = await navigator.permissions?.query({
-				name: "microphone",
-			});
-			if (result?.state === "granted" && this.mounted) {
-				await this.setVoiceRecognitionEnabled(true, false);
-			}
-		} catch {
-			// Permission query is optional in Electron; the explicit button remains.
-		}
-	}
-
 
 	private renderMicBtn(listening: boolean): void {
 		if (!this.micBtn) return;
@@ -1034,7 +1018,7 @@ export class QuyuanVoicePanel {
 				realtime?.setAwake(false);
 				realtime?.setInputEnabled(true);
 				this.setState("sleep");
-				this.wakeStatusEl?.setText("待唤醒 · 说「屈原」");
+				this.wakeStatusEl?.setText(`待唤醒 · 说「${this.wakeWord}」`);
 				this.controlStatusEl?.setText("千问 Realtime 已连接 · 可随时唤醒");
 			}
 		} catch (error) {
@@ -1361,7 +1345,7 @@ export class QuyuanVoicePanel {
 				resolve(false);
 				return;
 			}
-			const ask = `需要确认：屈原想执行「${description}」。确认吗？`;
+			const ask = `需要确认：助手想执行「${description}」。确认吗？`;
 			this.confirmHostEl.empty();
 			const card = this.confirmHostEl.createDiv({
 				cls: "tq-approval-card",

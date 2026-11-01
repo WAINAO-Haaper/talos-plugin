@@ -1,14 +1,10 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatSurfaceWorkbench } from "../src/quyuan/chat-surface";
 import { DeferredChatWorkbench } from "../src/quyuan/deferred-chat-workbench";
 import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
 const mainSource = readPluginSource();
 const viewSource = readViewSource();
-const switcherSource = readFileSync(`${root}src/harness/harness-switcher.ts`, "utf8");
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -107,16 +103,4 @@ describe("agent workbench cold-start lifecycle", () => {
 		expect(viewSource).toContain("this.app.workspace.requestSaveLayout()");
 	});
 
-	it("mounts a target channel before persisting it and deduplicates concurrent mounts", () => {
-		const switchStart = switcherSource.indexOf("private async switchTo");
-		const switchEnd = switcherSource.indexOf("private renderActive", switchStart);
-		const body = switcherSource.slice(switchStart, switchEnd);
-		expect(body.indexOf('await this.ensureChannelMounted(id, "chat")')).toBeGreaterThanOrEqual(0);
-		expect(body.indexOf("this.deps.setActiveId(id)")).toBeGreaterThan(
-			body.indexOf('await this.ensureChannelMounted(id, "chat")'),
-		);
-		expect(switcherSource).toContain("channelMounts");
-		expect(switcherSource).toContain("onSwitchError");
-		expect(switcherSource).toContain("await channel.workbench.destroy()");
-	});
 });

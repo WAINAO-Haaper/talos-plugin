@@ -36,6 +36,7 @@ export function moduleHero(view: TalosView, parent: HTMLElement, options: Module
 			?? [routeContextLabel(view.pageRouter.current()), options.eyebrowDetail].filter(Boolean).join(" · "),
 		title: options.title,
 		description: options.desc,
+		metricLimit: options.metricLimit,
 		metrics: options.stats.map((stat) => ({
 			label: stat.label,
 			value: stat.value,

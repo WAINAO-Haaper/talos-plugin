@@ -1,6 +1,7 @@
+import { spawn } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { spawnJsonLineRpc } from "../src/agent-workbench/transports/json-line-rpc-connection";
-import { spawnOmpRpc } from "../src/agent-workbench/transports/omp-rpc-connection";
+import { JsonLineRpcConnection, spawnJsonLineRpc } from "../src/agent-workbench/transports/json-line-rpc-connection";
+import { OmpJsonLineConnection, spawnOmpRpc } from "../src/agent-workbench/transports/omp-rpc-connection";
 
 const reverseResponder = String.raw`
 const readline = require('node:readline');
@@ -62,7 +63,8 @@ describe("OmpJsonLineConnection", () => {
 		const noReady = spawnOmpRpc({ executable: process.execPath, args: ["-e", "setInterval(() => {}, 1000)"], cwd: process.cwd() }, 100);
 		await expect(noReady.ready()).rejects.toThrow("ready 超时");
 		await noReady.close();
-		const noResponse = spawnOmpRpc({ executable: process.execPath, args: ["-e", ompResponder], cwd: process.cwd() }, 100);
+		// Allow a real child process enough time to start under the full test suite.
+		const noResponse = spawnOmpRpc({ executable: process.execPath, args: ["-e", ompResponder], cwd: process.cwd() }, 1000);
 		await noResponse.ready();
 		await expect(noResponse.request("never_responds")).rejects.toThrow("请求超时");
 		await noResponse.close();
@@ -113,4 +115,54 @@ describe("JsonLineRpcConnection", () => {
 		await expect(frames.next()).rejects.toThrow("退出：3");
 		await crashed.close();
 	});
+});
+
+
+describe("RPC child termination", () => {
+	it.each(["codex", "ohmypi"] as const)("closes an already failed %s spawn without hanging", async (runtime) => {
+		const child = spawn("/synthetic/nonexistent-talos-runtime", [], { stdio: ["pipe", "pipe", "pipe"] });
+		const connection = runtime === "codex" ? new JsonLineRpcConnection(child) : new OmpJsonLineConnection(child);
+		const failure = connection instanceof OmpJsonLineConnection ? expect(connection.ready()).rejects.toThrow() : Promise.resolve();
+		await new Promise<void>((resolve) => child.once("close", () => resolve()));
+		await failure;
+		await connection.close();
+	});
+
+	it.each(["codex", "ohmypi"] as const)("reports a %s child that never confirms termination", async (runtime) => {
+		const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: ["pipe", "pipe", "pipe"] });
+		const originalKill = child.kill.bind(child);
+		const connection = runtime === "codex" ? new JsonLineRpcConnection(child) : new OmpJsonLineConnection(child);
+		const readyFailure = connection instanceof OmpJsonLineConnection ? expect(connection.ready()).rejects.toThrow("关闭") : Promise.resolve();
+		child.kill = () => true;
+		try {
+			await expect(connection.close()).rejects.toThrow("SIGKILL 后仍未退出");
+			await readyFailure;
+			await expect(connection.request("after-close", {})).rejects.toThrow("关闭");
+		} finally {
+			originalKill("SIGKILL");
+		}
+	}, 7_000);
+
+	it.skipIf(process.platform === "win32").each(["codex", "ohmypi"] as const)(
+		"waits for the %s process to exit even when it ignores SIGTERM",
+		async (runtime) => {
+			const ready = runtime === "codex"
+				? { jsonrpc: "2.0", method: "ready", params: {} }
+				: { type: "ready", protocolVersion: 1, supportedProtocolVersions: [1] };
+			const script = `process.on('SIGTERM', () => {}); setInterval(() => {}, 1000); process.stdout.write(${JSON.stringify(JSON.stringify(ready) + "\n")});`;
+			const child = spawn(process.execPath, ["-e", script], { stdio: ["pipe", "pipe", "pipe"] });
+			const connection = runtime === "codex" ? new JsonLineRpcConnection(child) : new OmpJsonLineConnection(child);
+			try {
+				if (connection instanceof OmpJsonLineConnection) await connection.ready();
+				else await connection.subscribe()[Symbol.asyncIterator]().next();
+				await connection.close();
+				expect(child.signalCode).toBe("SIGKILL");
+				expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+				await connection.close();
+			} finally {
+				if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+				await connection.close();
+			}
+		},
+	);
 });

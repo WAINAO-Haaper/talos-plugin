@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import {
 	clearTimeout as nodeClearTimeout,
 	setTimeout as nodeSetTimeout,
 } from "node:timers";
+import { Window, type HTMLButtonElement as HappyButtonElement, type HTMLTextAreaElement as HappyTextAreaElement } from "happy-dom";
 import { describe, expect, it, vi } from "vitest";
 import {
 	createConsoleActionRuntime,
@@ -18,6 +20,66 @@ const nodeTimers: TaskTimerHost = {
 };
 
 describe("QuickNote", () => {
+	it("keeps undo visually hidden until a saved note can be reverted under the console theme", async () => {
+		const window = new Window();
+		try {
+			const doc = window.document;
+			doc.body.setAttribute("data-talos-vault-theme", "geometric-modern");
+			const style = doc.createElement("style");
+			style.textContent = ["../styles.talos.css", "../styles.ui-v2.css"]
+				.map(path => readFileSync(new URL(path, import.meta.url), "utf8")).join("\n");
+			doc.head.appendChild(style);
+			const parent = doc.createElement("div");
+			parent.className = "talos-console";
+			parent.setAttribute("data-talos-page", "today");
+			parent.setAttribute("data-talos-theme", "geometric-modern");
+			doc.body.appendChild(parent);
+			const runtime = { runner: {
+				run: vi.fn().mockResolvedValue({ id: "themed-note", state: "completed" }),
+				canRevert: () => true,
+				revert: vi.fn().mockResolvedValue(true),
+			} } as unknown as ReturnType<typeof createConsoleActionRuntime>;
+			new QuickNote({ parent: parent as unknown as HTMLElement, runtime, targetFolder: "收件箱" }).mount();
+			const undo = parent.querySelector<HappyButtonElement>("button[data-talos-quick-note-action='undo']")!;
+			const save = parent.querySelector<HappyButtonElement>("button[data-talos-quick-note-action='save']")!;
+			expect(undo.hidden).toBe(true);
+			expect(window.getComputedStyle(undo).display).toBe("none");
+			expect(window.getComputedStyle(save).display).not.toBe("none");
+			parent.querySelector<HappyTextAreaElement>("textarea")!.value = "主题下的便签";
+			save.click();
+			await vi.waitFor(() => expect(undo.hidden).toBe(false));
+			expect(window.getComputedStyle(undo).display).not.toBe("none");
+			undo.click();
+			await vi.waitFor(() => expect(undo.hidden).toBe(true));
+			expect(window.getComputedStyle(undo).display).toBe("none");
+		} finally {
+			await window.happyDOM.close();
+		}
+	});
+	it("preserves a draft and an in-flight save when its host is rebuilt", async () => {
+		let finish!: (value: unknown) => void;
+		const run = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+		const runtime = { runner: { run, canRevert: () => false } } as unknown as ReturnType<typeof createConsoleActionRuntime>;
+		const first = createMiniHost();
+		const note = new QuickNote({ parent: first.host, runtime, targetFolder: () => "收件箱" });
+		const root = note.mount();
+		const textarea = first.element.querySelector<MiniElement>("textarea")!;
+		textarea.value = "刷新时仍在编辑的想法";
+		textarea.dispatch("input");
+		const second = createMiniHost();
+		first.element.replaceChildren();
+		expect(note.mount(second.host)).toBe(root);
+		expect(second.element.querySelector<MiniElement>("textarea")?.value).toBe("刷新时仍在编辑的想法");
+		second.element.querySelector<MiniElement>("button[data-talos-quick-note-action='save']")!.click();
+		expect(run).toHaveBeenCalledTimes(1);
+		const third = createMiniHost();
+		second.element.replaceChildren();
+		note.mount(third.host);
+		expect(third.element.querySelector<MiniElement>("button[data-talos-quick-note-action='save']")?.disabled).toBe(true);
+		finish({ id: "saved-note", state: "completed" });
+		await vi.waitFor(() => expect(third.element.textContent).toContain("已保存"));
+		expect(third.element.querySelector<MiniElement>("textarea")?.value).toBe("");
+	});
 	it("saves through the recoverable B action and can undo", async () => {
 		let executedInput: unknown;
 		const execute = vi.fn(async (input: unknown) => {

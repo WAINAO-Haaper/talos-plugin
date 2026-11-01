@@ -1,3 +1,7 @@
+import { access, mkdir, mkdtemp, readFile, readdir, rm, rmdir, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { ObsidianWorkbenchStorage } from "../src/agent-workbench/storage/obsidian-workbench-storage";
 import { describe, expect, it } from "vitest";
 import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
 import type { ConversationManifest } from "../src/agent-workbench/contracts/conversation";
@@ -86,6 +90,85 @@ function event(id = "event-1") {
 }
 
 describe("PortableConversationStore", () => {
+	it("repairs import completeness only for the expected source identity", async () => {
+		const store = new PortableConversationStore(new MemoryFiles());
+		const importedFrom = { kind: "claudian" as const, sourceDigest: "expected-source", transcript: "full" as const };
+		await store.create({ ...manifest, importedFrom });
+		await Promise.all([
+			store.patchManifest("conv-1", { title: "User title", lifecycle: "archived" }, "2099-01-01T00:00:00.000Z"),
+			store.setImportTranscript("conv-1", "expected-source", "partial"),
+		]);
+		const updated = (await store.load("conv-1")).manifest;
+		expect(updated).toMatchObject({ title: "User title", lifecycle: "archived", updatedAt: "2099-01-01T00:00:00.000Z",
+			importedFrom: { kind: "claudian", sourceDigest: "expected-source", transcript: "partial" } });
+		await expect(store.setImportTranscript("conv-1", "other-source", "full")).rejects.toThrow("来源身份不匹配");
+		expect((await store.load("conv-1")).manifest).toEqual(updated);
+		expect((await store.list())[0]).toEqual(updated);
+	});
+
+	it("merges concurrent manifest fields and never rolls activity time backward", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
+		const peer = new PortableConversationStore(files);
+		const importedFrom = { kind: "claudian" as const, sourceDigest: "source-digest", transcript: "full" as const };
+		await store.create({ ...manifest, importedFrom });
+		await Promise.all([
+			store.patchManifest("conv-1", { title: "Renamed" }, "2026-08-26T00:00:03.000Z"),
+			peer.patchManifest("conv-1", { selection: { runtimeId: "claude", model: "model-1" } }, "2026-08-26T00:00:02.000Z"),
+			store.setLifecycle("conv-1", "deleted"),
+			peer.touch("conv-1", "2099-01-01T00:00:00.000Z"),
+		]);
+		const stored = (await store.load("conv-1")).manifest;
+		expect(stored).toEqual({
+			...manifest, title: "Renamed", selection: { runtimeId: "claude", model: "model-1" },
+			lifecycle: "deleted", updatedAt: "2099-01-01T00:00:00.000Z", importedFrom,
+		});
+		expect((await peer.list())[0]).toEqual(stored);
+	});
+
+	it("keeps an archive requested while rename reads its manifest", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
+		await store.create(manifest);
+		const conversations = new ConversationService(store, {
+			now: () => "2026-08-26T00:00:01.000Z", id: () => "unused",
+		});
+		const read = files.read.bind(files);
+		let first = true;
+		let archived: Promise<void> | undefined;
+		files.read = async (file) => {
+			const snapshot = await read(file);
+			if (first && file.endsWith("/conv-1/manifest.json")) {
+				first = false;
+				archived = conversations.archive("conv-1");
+			}
+			return snapshot;
+		};
+		await conversations.rename("conv-1", "  Renamed  ");
+		await archived;
+		expect((await store.load("conv-1")).manifest).toMatchObject({ title: "Renamed", lifecycle: "archived" });
+		expect((await store.list())[0]).toMatchObject({ title: "Renamed", lifecycle: "archived" });
+	});
+
+	it("updates metadata without reading history and continues after a rejected write", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
+		await store.create(manifest);
+		files.files.set(".talos/agent-workbench/v1/conversations/conv-1/events/recovery.json", "corrupt history kept for recovery");
+		const replace = files.replace.bind(files);
+		let fail = true;
+		files.replace = async (from, to) => {
+			if (fail && to.endsWith("/conv-1/manifest.json")) { fail = false; throw new Error("synthetic disk failure"); }
+			await replace(from, to);
+		};
+		await expect(store.patchManifest("conv-1", { title: "Failed" })).rejects.toThrow("synthetic disk failure");
+		const conversations = new ConversationService(store);
+		await conversations.rename("conv-1", "Recovered");
+		await conversations.archive("conv-1");
+		expect((await store.list())[0]).toMatchObject({ title: "Recovered", lifecycle: "archived" });
+		expect(files.files.get(".talos/agent-workbench/v1/conversations/conv-1/events/recovery.json")).toBe("corrupt history kept for recovery");
+	});
+
 	it("physically discards only untouched blank conversations", async () => {
 		const files = new MemoryFiles();
 		const store = new PortableConversationStore(files);
@@ -112,6 +195,98 @@ describe("PortableConversationStore", () => {
 		await expect(store.load(blank.conversationId)).rejects.toThrow();
 		expect([...files.folders]).not.toContain(`.talos/agent-workbench/v1/conversations/${blank.conversationId}`);
 		expect(files.files.get(`.talos/agent-workbench/v1/conversations/${guarded.conversationId}/recovery.bin`)).toBe("preserve");
+	});
+
+	it("flushes and publishes concurrent portable and host state writes on the real filesystem", async () => {
+		const root = await mkdtemp(path.join(tmpdir(), "talos-storage-concurrency-"));
+		const absolute = (file: string) => path.join(root, file);
+		const storage = new ObsidianWorkbenchStorage({
+			exists: async (file) => { try { await access(absolute(file)); return true; } catch { return false; } },
+			read: (file) => readFile(absolute(file), "utf8"),
+			write: (file, value) => writeFile(absolute(file), value),
+			remove: (file) => unlink(absolute(file)),
+			rmdir: (file) => rmdir(absolute(file)),
+			mkdir: async (file) => { await mkdir(absolute(file), { recursive: true }); },
+			list: async (directory) => {
+				const entries = await readdir(absolute(directory), { withFileTypes: true });
+				return {
+					files: entries.filter((entry) => entry.isFile()).map((entry) => `${directory}/${entry.name}`),
+					folders: entries.filter((entry) => entry.isDirectory()).map((entry) => `${directory}/${entry.name}`),
+				};
+			},
+		}, root);
+		try {
+			const store = new PortableConversationStore(storage);
+			await store.create(manifest);
+			await Promise.all([
+				store.touch("conv-1", "2026-08-26T00:00:02.000Z"),
+				...Array.from({ length: 6 }, (_, sequence) => storage.writeJsonAtomic(".talos/host-state.json", { sequence })),
+			]);
+			expect(await storage.readJson(".talos/host-state.json")).toEqual({ sequence: 5 });
+			expect((await store.list())[0]?.updatedAt).toBe("2026-08-26T00:00:02.000Z");
+			expect((await storage.list(".talos")).files.some((file) => file.endsWith(".tmp"))).toBe(false);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("serializes concurrent manifest/index updates and preserves the latest activity", async () => {
+		const files = new MemoryFiles();
+		const replace = files.replace.bind(files);
+		files.replace = async (from, to) => {
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			await replace(from, to);
+		};
+		const store = new PortableConversationStore(files);
+		const secondStore = new PortableConversationStore(files);
+		await Promise.all([store.create(manifest), secondStore.create({ ...manifest, conversationId: "conv-2" })]);
+		await Promise.all([
+			store.touch("conv-1", "2026-08-26T00:00:03.000Z"),
+			secondStore.touch("conv-2", "2026-08-26T00:00:02.000Z"),
+			store.touch("conv-1", "2026-08-26T00:00:01.000Z"),
+		]);
+		expect(await store.list()).toMatchObject([
+			{ conversationId: "conv-1", updatedAt: "2026-08-26T00:00:03.000Z" },
+			{ conversationId: "conv-2", updatedAt: "2026-08-26T00:00:02.000Z" },
+		]);
+		expect([...files.files.keys()].some((path) => path.endsWith(".tmp"))).toBe(false);
+	});
+
+	it("lets independent conversations persist while another conversation write is blocked", async () => {
+		const files = new MemoryFiles();
+		const store = new PortableConversationStore(files);
+		await store.create(manifest);
+		await store.create({ ...manifest, conversationId: "conv-2" });
+		let release!: () => void;
+		let markStarted!: () => void;
+		const started = new Promise<void>((resolve) => { markStarted = resolve; });
+		const blocked = new Promise<void>((resolve) => { release = resolve; });
+		const write = files.write.bind(files);
+		files.write = async (file, value) => {
+			if (file.includes("/conv-1/events/")) { markStarted(); await blocked; }
+			await write(file, value);
+		};
+		const pending = store.append(event());
+		await started;
+		try {
+			await store.append({ ...event("parallel-event"), conversationId: "conv-2" });
+			expect((await store.load("conv-2")).events).toHaveLength(1);
+		} finally {
+			release();
+			await pending;
+		}
+	});
+
+	it("serializes immutable-event collisions and keeps the queue usable after rejection", async () => {
+		const store = new PortableConversationStore(new MemoryFiles());
+		await store.create(manifest);
+		const results = await Promise.allSettled([
+			store.append(event()),
+			store.append({ ...event(), payload: { text: "conflict" } }),
+			store.append(event("event-2")),
+		]);
+		expect(results.map((result) => result.status)).toEqual(["fulfilled", "rejected", "fulfilled"]);
+		expect((await store.load("conv-1")).events).toHaveLength(2);
 	});
 
 	it("writes immutable events idempotently and rejects collisions", async () => {

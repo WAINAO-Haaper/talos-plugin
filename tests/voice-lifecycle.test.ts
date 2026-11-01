@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
 import {
 	clearInterval as nodeClearInterval,
-	clearTimeout as nodeClearTimeout,
 	setInterval as nodeSetInterval,
-	setTimeout as nodeSetTimeout,
 } from "node:timers";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -15,13 +13,8 @@ vi.mock("obsidian", () => ({
 
 import type { TalosSettings } from "../src/settings";
 import { StreamTts } from "../src/jarvis/voiceio";
-import { SerializedInferenceQueue } from "../src/quyuan/local-asr";
 import { QuyuanVoiceDriver } from "../src/quyuan/native-voice-driver";
 import { evaluateVoiceTurnAdmission } from "../src/quyuan/voice-turn-admission";
-import {
-	VadMic,
-	type VadMicHandlers,
-} from "../src/quyuan/vad-mic";
 import { createAgentEvent } from "../src/agent-workbench/contracts/agent-events";
 import type { AgentRuntimeAdapter } from "../src/agent-workbench/contracts/runtime-adapter";
 import { unavailableCapabilities } from "../src/agent-workbench/contracts/runtime-capabilities";
@@ -41,97 +34,13 @@ class Deferred<T> {
 	}
 }
 
-class TestVadMic extends VadMic {
-	readonly transcriptions: Array<Deferred<string>> = [];
-
-	protected preflight(): string | null {
-		return null;
-	}
-
-	protected transcribe(): Promise<string> {
-		const deferred = new Deferred<string>();
-		this.transcriptions.push(deferred);
-		return deferred.promise;
-	}
-
-	commitForTest(): void {
-		(
-			this as unknown as {
-				commitUtterance(frames: Float32Array[], turnId: number): void;
-			}
-		).commitUtterance([new Float32Array([0.2, 0.2])], 1);
-	}
-}
-
-class DeferredPreflightVadMic extends VadMic {
-	readonly preflightGate = new Deferred<string | null>();
-
-	protected preflight(): Promise<string | null> {
-		return this.preflightGate.promise;
-	}
-
-	protected transcribe(): Promise<string> {
-		return Promise.resolve("");
-	}
-}
-
-function installAudioMocks(): {
-	getUserMedia: ReturnType<typeof vi.fn>;
-	tracks: Array<{ stop: ReturnType<typeof vi.fn> }>;
-} {
-	const tracks: Array<{ stop: ReturnType<typeof vi.fn> }> = [];
-	const getUserMedia = vi.fn(async () => {
-		const track = { stop: vi.fn() };
-		tracks.push(track);
-		return {
-			getTracks: () => [track],
-		} as unknown as MediaStream;
-	});
-	class FakeAudioContext {
-		sampleRate = 16000;
-		destination = {};
-		audioWorklet = { addModule: vi.fn(async () => {}) };
-		createMediaStreamSource(): MediaStreamAudioSourceNode {
-			return {
-				connect: vi.fn(),
-				disconnect: vi.fn(),
-			} as unknown as MediaStreamAudioSourceNode;
-		}
-		async close(): Promise<void> {}
-	}
-	class FakeAudioWorkletNode {
-		port = { onmessage: null as ((event: MessageEvent<ArrayBuffer>) => void) | null };
-		connect = vi.fn();
-		disconnect = vi.fn();
-	}
-	vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
-	vi.stubGlobal("window", {
-		AudioContext: FakeAudioContext,
-		setTimeout: nodeSetTimeout,
-		clearTimeout: nodeClearTimeout,
-	});
-	vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode);
-	return { getUserMedia, tracks };
-}
-
-function handlers() {
-	return {
-		onListeningChange: vi.fn(),
-		onState: vi.fn(),
-		onSpeechStart: vi.fn(),
-		onText: vi.fn(),
-		onPartial: vi.fn(),
-		onError: vi.fn(),
-	} satisfies VadMicHandlers;
-}
-
 afterEach(() => {
 	vi.useRealTimers();
 	vi.unstubAllGlobals();
 });
 
 describe("voice microphone lifecycle", () => {
-	it("only auto-starts on mount when microphone permission was already granted", () => {
+	it("never starts the microphone on mount, even if permission was already granted", () => {
 		const source = readFileSync(
 			`${projectRoot}src/quyuan/voice-panel.ts`,
 			"utf8"
@@ -143,11 +52,29 @@ describe("voice microphone lifecycle", () => {
 		expect(mount).not.toContain("setVoiceRecognitionEnabled(true");
 		expect(mount).not.toContain(".asr?.start()");
 		expect(mount).toContain("renderMicActivationRequired");
-		expect(mount).toContain("autoStartRealtimeIfPermitted");
-		expect(source).toContain('result?.state === "granted"');
+		expect(mount).not.toContain("autoStartRealtimeIfPermitted");
+		expect(mount).not.toContain(".start()");
 		expect(source).toContain(
 			'this.micBtn.addEventListener("click", () => void this.toggleVoiceRecognitionMode())'
 		);
+	});
+
+	it("switching the input mode stays idle; the microphone button starts the session", async () => {
+		const { QuyuanVoicePanel } = await import("../src/quyuan/voice-panel");
+		let connected = false;
+		const start = vi.fn(async () => { connected = true; });
+		const realtime = { start, isConnected: () => connected, setAwake: vi.fn(), setInputEnabled: vi.fn() };
+		const panel = Object.assign(Object.create(QuyuanVoicePanel.prototype) as object, {
+			settings: { quyuanVoiceRecognitionEnabled: true },
+			voiceMode: { setInputMode: vi.fn(), snapshot: () => ({ inputMode: "continuous" }) },
+			realtime, rootEl: null, mounted: true, lifecycleGeneration: 1,
+			renderVoiceModeBtn: vi.fn(), renderMicActivationRequired: vi.fn(), renderMicBtn: vi.fn(), setState: vi.fn(),
+			wakeStatusEl: null, controlStatusEl: null, save: vi.fn(async () => undefined),
+		}) as unknown as { setVoiceInputMode(mode: "continuous"): Promise<void>; toggleVoiceRecognitionMode(): Promise<void> };
+		await panel.setVoiceInputMode("continuous");
+		expect(start).not.toHaveBeenCalled();
+		await panel.toggleVoiceRecognitionMode();
+		expect(start).toHaveBeenCalledOnce();
 	});
 
 	it("keeps a realtime wake session active until explicit sleep, exit, or unmount", () => {
@@ -166,138 +93,6 @@ describe("voice microphone lifecycle", () => {
 		expect(realtime).not.toContain("wakeWindowMs");
 	});
 
-	it("never acquires media after stop cancels an asynchronous preflight", async () => {
-		const { getUserMedia } = installAudioMocks();
-		const mic = new DeferredPreflightVadMic(
-			{ quyuanVadEnabled: false } as TalosSettings,
-			handlers()
-		);
-
-		const starting = mic.start();
-		const stopping = mic.stop();
-		mic.preflightGate.resolve(null);
-		await Promise.all([starting, stopping]);
-
-		expect(getUserMedia).not.toHaveBeenCalled();
-		expect(mic.getLifecycleState()).toBe("idle");
-	});
-
-	it("deduplicates double start into one media stream", async () => {
-		const { getUserMedia, tracks } = installAudioMocks();
-		const h = handlers();
-		const mic = new TestVadMic(
-			{ quyuanVadEnabled: false } as TalosSettings,
-			h
-		);
-
-		await Promise.all([mic.start(), mic.start()]);
-
-		expect(getUserMedia).toHaveBeenCalledTimes(1);
-		expect(mic.getLifecycleState()).toBe("listening");
-		await mic.stop();
-		expect(mic.getLifecycleState()).toBe("idle");
-		expect(tracks[0]?.stop).toHaveBeenCalledTimes(1);
-	});
-
-	it("drops an old transcription after stop and rapid restart", async () => {
-		installAudioMocks();
-		const h = handlers();
-		const mic = new TestVadMic(
-			{ quyuanVadEnabled: false } as TalosSettings,
-			h
-		);
-		await mic.start();
-		mic.commitForTest();
-		expect(mic.transcriptions).toHaveLength(1);
-		await mic.stop();
-		await mic.start();
-
-		mic.transcriptions[0]?.resolve("旧轮次文本");
-		await Promise.resolve();
-		await Promise.resolve();
-
-		expect(h.onText).not.toHaveBeenCalled();
-		await mic.stop();
-	});
-
-	it("serializes a restart behind a canceled in-flight media acquisition", async () => {
-		const firstMedia = new Deferred<MediaStream>();
-		const firstTrack = { stop: vi.fn() };
-		const secondTrack = { stop: vi.fn() };
-		const getUserMedia = vi
-			.fn()
-			.mockImplementationOnce(() => firstMedia.promise)
-			.mockResolvedValueOnce({
-				getTracks: () => [secondTrack],
-			});
-		installAudioMocks();
-		Object.defineProperty(
-			navigator.mediaDevices,
-			"getUserMedia",
-			{ value: getUserMedia }
-		);
-		const mic = new TestVadMic(
-			{ quyuanVadEnabled: false } as TalosSettings,
-			handlers()
-		);
-
-		const firstStart = mic.start();
-		await Promise.resolve();
-		const stop = mic.stop();
-		const restart = mic.start();
-		await Promise.resolve();
-		expect(getUserMedia).toHaveBeenCalledTimes(1);
-
-		firstMedia.resolve({
-			getTracks: () => [firstTrack],
-		} as unknown as MediaStream);
-		await Promise.all([firstStart, stop, restart]);
-
-		expect(getUserMedia).toHaveBeenCalledTimes(2);
-		expect(firstTrack.stop).toHaveBeenCalled();
-		expect(mic.getLifecycleState()).toBe("listening");
-		await mic.stop();
-	});
-});
-
-describe("local ASR serialization", () => {
-	it("does not start the next session when the previous caller has timed out", async () => {
-		vi.stubGlobal("window", {
-			setTimeout: nodeSetTimeout,
-			clearTimeout: nodeClearTimeout,
-		});
-		const queue = new SerializedInferenceQueue();
-		const firstUnderlying = new Deferred<string>();
-		let active = 0;
-		let maxActive = 0;
-		let secondStarted = false;
-		const first = queue.run(async () => {
-			active += 1;
-			maxActive = Math.max(maxActive, active);
-			try {
-				return await firstUnderlying.promise;
-			} finally {
-				active -= 1;
-			}
-		}, 5, "first");
-		const firstResult = expect(first).rejects.toThrow("first");
-		await firstResult;
-
-		const second = queue.run(async () => {
-			secondStarted = true;
-			active += 1;
-			maxActive = Math.max(maxActive, active);
-			active -= 1;
-			return "second";
-		}, 1000, "second");
-		await Promise.resolve();
-		expect(secondStarted).toBe(false);
-		expect(maxActive).toBe(1);
-
-		firstUnderlying.resolve("late");
-		await expect(second).resolves.toBe("second");
-		expect(maxActive).toBe(1);
-	});
 });
 
 type VoiceTestChunk =

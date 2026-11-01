@@ -2,6 +2,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import { isPendingApprovalStatusLine } from "../approval-actions";
 import type { TalosSettings } from "../settings";
 import { CONTENT_KEYS, MODULE_KEYS, SCHEMA_LABELS, type VaultPaths } from "./schema";
+import { isCandidateContentLine, statisticalMarkdownLines } from "./vault-files";
 import type {
 	DistBar,
 	FocusItem,
@@ -130,14 +131,14 @@ export function collectOverview(
 	const last = healthTrend.length ? healthTrend[healthTrend.length - 1] : undefined;
 	const prev =
 		healthTrend.length > 1 ? healthTrend[healthTrend.length - 2] : undefined;
-	const hv = last ? last.score : 0;
+	const hv = last?.score;
 	const delta = last && prev ? last.score - prev.score : 0;
 
 	return {
 		totalNotes: {
 			label: "知识笔记总数",
 			value: String(total),
-			sub: `六大内容目录 · 本周 +${weekNew}`,
+			sub: `近7天 +${weekNew}`,
 			tone: "default",
 		},
 		inbox: {
@@ -149,7 +150,7 @@ export function collectOverview(
 		taskFlow,
 		health: {
 			label: "健康分",
-			value: hv ? String(hv) : "—",
+			value: hv === undefined ? "—" : String(hv),
 			sub:
 				delta === 0
 					? "持平"
@@ -165,21 +166,24 @@ export function collectOverview(
 export async function collectFocusAndFlow(
 	app: App,
 	settings: TalosSettings
-): Promise<{ focus: FocusItem[]; taskFlow: StatCard }> {
+): Promise<{ focus: FocusItem[]; focusTotal: number; taskFlow: StatCard }> {
 	const file = app.vault.getAbstractFileByPath(normalizePath(settings.tasksPath));
 	if (!(file instanceof TFile)) {
 		return {
 			focus: [],
-			taskFlow: { label: "任务流", value: "—", sub: "tasks.md 未找到" },
+			focusTotal: 0,
+			taskFlow: { label: "任务池完成占比", value: "—", sub: "任务池未配置或未找到" },
 		};
 	}
 	const raw = await app.vault.cachedRead(file);
-	const lines = raw.split("\n");
+	const lines = statisticalMarkdownLines(raw);
 
 	const focus: FocusItem[] = [];
 	let section = "other";
 	let done = 0;
 	let open = 0;
+	let inProgress = 0;
+	let focusTotal = 0;
 
 	for (const ln of lines) {
 		const h = ln.match(/^##\s*(.+?)\s*$/);
@@ -194,14 +198,19 @@ export async function collectFocusAndFlow(
 						: "other";
 			continue;
 		}
-		const m = ln.match(/^-\s*(?:\[([ xX])\]\s*)?(🔴|🟡|🟢|⚫|🔌|🔮|📖|🎯)?\s*(.*)$/);
+		const m = ln.match(/^\s*[-*]\s*(?:\[([ xX~])\]\s*)?(🔴|🟡|🟢|⚫|🔌|🔮|📖|🎯)?\s*(.*)$/);
 		if (!m) continue;
 		const checked = (m[1] || "").toLowerCase() === "x";
 		const prio = m[2] || "";
 		const body = m[3] || "";
 		if (!body.trim()) continue;
-		if (checked) done++;
-		else if (section === "focus" || section === "todo") open++;
+		// 只统计复选框，分子分母均来自同一个文件和同一类条目。
+		if (m[1] !== undefined) {
+			if (checked) done++;
+			else if (m[1] === "~") inProgress++;
+			else open++;
+		}
+		if (section === "focus" && !checked) focusTotal++;
 
 		if (section === "focus" && focus.length < 3 && !checked) {
 			const bm = body.match(/\*\*(.+?)\*\*/);
@@ -226,15 +235,17 @@ export async function collectFocusAndFlow(
 		}
 	}
 
-	const totalT = done + open;
-	const rate = totalT === 0 ? 0 : Math.round((done / totalT) * 100);
+	const totalT = done + open + inProgress;
+	const rate = totalT === 0 ? null : Math.round((done / totalT) * 100);
 	return {
 		focus,
+		focusTotal,
 		taskFlow: {
-			label: "任务流",
-			value: `${rate}%`,
-			sub: `${focus.length} 焦点 · ${open} open · ${done} done`,
-			tone: rate >= 50 ? "good" : "warn",
+			label: "任务池完成占比",
+			value: rate === null ? "—" : `${rate}%`,
+			sub: totalT === 0 ? "任务池没有可统计的复选框" : `任务池复选框 · 已完成 ${done}/${totalT} · 待办 ${open} · 进行中 ${inProgress}`,
+			counts: { done, open, inProgress, total: totalT },
+			tone: rate === null ? "default" : rate >= 50 ? "good" : "warn",
 		},
 	};
 }
@@ -248,7 +259,7 @@ export async function collectApprovals(
 		normalizePath(settings.pendingApprovalsPath)
 	);
 	if (!(file instanceof TFile)) return [];
-	const text = await app.vault.read(file);
+	const text = statisticalMarkdownLines(await app.vault.read(file)).join("\n");
 	const m = text.match(
 		/## 当前待审批([\s\S]*?)(?:\n### 后续候选|\n## 保留观察项|\n## 已解决|$)/
 	);
@@ -274,7 +285,7 @@ export async function collectCandidates(
 		normalizePath(settings.candidatesPath)
 	);
 	if (!(file instanceof TFile)) return [];
-	const lines = (await app.vault.cachedRead(file)).split("\n");
+	const lines = statisticalMarkdownLines(await app.vault.cachedRead(file));
 	const out: SignalItem[] = [];
 	let inside = false;
 	for (const ln of lines) {
@@ -284,7 +295,7 @@ export async function collectCandidates(
 		}
 		if (!inside) continue;
 		const s = ln.trim();
-		if (s.startsWith("- ") && !s.includes("（无）") && !s.includes("（空）")) {
+		if (ln === ln.trimStart() && isCandidateContentLine(s)) {
 			out.push({ title: stripMd(s.slice(2)), meta: "待确认", path: file.path });
 		}
 	}
@@ -292,6 +303,37 @@ export async function collectCandidates(
 }
 
 // ---------- 健康分趋势 ----------
+export interface HealthHistoryEntry {
+	date: string;
+	score: number;
+}
+
+/**
+ * 健康历史的唯一解析口径。有效日期按完整日期升序，同日按文件原顺序保留；
+ * 因此同日最后一条作为最新记录。无标记的旧日志继续识别日期/分数表。
+ */
+export function parseHealthHistory(text: string): HealthHistoryEntry[] {
+	const block = text.match(/<!-- EVAL_HISTORY -->([\s\S]*?)<!-- EVAL_HISTORY_END -->/);
+	if (!block && /<!-- EVAL_HISTORY(?:_END)? -->/.test(text)) return [];
+	const source = block ? block[1] ?? "" : text;
+	const records: Array<HealthHistoryEntry & { sourceIndex: number }> = [];
+	for (const [sourceIndex, row] of source.split("\n").entries()) {
+		const cells = row.split("|").map((cell) => cell.trim()).filter(Boolean);
+		if (cells.length < 2) continue;
+		const dateMatch = cells[0].match(/(?:^|\D)(\d{4}-\d{2}-\d{2})(?:\D|$)/);
+		const scoreMatch = cells[1].match(/^(\d+(?:\.\d+)?)(?:\s*(?:\/\s*100|分|%))?$/);
+		if (!dateMatch || !scoreMatch) continue;
+		const date = dateMatch[1];
+		const parsedDate = new Date(`${date}T00:00:00Z`);
+		if (Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().slice(0, 10) !== date) continue;
+		const score = Number(scoreMatch[1]);
+		if (!Number.isFinite(score)) continue;
+		records.push({ date, score, sourceIndex });
+	}
+	return records.sort((a, b) => a.date.localeCompare(b.date) || a.sourceIndex - b.sourceIndex)
+		.map(({ date, score }) => ({ date, score }));
+}
+
 export async function collectHealthTrend(
 	app: App,
 	settings: TalosSettings,
@@ -301,20 +343,9 @@ export async function collectHealthTrend(
 		normalizePath(settings.healthLogPath)
 	);
 	if (!(file instanceof TFile)) return [];
-	const text = await app.vault.cachedRead(file);
-	const m = text.match(/<!-- EVAL_HISTORY -->([\s\S]*?)<!-- EVAL_HISTORY_END -->/);
-	if (!m) return [];
-	const out: HealthPoint[] = [];
-	for (const row of (m[1] || "").split("\n")) {
-		const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
-		if (cells.length < 2) continue;
-		const dm = (cells[0] || "").match(/(\d{4})-(\d{2})-(\d{2})/);
-		if (!dm) continue;
-		const score = parseInt(cells[1] || "", 10);
-		if (isNaN(score)) continue;
-		out.push({ label: `${Number(dm[2])}/${Number(dm[3])}`, score });
-	}
-	return out.slice(-n);
+	const history = parseHealthHistory(await app.vault.cachedRead(file));
+	if (n <= 0) return [];
+	return history.slice(-n).map(({ date, score }) => ({ label: date, score }));
 }
 
 // ---------- 热力图（全库） ----------

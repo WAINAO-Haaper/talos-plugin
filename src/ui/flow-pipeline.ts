@@ -1,10 +1,11 @@
-// 「内容流」流水线：收件 → 洞察 → 素材 → 待发 → 已发。
+// 内容流：收件、洞察、素材与待处理输出。
 // 2026-10-07 导航重构第二期：收件箱、知识库、输出三页共用这条流水线代替各自的页头指标，
 // 数字只取既有统计（inbox / knowledge.metrics / output），不重新扫描 Vault。
 import type { Collected } from "./talos-view-model";
 import type { TalosView } from "../view";
+import { CONTENT_KEYS } from "../data/schema";
 
-export type FlowStationKey = "inbox" | "insights" | "materials" | "queue" | "published";
+export type FlowStationKey = "total" | "inbox" | "insights" | "materials" | "queue";
 
 export interface FlowStation {
 	key: FlowStationKey;
@@ -21,51 +22,49 @@ function metricValue(metrics: Collected["knowledge"]["metrics"], label: string):
 	return metrics.find((metric) => metric.label === label)?.value ?? "0";
 }
 
-/** 五个站点及其卡点；卡点 = 收件积压超过两周、有待发条目、或有平台稿件未闭环。 */
-export function flowStations(d: Collected): FlowStation[] {
-	const queue = Number(metricValue(d.output.metrics, "今日待发")) || 0;
-	const total = d.output.platforms.reduce((sum, platform) => sum + Math.max(platform.count, platform.published + platform.pending), 0);
-	const published = d.output.platforms.reduce((sum, platform) => sum + platform.published, 0);
+/** 四个站点及其卡点：收件积压超过两周或有待处理输出。 */
+export function flowStations(d: Collected, inboxAvailable = true, source = { content: true, insights: true, materials: true }): FlowStation[] {
+	const queue = d.output.queueStatus === "ready" ? d.output.queueTotal : undefined;
 	return [
+		{
+			key: "total",
+			label: "知识笔记",
+			value: source.content ? d.overview?.totalNotes?.value ?? "—" : `≥${d.overview?.totalNotes?.value ?? 0}`,
+			sub: source.content ? d.overview?.totalNotes?.sub ?? "六大内容目录" : "部分内容目录缺失 · 仅计已找到的目录",
+			pageKey: "knowledge",
+			stuck: false,
+		},
 		{
 			key: "inbox",
 			label: "收件",
-			value: String(d.inbox.count),
-			sub: d.inbox.count > 0 ? `最老 ${d.inbox.oldestDays} 天` : "已清空",
+			value: inboxAvailable ? String(d.inbox.count) : "—",
+			sub: !inboxAvailable ? "收件目录未配置" : d.inbox.count > 0 ? `最老 ${d.inbox.oldestDays} 天 · 创建时间` : "已清空",
 			pageKey: "inbox",
-			stuck: d.inbox.count > 0 && d.inbox.oldestDays >= STUCK_INBOX_DAYS,
+			stuck: inboxAvailable && d.inbox.count > 0 && d.inbox.oldestDays >= STUCK_INBOX_DAYS,
 		},
 		{
 			key: "insights",
 			label: "洞察",
-			value: metricValue(d.knowledge.metrics, "原创洞察"),
-			sub: "原创",
+			value: source.insights ? metricValue(d.knowledge.metrics, "原创洞察") : "—",
+			sub: source.insights ? "洞察目录" : "目录未找到或无法读取",
 			pageKey: "knowledge",
 			stuck: false,
 		},
 		{
 			key: "materials",
 			label: "素材",
-			value: metricValue(d.knowledge.metrics, "外部素材"),
-			sub: "外部",
+			value: source.materials ? metricValue(d.knowledge.metrics, "外部素材") : "—",
+			sub: source.materials ? "素材目录" : "目录未找到或无法读取",
 			pageKey: "knowledge",
 			stuck: false,
 		},
 		{
 			key: "queue",
-			label: "待发",
-			value: String(queue),
-			sub: queue > 0 ? "统一出口待处理" : "出口已清空",
+			label: "待处理",
+			value: queue === undefined ? "—" : String(queue),
+			sub: queue === undefined ? "输出来源缺失或格式待检查" : "输出文件 · 待处理条目",
 			pageKey: "output",
-			stuck: queue > 0,
-		},
-		{
-			key: "published",
-			label: "已发",
-			value: `${published}/${total}`,
-			sub: total > published ? `${total - published} 待闭环` : "全部闭环",
-			pageKey: "output",
-			stuck: total > published,
+			stuck: queue !== undefined && queue > 0,
 		},
 	];
 }
@@ -74,7 +73,10 @@ export function renderFlowPipeline(view: TalosView, parent: HTMLElement, d: Coll
 	const pipeline = parent.createDiv({ cls: "talos-flow-pipeline" });
 	pipeline.setAttribute("role", "list");
 	pipeline.setAttribute("aria-label", "内容流水线");
-	for (const station of flowStations(d)) {
+	const folderExists = (path: string) => { const node = view.app.vault.getAbstractFileByPath(path); return !!node && "children" in node; };
+	const inboxFolder = folderExists(view.plugin.talosSettings.inboxFolder);
+	const sources = { content: CONTENT_KEYS.every((key) => folderExists(view.paths.dir(key))), insights: folderExists(view.paths.dir("insights")), materials: folderExists(view.paths.dir("assets")) };
+	for (const station of flowStations(d, inboxFolder, sources)) {
 		const current = station.pageKey === activePage;
 		const item = pipeline.createDiv({
 			cls: `talos-flow-station${current ? " is-current" : ""}${station.stuck ? " is-stuck" : ""}`,
@@ -83,7 +85,10 @@ export function renderFlowPipeline(view: TalosView, parent: HTMLElement, d: Coll
 		item.dataset.flowStation = station.key;
 		item.createEl("small", { text: station.label });
 		item.createEl("b", { text: station.value });
-		item.createEl("span", { text: station.sub });
+		const detail = item.createEl("span", { text: station.sub });
+		if (station.key === "total" && sources.content) {
+			detail.setAttribute("title", "六大内容目录；近7天按文件创建时间统计，迁移可能改变日期。");
+		}
 		if (!current) {
 			item.setAttribute("tabindex", "0");
 			item.setAttribute("aria-label", `打开${station.label}：${station.value}`);

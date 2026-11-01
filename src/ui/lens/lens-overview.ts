@@ -17,13 +17,8 @@ function onClick<T extends HTMLElement>(node: T, action: () => void): T {
 	return node;
 }
 
-function healthScore(ctx: LensContext): { value: string; warn: boolean } {
-	const metric = ctx.data.collected.healthDigest.metrics.find((m) => m.label === "健康分");
-	return { value: metric?.value ?? "—", warn: metric?.tone === "warn" };
-}
-
 function staleInbox(ctx: LensContext): number {
-	return ctx.data.collected.inbox.ageBuckets.filter((b) => b.tone === "hot" || b.tone === "warn").reduce((n, b) => n + b.count, 0);
+	return ctx.data.collected.inbox.ageBuckets.filter((b) => b.tone === "hot").reduce((n, b) => n + b.count, 0);
 }
 
 function kpiStrip(ctx: LensContext): HTMLElement {
@@ -31,19 +26,24 @@ function kpiStrip(ctx: LensContext): HTMLElement {
 	const d = data.collected;
 	const projects = data.projects;
 	const active = projects.filter((p) => p.status === "active").length;
-	const health = healthScore(ctx);
+	const decisionsReady = d.setup?.pendingApprovalsPath === "ok" && d.setup?.candidatesPath === "ok";
+	const inboxDir = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir("inbox"));
+	const inboxReady = !!inboxDir && "children" in inboxDir;
+	const projectDir = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir("projects"));
+	const projectsReady = !!projectDir && "children" in projectDir;
+	const taskReady = d.setup?.tasksPath === "ok";
 	const items: Array<[string, string, [string, string] | null, () => void]> = [
-		["登记项目", num(projects.length), active ? [`${active} 推进中`, "c5"] : null, () => ctx.navigate("projects")],
-		["收件待处理", num(d.inbox.count), d.inbox.oldestDays >= 14 ? [`最久 ${d.inbox.oldestDays} 天`, "warn"] : null, () => ctx.navigate("collect")],
-		["待审批", num(d.approvals.length), d.approvals.length ? ["需你确认", "fail"] : null, () => ctx.navigate("system", "approvals")],
-		["待发布", num(d.output.queue.length), null, () => ctx.navigate("output", "queue")],
-		["健康分", health.value, health.warn ? ["需关注", "warn"] : null, () => ctx.navigate("system", "health")],
+		["当前焦点", d.setup?.tasksPath === "ok" ? num(d.focusTotal ?? d.focus.length) : "—", ["任务池", "c5"], () => ctx.openDrawer(ctx.tasksPath)],
+		[d.overview.taskFlow.label, taskReady ? d.overview.taskFlow.value : "—", [taskReady ? d.overview.taskFlow.sub : "任务池未配置或格式待检查", "c5"], () => ctx.openDrawer(ctx.tasksPath)],
+		["待决策", decisionsReady ? num(d.approvals.length + d.candidates.length) : "—", [decisionsReady ? "审批与偏好" : "来源未就绪", "warn"], () => ctx.navigate("overview", "today")],
+		["收件积压", inboxReady ? num(d.inbox.count) : "—", [inboxReady ? `最久 ${d.inbox.oldestDays} 天 · 创建时间` : "收件目录未配置", "warn"], () => ctx.navigate("knowledge", "inbox")],
+		["登记项目", projectsReady ? num(projects.length) : "—", projectsReady ? active ? [`${active} 推进中`, "c5"] : null : ["项目目录未配置", "warn"], () => ctx.navigate("projects")],
 	];
 	const kpis = el(doc, "div", { class: "ov-kpis" }, ...items.map(([name, value, pill, go], i) =>
 		onClick(el(doc, "button", { type: "button", class: "ov-kpi vk-rise", style: `--vk-i:${i}`, "data-missing": String(value === "—") },
 			el(doc, "span", {}, name),
 			el(doc, "strong", { "data-count": `ov-kpi-${i}` }, value),
-			value === "—" ? el(doc, "em", { "data-tone": "idle" }, "未读取") : pill ? el(doc, "em", { "data-tone": pill[1] }, pill[0]) : null), go)));
+			pill ? el(doc, "em", { "data-tone": pill[1] }, pill[0]) : value === "—" ? el(doc, "em", { "data-tone": "idle" }, "未读取") : null), go)));
 
 	const counts = new Map<string, number>();
 	for (const p of projects) counts.set(p.status, (counts.get(p.status) ?? 0) + 1);
@@ -98,17 +98,18 @@ function briefCard(ctx: LensContext): HTMLElement {
 	const blockers = data.focus?.blockers.length ?? 0;
 	const stale = staleInbox(ctx);
 	const healthIssues = d.healthDigest.errors.length;
+	const decisionsReady = d.setup?.pendingApprovalsPath === "ok" && d.setup?.candidatesPath === "ok";
 	const reasons: Reason[] = [
 		blockers ? { key: "blocker", label: "焦点项目存在阻碍", value: blockers, max: Math.max(blockers, 1), tone: "fail" } : null,
-		d.approvals.length ? { key: "approvals", label: "变更等待审批", value: d.approvals.length, max: Math.max(d.approvals.length, d.candidates.length, 1), tone: "warn", go: () => ctx.navigate("system", "approvals") } : null,
+		decisionsReady && d.approvals.length ? { key: "approvals", label: "变更等待审批", value: d.approvals.length, max: Math.max(d.approvals.length, d.candidates.length, 1), tone: "warn", go: () => ctx.navigate("overview", "today") } : null,
 		stale ? { key: "inbox", label: "收件超过两周未处理", value: stale, max: Math.max(d.inbox.count, 1), tone: "warn", go: () => ctx.navigate("collect", "backlog") } : null,
-		d.output.queue.length ? { key: "output", label: "内容等待发布", value: d.output.queue.length, max: Math.max(d.output.queue.length, 1), tone: "c3", go: () => ctx.navigate("output", "queue") } : null,
-		healthIssues ? { key: "health", label: "健康项待关注", value: healthIssues, max: Math.max(healthIssues, 1), tone: "warn", go: () => ctx.navigate("system", "health") } : null,
+		d.output.queueTotal ? { key: "output", label: "输出待处理", value: d.output.queueTotal, max: d.output.queueTotal, tone: "c3", go: () => ctx.navigate("knowledge", "output") } : null,
+		healthIssues ? { key: "health", label: "错误记录预览", value: healthIssues, max: Math.max(healthIssues, 1), tone: "warn", go: () => ctx.navigate("system", "health") } : null,
 	].filter((r): r is Reason => r !== null);
-	const parts = [blockers ? `焦点项目有 ${blockers} 条阻碍` : "", d.approvals.length ? `${d.approvals.length} 项变更等你审批` : ""].filter(Boolean);
+	const parts = [blockers ? `焦点项目有 ${blockers} 条阻碍` : "", decisionsReady && d.approvals.length ? `${d.approvals.length} 项变更等你审批` : ""].filter(Boolean);
 	if (!parts.length && stale) parts.push(`${stale} 条收件超过两周未处理`);
 	const calm = !parts.length;
-	const headline = calm ? "没有登记的阻碍或待审批变更，按计划推进。" : `${parts.join("，")}。`;
+	const headline = calm ? decisionsReady ? "没有登记的阻碍或待审批变更，按计划推进。" : "审批来源未就绪，请检查数据来源。" : `${parts.join("，")}。`;
 
 	const reasonButtons: LensChild[] = [];
 	reasons.forEach((r, i) => {
@@ -141,7 +142,7 @@ const FOCUS_TONE = { hot: "fail", warn: "c3", normal: "c5" } as const;
 
 function todos(ctx: LensContext): HTMLElement | null {
 	const { doc } = ctx;
-	const items = ctx.data.collected.focus.slice(0, 5);
+	const items = ctx.data.collected.setup?.tasksPath === "ok" ? ctx.data.collected.focus.slice(0, 5) : [];
 	if (!items.length) return null;
 	return el(doc, "section", { class: "ov-card ov-todos" },
 		el(doc, "div", { class: "v-panel-head" }, el(doc, "h2", {}, "接下来"), link(doc, "全部项目", () => ctx.navigate("projects"))),
@@ -184,11 +185,19 @@ export function renderOverviewToday(ctx: LensContext): LensChild[] {
 		el(doc, "div", { class: "lens-scope" }, chip(doc, "本地库", "dim"),
 			el(doc, "span", { title: "资料采集时间" }, icon(doc, "refresh-cw"), time(ctx.data.capturedAt)),
 			link(doc, "来源", () => ctx.navigate("preferences"))));
+	const decisions = el(doc, "section", { class: "ov-card", "aria-label": "待决策" }, el(doc, "h2", {}, "待决策"));
+	ctx.renderDecisions(decisions);
+	const counts = ctx.data.collected.setup?.tasksPath === "ok" ? ctx.data.collected.overview.taskFlow.counts : undefined;
+	const tasks = el(doc, "section", { class: "ov-card", "aria-label": "任务池" }, el(doc, "h2", {}, "任务进度"),
+		el(doc, "p", {}, counts ? `待办 ${counts.open} · 进行中 ${counts.inProgress} · 已完成 ${counts.done} · 共 ${counts.total} 项` : "任务池尚未配置或无法读取。"),
+		link(doc, "打开任务池", () => ctx.openDrawer(ctx.tasksPath)));
 	return [
 		header,
 		kpiStrip(ctx),
 		el(doc, "div", { class: "ov-hero" }, focusCard(ctx, ctx.data.focus), briefCard(ctx)),
 		todos(ctx),
+		tasks,
+		decisions,
 		timeline(ctx, ctx.data.projects),
 	];
 }

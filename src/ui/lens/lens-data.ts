@@ -16,7 +16,7 @@ export interface LensProject {
 	notes: number;
 	readme: string;
 	latestPath?: string;
-	progress?: { done: number; total: number };
+	progress?: { done: number; total: number; sampled?: boolean; scannedFiles?: number; totalFiles?: number };
 }
 
 export interface LensFocus {
@@ -59,6 +59,13 @@ function frontmatterStatus(app: App, path: string): string {
 	return KNOWN_STATUS.has(status) ? status : "unknown";
 }
 
+function frontmatterPriority(app: App, path: string): string {
+	const file = app.vault.getAbstractFileByPath(path);
+	if (!(file instanceof TFile)) return "";
+	const raw: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.priority;
+	return typeof raw === "string" && /^P[0-4]$/i.test(raw.trim()) ? raw.trim().toUpperCase() : "";
+}
+
 function mtimeOf(app: App, path: string | undefined): number | null {
 	if (!path) return null;
 	const file = app.vault.getAbstractFileByPath(path);
@@ -70,8 +77,8 @@ export function buildLensProjects(app: App, collected: Collected): LensProject[]
 		id: scene.readme,
 		name: scene.name,
 		status: frontmatterStatus(app, scene.readme),
-		priority: scene.priority.toUpperCase(),
-		lastUpdated: mtimeOf(app, scene.latestPath),
+		priority: frontmatterPriority(app, scene.readme),
+		lastUpdated: scene.latestMtime ?? mtimeOf(app, scene.latestPath),
 		line: scene.latestTitle && scene.latestTitle !== "—" ? `最近：${scene.latestTitle}` : "当前没有记录",
 		notes: scene.count,
 		readme: scene.readme,

@@ -11,6 +11,7 @@ import {
 import type TalosPlugin from "./main";
 import { TalosSettingTab } from "./settings";
 import { LensConsole, LENS_ROOT_ID } from "./ui/lens/lens-console";
+import type { QuickNote } from "./ui/quick-note";
 import type { InboxTriageSession } from "./ui/inbox-triage-panel";
 import type { LensModuleId } from "./ui/lens/lens-pages";
 import type {
@@ -53,6 +54,7 @@ import {
 	homePageFor,
 	isSuperbrainPage,
 	pageBelongsTo,
+	resolvePageRoute,
 } from "./ui/navigation-model";
 import {
 	decodeTalosViewState,
@@ -71,6 +73,7 @@ import { WEEKDAYS, PAGE_ARCHETYPES, dailyRota, dailyTimeline, type QuyuanVoicePa
 import { fillCapabilityDistribution, fillGateStateChart, fillOutputClosureChart, fillProjectPortfolioChart } from "./ui/charts/talos-view-charts";
 import { renderOverviewAttentionRows } from "./ui/pages/overview-page";
 import { renderTodayPage } from "./ui/pages/today-page";
+import { renderWorkbenchContent, renderWorkbenchPage } from "./ui/pages/workbench-page";
 import { renderDailyPage } from "./ui/pages/daily-page";
 import { renderHealthPage, renderOutputPage, renderProjectsPage } from "./ui/pages/project-pages";
 import { renderCapabilityPage, renderIdentityPage, renderKnowledgePage, renderVaultPage } from "./ui/pages/knowledge-pages";
@@ -86,10 +89,21 @@ import { normalizeConsoleMode, type ConsoleMode } from "./ui/console-mode";
 /** 经典页面键 → Lens 模块（命令面板等经典入口在 Lens 界面下的落点）。 */
 const LENS_PAGE_FOR_CLASSIC: Readonly<Record<string, LensModuleId>> = {
 	today: "overview", overview: "overview", daily: "overview",
-	inbox: "collect", knowledge: "knowledge", output: "output",
-	projects: "projects", talos: "projects",
-	health: "system", vault: "system", capability: "system", identity: "identity",
-	chat: "assistant", jarvis: "voice", voice: "voice", settings: "preferences",
+	inbox: "workbench", knowledge: "workbench", output: "workbench",
+	projects: "workbench", tasks: "workbench", talos: "workbench",
+	health: "workbench", vault: "workbench", capability: "workbench", identity: "workbench",
+	chat: "assistant", jarvis: "assistant", voice: "assistant", settings: "preferences",
+};
+
+/** 子页命令必须带上 Lens 页签，不能只跳到模块默认页。 */
+const LENS_TAB_FOR_CLASSIC: Readonly<Record<string, string>> = {
+	today: "today", overview: "today", daily: "tasks", inbox: "inbox", knowledge: "knowledge", output: "output",
+	projects: "projects", tasks: "tasks", health: "health", vault: "knowledge", capability: "capability", identity: "identity", chat: "chat", jarvis: "voice", voice: "voice",
+};
+
+const CLASSIC_PAGE_FOR_LENS: Readonly<Record<string, string>> = {
+	overview: "today", collect: "inbox", knowledge: "knowledge", output: "output",
+	projects: "projects", system: "health", identity: "identity", voice: "jarvis", workbench: "inbox", preferences: "settings",
 };
 
 export const VIEW_TYPE_TALOS = "talos-console-view";
@@ -123,6 +137,8 @@ export class TalosView extends ItemView {
 	data: Collected | null = null;
 	private peerStatus: TalosPeerStatusState | null = null;
 	readonly pageRouter = new TalosPageRouter();
+	/** 助手二级入口可独立展开，不靠挂载语音页来显示导航。 */
+	assistantNavigationOpen = false;
 	private readonly pageScroll = new Map<string, number>();
 	private renderedPage: string | null = null;
 	activeCap = "commands";
@@ -131,12 +147,16 @@ export class TalosView extends ItemView {
 	lastCandidateFeedback: CandidateDecisionFeedback | null = null;
 	jarvis: QuyuanVoicePanelLike | null = null;
 	jarvisMounted = false;
+	/** 每次挂载或卸载更新代次，过期异步结果不得写入新的页面。 */
+	voiceMountRevision = 0;
 	chatSurface: TalosChatSurface | null = null;
 	chatMounted = false;
 	/** 收件箱分诊的会话状态（「稍后」顺序），页面重绘后保留，不写文件。 */
 	readonly inboxTriageSession: InboxTriageSession = { deferred: [] };
 	/** 合并页签的选中项（单页原则），页面重绘后保留，不写文件。 */
 	readonly panelTabSelections = new Map<string, string>();
+	/** 便签组件由视图持有，重绘只移动节点，保留草稿、保存与撤销状态。 */
+	quickNote: QuickNote | null = null;
 	private clockTimer: number | null = null;
 	actionPanel: ConsoleActionPanel | null = null;
 	embeddedSettingsTab: TalosSettingTab | null = null;
@@ -158,6 +178,7 @@ export class TalosView extends ItemView {
 		const previousPage = this.pageRouter.renderKey();
 		this.pageRouter.navigate(pageKey);
 		if (this.pageRouter.renderKey() !== previousPage) {
+			this.assistantNavigationOpen = false;
 			this.app.workspace.requestSaveLayout();
 		}
 	}
@@ -249,6 +270,7 @@ export class TalosView extends ItemView {
 		this.actionPanel?.unmount();
 		this.actionPanel = null;
 		this.superbrainPages.teardown();
+		this.quickNote = null;
 		this.embeddedSettingsTab = null;
 		if (this.clockTimer !== null) {
 			window.clearInterval(this.clockTimer);
@@ -268,10 +290,11 @@ export class TalosView extends ItemView {
 	/** C/M 页暂用经典个人外壳；返回个人页后恢复 Lens，不改界面偏好。 */
 	private get usesLens(): boolean {
 		return this.consoleMode === "personal" && this.plugin.talosSettings.uiLanguage === "lens"
-			&& !isSuperbrainPage(this.activePage);
+			&& !isSuperbrainPage(this.activePage) && this.activePage !== "harness";
 	}
 
 	private buildShell(): void {
+		this.unmountJarvisSafely();
 		this.lens?.dispose();
 		this.lens = null;
 		this.contentEl.removeClass("talos-lens-host");
@@ -305,6 +328,7 @@ export class TalosView extends ItemView {
 		this.lens = new LensConsole({
 			app: this.app,
 			paths: () => this.paths,
+			tasksPath: () => this.plugin.talosSettings.tasksPath,
 			profileName: () => this.plugin.talosSettings.mainTitle.trim() || "本地用户",
 			appearance: () => this.plugin.talosSettings.lensAppearance,
 			openNote: (path, newTab) => {
@@ -312,6 +336,20 @@ export class TalosView extends ItemView {
 				else void openFile(this.app, path);
 			},
 			openChat: () => void this.plugin.activateChatSidebar(),
+			invokeCommand: (command) => void this.sendCommandToChat(command),
+			openHarness: () => this.navigateToPage("harness"),
+			renderDecisions: (host) => { if (this.data) this.renderDecisionWorkspace(host, this.data, 12); },
+			renderInbox: (host) => { if (this.data) this.pageInbox(host, this.data); },
+			renderWorkbench: (host, pageKey) => { if (this.data) renderWorkbenchContent(this, host, this.data, pageKey); },
+			renderOverview: (host) => { if (this.data) renderTodayPage(this, host, this.data); },
+			cleanupPage: () => { this.actionPanel?.unmount(); this.actionPanel = null; },
+			onNavigate: (module, tab) => {
+				const page = module === "workbench" && ["inbox", "knowledge", "output", "projects", "tasks", "health", "capability", "identity"].includes(tab ?? "") ? tab!
+					: module === "assistant" && tab === "voice" ? "jarvis"
+					: module === "assistant" ? "chat"
+					: CLASSIC_PAGE_FOR_LENS[module];
+				if (page) this.activePage = page;
+			},
 			renderSettings: (host) => {
 				this.embeddedSettingsTab ??= new TalosSettingTab(this.app, this.plugin);
 				this.embeddedSettingsTab.renderInto(host);
@@ -320,15 +358,26 @@ export class TalosView extends ItemView {
 			unmountVoice: () => this.unmountJarvisSafely(),
 			refresh: () => void this.refresh(),
 		}, root);
+		this.navigateLensPage(this.activePage);
+	}
+
+	private navigateLensPage(pageKey: string): void {
+		const module = LENS_PAGE_FOR_CLASSIC[pageKey] ?? "overview";
+		const tab = LENS_TAB_FOR_CLASSIC[pageKey];
+		if (tab) this.lens?.navigate(module, tab);
+		else this.lens?.navigate(module);
 	}
 
 	/** Lens「屈原语音」模块：复用经典语音页的同一个面板实例与引擎。 */
 	private async mountLensVoice(host: HTMLElement): Promise<void> {
-		host.createDiv({ cls: "empty", text: "屈原模块加载中…" });
+		const revision = ++this.voiceMountRevision;
+		const current = () => this.voiceMountRevision === revision && host.isConnected
+			&& this.lens !== null && this.activePage === "jarvis";
+		host.createDiv({ cls: "empty", text: "语音模块加载中…" });
 		try {
 			const { QuyuanVoicePanel } = await import("./quyuan/voice-panel");
 			await this.plugin.waitForAgentWorkbench();
-			if (!host.isConnected) return;
+			if (!current()) return;
 			host.empty();
 			this.jarvis ??= new QuyuanVoicePanel(
 				this.app,
@@ -340,11 +389,12 @@ export class TalosView extends ItemView {
 			this.jarvis.mount(host);
 			this.jarvisMounted = true;
 		} catch (error) {
+			if (!current()) return;
 			console.error("TALOS Quyuan voice panel failed to mount in Lens", error);
 			this.unmountJarvisSafely();
 			this.jarvis = null;
 			host.empty();
-			host.createDiv({ cls: "empty", text: `屈原模块加载失败：${error instanceof Error ? error.message : String(error)}` });
+			host.createDiv({ cls: "empty", text: `语音模块加载失败：${error instanceof Error ? error.message : String(error)}` });
 		}
 	}
 
@@ -523,7 +573,7 @@ export class TalosView extends ItemView {
 		const { dist, total } = collectDist(app, paths);
 		const inboxCount = dist.find((d) => d.name === "收件箱")?.count ?? 0;
 		const modules = collectModules(app, paths);
-		const { focus, taskFlow } = await collectFocusAndFlow(app, s);
+		const { focus, focusTotal, taskFlow } = await collectFocusAndFlow(app, s);
 		const healthTrend = await collectHealthTrend(app, s);
 		const overview = collectOverview(app, paths, total, inboxCount, taskFlow, healthTrend);
 		const approvals = await collectApprovals(app, s);
@@ -547,6 +597,7 @@ export class TalosView extends ItemView {
 			dist,
 			modules,
 			focus,
+			focusTotal,
 			healthTrend,
 			overview,
 			approvals,
@@ -574,11 +625,11 @@ export class TalosView extends ItemView {
 
 		// 屈原页活跃时，库变动触发的后台刷新不重绘控制台——
 		// 否则会拆掉对话页、打断朗读、画面闪跳。数据已存，离开此页时自然刷新。
-		if (this.activePage === "jarvis" && this.jarvisMounted) return;
+		if (this.activePage === "jarvis" && this.hasConnectedVoicePanel()) return;
 
 		this.renderHeroStats();
 		this.renderApprovalSide();
-		this.renderPage();
+		this.renderCurrentPage(true);
 	}
 
 	// Hero 数字只住星轨节点一处（门面层）；行动指标住总览页（行动层）。
@@ -689,7 +740,12 @@ export class TalosView extends ItemView {
 	 * 冒泡后 `jarvisMounted` 永远停留在 true，屈原页从此白屏。
 	 * 无论 unmount 是否抛错，状态必须复位。
 	 */
+	private hasConnectedVoicePanel(): boolean {
+		return this.jarvisMounted && Boolean(this.pageEl?.querySelector(".tq-voice")?.isConnected);
+	}
+
 	unmountJarvisSafely(): void {
+		this.voiceMountRevision = (this.voiceMountRevision ?? 0) + 1;
 		try {
 			this.jarvis?.unmount();
 		} catch (error) {
@@ -701,6 +757,10 @@ export class TalosView extends ItemView {
 	}
 
 	renderPage(): void {
+		this.renderCurrentPage(false);
+	}
+
+	private renderCurrentPage(backgroundRefresh: boolean): void {
 		// 页面能力独立于界面模式；没有目录时保持个人界面的原有回退。
 		if (!pageBelongsTo(this.consoleMode, this.activePage, this.hasSuperbrainCatalog)) {
 			this.activePage = homePageFor(this.consoleMode);
@@ -713,7 +773,7 @@ export class TalosView extends ItemView {
 			if (leavingLens) new Notice("工作流与机制将在经典界面打开；返回个人页面后恢复 Lens。");
 			if (this.lens) {
 				if (this.data) this.lens.setData(this.data, this.peerStatus);
-				this.lens.navigate(LENS_PAGE_FOR_CLASSIC[this.activePage] ?? "overview");
+				this.navigateLensPage(this.activePage);
 			}
 		}
 		if (this.lens) return;
@@ -737,8 +797,10 @@ export class TalosView extends ItemView {
 		this.applyPageState();
 		this.renderSecondaryTabs();
 		// 已在屈原页且已挂载：保持不动（不打断朗读/不闪跳）
-		if (this.activePage === "jarvis" && this.jarvisMounted) return;
+		if (this.activePage === "jarvis" && this.hasConnectedVoicePanel()) return;
 		if (this.activePage === "harness" && this.chatMounted) return;
+		// 详情包含表单、预览与进行中操作；后台数据更新不能当作离开页面。
+		if (backgroundRefresh && leaving === this.activePage && this.superbrainPages.activeDetailId !== null) return;
 		// 离开屈原或换页：先卸载屈原
 		if (this.jarvisMounted) this.unmountJarvisSafely();
 		if (this.chatMounted) {
@@ -756,14 +818,10 @@ export class TalosView extends ItemView {
 			case "harness": void this.pageChat(page); break;
 			case "jarvis": void this.pageJarvis(page); break;
 			case "daily": this.pageDaily(page, d); break;
-			case "output": this.pageOutput(page, d); break;
 			case "talos": this.pageTalos(page, d); break;
-			case "inbox": this.pageInbox(page, d); break;
-			case "health": this.pageHealth(page, d); break;
-			case "projects": this.pageProjects(page, d); break;
-			case "knowledge": this.pageKnowledge(page, d); break;
-			case "identity": this.pageIdentity(page, d); break;
-			case "capability": this.pageCapability(page, d); break;
+			case "inbox": case "knowledge": case "output": case "projects":
+			case "tasks": case "health": case "capability": case "identity":
+				renderWorkbenchPage(this, page, d, this.activePage); break;
 			case "vault": this.pageVault(page, d); break;
 			case "settings": this.pageSettings(page); break;
 			default: if (isSuperbrainPage(this.activePage)) this.superbrainPages.render(page, d);
@@ -807,10 +865,10 @@ export class TalosView extends ItemView {
 
 		const todoCol = kanban.createDiv({ cls: "overview-kanban-col" });
 		const todoHead = todoCol.createDiv({ cls: "overview-kanban-col-head" });
-		todoHead.createEl("h3", { text: "待办" });
+		todoHead.createEl("h3", { text: "焦点预览（最多 3 项）" });
 		todoHead.createSpan({ cls: "overview-kanban-count", text: String(d.focus.length) });
 		if (d.focus.length === 0) {
-			todoCol.createDiv({ cls: "overview-kanban-empty", text: "暂无待办 · 运行 /morning 生成今日焦点" });
+			todoCol.createDiv({ cls: "overview-kanban-empty", text: "暂无焦点预览" });
 		}
 		for (const item of d.focus.slice(0, 6)) {
 			const card = todoCol.createDiv({ cls: "overview-kanban-card" });
@@ -825,7 +883,7 @@ export class TalosView extends ItemView {
 
 		const activeCol = kanban.createDiv({ cls: "overview-kanban-col" });
 		const activeHead = activeCol.createDiv({ cls: "overview-kanban-col-head" });
-		activeHead.createEl("h3", { text: "进行中" });
+		activeHead.createEl("h3", { text: "运行中的动作" });
 		activeHead.createSpan({ cls: "overview-kanban-count", text: String(active.length) });
 		if (active.length === 0) {
 			activeCol.createDiv({ cls: "overview-kanban-empty", text: "暂无执行中的动作" });
@@ -838,7 +896,7 @@ export class TalosView extends ItemView {
 
 		const doneCol = kanban.createDiv({ cls: "overview-kanban-col" });
 		const doneHead = doneCol.createDiv({ cls: "overview-kanban-col-head" });
-		doneHead.createEl("h3", { text: "最近完成" });
+		doneHead.createEl("h3", { text: "最近结束的动作（含失败）" });
 		doneHead.createSpan({ cls: "overview-kanban-count", text: String(finished.length) });
 		if (finished.length === 0) {
 			doneCol.createDiv({ cls: "overview-kanban-empty", text: "暂无已结束的动作记录" });
@@ -971,13 +1029,23 @@ export class TalosView extends ItemView {
 		}
 	}
 
-	/** 审批与偏好的唯一处理位置：今日页第二行的「待决策」页签。 */
+	/** 定位当前界面的待决策区；经典首页直接展示，不隐藏在页签内。 */
 	openDecisions(): void {
 		this.panelTabSelections.set("today-status", "decisions");
-		if (this.activePage !== "today") this.navigateToPage("today");
-		const tab = this.pageEl?.querySelector<HTMLElement>('[data-panel-tabs="today-status"] [data-tab="decisions"]');
-		tab?.click();
-		tab?.closest(".talos-panel-tabs")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		if (this.activePage !== "tasks") this.navigateToPage("tasks");
+		this.contentEl?.querySelector<HTMLElement>('[data-workbench-section="decisions"]')
+			?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+	}
+
+	/** 深链仅在主动导航时定位，后台刷新不改变阅读位置。 */
+	private focusWorkbenchTarget(pageKey: string): void {
+		const selectors: Record<string, string> = {
+			knowledge: '[data-workbench-data="knowledge"]', output: '[data-workbench-data="output"]',
+			tasks: '[data-workbench-section="decisions"]', capability: '[data-workbench-section="capability"]',
+			identity: '[data-workbench-section="identity"]',
+		};
+		const selector = selectors[pageKey];
+		if (selector) this.contentEl?.querySelector?.<HTMLElement>(selector)?.scrollIntoView?.({ block: "nearest" });
 	}
 
 	/** 打开设置页（框架首页的「设置」入口）。 */
@@ -1001,18 +1069,30 @@ export class TalosView extends ItemView {
 	}
 
 	navigateToPage(pageKey: string, superbrainDetailId: string | null = null): void {
+		this.assistantNavigationOpen = false;
+		// Resolve legacy aliases before deciding whether Lens or the classic Harness handles them.
+		pageKey = resolvePageRoute(pageKey)?.secondary ?? pageKey;
 		if (isSuperbrainPage(pageKey) && !pageBelongsTo(this.consoleMode, pageKey, this.hasSuperbrainCatalog)) {
+			if (this.lens) {
+				this.superbrainPages.activeDetailId = null;
+				this.lens.navigate(LENS_PAGE_FOR_CLASSIC[this.activePage] ?? "overview");
+				return;
+			}
 			pageKey = homePageFor(this.consoleMode);
 			superbrainDetailId = null;
 		}
-		if (this.lens && !isSuperbrainPage(pageKey)) {
-			this.lens.navigate(LENS_PAGE_FOR_CLASSIC[pageKey] ?? "overview");
+		if (this.lens && !isSuperbrainPage(pageKey) && pageKey !== "harness") {
+			if (pageKey === "chat") void this.plugin.activateChatSidebar();
+			else this.activePage = pageKey;
+			this.navigateLensPage(pageKey);
+			this.focusWorkbenchTarget(pageKey);
 			return;
 		}
 		this.superbrainPages.activeDetailId = superbrainDetailId;
 		this.activePage = pageKey;
 		if (this.pageNavEl) this.renderNav();
 		if (this.pageEl || this.lens) this.renderPage();
+		this.focusWorkbenchTarget(pageKey);
 	}
 
 	// 主页「屈原」入口 → 控制台内的屈原语音页（QuyuanVoicePanel）。

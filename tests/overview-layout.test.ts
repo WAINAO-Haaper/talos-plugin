@@ -6,7 +6,6 @@ import { functionSource, viewSource as readViewSource } from "./helpers/source-t
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const view = readViewSource();
 const stats = readFileSync(`${projectRoot}src/data/stats.ts`, "utf8");
-const baseCss = readFileSync(`${projectRoot}styles.talos.css`, "utf8");
 const uiCss = readFileSync(`${projectRoot}styles.ui-v2.css`, "utf8");
 
 describe("workbench dashboard and approval layout", () => {
@@ -25,37 +24,18 @@ describe("workbench dashboard and approval layout", () => {
 		expect(stats).not.toContain("stripMd(s.slice(2)).slice(0, 70)");
 	});
 
-	it("uses a two-column now / attention / decisions first screen on the today page", () => {
+	it("uses a responsive two-column graph dashboard with keyboard drilldown", () => {
 		const today = functionSource(view, "renderTodayPage");
-		expect(today).toContain('cls: "today-v1-grid"');
-		expect(today).toContain('"data-today-section", "now"');
-		expect(today).toContain('"data-today-section", "attention"');
-		expect(today).toContain('"data-today-section", "decisions"');
-		expect(uiCss).toMatch(
-			/\.today-v1-grid \{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/
-		);
+		expect(today).toContain('cls: "talos-home-v3-grid"');
+		for (const label of ["资料分布", "资料活跃情况", "收件积压年龄", "系统健康趋势"]) expect(today).toContain(label);
+		expect(uiCss).toMatch(/\.talos-home-v3 \.talos-home-v3-grid \{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+		expect(view).toContain('panel.setAttribute("tabindex", "0")');
 	});
 
-	it("keeps trend and distribution charts only on their home pages", () => {
-		const today = functionSource(view, "renderTodayPage");
-		expect(today).not.toContain("fillTrend(");
-		expect(today).not.toContain("fillDist(");
-		expect(functionSource(view, "renderHealthPage")).toContain("fillTrend(view, ");
-		expect(functionSource(view, "renderVaultPage")).toContain("fillDist(view, ");
-		expect(view).not.toContain("fillOverviewStatBar");
-		expect(view).not.toContain("overview-stat-bar");
-		expect(view).not.toContain("d.total / 2000");
-		expect(view).not.toContain("capCount / 36");
-	});
-
-	it("keeps the task kanban and adds a recoverable quick note", () => {
-		expect(view).toContain('cls: "overview-kanban"');
-		expect(view).toContain('"data-today-section", "task-kanban"');
-		expect(view).toContain('"任务进度"');
-		expect(view).toContain("fillOverviewKanban");
+	it("preserves the quick note and task actions for the workbench", () => {
+		expect(view).toContain("export function renderTodayQuickNote");
+		expect(view).toContain("export function renderTodayActions");
 		expect(view).toContain("new QuickNote({");
-		expect(view).toContain('"data-workbench-section", "quick-note"');
-		expect(baseCss).toContain(".overview-kanban-col");
 		expect(uiCss).toContain(".talos-quick-note");
 	});
 

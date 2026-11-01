@@ -14,7 +14,8 @@ describe("Knowledge hub v2", () => {
 			'cls: "knowledge-v2-primary knowledge-hub-v2-primary"'
 		);
 		expect(page).toContain('mountFlowPipeline(view, hero, d, "knowledge")');
-		expect(page).toContain("stats: []");
+		expect(page).toContain('label: "MOC"');
+		expect(page).toContain("renderVaultStatistics(view, page, d)");
 		expect(page).toContain('"attention-and-entry"');
 		expect(page).toMatch(/const moc = view\.panel\(\s*primary,/);
 		expect(page).not.toContain("panel-grid cols-3");

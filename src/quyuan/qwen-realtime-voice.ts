@@ -351,6 +351,19 @@ function eventKey(event: Record<string, unknown>): string {
 	);
 }
 
+const LEGACY_WAKE_ALIASES = [
+	"屈原", "曲原", "去原", "屈源", "渠原", "趋原", "区原", "取原",
+	"屈园", "曲园", "驱原", "瞿原", "屈元", "曲元", "居原", "取源",
+	"quyuan", "qu yuan", "chuyuan", "chu yuan", "qvyuan",
+] as const;
+
+/** Existing installs retain the historical aliases; custom words only match their own value. */
+export function resolveVoiceWake(configured: string | undefined): { word: string; aliases: readonly string[] } {
+	const candidate = (configured || "").trim();
+	const word = normalizeWakeText(candidate) ? candidate : "屈原";
+	return { word, aliases: word === "屈原" ? LEGACY_WAKE_ALIASES : [word] };
+}
+
 function normalizeWakeText(value: string): string {
 	return value.toLowerCase().replace(/[\s，。！？、,.:：；;!?~·]/g, "");
 }

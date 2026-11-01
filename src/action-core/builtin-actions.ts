@@ -74,8 +74,8 @@ export function createBuiltinActionRegistry(
 		},
 		{
 			id: "deep-research",
-			label: "启动 Deep Research",
-			description: "把选定问题发送到外部研究服务",
+			label: "打开 AI 研究工作台",
+			description: "打开真实 AI 工作台；保留已有草稿，由用户输入研究问题并发送",
 			risk: "C",
 			readScope: ["**"],
 			writeScope: ["<external>"],

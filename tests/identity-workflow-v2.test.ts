@@ -22,9 +22,10 @@ describe("Identity context v2", () => {
 	});
 
 	// 模块整合（D-TLP-069）：审批与偏好只在今日 · 待决策处理，身份页以页头数字直达。
-	it("routes decisions to the single shared workspace on Today", () => {
+	it("routes decisions to the single shared workspace in Projects and Tasks", () => {
 		expect(view).toContain("export function renderDecisionWorkspace(");
 		expect(view.match(/view\.renderDecisionWorkspace\(/g)?.length).toBe(1);
+		expect(view).toContain('decisions.setAttribute("data-workbench-section", "decisions")');
 		expect(page).not.toContain("renderDecisionWorkspace");
 		expect(page).toContain("onActivate: () => view.openDecisions()");
 		expect(view).toContain(
@@ -49,7 +50,7 @@ describe("Identity context v2", () => {
 		}
 		// 焦点的主场是执行节奏；身份页只在治理入口保留数字 + 跳转。
 		expect(page).not.toContain('"当前工作状态"');
-		expect(page).toContain("${d.focus.length} 个当前焦点");
+		expect(page).toContain("${d.focusTotal} 个当前焦点");
 	});
 
 	it("keeps lower governance entries compact and responsive", () => {

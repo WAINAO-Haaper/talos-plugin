@@ -1,6 +1,8 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 import type { TalosSettings } from "../settings";
 import type { VaultPaths } from "./schema";
+import { statisticalMarkdownLines } from "./vault-files";
+import { parseHealthHistory } from "./stats";
 import { INBOX_FALLBACK_TOPIC, INBOX_TOPIC_RULES, classifyInboxTopic } from "../inbox-triage";
 import type {
 	HealthDigest,
@@ -87,24 +89,118 @@ function resolveWiki(app: App, raw: string): string | undefined {
 	return app.vault.getMarkdownFiles().find((f) => f.basename === base)?.path || direct;
 }
 
-function extractWikiItems(app: App, text: string, fallbackPath: string, limit = 8): SignalItem[] {
+/** 旧版出口未使用复选框时保留原有链接预览；它不是待处理统计。 */
+function previewOutputLinks(app: App, text: string, fallbackPath: string): SignalItem[] {
 	const seen = new Set<string>();
-	const out: SignalItem[] = [];
-	for (const line of text.split("\n")) {
-		if (!line.includes("[[")) continue;
-		const matches = [...line.matchAll(/\[\[([^\]]+)\]\]/g)];
-		for (const match of matches) {
-			const target = match[1] || "";
-			const path = resolveWiki(app, target) || fallbackPath;
+	const items: SignalItem[] = [];
+	for (const line of statisticalMarkdownLines(text)) {
+		if (/^\s*[-*]\s+\[[ xX~]\]/.test(line)) continue;
+		for (const match of line.matchAll(/\[\[([^\]]+)\]\]/g)) {
+			const path = resolveWiki(app, match[1] || "") || fallbackPath;
 			const title = stripMd(line).slice(0, 80);
 			const key = `${path}:${title}`;
-			if (seen.has(key)) continue;
+			if (!title || seen.has(key)) continue;
 			seen.add(key);
-			out.push({ title: title || stripMd(target), meta: "待处理", path });
-			if (out.length >= limit) return out;
+			items.push({ title, meta: "来源预览 · 未计入统计", path });
+			if (items.length >= 8) return items;
 		}
 	}
-	return out;
+	return items;
+}
+
+/** 按表格列拆分，保留双链别名和转义竖线，避免把一条内容拆成多列。 */
+function outputTableCells(line: string): string[] | null {
+	const trimmed = line.trim();
+	if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
+	const cells: string[] = [];
+	let current = "";
+	let wiki = false;
+	let code = false;
+	for (let i = 1; i < trimmed.length - 1; i++) {
+		const char = trimmed[i];
+		if (char === "\\" && i + 1 < trimmed.length - 1) {
+			current += char + trimmed[++i];
+			continue;
+		}
+		if (!code && trimmed.slice(i, i + 2) === "[[") { wiki = true; current += "[["; i++; continue; }
+		if (wiki && trimmed.slice(i, i + 2) === "]]" ) { wiki = false; current += "]]"; i++; continue; }
+		if (!wiki && char === "`") code = !code;
+		if (char === "|" && !wiki && !code) { cells.push(current.trim()); current = ""; continue; }
+		current += char;
+	}
+	if (wiki || code) return null;
+	cells.push(current.trim());
+	return cells;
+}
+
+/** 仅统计标准模板的明确待发队列；今日指针与说明不计入队列。 */
+function outputQueueTable(app: App, text: string, fallbackPath: string): { recognized: boolean; ambiguous: boolean; items: SignalItem[] } | null {
+	const lines = statisticalMarkdownLines(text);
+	const heading = (line: string) => line.match(/^##\s+(.+?)\s*$/)?.[1] || "";
+	const queueName = (title: string) => /^(?:[^\p{L}\p{N}]*\s*)?待发队列(?:\s*[（(].*[）)])?\s*$/u.test(title);
+	const starts = lines.map((line, i) => queueName(heading(line)) ? i : -1).filter((i) => i >= 0);
+	if (!starts.length) return null;
+	if (starts.length !== 1) return { recognized: false, ambiguous: true, items: [] };
+	const start = starts[0];
+	let end = lines.findIndex((line, i) => i > start && Boolean(heading(line)));
+	if (end < 0) end = lines.length;
+	const tableLines = lines.slice(start + 1, end).filter((line) => /^\s*\|/.test(line));
+	const expected = ["内容", "平台", "成熟度", "备注"];
+	const header = tableLines.length ? outputTableCells(tableLines[0]) : null;
+	const separator = tableLines.length > 1 ? outputTableCells(tableLines[1]) : null;
+	if (!header || header.length !== expected.length || header.some((cell, i) => cell !== expected[i]) ||
+		!separator || separator.length !== expected.length || separator.some((cell) => !/^:?-{3,}:?$/.test(cell))) {
+		return { recognized: false, ambiguous: true, items: [] };
+	}
+	let ambiguous = false;
+	const items: SignalItem[] = [];
+	const empty = (cell: string) => /^(?:|[-—–]|暂无|无|空|（无）|\(无\))$/.test(cell.trim());
+	for (const line of lines.slice(start + 1, end)) {
+		if (/^\s*[-*]\s+\S/.test(line)) ambiguous = true;
+	}
+	for (const line of tableLines.slice(2)) {
+		const cells = outputTableCells(line);
+		if (!cells || cells.length !== expected.length) { ambiguous = true; continue; }
+		if (cells.every(empty)) continue;
+		if (empty(cells[0]) || empty(cells[1]) || /已发布|published|已完成/i.test(cells.slice(1).join(" "))) { ambiguous = true; continue; }
+		const body = cells[0];
+		const target = body.match(/\[\[([^\]]+)\]\]/)?.[1];
+		const title = stripMd(body).slice(0, 80);
+		if (!title) { ambiguous = true; continue; }
+		items.push({ title, meta: "待处理", path: target ? resolveWiki(app, target) || fallbackPath : fallbackPath });
+	}
+	let section = "";
+	for (let i = 0; i < lines.length; i++) {
+		const title = heading(lines[i]);
+		if (title) { section = title; continue; }
+		if (i > start && i < end) continue;
+		if (/^(?:[^\p{L}\p{N}]*\s*)?(?:今日待发|发布后回填|队列纪律)(?:\s*[（(].*[）)])?\s*$/u.test(section)) continue;
+		if (/^\s*[-*]\s+\S/.test(lines[i]) || /^\s*\|.*\|\s*$/.test(lines[i])) ambiguous = true;
+	}
+	return { recognized: true, ambiguous, items };
+}
+
+/** 仅将明确的 Markdown 复选框计为任务；每一行只计一次。 */
+function outputTasks(app: App, text: string, fallbackPath: string): { recognized: boolean; ambiguous: boolean; items: SignalItem[] } {
+	const table = outputQueueTable(app, text, fallbackPath);
+	if (table) return table;
+	const items: SignalItem[] = [];
+	let recognized = false;
+	let ambiguous = false;
+	for (const line of statisticalMarkdownLines(text)) {
+		const match = line.match(/^\s*[-*]\s+\[([ xX~])\]\s+(.+?)\s*$/);
+		if (!match) {
+			// 非复选框列表和数据表可能仍是待办，不能据此宣称总数完整。
+			if (/^\s*[-*]\s+\S/.test(line) || /^\s*\|.*\|\s*$/.test(line)) ambiguous = true;
+			continue;
+		}
+		recognized = true;
+		if ((match[1] || "").toLowerCase() === "x") continue;
+		const body = match[2] || "";
+		const target = body.match(/\[\[([^\]]+)\]\]/)?.[1];
+		items.push({ title: stripMd(body).slice(0, 80), meta: "待处理", path: target ? resolveWiki(app, target) || fallbackPath : fallbackPath });
+	}
+	return { recognized, ambiguous, items };
 }
 
 function bulletItems(text: string, path: string, limit = 6): SignalItem[] {
@@ -133,8 +229,14 @@ function isPublished(app: App, file: TFile): boolean {
 export async function collectOutputCenter(app: App, paths: VaultPaths): Promise<OutputCenter> {
 	const outletPath = paths.outletFile;
 	const opsPath = paths.opsCandidatesFile;
-	const outlet = await readFile(app, outletPath);
-	const queue = extractWikiItems(app, outlet, outletPath, 8);
+	const outletFile = app.vault.getAbstractFileByPath(normalizePath(outletPath));
+	const outlet = outletFile instanceof TFile ? await app.vault.cachedRead(outletFile) : "";
+	const parsed = outputTasks(app, outlet, outletPath);
+	const queueStatus = !(outletFile instanceof TFile) ? "missing" : parsed.recognized && !parsed.ambiguous ? "ready" : "format";
+	const queueTotal = queueStatus === "ready" ? parsed.items.length : undefined;
+	const queue = queueStatus === "format"
+		? [...parsed.items.map((item) => ({ ...item, meta: "来源预览 · 未计入统计" })), ...previewOutputLinks(app, outlet, outletPath)].slice(0, 8)
+		: parsed.items.slice(0, 8);
 	const opsCandidates = bulletItems(await readFile(app, opsPath), opsPath, 6);
 
 	const platforms: OutputPlatform[] = OUTPUT_PLATFORMS.map((name) => {
@@ -157,9 +259,9 @@ export async function collectOutputCenter(app: App, paths: VaultPaths): Promise<
 	const published = platforms.reduce((sum, p) => sum + p.published, 0);
 	const metrics: MetricTile[] = [
 		{
-			label: "今日待发",
-			value: String(queue.length),
-			sub: "统一出口里的待处理条目",
+			label: "待处理输出",
+			value: queueTotal === undefined ? "—" : String(queueTotal),
+			sub: queueStatus === "missing" ? "输出文件未配置或未找到" : queueStatus === "format" ? "格式不识别，仅统计复选框任务" : "输出文件中未完成的复选框任务",
 			path: outletPath,
 			tone: queue.length > 0 ? "hot" : "good",
 		},
@@ -179,7 +281,7 @@ export async function collectOutputCenter(app: App, paths: VaultPaths): Promise<
 		},
 	];
 
-	return { metrics, queue, platforms, opsCandidates };
+	return { metrics, queue, queueTotal, queueStatus, platforms, opsCandidates };
 }
 
 export async function collectInboxDigest(app: App, settings: TalosSettings): Promise<InboxDigest> {
@@ -279,14 +381,13 @@ export async function collectHealthDigest(
 		};
 	});
 	const broken = healthLog.match(/断链[^\d]*(\d+)/)?.[1] || "—";
-	const scoreMatches = [...healthLog.matchAll(/\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(\d+)\s*\|/g)];
-	const latest = scoreMatches[scoreMatches.length - 1];
-	const latestScore = latest?.[2] || "—";
+	const latest = parseHealthHistory(healthLog).at(-1);
+	const latestScore = latest ? String(latest.score) : "—";
 	const metrics: MetricTile[] = [
 		{
 			label: "健康分",
 			value: latestScore,
-			sub: "来自 health-log",
+			sub: latest ? `健康日志最近记录 · ${latest.date}` : "健康日志无有效记录",
 			path: settings.healthLogPath,
 			tone: latestScore === "—" || Number(latestScore) < 90 ? "warn" : "good",
 		},
@@ -320,21 +421,20 @@ async function projectProgress(
 	app: App,
 	folderPath: string
 ): Promise<ProjectScene["progress"]> {
-	const files = notesUnder(app, folderPath)
-		.sort((a, b) => b.stat.mtime - a.stat.mtime)
-		.slice(0, 40);
+	const allFiles = notesUnder(app, folderPath).sort((a, b) => b.stat.mtime - a.stat.mtime);
+	const files = allFiles.slice(0, 40);
 	let done = 0;
 	let total = 0;
 	await Promise.all(
 		files.map(async (f) => {
 			const raw = await app.vault.cachedRead(f);
-			const boxes = raw.match(/^\s*[-*]\s+\[[ x~]\]/gm);
+			const boxes = statisticalMarkdownLines(raw).join("\n").match(/^\s*[-*]\s+\[[ xX~]\]/gm);
 			if (!boxes) return;
 			total += boxes.length;
-			done += boxes.filter((b) => b.includes("[x]")).length;
+			done += boxes.filter((b) => /\[x\]/i.test(b)).length;
 		})
 	);
-	return total > 0 ? { done, total } : undefined;
+	return total > 0 ? { done, total, sampled: allFiles.length > files.length, scannedFiles: files.length, totalFiles: allFiles.length } : undefined;
 }
 
 export async function collectProjectScenes(app: App, paths: VaultPaths): Promise<ProjectScene[]> {
@@ -348,23 +448,22 @@ export async function collectProjectScenes(app: App, paths: VaultPaths): Promise
 		folders.map(async (folder) => {
 			const latest = latestOf(app, folder.path);
 			const name = folder.name;
-			const priority: ProjectScene["priority"] = /TALOS|医美|AI社群|云心/.test(name) ? "p0" : "p1";
+			// 旧字段仅为兼容；目录名称不能推断项目优先级。
+			const priority: ProjectScene["priority"] = "p1";
 			return {
 				name,
 				count: notesUnder(app, folder.path).length,
-				status: priority === "p0" ? "高频项目" : "观察项目",
+				status: latest ? "有更新记录" : "暂无更新记录",
 				readme: readmeFor(folder.path),
 				latestTitle: latest ? titleFor(app, latest) : "—",
 				latestPath: latest?.path,
+				latestMtime: latest?.stat.mtime,
 				priority,
 				progress: await projectProgress(app, folder.path),
 			};
 		})
 	);
-	return scenes.sort((a, b) => {
-		const pr = { p0: 0, p1: 1, p2: 2 };
-		return pr[a.priority] - pr[b.priority] || b.count - a.count;
-	});
+	return scenes.sort((a, b) => (b.latestMtime || 0) - (a.latestMtime || 0) || a.name.localeCompare(b.name));
 }
 
 export function collectKnowledgeHub(app: App, paths: VaultPaths): KnowledgeHub {

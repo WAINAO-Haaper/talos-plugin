@@ -1,21 +1,48 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { pluginSource } from "./helpers/source-text";
 
-vi.mock("obsidian", () => ({
-	ItemView: class {
-		contentEl = { empty() {}, addClass() {}, createDiv() { return {}; } };
-		constructor(public leaf: unknown) {}
+const workbenchCalls = vi.hoisted(() => ({
+	mount: vi.fn(), focus: vi.fn(), prefill: vi.fn(), destroy: vi.fn(),
+}));
+
+vi.mock("obsidian", () => {
+	function element(): unknown {
+		return { empty() {}, addClass() {}, createDiv: element, createEl: element };
+	}
+	return {
+		ItemView: class {
+			contentEl = element();
+			constructor(public leaf: unknown) {}
+		},
+	};
+});
+
+vi.mock("../src/quyuan/deferred-chat-workbench", () => ({
+	DeferredChatWorkbench: class {
+		mount = workbenchCalls.mount;
+		focusComposer = workbenchCalls.focus;
+		prefillComposer = workbenchCalls.prefill;
+		destroy = workbenchCalls.destroy;
 	},
 }));
 
-const { revealChatSidebar, VIEW_TYPE_TALOS_CHAT } = await import("../src/plugin/chat-sidebar-view");
+const { revealChatSidebar, TalosChatSidebarView, VIEW_TYPE_TALOS_CHAT } = await import("../src/plugin/chat-sidebar-view");
 
 function fakeLeaf() {
-	return { view: null, setViewState: vi.fn(async () => undefined) };
+	const leaf = { view: null as InstanceType<typeof TalosChatSidebarView> | null, setViewState: vi.fn(async () => {
+		leaf.view = new TalosChatSidebarView(leaf as never, { icon: "bot", waitForAgentWorkbench: vi.fn() });
+		await leaf.view.onOpen();
+	}) };
+	return leaf;
 }
 
 describe("right sidebar chat", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		workbenchCalls.mount.mockResolvedValue(undefined);
+		workbenchCalls.destroy.mockResolvedValue(undefined);
+	});
 	it("creates the chat view in the right sidebar the first time", async () => {
 		const leaf = fakeLeaf();
 		const workspace = { getLeavesOfType: vi.fn(() => []), getRightLeaf: vi.fn(() => leaf), revealLeaf: vi.fn() };
@@ -27,10 +54,61 @@ describe("right sidebar chat", () => {
 
 	it("reuses an existing chat leaf instead of opening another", async () => {
 		const leaf = fakeLeaf();
+		await leaf.setViewState();
+		leaf.setViewState.mockClear();
 		const workspace = { getLeavesOfType: vi.fn(() => [leaf]), getRightLeaf: vi.fn(), revealLeaf: vi.fn() };
-		await revealChatSidebar(workspace as never);
+		await expect(revealChatSidebar(workspace as never)).resolves.toBe(leaf);
 		expect(workspace.getRightLeaf).not.toHaveBeenCalled();
 		expect(leaf.setViewState).not.toHaveBeenCalled();
+	});
+
+	it("returns null when the leaf opens but the workbench mount fails", async () => {
+		workbenchCalls.mount.mockRejectedValue(new Error("runtime unavailable"));
+		const leaf = fakeLeaf();
+		const workspace = { getLeavesOfType: () => [], getRightLeaf: () => leaf, revealLeaf: vi.fn() };
+		await expect(revealChatSidebar(workspace as never)).resolves.toBeNull();
+		expect(workbenchCalls.focus).not.toHaveBeenCalled();
+		expect(workbenchCalls.prefill).not.toHaveBeenCalled();
+		await expect(revealChatSidebar({ ...workspace, getLeavesOfType: () => [leaf] } as never, "/intake"))
+			.resolves.toBeNull();
+		expect(workbenchCalls.prefill).not.toHaveBeenCalled();
+	});
+
+	it("waits for a reused view to finish mounting before focusing", async () => {
+		let mounted!: () => void;
+		workbenchCalls.mount.mockImplementation(() => new Promise<void>((resolve) => { mounted = resolve; }));
+		const leaf = fakeLeaf();
+		const opening = leaf.setViewState();
+		const workspace = { getLeavesOfType: () => [leaf], getRightLeaf: vi.fn(), revealLeaf: vi.fn() };
+		const result = revealChatSidebar(workspace as never);
+		await Promise.resolve();
+		expect(workbenchCalls.focus).not.toHaveBeenCalled();
+		mounted();
+		await opening;
+		await expect(result).resolves.toBe(leaf);
+		expect(workbenchCalls.focus).toHaveBeenCalledOnce();
+	});
+
+	it("prefills only after a successful mount and does not focus separately", async () => {
+		const leaf = fakeLeaf();
+		const workspace = { getLeavesOfType: () => [], getRightLeaf: () => leaf, revealLeaf: vi.fn() };
+		await expect(revealChatSidebar(workspace as never, "/intake")).resolves.toBe(leaf);
+		expect(workbenchCalls.prefill).toHaveBeenCalledExactlyOnceWith("/intake");
+		expect(workbenchCalls.focus).not.toHaveBeenCalled();
+	});
+
+	it("does not report readiness if the view closes during mount", async () => {
+		let mounted!: () => void;
+		workbenchCalls.mount.mockImplementation(() => new Promise<void>((resolve) => { mounted = resolve; }));
+		const leaf = fakeLeaf();
+		const opening = leaf.setViewState();
+		const workspace = { getLeavesOfType: () => [leaf], getRightLeaf: vi.fn(), revealLeaf: vi.fn() };
+		const result = revealChatSidebar(workspace as never);
+		await leaf.view!.onClose();
+		mounted();
+		await opening;
+		await expect(result).resolves.toBeNull();
+		expect(workbenchCalls.focus).not.toHaveBeenCalled();
 	});
 
 	it("registers the view and routes every chat entry to the sidebar", () => {

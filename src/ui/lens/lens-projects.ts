@@ -2,6 +2,7 @@
 // 看板列固定为 计划中/进行中/待评审/已完成/已暂停，其余状态（已归档、未登记）追加在后。
 // 状态取各项目 _README.md 的 frontmatter status，未登记不推测。
 import { button, chip, el, heading, icon, type LensChild } from "./lens-dom";
+import { metricStrip } from "./lens-library";
 import { freshness, label, num, time } from "./lens-format";
 import type { LensContext } from "./lens-pages";
 import type { LensProject } from "./lens-data";
@@ -68,7 +69,7 @@ function list(ctx: LensContext, projects: LensProject[]): HTMLElement[] {
 				el(doc, "div", { class: "ta-card-title" }, el(doc, "h3", {}, p.name), chip(doc, label(p.status), statusTone(p.status))),
 				el(doc, "p", {}, p.line),
 				el(doc, "footer", {},
-					el(doc, "span", {}, p.progress ? `任务 ${p.progress.done}/${p.progress.total}` : `笔记 ${num(p.notes)} 篇`),
+					el(doc, "span", {}, p.progress ? `任务 ${p.progress.done}/${p.progress.total}${p.progress.sampled ? ` · 抽样 ${p.progress.scannedFiles}/${p.progress.totalFiles} 篇` : ""}` : `笔记 ${num(p.notes)} 篇`),
 					el(doc, "span", {}, p.lastUpdated ? time(p.lastUpdated) : "更新时间未知")));
 			card.addEventListener("click", () => ctx.openDrawer(p.readme));
 			return card;
@@ -111,8 +112,19 @@ export function renderProjects(ctx: LensContext): LensChild[] {
 			return node;
 		}));
 	const projects = filtered(ctx);
+	const all = ctx.data.projects;
+	const root = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir("projects"));
+	const available = !!root && "children" in root;
+	const recentlyUpdated = all.filter((p) => p.lastUpdated !== null && p.lastUpdated >= Date.now() - 7 * 86400000).length;
+	const noteCount = all.reduce((sum, p) => sum + p.notes, 0);
+	const metrics = metricStrip(ctx, [
+		{ label: "项目总数", value: available ? String(all.length) : "—", sub: "项目目录下一级文件夹", path: ctx.paths.readme("projects") },
+		{ label: "近 7 天更新", value: available ? String(recentlyUpdated) : "—", sub: "按项目内笔记修改时间", path: ctx.paths.readme("projects") },
+		{ label: "项目笔记", value: available ? String(noteCount) : "—", sub: "项目目录内 Markdown 笔记", path: ctx.paths.readme("projects") },
+	]);
 	return [
 		heading(doc, "项目管理", "项目状态取各项目 README 的 status；点开查看摘要"),
+		metrics,
 		el(doc, "div", { class: "lens-project-toolbar" }, el(doc, "label", { class: "ta-search" }, icon(doc, "search"), input), viewSwitch),
 		tabs,
 		el(doc, "div", { class: "ta-project-results" }, ...(ctx.state.projectView === "list" ? list(ctx, projects) : board(ctx, projects))),

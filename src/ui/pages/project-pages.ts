@@ -1,12 +1,11 @@
 // TALOS 控制台项目、输出与健康页渲染；由 TalosView 委托调用。
 import { mountPanelTabs } from "../panel-tabs";
 import type { Collected } from "../talos-view-model";
-import type { ProjectScene } from "../../types";
 import { openFile } from "../../actions";
 import { renderTalosEmptyState } from "../page-primitives";
 import { setIcon } from "obsidian";
 import type { TalosView } from "../../view";
-import { fillOutputClosureChart, fillProjectPortfolioChart, fillSignalList, fillTrend } from "../charts/talos-view-charts";
+import { fillProjectPortfolioChart, fillSignalList, fillTrend } from "../charts/talos-view-charts";
 import { moduleHero } from "../view-modules";
 import { mountFlowPipeline } from "../flow-pipeline";
 
@@ -14,91 +13,20 @@ export function renderOutputPage(view: TalosView, page: HTMLElement, d: Collecte
 	const hero = moduleHero(view, page, {
 		ac: "#FB7185",
 		icon: "send",
-		title: "输出作战室",
-		desc: "统一出口里的待发条目、各平台闭环情况与发布后的运营候选。",
+		title: "输出",
+		desc: "查看和整理待处理的输出内容。",
 		stats: [],
-		actions: [
-			{
-				label: "统一出口",
-				icon: "external-link",
-				path: view.paths.outletFile,
-			},
-			{ label: "输出流", icon: "copy", command: "/output" },
-			{
-				label: "运营池",
-				icon: "activity",
-				path: view.paths.opsCandidatesFile,
-			},
-		],
+		actions: [{ label: "打开输出", icon: "external-link", path: view.paths.outletFile }],
 	});
 	mountFlowPipeline(view, hero, d, "output");
-	const drafts = page.createDiv({ cls: "talos-publishing-entry" });
-	drafts.createEl("strong", { text: "排版与平台草稿" });
-	drafts.createSpan({ text: "预览同一篇笔记的公众号与 X 效果，再送到指定账号草稿箱。" });
-	const draftButton = drafts.createEl("button", { text: "打开草稿工作区", cls: "mod-cta", attr: { type: "button" } });
-	draftButton.addEventListener("click", () => { void view.plugin.openPublishing(); });
-
-	const primary = page.createDiv({
-		cls: "workflow-v2-primary output-v2-primary",
-	});
-	primary.setAttribute("data-workflow-layout", "split");
-
-	const closure = view.panel(
-		primary,
-		"#34D399",
-		"平台闭环分布",
-		"已发布 · 待闭环 · 未分类"
-	);
-	closure.setAttribute("data-workflow-section", "core-data");
-	fillOutputClosureChart(view, 
-		closure.createDiv({ cls: "output-v2-closure-chart" }),
-		d.output.platforms
-	);
-
-	const attention = view.panel(
-		primary,
-		"#FB7185",
-		"今日关注",
-		"待发队列 · 运营候选"
-	);
-	attention.addClass("output-v2-attention-panel");
-	attention.setAttribute(
-		"data-workflow-section",
-		"attention-and-actions"
-	);
-	for (const group of [
-		{
-			title: "今日待发",
-			meta: view.paths.outletFile,
-			items: d.output.queue,
-			empty: "统一出口暂无待发条目",
-		},
-		{
-			title: "运营候选",
-			meta: "发布后观察 · 待确认",
-			items: d.output.opsCandidates,
-			empty: "暂无待确认运营候选",
-		},
-	]) {
-		const section = attention.createDiv({
-			cls: "output-v2-attention-group",
-		});
-		const head = section.createDiv({
-			cls: "output-v2-attention-group__head",
-		});
-		head.createEl("strong", { text: group.title });
-		head.createEl("span", {
-			text: `${group.items.length} · ${group.meta}`,
-		});
-		fillSignalList(view, 
-			section.createDiv({ cls: "detail-list" }),
-			group.items,
-			group.empty
-		);
-	}
+	const panel = view.panel(page, "#FB7185", d.output.queueStatus === "format" ? "来源预览" : "待处理输出", d.output.queueStatus === "ready" ? `共 ${d.output.queueTotal} 条 · 列表最多显示 8 条` : d.output.queueStatus === "format" ? "格式无法统计 · 仅显示链接预览" : "来源文件未配置或不存在");
+	fillSignalList(view, panel.createDiv({ cls: "detail-list" }), d.output.queue, d.output.queueStatus === "ready" ? "暂无待处理输出" : "请检查输出文件及条目格式");
 }
 
 export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collected): void {
+	const healthReady = d.setup?.healthLogPath === "ok";
+	const errorsReady = d.setup?.errorPatterns === "ok";
+	const loopsReady = d.setup?.loopHealth === "ok";
 	const health =
 		d.healthDigest.metrics.find((item) => item.label === "健康分") ||
 		d.healthDigest.metrics[0];
@@ -109,7 +37,7 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 		d.healthDigest.metrics.find((item) => item.label === "偏好候选") ||
 		d.healthDigest.metrics[2];
 
-	if (health && d.healthTrend.length > 1) {
+	if (healthReady && health && d.healthTrend.length > 1) {
 		const last = d.healthTrend[d.healthTrend.length - 1];
 		const previous = d.healthTrend[d.healthTrend.length - 2];
 		const delta = (last?.score ?? 0) - (previous?.score ?? 0);
@@ -120,7 +48,7 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 					? `↓ ${Math.abs(delta)} vs 上次`
 					: "→ 持平";
 	}
-	if (approvals && d.approvals.length === 0) approvals.aux = "清空";
+	if (approvals && d.setup?.pendingApprovalsPath === "ok" && d.approvals.length === 0) approvals.aux = "清空";
 
 	moduleHero(view, page, {
 		ac: "#34D399",
@@ -130,22 +58,22 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 		stats: [
 			{
 				label: health?.label || "健康分",
-				value: health?.value || "—",
-				sub: health?.sub,
+				value: healthReady ? health?.value || "—" : "—",
+				sub: healthReady ? health?.sub : "健康日志缺失或格式待检查",
 				path: health?.path,
 				tone: health?.tone || "default",
 			},
 			{
 				label: approvals?.label || "待审批",
-				value: approvals?.value || "0",
-				sub: "点击去今日 · 待决策",
+				value: d.setup?.pendingApprovalsPath === "ok" ? (approvals?.value || "0") : "—",
+				sub: d.setup?.pendingApprovalsPath === "ok" ? "点击去今日 · 待决策" : "审批文件缺失或格式待检查",
 				onActivate: () => view.openDecisions(),
 				tone: approvals?.tone || "default",
 			},
 			{
 				label: candidates?.label || "偏好候选",
-				value: candidates?.value || "0",
-				sub: "点击去今日 · 待决策",
+				value: d.setup?.candidatesPath === "ok" ? (candidates?.value || "0") : "—",
+				sub: d.setup?.candidatesPath === "ok" ? "点击去今日 · 待决策" : "候选文件缺失或格式待检查",
 				onActivate: () => view.openDecisions(),
 				tone: candidates?.tone || "default",
 			},
@@ -178,7 +106,8 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 	);
 	trend.addClass("health-v2-trend-panel");
 	trend.setAttribute("data-system-section", "core-data");
-	fillTrend(view, trend, d.healthTrend);
+	if (healthReady) fillTrend(view, trend, d.healthTrend);
+	else trend.createDiv({ cls: "empty", text: "健康日志缺失或格式待检查。" });
 
 	// 模块整合：审批与偏好只在今日页「待决策」处理（页头数字可直达）；循环状态与错误模式合为「诊断」。
 	mountPanelTabs({
@@ -190,21 +119,19 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 			{
 				key: "errors",
 				label: "错误模式",
-				badge: d.healthDigest.errors.length,
 				render: (host) => {
 				const errors = view.panel(
 					host,
 					"#FB7185",
 					"错误模式",
-					d.healthDigest.errors.length > 0
-						? `${d.healthDigest.errors.length} 项需要诊断`
-						: "error-patterns · 当前清空"
+					errorsReady ? "错误模式文件 · 最多显示 6 条" : "错误模式文件缺失或未就绪"
 				);
-				fillSignalList(view,
+				if (errorsReady) fillSignalList(view,
 					errors.createDiv({ cls: "detail-list" }),
 					d.healthDigest.errors,
-					"暂无活跃错误模式"
+					"未识别到可展示条目"
 				);
+				else errors.createDiv({ cls: "empty", text: "请检查错误模式文件及其路径。" });
 				},
 			},
 			{
@@ -215,13 +142,14 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 					host,
 					"#38E1FF",
 					"循环状态",
-					"loop-health-log"
+					loopsReady ? "循环健康日志 · 最多显示最近 4 条" : "循环健康日志缺失或未就绪"
 				);
-				fillSignalList(view,
+				if (loopsReady) fillSignalList(view,
 					loops.createDiv({ cls: "detail-list" }),
 					d.healthDigest.loopStatus,
-					"暂无循环状态记录"
+					"未识别到可展示记录"
 				);
+				else loops.createDiv({ cls: "empty", text: "请检查循环健康日志及其路径。" });
 				},
 			},
 		],
@@ -229,48 +157,37 @@ export function renderHealthPage(view: TalosView, page: HTMLElement, d: Collecte
 }
 
 export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collected): void {
-	const p0Count = d.projects.filter(
-		(project) => project.priority === "p0"
-	).length;
-	const projectNotes = d.projects.reduce(
-		(sum, project) => sum + project.count,
-		0
-	);
-	const priorityOrder: Record<ProjectScene["priority"], number> = {
-		p0: 0,
-		p1: 1,
-		p2: 2,
-	};
-	const rankedProjects = [...d.projects].sort(
-		(left, right) =>
-			priorityOrder[left.priority] - priorityOrder[right.priority] ||
-			right.count - left.count
-	);
+	const projectFolder = view.app.vault.getAbstractFileByPath(view.paths.dir("projects"));
+	const projectSourceReady = !!projectFolder && "children" in projectFolder;
+	const recentCutoff = Date.now() - 7 * 86400000;
+	const recentCount = d.projects.filter((project) => (project.latestMtime ?? 0) >= recentCutoff).length;
+	const projectNotes = d.projects.reduce((sum, project) => sum + project.count, 0);
+	const rankedProjects = [...d.projects].sort((a, b) => (b.latestMtime ?? 0) - (a.latestMtime ?? 0));
 
 	moduleHero(view, page, {
 		ac: "#F59E0B",
 		icon: "folder-kanban",
 		title: "项目场景",
-		desc: "按活跃度和优先级扫项目，先让高频项目露头，再进入具体场景推进。",
+		desc: "查看项目、近期更新与可追溯的任务统计。",
 		stats: [
 			{
 				label: "项目数",
-				value: String(d.projects.length),
-				sub: `${view.paths.dir("projects")} 子场景`,
+				value: projectSourceReady ? String(d.projects.length) : "—",
+				sub: projectSourceReady ? `${view.paths.dir("projects")} 一级文件夹` : "项目目录未配置或不存在",
 				path: view.paths.readme("projects"),
 				tone: "default",
 			},
 			{
-				label: "高频项目",
-				value: String(p0Count),
-				sub: "P0 场景优先推进",
+				label: "近 7 天有更新",
+				value: projectSourceReady ? String(recentCount) : "—",
+				sub: projectSourceReady ? "按项目笔记修改时间" : "项目目录不可用",
 				path: view.paths.sceneIndexFile,
-				tone: p0Count > 0 ? "hot" : "default",
+				tone: "default",
 			},
 			{
 				label: "项目笔记",
-				value: String(projectNotes),
-				sub: "不含 README",
+				value: projectSourceReady ? String(projectNotes) : "—",
+				sub: projectSourceReady ? "项目目录内 Markdown，不含 README" : "项目目录不可用",
 				path: view.paths.readme("projects"),
 				tone: "good",
 			},
@@ -299,7 +216,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 		primary,
 		"#4D8DFF",
 		"项目组合",
-		"优先级分布 · 已跟踪任务完成率"
+		"更新时间分布 · 扫描到的任务"
 	);
 	portfolio.addClass("project-portfolio-panel");
 	portfolio.setAttribute("data-workflow-section", "core-data");
@@ -317,14 +234,14 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 		tabs: [
 			{
 				key: "focus",
-				label: "重点项目",
-				badge: p0Count,
+				label: "最近更新",
+				badge: recentCount,
 				render: (host) => {
 				const attention = view.panel(
 					host,
 					"#F59E0B",
-					"重点项目",
-					"P0 优先 · 最近活跃度次序"
+					"最近更新",
+					"按笔记修改时间排序"
 				);
 				attention.addClass("project-entry-panel");
 				attention.setAttribute(
@@ -338,7 +255,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 					renderTalosEmptyState(
 						attentionList,
 						"暂无项目场景",
-						"建立项目 README 后，这里会显示优先级与最新进展。",
+						"建立项目目录后，这里会显示最新进展。",
 						{
 							label: "打开项目目录",
 							icon: "folder-kanban",
@@ -356,11 +273,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 							cls: "project-v2-priority-row__head",
 						});
 						head.createEl("strong", { text: project.name });
-						head.createEl("span", {
-							cls: `project-v2-priority-badge priority-${project.priority}`,
-							text: project.priority.toUpperCase(),
-						});
-						row.createEl("small", { text: project.status });
+						row.createEl("small", { text: project.latestMtime ? `更新 ${new Date(project.latestMtime).toLocaleDateString()}` : "无更新时间" });
 						row.createEl("small", {
 							cls: "module-latest",
 							text: `最新：${project.latestTitle}`,
@@ -376,7 +289,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 							});
 							progress.createSpan().style.width = `${pct}%`;
 							progress.createEl("small", {
-								text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+								text: `${pct}% · ${project.progress.done}/${project.progress.total}${project.progress.sampled ? ` · 最近 ${project.progress.scannedFiles}/${project.progress.totalFiles} 篇` : " · 全部项目笔记"}`,
 							});
 						}
 						row.addEventListener("click", () =>
@@ -441,7 +354,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 					});
 					card.createEl("b", { text: project.name });
 					card.createEl("span", { cls: "big", text: String(project.count) });
-					card.createEl("small", { text: project.status });
+					card.createEl("small", { text: project.latestMtime ? `更新 ${new Date(project.latestMtime).toLocaleDateString()}` : "无更新时间" });
 					if (project.progress) {
 						const pct = Math.round(
 							(project.progress.done /
@@ -455,7 +368,7 @@ export function renderProjectsPage(view: TalosView, page: HTMLElement, d: Collec
 						head.createEl("small", { text: "任务进度" });
 						head.createEl("small", {
 							cls: "proj-progress-num",
-							text: `${pct}% · ${project.progress.done}/${project.progress.total}`,
+							text: `${pct}% · ${project.progress.done}/${project.progress.total}${project.progress.sampled ? ` · 最近 ${project.progress.scannedFiles}/${project.progress.totalFiles} 篇` : " · 全部项目笔记"}`,
 						});
 						const track = progress.createDiv({
 							cls: "proj-progress-track",

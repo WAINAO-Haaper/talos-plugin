@@ -1,139 +1,139 @@
-import { EventEmitter } from "node:events";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const notices: string[] = [];
 
 vi.mock("obsidian", () => {
-	class MockFileSystemAdapter {
-		getBasePath(): string {
-			return ["", "vault"].join("/");
-		}
-	}
 	class MockTFile {
 		constructor(readonly path: string) {}
+		get basename(): string { return this.path.split("/").at(-1)?.replace(/\.md$/, "") || ""; }
 	}
-	class MockTFolder {}
-	class MockModal {}
-	class MockNotice {
-		constructor(message: string) {
-			notices.push(message);
-		}
-	}
-	class MockSetting {}
-
 	return {
 		App: class {},
-		FileSystemAdapter: MockFileSystemAdapter,
-		Modal: MockModal,
-		Notice: MockNotice,
-		Setting: MockSetting,
+		ItemView: class {},
+		Modal: class {
+			constructor(readonly app: unknown) {}
+			close(): void {}
+		},
+		Notice: class { constructor(message: string) { notices.push(message); } },
+		Setting: class {},
 		TFile: MockTFile,
-		TFolder: MockTFolder,
+		TFolder: class {},
 		normalizePath: (path: string) => path,
 	};
 });
 
-import { FileSystemAdapter, TFile } from "obsidian";
-import { deepResearch } from "../src/actions";
+import { TFile } from "obsidian";
+import { CreateModal, openResearchWorkbench, vaultLint } from "../src/actions";
+import { revealChatSidebar, TalosChatSidebarView } from "../src/plugin/chat-sidebar-view";
 import type { TalosSettings } from "../src/settings";
 
-class FakeChild extends EventEmitter {
-	readonly stdout = new EventEmitter();
-	readonly stderr = new EventEmitter();
-	killed = false;
-
-	kill(): boolean {
-		this.killed = true;
-		return true;
-	}
-}
-
-function harness(writeGate: Promise<void> = Promise.resolve()) {
-	const created: Array<{ path: string; body: string }> = [];
+function vaultHarness(initial: Record<string, string> = {}) {
+	const bodies = new Map(Object.entries(initial));
+	const files = new Map([...bodies.keys()].map((path) => [path, new TFile(path)]));
+	const openFile = vi.fn().mockResolvedValue(undefined);
+	const vault = {
+		configDir: ".test-config",
+		getAbstractFileByPath: (path: string) => files.get(path) || null,
+		getMarkdownFiles: () => [...files.values()],
+		createFolder: vi.fn().mockResolvedValue(undefined),
+		create: vi.fn(async (path: string, body: string) => {
+			if (files.has(path)) throw new Error("File already exists");
+			const file = new TFile(path);
+			files.set(path, file);
+			bodies.set(path, body);
+			return file;
+		}),
+		modify: vi.fn(),
+	};
 	const app = {
-		vault: {
-			adapter: new FileSystemAdapter(),
-			getAbstractFileByPath: () => null,
-			createFolder: vi.fn().mockResolvedValue(undefined),
-			create: vi.fn(async (path: string, body: string) => {
-				await writeGate;
-				created.push({ path, body });
-				return new TFile(path);
-			}),
-			modify: vi.fn().mockResolvedValue(undefined),
-		},
-	} as never;
-	const settings = {
-		agentCommand: "research-agent --markdown",
-		reportsFolder: "70 输出/研究",
-	} as TalosSettings;
-	return { app, created, settings };
+		vault,
+		metadataCache: { getFileCache: vi.fn(() => null) },
+		workspace: { getLeaf: () => ({ openFile }) },
+	};
+	return { app, vault, bodies, openFile };
 }
 
-describe("Deep Research lifecycle", () => {
-	beforeEach(() => {
-		notices.length = 0;
+describe("console action safety", () => {
+	beforeEach(() => { notices.length = 0; });
+	afterEach(() => { vi.useRealTimers(); });
+
+	it("opens research without supplying a draft or send payload", async () => {
+		const open = vi.fn().mockResolvedValue({});
+		await expect(openResearchWorkbench(open)).resolves.toEqual({ workbenchOpened: true, sent: false });
+		expect(open).toHaveBeenCalledExactlyOnceWith();
 	});
 
-	it("does not complete until the child closes and the report is written", async () => {
-		const child = new FakeChild();
-		const spawn = vi.fn(() => child) as never;
-		let releaseWrite = () => undefined;
-		const writeGate = new Promise<void>((resolve) => {
-			releaseWrite = resolve;
-		});
-		const { app, created, settings } = harness(writeGate);
-		let completed = false;
-		const execution = deepResearch(app, settings, undefined, spawn).then(() => {
-			completed = true;
-		});
-
-		await Promise.resolve();
-		expect(completed).toBe(false);
-		expect(created).toEqual([]);
-		child.stdout.emit("data", Buffer.from("research result"));
-		child.emit("close", 0);
-		await Promise.resolve();
-		expect(completed).toBe(false);
-		expect(created).toEqual([]);
-		releaseWrite();
-		await execution;
-
-		expect(completed).toBe(true);
-		expect(created).toHaveLength(1);
-		expect(created[0]?.body).toContain("research result");
-		expect(notices).toContain("Deep Research 完成（退出码 0）");
+	it("reuses the real chat leaf without prefilling or sending the existing draft", async () => {
+		const draft = "existing research draft";
+		const prefill = vi.fn();
+		const send = vi.fn();
+		const view = Object.assign(Object.create(TalosChatSidebarView.prototype), {
+			workbench: { focusComposer: vi.fn(), prefillComposer: prefill, send }, mountError: null, draft,
+		}) as InstanceType<typeof TalosChatSidebarView> & { draft: string };
+		const leaf = { view, setViewState: vi.fn() };
+		const workspace = { getLeavesOfType: () => [leaf], getRightLeaf: vi.fn(), revealLeaf: vi.fn() };
+		await expect(openResearchWorkbench(() => revealChatSidebar(workspace as never)))
+			.resolves.toEqual({ workbenchOpened: true, sent: false });
+		expect(workspace.revealLeaf).toHaveBeenCalledWith(leaf);
+		expect(leaf.view.draft).toBe(draft);
+		expect(prefill).not.toHaveBeenCalled();
+		expect(send).not.toHaveBeenCalled();
 	});
 
-	it("kills the active child and rejects when the task is cancelled", async () => {
-		const child = new FakeChild();
-		const spawn = vi.fn(() => child) as never;
-		const { app, created, settings } = harness();
+	it("does not report success when the real workspace cannot create a chat leaf", async () => {
+		const workspace = { getLeavesOfType: () => [], getRightLeaf: () => null, revealLeaf: vi.fn() };
+		await expect(openResearchWorkbench(() => revealChatSidebar(workspace)))
+			.rejects.toThrow("无法在右侧边栏打开 AI 工作台");
+		expect(workspace.revealLeaf).not.toHaveBeenCalled();
+		expect(notices).toEqual([]);
+	});
+
+	it("does not report an opened workbench when opening fails", async () => {
+		await expect(openResearchWorkbench(vi.fn().mockRejectedValue(new Error("workspace unavailable")))).rejects.toThrow("workspace unavailable");
+		expect(notices).toEqual([]);
+	});
+
+	it("does not open the workbench for an already cancelled action", async () => {
+		const open = vi.fn();
 		const controller = new AbortController();
-		const execution = deepResearch(
-			app,
-			settings,
-			controller.signal,
-			spawn
-		);
-
 		controller.abort();
-
-		await expect(execution).rejects.toMatchObject({ name: "AbortError" });
-		expect(child.killed).toBe(true);
-		expect(created).toEqual([]);
+		await expect(openResearchWorkbench(open, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+		expect(open).not.toHaveBeenCalled();
 	});
 
-	it("rejects the task when the child emits a spawn error", async () => {
-		const child = new FakeChild();
-		const spawn = vi.fn(() => child) as never;
-		const { app, created, settings } = harness();
-		const execution = deepResearch(app, settings, undefined, spawn);
+	it("uses one read-only lint result without creating folders or overwriting reports", () => {
+		const { app, vault } = vaultHarness({
+			"00 收件箱/a.md": "draft",
+			"30 洞察/b.md": "complete",
+			"System/config.md": "system",
+			"30 洞察/_README.md": "index",
+		});
+		app.metadataCache.getFileCache = vi.fn((file?: TFile) => file?.path.endsWith("b.md")
+			? { frontmatter: { tags: ["knowledge"], status: "active" } } : null) as typeof app.metadataCache.getFileCache;
+		expect(vaultLint(app as never)).toEqual({ notes: 2, missingFrontmatter: 1, missingTags: 0, missingStatus: 0 });
+		expect(vault.createFolder).not.toHaveBeenCalled();
+		expect(vault.create).not.toHaveBeenCalled();
+		expect(vault.modify).not.toHaveBeenCalled();
+	});
 
-		child.emit("error", new Error("spawn failed"));
-
-		await expect(execution).rejects.toThrow("spawn failed");
-		expect(created).toEqual([]);
-		expect(notices.at(-1)).toContain("spawn failed");
+	it("creates a distinct weekly report and preserves same-day reports", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date(2026, 9, 28, 12));
+		const original = "original weekly report";
+		const { app, vault, bodies, openFile } = vaultHarness({
+			"70 输出/weekly-2026-10-28.md": original,
+			"70 输出/weekly-2026-10-28-2.md": "second report",
+		});
+		const onDone = vi.fn();
+		const modal = new CreateModal(app as never, { reportsFolder: "70 输出" } as TalosSettings, onDone);
+		modal.kind = "weekly";
+		modal.content = "new progress";
+		await modal.submit();
+		expect(bodies.get("70 输出/weekly-2026-10-28.md")).toBe(original);
+		expect(bodies.get("70 输出/weekly-2026-10-28-2.md")).toBe("second report");
+		expect(bodies.get("70 输出/weekly-2026-10-28-3.md")).toContain("new progress");
+		expect(vault.modify).not.toHaveBeenCalled();
+		expect(openFile).toHaveBeenCalledWith(expect.objectContaining({ path: "70 输出/weekly-2026-10-28-3.md" }));
+		expect(onDone).toHaveBeenCalledOnce();
 	});
 });

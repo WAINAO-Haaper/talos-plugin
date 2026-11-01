@@ -3,6 +3,7 @@ export interface StatCard {
 	value: string;
 	sub: string;
 	tone?: "default" | "warn" | "hot" | "good";
+	counts?: { open: number; inProgress: number; done: number; total: number };
 }
 
 export interface ModuleTile {
@@ -97,6 +98,9 @@ export interface OutputPlatform {
 export interface OutputCenter {
 	metrics: MetricTile[];
 	queue: SignalItem[];
+	/** 明确可识别的未完成复选框总数；未配置或格式不识别时缺省。 */
+	queueTotal?: number;
+	queueStatus?: "ready" | "missing" | "format";
 	platforms: OutputPlatform[];
 	opsCandidates: SignalItem[];
 }
@@ -147,9 +151,10 @@ export interface ProjectScene {
 	readme: string;
 	latestTitle: string;
 	latestPath?: string;
+	latestMtime?: number;
 	priority: "p0" | "p1" | "p2";
 	/** 任务进度：文件夹内 Markdown 复选框完成/总数；无复选框时缺省 */
-	progress?: { done: number; total: number };
+	progress?: { done: number; total: number; sampled?: boolean; scannedFiles?: number; totalFiles?: number };
 }
 
 export interface KnowledgeHub {

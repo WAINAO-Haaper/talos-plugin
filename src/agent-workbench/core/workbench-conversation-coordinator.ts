@@ -122,11 +122,7 @@ export class WorkbenchConversationCoordinator {
 			events: projection.events,
 		});
 		if (!hasMeaningfulHandoffPayload(envelope)) {
-			await this.conversations.store.updateManifest({
-				...projection.manifest,
-				selection: { runtimeId: toRuntimeId },
-				updatedAt: new Date().toISOString(),
-			});
+			await this.conversations.store.patchManifest(conversationId, { selection: { runtimeId: toRuntimeId } });
 			return false;
 		}
 		await this.conversations.append({
@@ -136,11 +132,7 @@ export class WorkbenchConversationCoordinator {
 			type: "handoff.created",
 			payload: envelope as unknown as Record<string, unknown>,
 		});
-		await this.conversations.store.updateManifest({
-			...projection.manifest,
-			selection: { runtimeId: toRuntimeId },
-			updatedAt: new Date().toISOString(),
-		});
+		await this.conversations.store.patchManifest(conversationId, { selection: { runtimeId: toRuntimeId } });
 		return true;
 	}
 

@@ -6,5 +6,7 @@ import type { LensContext } from "./lens-pages";
 export function renderVoice(ctx: LensContext): LensChild[] {
 	const host = el(ctx.doc, "div", { class: "lens-quyuan-voice" });
 	ctx.mountVoice(host);
-	return [host];
+	const harness = el(ctx.doc, "button", { type: "button", class: "talos-focusable" }, "打开 Harness");
+	harness.addEventListener("click", () => ctx.openHarness());
+	return [harness, host];
 }

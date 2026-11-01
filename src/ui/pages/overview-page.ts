@@ -6,19 +6,7 @@ import type { TalosView } from "../../view";
 
 export function collectOverviewAttention(view: TalosView, d: Collected): OverviewAttention[] {
 	const items: OverviewAttention[] = [];
-	if (d.warRoom.stopTriggered) {
-		items.push({
-			title: "发布停止条件已触发",
-			meta: `${d.warRoom.frozenDays} 天未形成发布闭环 · 高优先级`,
-			detail:
-				"当前发布节奏已经触发重估条件。继续建设前，先决定恢复发布、调整目标或正式暂停。",
-			action: "打开发布任务",
-			path: view.plugin.talosSettings.talosTasksPath,
-			icon: "octagon-alert",
-			tone: "hot",
-		});
-	}
-	if (d.approvals.length > 0) {
+	if (d.setup?.pendingApprovalsPath === "ok" && d.approvals.length > 0) {
 		items.push({
 			title: `待审批变更 ${d.approvals.length} 项`,
 			meta: `${d.approvals[0]?.title || "B/C 类变更"} · 需要决策`,
@@ -43,7 +31,7 @@ export function collectOverviewAttention(view: TalosView, d: Collected): Overvie
 			tone: d.inbox.oldestDays >= 7 ? "hot" : "warn",
 		});
 	}
-	if (d.candidates.length > 0) {
+	if (d.setup?.candidatesPath === "ok" && d.candidates.length > 0) {
 		items.push({
 			title: `偏好候选 ${d.candidates.length} 条`,
 			meta: "待确认 · 运行 /digest 晋升或退回",

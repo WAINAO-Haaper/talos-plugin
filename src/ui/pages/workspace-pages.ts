@@ -71,13 +71,28 @@ export function renderSettingsPage(view: TalosView, page: HTMLElement): void {
 	body.addClass("talos-settings--console");
 }
 
+/** 独立于语音连接状态保留 Harness 入口。 */
+function renderVoiceHarnessShortcut(view: TalosView, page: HTMLElement): void {
+	const shortcuts = page.createDiv({ cls: "talos-voice-shortcuts" });
+	const harness = shortcuts.createEl("button", {
+		cls: "module-hero-action",
+		attr: { type: "button" },
+	});
+	setIcon(harness.createSpan({ cls: "module-hero-action-icon" }), "square-terminal");
+	harness.createSpan({ text: "打开 Harness" });
+	harness.addEventListener("click", () => view.navigateToPage("harness"));
+}
+
 export async function renderJarvisPage(view: TalosView, page: HTMLElement): Promise<void> {
+	const revision = ++view.voiceMountRevision;
+	const current = () => view.voiceMountRevision === revision && view.activePage === "jarvis"
+		&& view.pageEl === page && page.isConnected;
 	try {
 		page.empty();
-		page.createDiv({ cls: "empty", text: "屈原模块加载中…" });
+		page.createDiv({ cls: "empty", text: "语音模块加载中…" });
 		const { QuyuanVoicePanel } = await import("../../quyuan/voice-panel");
 		await view.plugin.waitForAgentWorkbench();
-		if (view.activePage !== "jarvis") return;
+		if (!current()) return;
 		page.empty();
 		if (!view.jarvis) {
 			view.jarvis = new QuyuanVoicePanel(
@@ -88,18 +103,21 @@ export async function renderJarvisPage(view: TalosView, page: HTMLElement): Prom
 				(pageKey) => view.navigateToPage(pageKey)
 			);
 		}
-		view.jarvis.mount(page);
+		renderVoiceHarnessShortcut(view, page);
+		view.jarvis.mount(page.createDiv({ cls: "talos-voice-surface" }));
 		view.jarvisMounted = true;
 	} catch (error) {
+		if (!current()) return;
 		console.error("TALOS Quyuan voice panel failed to mount", error);
 		view.unmountJarvisSafely();
 		view.jarvis = null;
 		page.empty();
+		renderVoiceHarnessShortcut(view, page);
 		const panel = page.createDiv({ cls: "panel quyuan-error-panel" });
 		const icon = panel.createDiv({ cls: "quyuan-error-icon" });
 		setIcon(icon, "triangle-alert");
 		const copy = panel.createDiv({ cls: "quyuan-error-copy" });
-		copy.createEl("h2", { text: "屈原模块加载失败" });
+		copy.createEl("h2", { text: "语音模块加载失败" });
 		copy.createEl("p", {
 			text: error instanceof Error ? error.message : "初始化时出现未知错误。",
 		});
@@ -118,7 +136,7 @@ export async function renderJarvisPage(view: TalosView, page: HTMLElement): Prom
 		setIcon(workbench.createSpan({ cls: "module-hero-action-icon" }), "maximize-2");
 		workbench.createSpan({ text: "打开完整工作台" });
 		workbench.addEventListener("click", () => void view.plugin.activateQuyuanV2View());
-		new Notice("屈原模块加载失败，已显示恢复入口。");
+		new Notice("语音模块加载失败，已显示恢复入口。");
 	}
 }
 
@@ -280,6 +298,11 @@ export function renderInboxPage(view: TalosView, page: HTMLElement, d: Collected
 		],
 	});
 	mountFlowPipeline(view, hero, d, "inbox");
+	const inboxFolder = view.app.vault.getAbstractFileByPath(view.plugin.talosSettings.inboxFolder);
+	if (!inboxFolder || !("children" in inboxFolder)) {
+		page.createDiv({ cls: "empty", text: "收件目录未配置或不存在，请在设置中检查。" });
+		return;
+	}
 
 	// 模块整合：一行两列——左「待分诊」（核心），右「积压概况」（年龄 / 主题 / 最近进入，同一批笔记的三种统计）。
 	const triage = page.createDiv({
@@ -301,7 +324,7 @@ export function renderInboxPage(view: TalosView, page: HTMLElement, d: Collected
 					host,
 					"#FBBF24",
 					"积压年龄",
-					"0–3D · 4–7D · 8–14D · >14D"
+					"按文件创建时间 · 迁移可能改变日期"
 				);
 				age.setAttribute("data-workflow-section", "core-data");
 				if (d.inbox.count > 0) {
@@ -330,7 +353,7 @@ export function renderInboxPage(view: TalosView, page: HTMLElement, d: Collected
 					"#38E1FF",
 					"主题分诊",
 					priorityCluster
-						? `按规模排序 · 先处理「${priorityCluster.name}」`
+						? `标题关键词规则 · 先查看「${priorityCluster.name}」`
 						: "暂无待消化主题"
 				);
 				clusters.setAttribute(

@@ -45,21 +45,17 @@ describe("TALOS navigation model", () => {
 		expect(pageBelongsTo("personal", "unknown", true)).toBe(false);
 	});
 
-	it("groups the console into five task-ordered destinations plus settings at the bottom", () => {
+	it("puts the overview, voice, workbench and settings in the requested order", () => {
 		expect(PRIMARY_NAVIGATION.map((item) => item.key)).toEqual([
 			"today",
-			"flow",
-			"projects",
 			"assistant",
-			"system",
+			"workbench",
 			"settings",
 		]);
 		expect(PRIMARY_NAVIGATION.map((item) => item.children.map((child) => child.key))).toEqual([
-			["today", "daily"],
-			["inbox", "knowledge", "output"],
-			["projects", "talos"],
-			["chat", "jarvis", "harness"],
-			["health", "vault", "capability", "identity"],
+			["today"],
+			["jarvis", "chat", "harness"],
+			["inbox", "knowledge", "output", "projects", "tasks", "health", "capability", "identity"],
 			["settings"],
 		]);
 		expect(resolvePageRoute("settings")).toEqual({ primary: "settings", secondary: "settings" });
@@ -91,12 +87,14 @@ describe("TALOS navigation model", () => {
 			expect(group?.children.some((child) => child.key === route?.secondary), key).toBe(true);
 		}
 		expect(resolvePageRoute("talos-quyuan-view")).toEqual({ primary: "assistant", secondary: "chat" });
+		expect(resolvePageRoute("vault")).toEqual({ primary: "workbench", secondary: "knowledge" });
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "vault" })).toBe("knowledge");
 		expect(resolvePageRoute("overview")).toEqual({ primary: "today", secondary: "today" });
 		expect(resolvePageRoute("jarvis")).toEqual({ primary: "assistant", secondary: "jarvis" });
 	});
 
 	it("labels page headers with their group, like Lens' context line", () => {
-		expect(routeContextLabel({ primary: "flow", secondary: "inbox" })).toBe("内容流 · 收件箱");
+		expect(routeContextLabel({ primary: "workbench", secondary: "inbox" })).toBe("工作台 · 收件箱");
 		expect(routeContextLabel({ primary: "settings", secondary: "settings" })).toBe("设置");
 		expect(viewSource).not.toContain('eyebrow: "INTAKE DIGEST"');
 	});
@@ -110,10 +108,8 @@ describe("TALOS navigation model", () => {
 	});
 
 	it("uses the primary navigation instead of duplicating nine launch cards", () => {
-		expect(viewSource).toContain('"data-today-section", "now"');
-		expect(viewSource).toContain('"data-today-section", "attention"');
-		expect(viewSource).toContain('"data-today-section", "decisions"');
-		expect(viewSource).toContain('"data-today-section", "task-kanban"');
+		expect(viewSource).toContain('"data-workbench-section", "decisions"');
+		expect(viewSource).toContain('"aria-label", "工作台分类"');
 		expect(viewSource).not.toContain("for (const module of WORKBENCH_MODULES)");
 		expect(viewSource).not.toContain('"data-workbench-section", "customer-modules"');
 		expect(viewSource).not.toContain("const PAGES:");
@@ -127,18 +123,18 @@ describe("TalosPageRouter", () => {
 		expect(router.renderKey()).toBe("today");
 
 		router.navigate("projects");
-		expect(router.current()).toEqual({ primary: "projects", secondary: "projects" });
+		expect(router.current()).toEqual({ primary: "workbench", secondary: "projects" });
 		expect(router.renderKey()).toBe("projects");
 
-		router.selectPrimary("system");
-		expect(router.current()).toEqual({ primary: "system", secondary: "health" });
+		router.selectPrimary("workbench");
+		expect(router.current()).toEqual({ primary: "workbench", secondary: "inbox" });
 		router.selectSecondary("identity");
 		expect(router.renderKey()).toBe("identity");
 		router.selectPrimary("settings");
 		expect(router.renderKey()).toBe("settings");
 
 		router.selectPrimary("assistant");
-		expect(router.renderKey()).toBe("chat");
+		expect(router.renderKey()).toBe("jarvis");
 		router.selectSecondary("jarvis");
 		expect(router.renderKey()).toBe("jarvis");
 		expect(() => router.selectSecondary("health")).toThrow();
@@ -160,6 +156,8 @@ describe("TALOS view state", () => {
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "talos-quyuan-view" })).toBe("chat");
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "overview" })).toBe("today");
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "voice" })).toBe("jarvis");
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "daily" })).toBe("tasks");
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "talos" })).toBe("projects");
 		expect(decodeTalosViewState({ schemaVersion: 2, page: "chat" })).toBe("today");
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "missing" })).toBe("today");
 		expect(decodeTalosViewState(null)).toBe("today");

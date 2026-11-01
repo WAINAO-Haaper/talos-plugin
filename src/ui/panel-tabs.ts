@@ -1,5 +1,5 @@
 // 单页原则的合并工具：把同一用途的几个现有面板放进一个页签容器，一次只显示一个。
-// 每个页签照常调用原有渲染函数，内容、data-* 标记与交互不变；只控制显示哪一个。
+// 页签首次选中时挂载，切换时保留已挂载内容，避免创建未使用的工具与监听。
 
 export interface PanelTab {
 	key: string;
@@ -42,6 +42,7 @@ export function mountPanelTabs(options: PanelTabsOptions): HTMLElement {
 	const initial = options.tabs.find((tab) => tab.key === remembered) ?? options.tabs[0];
 	const buttons: HTMLButtonElement[] = [];
 	const hosts: HTMLElement[] = [];
+	const mounted = new Set<number>();
 
 	const select = (index: number, focus: boolean) => {
 		options.tabs.forEach((tab, i) => {
@@ -51,6 +52,10 @@ export function mountPanelTabs(options: PanelTabsOptions): HTMLElement {
 			button.tabIndex = active ? 0 : -1;
 			hosts[i].hidden = !active;
 			if (active) {
+				if (!mounted.has(i)) {
+					tab.render(hosts[i]);
+					mounted.add(i);
+				}
 				options.selections?.set(options.groupKey, tab.key);
 				if (focus) button.focus();
 			}
@@ -95,7 +100,6 @@ export function mountPanelTabs(options: PanelTabsOptions): HTMLElement {
 		host.setAttribute("aria-labelledby", button.id);
 		root.appendChild(host);
 		hosts.push(host);
-		tab.render(host);
 	});
 
 	select(Math.max(0, options.tabs.indexOf(initial)), false);

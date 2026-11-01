@@ -2,6 +2,75 @@
 // 同一份登记同时决定：默认位置、设置页覆盖、自动查找线索、插件需要的分区标记、
 // 「补齐库结构」的新建模板与追加模板、页面缺失提示。不接触 App，可直接单测。
 import type { TalosSchemaKey } from "./schema";
+import { isPendingApprovalStatusLine } from "../approval-actions";
+
+/** 对解析和统计统一忽略 Markdown 注释与代码围栏内的示例。 */
+export function statisticalMarkdownLines(raw: string): string[] {
+	const result: string[] = [];
+	let fence: { char: string; length: number } | null = null;
+	for (const line of raw.replace(/<!--[\s\S]*?(?:-->|$)/g, "").split("\n")) {
+		const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+		if (!fence && marker) { fence = { char: marker[1][0], length: marker[1].length }; continue; }
+		if (fence) {
+			if (marker && marker[1][0] === fence.char && marker[1].length >= fence.length && !marker[2].trim()) fence = null;
+			continue;
+		}
+		result.push(line);
+	}
+	return result;
+}
+
+function emptyMarker(value: string): boolean {
+	return /^(?:[-*]\s*)?(?:（无）|（空）|\(无\)|\(空\)|暂无|无|空|暂无待审批(?:变更|事项)?|暂无待确认(?:偏好|候选)?)\s*[。.]?$/.test(value.trim());
+}
+
+/** 保留原有顶级列表格式；说明、占位项不是候选。 */
+export function isCandidateContentLine(line: string): boolean {
+	const match = line.match(/^-\s+(.+?)\s*$/);
+	if (!match || emptyMarker(match[1] || "")) return false;
+	return !/^(?:\*\*)?(?:说明|提示|注意|格式|示例|例如|注)(?:\*\*)?\s*[：:]/.test(match[1] || "");
+}
+
+function sectionLines(content: string, title: string): string[] | null {
+	const lines = statisticalMarkdownLines(content);
+	const start = lines.findIndex((line) => line.trim() === `## ${title}`);
+	if (start < 0) return null;
+	let end = lines.findIndex((line, i) => i > start && /^##\s+/.test(line.trim()));
+	if (end < 0) end = lines.length;
+	return lines.slice(start + 1, end);
+}
+
+function candidateSectionRecognized(content: string): boolean {
+	const lines = sectionLines(content, "待确认");
+	if (!lines) return false;
+	return lines.every((line) => !line.trim() || /^\s*---+\s*$/.test(line) || emptyMarker(line) || isCandidateContentLine(line));
+}
+
+function approvalSectionRecognized(content: string): boolean {
+	const lines = sectionLines(content, "当前待审批");
+	if (!lines) return false;
+	let inBlock = false;
+	let recognizedStatus = false;
+	for (const line of lines) {
+		const clean = line.trim();
+		if (/^###\s+后续候选\s*$/.test(clean)) break;
+		if (/^###\s+\S/.test(clean)) {
+			if (inBlock && !recognizedStatus) return false;
+			inBlock = true;
+			recognizedStatus = false;
+			continue;
+		}
+		if (!inBlock) {
+			if (clean && !/^---+$/.test(clean) && !emptyMarker(clean)) return false;
+			continue;
+		}
+		if (/^\*\*状态\*\*[：:]/.test(clean)) {
+			if (recognizedStatus || (!isPendingApprovalStatusLine(clean) && !/^\*\*状态\*\*[：:]\s*(?:✅|❌|⚪|🟢|🔴|\s)*(?:已批准|已拒绝|已完成|已关闭|已撤销)(?:\b|[\s（(]|$)/.test(clean))) return false;
+			recognizedStatus = true;
+		}
+	}
+	return !inBlock || recognizedStatus;
+}
 
 /** 由 VaultPaths 解析、原先写死在模块下的文件（现可在设置中覆盖）。 */
 export type VaultFileKey =
@@ -146,7 +215,10 @@ export type FileStatus = "ok" | "missing" | "format";
 export function fileStatus(spec: VaultFileSpec, content: string | null): FileStatus {
 	if (content === null) return "missing";
 	if (spec.kind === "dir") return "ok";
-	return spec.markers.every((marker) => hasMarker(content, marker)) ? "ok" : "format";
+	if (!spec.markers.every((marker) => hasMarker(content, marker))) return "format";
+	if (spec.key === "pendingApprovalsPath" && !approvalSectionRecognized(content)) return "format";
+	if (spec.key === "candidatesPath" && !candidateSectionRecognized(content)) return "format";
+	return "ok";
 }
 
 export interface ScaffoldOp {

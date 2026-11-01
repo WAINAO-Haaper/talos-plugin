@@ -1,13 +1,20 @@
 // Lens 的资料浏览样式：搜索框 → 分类芯片 → 分页卡片（lens-card-deck，每页 6 张）→ 点击右侧摘要栏。
 // 收集 / 知识 / 身份 / 输出 / 执行节奏的笔记列表都走这一套。
 import { TFile } from "obsidian";
-import type { MetricTile, SignalItem } from "../../types";
+import type { HeatMonth, MetricTile, SignalItem } from "../../types";
 import { button, chip, el, heading, icon, panel, type LensChild } from "./lens-dom";
 import { bytes, num, time } from "./lens-format";
 import { listNotes, type LensNote } from "./lens-data";
 import type { LensContext } from "./lens-pages";
 
 const CARD_PAGE_SIZE = 6;
+
+/** Last 14 calendar days in local time; heatmap grids may include future cells. */
+export function recentHeatCells(months: HeatMonth[], now = new Date()) {
+	const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+	return months.flatMap((m) => m.weeks.flat()).filter((c) => c.date && c.date <= date)
+		.sort((a, b) => a.date.localeCompare(b.date)).slice(-14);
+}
 
 function searchBox(ctx: LensContext, key: string, placeholder: string): HTMLElement {
 	const { doc } = ctx;
@@ -111,7 +118,7 @@ export function signalDeck(ctx: LensContext, key: string, label: string, items: 
 export function metricStrip(ctx: LensContext, metrics: MetricTile[]): HTMLElement {
 	const { doc } = ctx;
 	const tone = { warn: "warn", hot: "fail", good: "pass", default: "idle" } as const;
-	return el(doc, "section", { class: "ov-kpiwrap" }, el(doc, "div", { class: "ov-kpis" }, ...metrics.slice(0, 5).map((m, i) => {
+	return el(doc, "section", { class: "ov-kpiwrap" }, el(doc, "div", { class: "ov-kpis" }, ...metrics.slice(0, 6).map((m, i) => {
 		const node = el(doc, "button", { type: "button", class: "ov-kpi vk-rise", style: `--vk-i:${i}`, "data-missing": String(m.value === "—") },
 			el(doc, "span", {}, m.label), el(doc, "strong", {}, m.value), m.sub ? el(doc, "em", { "data-tone": tone[m.tone ?? "default"] }, m.aux || m.sub) : null);
 		if (m.path) node.addEventListener("click", () => ctx.openDrawer(m.path!));
@@ -137,48 +144,67 @@ export function distribution(ctx: LensContext, rows: Array<{ name: string; count
 	];
 }
 
+function libraryMetrics(ctx: LensContext): HTMLElement {
+	const d = ctx.data.collected;
+	const metric = (label: string, folder: string) => {
+		const value = d.knowledge.metrics.find((m) => m.label.includes(label));
+		const path = ctx.app.vault.getAbstractFileByPath(folder);
+		return value && path && "children" in path ? value : value ? { ...value, value: "—", sub: "目录未找到或不是文件夹" } : undefined;
+	};
+	const output = d.output.queueStatus === "ready" ? String(d.output.queueTotal ?? 0) : "—";
+	const inboxDir = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir("inbox"));
+	const inboxReady = !!inboxDir && "children" in inboxDir;
+	const missing = (["projects", "assets", "insights", "archive", "logs", "inbox"] as const).filter((key) => {
+		const path = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir(key));
+		return !path || !("children" in path);
+	}).length;
+	return metricStrip(ctx, [
+		{ label: "知识笔记", value: missing === 6 ? "—" : String(d.total), sub: missing ? `部分统计 · ${missing} 个目录未配置` : d.overview.totalNotes.sub, path: ctx.paths.readme("insights") },
+		{ label: "收件积压", value: inboxReady ? String(d.inbox.count) : "—", sub: inboxReady ? `最久 ${d.inbox.oldestDays} 天 · 文件创建时间` : "收件目录未配置", path: ctx.paths.readme("inbox") },
+		...(metric("洞察", ctx.paths.dir("insights")) ? [metric("洞察", ctx.paths.dir("insights"))!] : []), ...(metric("素材", ctx.paths.dir("assets")) ? [metric("素材", ctx.paths.dir("assets"))!] : []),
+		...(metric("MOC", ctx.paths.mocDir) ? [metric("MOC", ctx.paths.mocDir)!] : []),
+		{ label: "待处理输出", value: output, sub: d.output.queueStatus === "missing" ? "来源未配置" : d.output.queueStatus === "format" ? "格式不识别" : d.output.queueStatus === "ready" ? "未完成任务数" : "来源状态未知", path: ctx.paths.outletFile },
+	]);
+}
+
 export function renderCollect(ctx: LensContext): LensChild[] {
-	const { doc } = ctx;
-	const inbox = ctx.data.collected.inbox;
-	if (ctx.tab === "backlog") {
-		return [
-			heading(doc, "积压分布", `共 ${num(inbox.count)} 条 · 最久 ${inbox.oldestDays} 天`, "收集"),
-			panel(doc, "按存放时长", distribution(ctx, inbox.ageBuckets.map((b) => ({ name: b.label, count: b.count })), "共 {total} 条收件")),
-			panel(doc, "按主题聚类", distribution(ctx, inbox.clusters.map((c) => ({ name: c.name, count: c.count })), "按标题关键词粗分，共 {total} 条")),
-		];
-	}
-	return [
-		heading(doc, "收件箱", "先处理最久的，再归档到洞察或素材", "收集"),
-		noteDeck(ctx, "collect", "收件", ctx.paths.dir("inbox")),
-	];
+	const host = el(ctx.doc, "div", { class: "talos-lens-native", "aria-label": "收件分诊与积压统计" });
+	const inboxDir = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir("inbox"));
+	if (inboxDir && "children" in inboxDir) ctx.renderInbox(host);
+	else host.appendChild(el(ctx.doc, "p", {}, "收件目录未配置或不是文件夹，请在设置中检查。"));
+	return [libraryMetrics(ctx), host];
 }
 
 export function renderKnowledge(ctx: LensContext): LensChild[] {
 	const { doc } = ctx;
-	const k = ctx.data.collected.knowledge;
-	const strip = metricStrip(ctx, k.metrics);
-	if (ctx.tab === "materials") return [heading(doc, "素材", "外部收集的资料与摘录", "知识"), strip, noteDeck(ctx, "materials", "素材", ctx.paths.dir("assets"))];
-	if (ctx.tab === "moc") return [heading(doc, "MOC", "概念入口与知识地图", "知识"), strip, noteDeck(ctx, "moc", "MOC", ctx.paths.mocDir)];
-	return [heading(doc, "洞察", "原创思考与方法论", "知识"), strip, noteDeck(ctx, "insights", "洞察", ctx.paths.dir("insights"))];
+	const d = ctx.data.collected;
+	const cells = recentHeatCells(d.heatmap.months);
+	const max = Math.max(1, ...cells.map((c) => c.count));
+	const missing = (["projects", "assets", "insights", "archive", "logs", "inbox"] as const).filter((key) => {
+		const path = ctx.app.vault.getAbstractFileByPath(ctx.paths.dir(key));
+		return !path || !("children" in path);
+	}).length;
+	const strip = libraryMetrics(ctx);
+	return [heading(doc, "知识", "资料分布、近期新增和知识入口", "资料"), strip,
+		panel(doc, "知识目录分布", [missing ? el(doc, "p", {}, `${missing} 个内容目录未找到；仅统计已找到的目录。`) : null, ...distribution(ctx, d.dist.map((x) => ({ name: x.name, count: x.count, onClick: () => ctx.openDrawer(x.readme) })), missing ? "已找到目录 · 共 {total} 篇" : "配置的六类目录 · 共 {total} 篇")]),
+		panel(doc, "资料库模块", distribution(ctx, d.modules.map((m) => ({ name: m.name, count: m.count, onClick: () => ctx.openDrawer(m.readme) })), "含系统与配置 · 共 {total} 篇")),
+		panel(doc, "近 14 天创建", [el(doc, "p", {}, "按文件创建时间统计；迁移或复制可能改变日期。"), el(doc, "div", { class: "v-columns" }, ...cells.map((c) => el(doc, "div", { title: `${c.date} · ${c.count} 篇` }, el(doc, "b", {}, String(c.count)), el(doc, "div", { class: "v-column-track" }, el(doc, "span", { style: `height:${(c.count / max) * 100}%` })), el(doc, "span", {}, c.date.slice(5)))))]),
+		noteDeck(ctx, "insights", "洞察", ctx.paths.dir("insights")), noteDeck(ctx, "materials", "素材", ctx.paths.dir("assets")), noteDeck(ctx, "moc", "MOC", ctx.paths.mocDir)];
 }
 
 export function renderIdentity(ctx: LensContext): LensChild[] {
 	const { doc } = ctx;
-	if (ctx.tab === "soul") return [heading(doc, "人格", "屈原的宪法、记忆账本与说话方式", "身份"), noteDeck(ctx, "soul", "人格", ctx.paths.dir("soul"))];
-	return [heading(doc, "身份上下文", "TELOS、PROFILE、CONTEXT 与决策记录", "身份"), noteDeck(ctx, "identity", "身份", ctx.paths.dir("identity"))];
+	const state = ctx.data.collected.setup?.candidatesPath;
+	return [heading(doc, "身份与记忆", "身份资料、助手人格与待确认偏好", "系统"),
+		panel(doc, "偏好候选", [el(doc, "p", {}, state === "ok" ? `${ctx.data.collected.candidates.length} 条待确认 · 在工作台处理` : state === "format" ? "来源格式不识别" : state === "missing" ? "来源未配置" : "来源状态未知")]),
+		noteDeck(ctx, "identity", "身份", ctx.paths.dir("identity")), noteDeck(ctx, "soul", "人格", ctx.paths.dir("soul"))];
 }
 
 export function renderOutput(ctx: LensContext): LensChild[] {
 	const { doc } = ctx;
-	const o = ctx.data.collected.output;
-	const strip = metricStrip(ctx, o.metrics);
-	if (ctx.tab === "platforms") {
-		return [
-			heading(doc, "发布平台", "各平台已发与待发数量", "输出"), strip,
-			panel(doc, "已发布", distribution(ctx, o.platforms.map((p) => ({ name: p.name, count: p.published, onClick: () => ctx.openDrawer(p.readme) })), "共 {total} 篇已发布")),
-			panel(doc, "待发布", distribution(ctx, o.platforms.map((p) => ({ name: p.name, count: p.pending, onClick: () => ctx.openDrawer(p.readme) })), "共 {total} 篇待发布")),
-		];
-	}
-	if (ctx.tab === "ops") return [heading(doc, "运营候选", "可以转成内容的运营素材", "输出"), strip, signalDeck(ctx, "ops", "运营候选", o.opsCandidates, "候选")];
-	return [heading(doc, "待发", "已写好、等待发布的内容", "输出"), strip, signalDeck(ctx, "queue", "待发内容", o.queue, "待发")];
+	const queue = ctx.data.collected.output.queue;
+	const status = ctx.data.collected.output.queueStatus;
+	return [heading(doc, "输出", "查看和整理待处理的输出内容", "资料"), libraryMetrics(ctx),
+		el(doc, "p", {}, status === "ready" ? `待处理 ${ctx.data.collected.output.queueTotal ?? 0} 项；下方最多展示 8 项。` : status === "missing" ? "输出来源未配置。" : status === "format" ? "输出来源格式不识别。" : "输出来源状态未知。"),
+		signalDeck(ctx, "queue", status === "ready" ? "待处理输出" : "来源预览 · 不计入统计", queue, status === "ready" ? "待处理" : "预览")];
 }

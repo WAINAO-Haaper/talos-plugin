@@ -192,7 +192,7 @@ export function fillProjectPortfolioChart(view: TalosView, parent: HTMLElement, 
 		renderTalosEmptyState(
 			parent,
 			"暂无组合数据",
-			"项目出现后，这里会显示优先级分布和真实任务完成率。"
+			"项目出现后，这里会显示更新时间和可跟踪任务。"
 		);
 		return;
 	}
@@ -227,33 +227,19 @@ export function fillProjectPortfolioChart(view: TalosView, parent: HTMLElement, 
 	const copy = summary.createDiv({
 		cls: "project-v2-portfolio-summary__copy",
 	});
-	copy.createEl("strong", { text: "已跟踪任务完成率" });
+	copy.createEl("strong", { text: "扫描到的任务完成率" });
 	copy.createEl("span", {
 		text:
 			totalTasks > 0
-				? `${doneTasks}/${totalTasks} · ${tracked.length} 个项目有任务清单`
+				? `${doneTasks}/${totalTasks} · ${tracked.length} 个项目 · 部分项目最多扫描最近 40 篇`
 				: "当前项目尚未提供可汇总的复选框任务",
 	});
 
+	const cutoff = Date.now() - 7 * 86400000;
 	const distribution = [
-		{
-			key: "p0",
-			label: "P0 高频",
-			count: projects.filter((project) => project.priority === "p0")
-				.length,
-		},
-		{
-			key: "p1",
-			label: "P1 活跃",
-			count: projects.filter((project) => project.priority === "p1")
-				.length,
-		},
-		{
-			key: "p2",
-			label: "P2 长尾",
-			count: projects.filter((project) => project.priority === "p2")
-				.length,
-		},
+		{ key: "p0", label: "近 7 天更新", count: projects.filter((p) => (p.latestMtime ?? 0) >= cutoff).length },
+		{ key: "p1", label: "更早更新", count: projects.filter((p) => !!p.latestMtime && p.latestMtime < cutoff).length },
+		{ key: "p2", label: "无更新时间", count: projects.filter((p) => !p.latestMtime).length },
 	];
 	const maxCount = Math.max(
 		...distribution.map((item) => item.count),

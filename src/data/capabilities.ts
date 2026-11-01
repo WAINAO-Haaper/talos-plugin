@@ -5,6 +5,8 @@ export interface CapabilityItem {
 	invoke: string; // 点击复制的调用文本
 	desc: string;
 	path?: string;
+	/** 是否来自实际可读取的目录，而非推荐兜底。 */
+	origin?: "discovered" | "fallback";
 }
 
 export interface CapabilityGroup {
@@ -12,6 +14,7 @@ export interface CapabilityGroup {
 	label: string;
 	meta: string;
 	items: CapabilityItem[];
+	sourceStatus?: "ready" | "partial" | "unavailable";
 }
 
 // 解析 md 文本的描述：优先 frontmatter description，其次首个 # 标题
@@ -79,12 +82,12 @@ export async function collectCapabilities(app: App): Promise<CapabilityGroup[]> 
 		for (const f of cmdDir.files.filter((x) => x.endsWith(".md")).sort()) {
 			const name = baseName(f);
 			const desc = parseDesc(await safeRead(app, f)) || COMMAND_FALLBACK[name] || "";
-			cmdItems.push({ name: `/${name}`, invoke: `/${name}`, desc, path: f });
+			cmdItems.push({ name: `/${name}`, invoke: `/${name}`, desc, path: f, origin: "discovered" });
 		}
 	}
 	if (cmdItems.length === 0) {
 		for (const [name, desc] of Object.entries(COMMAND_FALLBACK)) {
-			cmdItems.push({ name: `/${name}`, invoke: `/${name}`, desc });
+			cmdItems.push({ name: `/${name}`, invoke: `/${name}`, desc, origin: "fallback" });
 		}
 	}
 
@@ -99,6 +102,7 @@ export async function collectCapabilities(app: App): Promise<CapabilityGroup[]> 
 				invoke: name,
 				desc: parseDesc(await safeRead(app, f)),
 				path: f,
+				origin: "discovered",
 			});
 		}
 	}
@@ -117,7 +121,7 @@ export async function collectCapabilities(app: App): Promise<CapabilityGroup[]> 
 					break;
 				}
 			}
-			agentItems.push({ name, invoke: name, desc: desc || "agent skill", path: itemPath || undefined });
+			if (itemPath) agentItems.push({ name, invoke: name, desc: desc || "agent skill", path: itemPath, origin: "discovered" });
 		}
 	}
 
@@ -132,19 +136,18 @@ export async function collectCapabilities(app: App): Promise<CapabilityGroup[]> 
 				invoke: name,
 				desc: parseDesc(await safeRead(app, f)),
 				path: f,
+				origin: "discovered",
 			});
 		}
 		for (const folder of wfDir.folders.sort()) {
-			wfItems.push({ name: baseName(folder), invoke: baseName(folder), desc: "工作流" });
+			wfItems.push({ name: baseName(folder), invoke: baseName(folder), desc: "工作流", path: folder, origin: "discovered" });
 		}
 	}
 
 	const groups: CapabilityGroup[] = [
-		{ key: "commands", label: "命令", meta: "点击复制 · 在对话中调用", items: cmdItems },
-		{ key: "agents", label: "Agents", meta: "子代理 / agent skills", items: agentItems },
+		{ key: "commands", label: "命令", meta: "点击复制 · 在对话中调用", items: cmdItems, sourceStatus: cmdDir ? "ready" : "unavailable" },
+		{ key: "agents", label: "Agents", meta: "子代理 / agent skills", items: agentItems, sourceStatus: agentDir && agentSkills ? "ready" : agentDir || agentSkills ? "partial" : "unavailable" },
 	];
-	if (wfItems.length > 0) {
-		groups.push({ key: "workflows", label: "工作流", meta: ".claude/workflows", items: wfItems });
-	}
+	groups.push({ key: "workflows", label: "工作流", meta: ".claude/workflows", items: wfItems, sourceStatus: wfDir ? "ready" : "unavailable" });
 	return groups;
 }

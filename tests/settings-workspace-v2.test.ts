@@ -11,13 +11,14 @@ const layoutCss = readFileSync(
 );
 
 describe("settings configuration workspace v2", () => {
-	it("keeps five user-facing categories as described, accessible tabs", () => {
+	it("keeps user-facing categories as described, accessible tabs", () => {
 		expect(settings).toContain("const TALOS_SETTING_TABS");
 		for (const label of [
 			"界面",
 			"库与数据",
 			"对话与模型",
-			"屈原 · 语音",
+			"语音",
+			"系统维护",
 		]) {
 			expect(settings).toContain(`label: "${label}"`);
 		}
@@ -26,6 +27,8 @@ describe("settings configuration workspace v2", () => {
 		expect(settings).toContain('"aria-selected"');
 		expect(settings).toContain('event.key === "ArrowDown"');
 		expect(settings).toContain('event.key === "Home"');
+		expect(settings).toContain('this.plugin.openTalosPage(this.plugin.talosSettings.consoleMode === "superbrain" ? "sb-system" : "health")');
+		expect(settings).toContain('this.plugin.openTalosPage(this.plugin.talosSettings.consoleMode === "superbrain" ? "sb-system" : "tasks")');
 	});
 
 	it("adds current-category context without creating a second settings renderer", () => {

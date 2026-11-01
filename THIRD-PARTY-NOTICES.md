@@ -24,25 +24,13 @@ Plugin 语音中心视觉嵌入 TalosBall 0.3.0。产品目录、API 与运行�
 
 TalosBall 包装、Plugin 状态适配和生命周期代码属于 TALOS 新增层；来源几何、状态数据、renderer 与 animation engine 不声明为独立原创。对外发布仍受项目现有 rights/legal 与 Release gates 约束。
 
-## 可选本地语音运行时与模型
+## 语音与本地媒体识别
 
-本地 ASR 使用构建时静态嵌入的 Sherpa-ONNX 浏览器封装、独立 Web Worker、固定 WASM
-与中英双语流式 Zipformer int8 模型。运行时不联网；插件只读取安装目录的固定资产，并在
-申请麦克风前逐文件校验字节数与 SHA-256。缺件或校验失败时失败关闭。
-
-- Runtime: sherpa-onnx 1.13.6
-- Runtime snapshot: `7c59b5225b857366f0a8c0cc1783ace8e9f193ac`
-- Runtime license: Apache-2.0
-- Embedded inference engine: ONNX Runtime 1.27.1, MIT
-- Model: `csukuangfj/k2fsa-zipformer-bilingual-zh-en-t`
-- Model revision: `e2382758de9a0219b4efe682b95af30b399db3b8`
-- Model repository license declaration: Apache-2.0
-- Complete asset hashes, attribution and bundled license texts:
-  `src/quyuan/vendor/local-voice-runtime/NOTICE.md`
-
-模型卡只把训练集描述为数万小时内部数据；因此当前集成可用于本地技术验收，但在商业发布
-前仍须对训练数据来源披露与适用风险做独立复核。Silero VAD 仍维持独立失败关闭边界，未因
-ASR 集成而自动引入第三方运行时或模型。
+实时语音由现行 Qwen Realtime 服务接口提供，受服务提供方条款约束。旧 Sherpa-ONNX
+浏览器 ASR 和 ONNX Runtime 文本快照已从当前源码移除。为保持既有部署资产完整，
+部署快照仍保留原有本地语音模型、运行时与其附带的许可证；当前语音主链不使用它们。
+本地媒体识别继续使用用户明确配置的 Whisper CLI、模型和 FFmpeg；这些外部资产
+不由本插件打包，用户应按各自许可证使用。历史部署快照保留其原归属与许可证。
 
 ## Claudian
 

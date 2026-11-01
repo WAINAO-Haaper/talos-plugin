@@ -28,9 +28,9 @@ converts WAV, AIFF, MP3, M4A, MP4, MOV or WebM to mono 16 kHz PCM, then invokes
 the configured CLI with fixed arguments and reads its text output. Video must
 contain an audio stream. The host used for development had FFmpeg but no
 Whisper CLI or model; semantic transcription remains untested there. The test
-fixture proves only the argument and output-file protocol. The previously
-integrated sherpa browser ASR runtime also lacks its fixed model files in this
-candidate, so it cannot serve as a ready media transcriber.
+fixture proves only the argument and output-file protocol. Live voice uses the
+separate Qwen Realtime session; the retired Sherpa browser ASR path is not part
+of this adapter.
 
 ### macOS Speech authorization boundary
 

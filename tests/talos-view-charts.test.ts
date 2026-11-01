@@ -147,16 +147,19 @@ describe("distribution charts", () => {
 		expect(opened.mock.calls).toEqual([[app, "out/new.md"], [app, "out/README.md"]]);
 	});
 
-	it("summarises tracked task completion and priority spread", () => {
+	it("summarises scanned task completion and distribution by last update", () => {
 		const { el, dom } = host();
-		const project = (priority: ProjectScene["priority"], progress?: ProjectScene["progress"]) =>
-			({ priority, progress }) as unknown as ProjectScene;
-		fillProjectPortfolioChart(view, el, [project("p0", { done: 3, total: 4 }), project("p1", { done: 0, total: 4 }), project("p1")]);
+		const now = Date.now();
+		const project = (latestMtime?: number, progress?: ProjectScene["progress"]) =>
+			({ latestMtime, progress, priority: "p1" }) as unknown as ProjectScene;
+		fillProjectPortfolioChart(view, el, [project(now, { done: 3, total: 4 }), project(now, { done: 0, total: 4, sampled: true }), project(now - 8 * 86400000), project()]);
 		const ring = dom.one("project-v2-progress-ring");
 		expect(ring.style.props["--project-progress"]).toBe("38%");
 		expect(ring.getAttribute("aria-label")).toBe("已跟踪任务完成 3/8，38%");
 		const bars = dom.all("project-v2-priority-bar__track");
-		expect(bars.map((bar) => (bar.children[0] as ObsidianTestElement).style.width)).toEqual(["50%", "100%", "0%"]);
+		expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual(["近 7 天更新：2 个项目", "更早更新：1 个项目", "无更新时间：1 个项目"]);
+		expect(bars.map((bar) => (bar.children[0] as ObsidianTestElement).style.width)).toEqual(["100%", "50%", "50%"]);
+		expect(dom.textContent).toContain("部分项目最多扫描最近 40 篇");
 	});
 
 	it("marks the portfolio ring empty when no project has a task list", () => {

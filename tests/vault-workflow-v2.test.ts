@@ -24,7 +24,7 @@ describe("Vault analytics v2", () => {
 
 	it("promotes real README anomalies without inventing status", () => {
 		expect(page).toContain(
-			"d.modules.filter(\n\t\t(module) => !module.readmeExists"
+			"d.modules.filter((module) => !module.readmeExists)"
 		);
 		expect(page).toContain("missingModules.map((module) =>");
 		expect(page).toContain('"README 异常"');

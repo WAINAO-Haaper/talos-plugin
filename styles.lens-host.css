@@ -31,6 +31,21 @@
 	max-width: 880px;
 }
 
+/* 仅复用原生总览和任务面板的局部容器；外层 Lens 不继承经典控制台主题。 */
+#talos-data-app-preview .talos-lens-native.talos-console {
+	--bg: var(--talos-surface-canvas);
+	--surface: var(--talos-surface-raised);
+	--surface-2: var(--talos-surface-sunken);
+	--ink: var(--talos-text-primary);
+	--muted: var(--talos-text-secondary);
+	--faint: var(--talos-text-tertiary);
+	--line: var(--talos-border-subtle);
+	--line-strong: var(--talos-border-default);
+	height: auto;
+	overflow: visible;
+	background: transparent !important;
+}
+
 /* 图标栏头像与侧栏品牌位使用 TALOS 标识（Lens 原为位图 logo） */
 #talos-data-app-preview .lens-profile-button svg,
 #talos-data-app-preview .lens-sidebar-brand .ta-approved-logo svg {

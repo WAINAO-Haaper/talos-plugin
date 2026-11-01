@@ -28,9 +28,9 @@ function setup(selections = new Map<string, string>(), badge = 0) {
 }
 
 describe("mountPanelTabs", () => {
-	it("renders every original panel once and shows only the first", () => {
+	it("mounts only the selected panel and shows the first", () => {
 		const { rendered, visible, tabs } = setup();
-		expect(rendered).toEqual(["a", "b", "c"]);
+		expect(rendered).toEqual(["a"]);
 		expect(visible()).toEqual(["content-a"]);
 		expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
 		expect(tabs[0]?.getAttribute("aria-controls")).toBe("talos-tab-demo-a-panel");
@@ -49,6 +49,10 @@ describe("mountPanelTabs", () => {
 		first.tabs[2]?.click();
 		expect(first.visible()).toEqual(["content-c"]);
 		expect(first.selections.get("demo")).toBe("c");
+		expect(first.rendered).toEqual(["a", "c"]);
+		first.tabs[0]?.click();
+		first.tabs[2]?.click();
+		expect(first.rendered).toEqual(["a", "c"]);
 		const again = setup(first.selections);
 		expect(again.visible()).toEqual(["content-c"]);
 	});

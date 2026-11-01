@@ -27,6 +27,8 @@ export interface TalosPageHeaderOptions {
 	title: string;
 	description: string;
 	metrics: TalosUiMetric[];
+	/** 仅明确选择的页面展示第五张指标卡；默认仍为四张。 */
+	metricLimit?: 4 | 5;
 	actions?: TalosUiAction[];
 }
 
@@ -95,7 +97,7 @@ export function renderTalosPageHeader(
 	const metrics = header.createDiv({
 		cls: "module-hero-stats talos-ui-page-header__metrics",
 	});
-	for (const metric of options.metrics.slice(0, 4)) {
+	for (const metric of options.metrics.slice(0, options.metricLimit ?? 4)) {
 		renderMetric(
 			metrics,
 			metric,

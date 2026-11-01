@@ -13,7 +13,7 @@ export interface PageCommand {
 const COVERED_PAGES = new Set(["chat"]);
 
 export function pageCommands(mode: ConsoleMode = "personal", hasSuperbrainCatalog = false): PageCommand[] {
-	return navigationFor(mode, hasSuperbrainCatalog).flatMap((group) =>
+	const commands = navigationFor(mode, hasSuperbrainCatalog).flatMap((group) =>
 		group.children
 			.filter((child) => !COVERED_PAGES.has(child.key))
 			.map((child) => ({
@@ -22,6 +22,13 @@ export function pageCommands(mode: ConsoleMode = "personal", hasSuperbrainCatalo
 				pageKey: child.key,
 			}))
 	);
+	// 已保存的快捷键可能仍引用历史页面命令；保留命令 ID，并沿旧路由落到新主场。
+	if (mode === "personal") commands.push(
+		{ id: "open-page-daily", name: "打开任务与待决策（旧入口）", pageKey: "daily" },
+		{ id: "open-page-talos", name: "打开项目（旧入口）", pageKey: "talos" },
+		{ id: "open-page-vault", name: "打开资料统计（旧入口）", pageKey: "vault" },
+	);
+	return commands;
 }
 
 interface CommandHost {

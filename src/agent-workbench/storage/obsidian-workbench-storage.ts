@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { open, rename, rmdir as removeEmptyDirectory } from "node:fs/promises";
 import path from "node:path";
 import type { PortableFileAdapter } from "./portable-conversation-store";
@@ -34,6 +35,8 @@ function relativePath(value: string): string {
 export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	private readonly basePath: string;
 	private readonly pendingFlush = new Set<string>();
+	private flushTail: Promise<void> = Promise.resolve();
+	private jsonWriteTail: Promise<void> = Promise.resolve();
 
 	constructor(
 		private readonly adapter: VaultDataAdapter,
@@ -102,6 +105,12 @@ export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	}
 
 	async flush(): Promise<void> {
+		const result = this.flushTail.then(() => this.flushPending());
+		this.flushTail = result.then(() => undefined, () => undefined);
+		return result;
+	}
+
+	private async flushPending(): Promise<void> {
 		for (const file of [...this.pendingFlush]) {
 			// Windows permits fsync only on a writable handle. "r+" preserves
 			// the existing bytes while retaining the atomic-write durability gate.
@@ -124,10 +133,15 @@ export class ObsidianWorkbenchStorage implements PortableFileAdapter {
 	}
 
 	async writeJsonAtomic(file: string, value: unknown): Promise<void> {
-		const temporary = `${relativePath(file)}.tmp`;
-		await this.write(temporary, `${JSON.stringify(value, null, 2)}\n`);
-		await this.flush();
-		await this.replace(temporary, file);
+		const body = `${JSON.stringify(value, null, 2)}\n`;
+		const result = this.jsonWriteTail.then(async () => {
+			const temporary = `${relativePath(file)}.${randomUUID()}.tmp`;
+			await this.write(temporary, body);
+			await this.flush();
+			await this.replace(temporary, file);
+		});
+		this.jsonWriteTail = result.then(() => undefined, () => undefined);
+		return result;
 	}
 }
 

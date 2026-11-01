@@ -6,8 +6,8 @@ describe("page commands", () => {
 	it("uses the personal catalog navigation without duplicate assistant or settings commands", () => {
 		const commands = pageCommands("personal", true);
 		const expected = navigationFor("personal", true).flatMap((group) => group.children.map((child) => child.key)).filter((key) => key !== "chat");
-		expect(commands.map((command) => command.pageKey)).toEqual(expected);
-		expect(new Set(commands.map((command) => command.id)).size).toBe(expected.length);
+		expect(commands.map((command) => command.pageKey)).toEqual([...expected, "daily", "talos", "vault"]);
+		expect(new Set(commands.map((command) => command.id)).size).toBe(commands.length);
 		expect(commands.filter((command) => command.pageKey.startsWith("sb-"))).toHaveLength(5);
 		expect(commands.filter((command) => command.pageKey === "settings")).toHaveLength(1);
 		expect(pageCommands("personal", false)).toEqual(pageCommands());
@@ -27,14 +27,14 @@ describe("page commands", () => {
 
 	it("registers one command per navigable page except pages that already have one", () => {
 		const keys = PRIMARY_NAVIGATION.flatMap((group) => group.children.map((child) => child.key)).filter((key) => key !== "chat");
-		expect(pageCommands().map((command) => command.pageKey)).toEqual(keys);
-		expect(new Set(pageCommands().map((command) => command.id)).size).toBe(keys.length);
+		expect(pageCommands().map((command) => command.pageKey)).toEqual([...keys, "daily", "talos", "vault"]);
+		expect(new Set(pageCommands().map((command) => command.id)).size).toBe(keys.length + 3);
 	});
 
 	it("names commands by page and group so the palette search finds either", () => {
 		const byKey = Object.fromEntries(pageCommands().map((command) => [command.pageKey, command.name]));
-		expect(byKey.inbox).toBe("打开收件箱（内容流）");
-		expect(byKey.today).toBe("打开今日");
+		expect(byKey.inbox).toBe("打开收件箱（工作台）");
+		expect(byKey.today).toBe("打开系统总览");
 		expect(byKey.settings).toBe("打开设置");
 	});
 

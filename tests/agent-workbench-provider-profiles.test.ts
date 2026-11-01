@@ -152,6 +152,36 @@ describe("provider runtime environment", () => {
 });
 
 describe("provider-scoped native bindings", () => {
+	it("keeps concurrent binding writes and removes in one transaction sequence", async () => {
+		let state: Record<string, unknown> | null = null;
+		const adapter = {
+			read: async () => {
+				const snapshot = structuredClone(state);
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				return snapshot;
+			},
+			write: async (value: Record<string, unknown>) => {
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				state = structuredClone(value);
+			},
+		};
+		const store = new RuntimeBindingStore(adapter);
+		const secondStore = new RuntimeBindingStore(adapter);
+		await Promise.all([
+			store.set("first", { runtimeId: "codex", sessionId: "session-1" }),
+			secondStore.set("second", { runtimeId: "codex", sessionId: "session-2" }),
+		]);
+		expect(await store.get("first", "codex")).toMatchObject({ sessionId: "session-1" });
+		expect(await store.get("second", "codex")).toMatchObject({ sessionId: "session-2" });
+		await Promise.all([
+			store.remove("first", "codex"),
+			secondStore.set("third", { runtimeId: "codex", sessionId: "session-3" }),
+		]);
+		expect(await store.get("first", "codex")).toBeNull();
+		expect(await store.get("second", "codex")).toMatchObject({ sessionId: "session-2" });
+		expect(await store.get("third", "codex")).toMatchObject({ sessionId: "session-3" });
+	});
+
 	it("keeps native and API sessions separate while retaining legacy native fallback", async () => {
 		let state: Record<string, unknown> | null = {
 			bindings: {

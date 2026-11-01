@@ -85,6 +85,28 @@ describe("vault file registry", () => {
 		const ops = planScaffold({ moduleDirs: [], files: [{ spec: specFor("tasksPath"), path: "t.md", content: "## 焦点（最重要）\n## 待办\n## 已完成\n" }], exists: () => true });
 		expect(ops).toEqual([]);
 	});
+
+	it("distinguishes missing, empty, valid and unrecognized approval formats", () => {
+		const spec = specFor("pendingApprovalsPath");
+		expect(fileStatus(spec, null)).toBe("missing");
+		expect(fileStatus(spec, spec.template)).toBe("ok");
+		expect(fileStatus(spec, "## 当前待审批\n- （无）\n")).toBe("ok");
+		expect(fileStatus(spec, "## 当前待审批\n### 提案 A\n**状态**：待审批\n内容说明\n")).toBe("ok");
+		expect(fileStatus(spec, "## 当前待审批\n### 提案 A\n**状态**：✅ 已批准（2026-11-01）\n")).toBe("ok");
+		expect(fileStatus(spec, "## 当前待审批\n### 提案 A\n状态：待审批\n")).toBe("format");
+		expect(fileStatus(spec, "## 当前待审批\n### 提案 A\n**状态**：待审批\n### 提案 B\n状态：未知\n")).toBe("format");
+		expect(fileStatus(spec, "## 当前待审批\n- 有一项需要确认\n")).toBe("format");
+	});
+
+	it("recognizes candidate list entries and explicit empty states without treating instructions as candidates", () => {
+		const spec = specFor("candidatesPath");
+		const rest = "\n## 已确认\n## 已拒绝\n";
+		expect(fileStatus(spec, spec.template)).toBe("ok");
+		expect(fileStatus(spec, `## 待确认\n- （无）${rest}`)).toBe("ok");
+		expect(fileStatus(spec, `## 待确认\n- 喜欢简洁沟通${rest}`)).toBe("ok");
+		expect(fileStatus(spec, `## 待确认\n- 喜欢简洁沟通\n- 说明：这里记录偏好${rest}`)).toBe("format");
+		expect(fileStatus(spec, `## 待确认\n待讨论内容尚未整理${rest}`)).toBe("format");
+	});
 });
 
 describe("planScaffold", () => {

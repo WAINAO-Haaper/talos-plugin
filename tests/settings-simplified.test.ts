@@ -8,7 +8,8 @@ const settings = readFileSync(`${root}src/settings.ts`, "utf8");
 
 describe("simplified settings", () => {
 	it("merges folder mapping and data sources into one library tab", () => {
-		expect(settings).toContain('type TabId = "ui" | "library" | "channel" | "voice";');
+		expect(settings).toContain('type TabId = "ui" | "library" | "channel" | "voice" | "maintenance";');
+		expect(settings).toContain('id: "maintenance"');
 		expect(settings).not.toContain("renderSchema(");
 		expect(settings).not.toContain("renderData(");
 		expect(settings).toContain('new Setting(c).setName("模块目录").setHeading();');

@@ -30,8 +30,10 @@ describe("Project scenes workflow v2", () => {
 		expect(css).toContain("--project-progress");
 	});
 
-	it("ranks important projects before the complete project map", () => {
-		expect(projectPage).toContain("priorityOrder");
+	it("sorts recent projects before the complete project map", () => {
+		expect(projectPage).toContain("b.latestMtime");
+		expect(projectPage).not.toContain("priorityOrder");
+		expect(projectPage).toContain("project.progress.sampled");
 		expect(projectPage).toContain("rankedProjects.slice(0, 4)");
 		expect(projectPage).toContain("project-v2-priority-row");
 		expect(projectPage).toContain("project-v2-entry-actions");

@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-
 // 单页原则（D-TLP-068）：页头两行、≥600px 保持两列、模块限高内滚、不定死整页高度。
 const root = fileURLToPath(new URL("../", import.meta.url));
 const css = readFileSync(`${root}styles.ui-v2.css`, "utf8");
@@ -9,8 +8,10 @@ const layer = css.slice(css.indexOf("单页原则（D-TLP-068"));
 const master = readFileSync(`${root}design-system/talos/MASTER.md`, "utf8");
 
 describe("one-screen principle", () => {
-	it("keeps the layer at the end of the source stylesheet so it wins the cascade", () => {
-		expect(css.indexOf("单页原则（D-TLP-068")).toBeGreaterThan(css.length * 0.9);
+	it("places the one-screen layer before the scoped dashboard overrides", () => {
+		const oneScreen = css.indexOf("单页原则（D-TLP-068");
+		expect(oneScreen).toBeGreaterThan(0);
+		expect(css.indexOf("系统总览：四张可钻取图表")).toBeGreaterThan(oneScreen);
 	});
 
 	it("compacts the page header into two rows without truncating actions", () => {
@@ -45,16 +46,16 @@ describe("one-screen principle", () => {
 		expect(master).toContain("功能模块尽量在一个页面显示");
 	});
 
-	it("merges secondary modules on today, daily and vault into tab groups", () => {
+	it("keeps the statistics dashboard in two columns and limits chart height", () => {
+		expect(css).toMatch(/\.talos-home-v3 \.talos-home-v3-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+		expect(css).toMatch(/\.talos-home-v3 \.talos-home-v3-chart \{[^}]*max-height:[^}]*overflow: auto/);
+		expect(css).toContain("@container (max-width: 599px)");
+	});
+
+	it("keeps the old daily route and vault support modules", () => {
 		const read = (path: string) => readFileSync(`${root}src/ui/pages/${path}`, "utf8");
-		const today = read("today-page.ts");
-		expect(today).toContain('groupKey: "today-status"');
-		expect(today).toContain('groupKey: "today-tools"');
-		for (const label of ["待决策", "任务进度", "TALOS 状态", "可执行动作", "快捷便签"]) expect(today).toContain(`label: "${label}"`);
-		expect(today).toContain("badge: pendingTotal");
 		const daily = read("daily-page.ts");
-		expect(daily).toContain('groupKey: "daily-support"');
-		for (const label of ["执行铁轨", "执行协议与入口", "周轮值表"]) expect(daily).toContain(`label: "${label}"`);
+		expect(daily).toContain("renderTodayPage(view, page, d)");
 		const vault = read("knowledge-pages.ts");
 		expect(vault).toContain('groupKey: "vault-structure"');
 		for (const label of ["系统模块地图", "笔记创建热力图"]) expect(vault).toContain(`label: "${label}"`);

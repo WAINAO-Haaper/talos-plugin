@@ -84,6 +84,23 @@ async function takeEvent(iterator: AsyncGenerator<AgentEvent>): Promise<AgentEve
 }
 
 describe("TALOS native execution coordinator", () => {
+	it("prepares a model change from an old snapshot without reverting title or lifecycle", async () => {
+		const fixture = fixtures(async function* (turn) {
+			yield createAgentEvent({ eventId: "done", conversationId: turn.conversationId, turnId: turn.turnId,
+				runtimeId: "codex", type: "turn.finished", timestamp: new Date().toISOString(), payload: {} });
+		});
+		const stale = await fixture.conversations.create();
+		await fixture.conversations.rename(stale.conversationId, "Manually named");
+		await fixture.conversations.archive(stale.conversationId);
+		for await (const event of fixture.execution.execute(stale, {
+			conversationId: stale.conversationId, input: [{ type: "text", text: "do not rename me" }],
+			model: "new-model", workflow: "plan", permissionMode: "ask", toolPolicy: { kind: "read-only" },
+		})) void event;
+		expect((await fixture.conversations.store.load(stale.conversationId)).manifest).toMatchObject({
+			title: "Manually named", lifecycle: "archived", selection: { runtimeId: "codex", model: "new-model" },
+		});
+	});
+
 	it("stages structured input, accepts on first provider event and preserves every request field", async () => {
 		let ledger!: ConversationInputLedger;
 		const observed: RuntimeTurn[] = [];
@@ -464,6 +481,37 @@ describe("TALOS native execution coordinator", () => {
 		await expect(duplicate.next()).rejects.toThrow("已有回合");
 		finishDispose();
 		await running;
+	});
+
+	it("keeps all streamed updates sharing a native parent id while dropping repeated event ids", async () => {
+		const fixture = fixtures(async function* (turn) {
+			for (const type of ["assistant.delta", "thinking.delta", "tool.updated", "plan.updated", "task.progress", "runtime.status"] as const) {
+				for (const sequence of [1, 2, 2]) {
+					yield createAgentEvent({
+						eventId: `${type}-${sequence}`,
+						conversationId: turn.conversationId,
+						turnId: turn.turnId,
+						runtimeId: "codex",
+						type,
+						timestamp: new Date().toISOString(),
+						nativeId: "shared-message-id",
+						payload: { text: String(sequence) },
+					});
+				}
+			}
+			yield createAgentEvent({ eventId: "finished", conversationId: turn.conversationId, turnId: turn.turnId,
+				runtimeId: "codex", type: "turn.finished", timestamp: new Date().toISOString(), payload: {} });
+		});
+		const conversation = await fixture.conversations.create();
+		const emitted: AgentEvent[] = [];
+		for await (const event of fixture.execution.execute(conversation, {
+			conversationId: conversation.conversationId,
+			input: [{ type: "text", text: "stream" }], workflow: "plan", permissionMode: "ask", toolPolicy: { kind: "read-only" },
+		})) emitted.push(event);
+
+		for (const type of ["assistant.delta", "thinking.delta", "tool.updated", "plan.updated", "task.progress", "runtime.status"] as const) {
+			expect(emitted.filter((event) => event.type === type).map((event) => event.payload.text)).toEqual(["1", "2"]);
+		}
 	});
 
 	it("deduplicates repeated native terminal frames even when their local event ids differ", async () => {

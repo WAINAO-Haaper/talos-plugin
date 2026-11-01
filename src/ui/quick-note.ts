@@ -3,7 +3,7 @@ import type { ConsoleActionRuntime } from "../console-action-runtime";
 export interface QuickNoteOptions {
 	parent: HTMLElement;
 	runtime: ConsoleActionRuntime;
-	targetFolder: string;
+	targetFolder: string | (() => string);
 	now?: () => Date;
 	onSaved?: (path: string) => void;
 }
@@ -52,13 +52,16 @@ export class QuickNote {
 
 	constructor(private readonly options: QuickNoteOptions) {}
 
-	mount(): HTMLElement {
-		if (this.root) return this.root;
-		const doc = this.options.parent.ownerDocument;
+	mount(parent = this.options.parent): HTMLElement {
+		if (this.root) {
+			parent.appendChild(this.root);
+			return this.root;
+		}
+		const doc = parent.ownerDocument;
 		const root = doc.createElement("section");
 		root.className = "talos-quick-note";
 		root.setAttribute("aria-label", "快捷便签");
-		this.options.parent.appendChild(root);
+		parent.appendChild(root);
 		this.root = root;
 
 		const textarea = doc.createElement("textarea");
@@ -135,7 +138,8 @@ export class QuickNote {
 		}
 
 		const date = this.options.now?.() || new Date();
-		const folder = this.options.targetFolder.replace(/\/+$/, "");
+		const targetFolder = typeof this.options.targetFolder === "function" ? this.options.targetFolder() : this.options.targetFolder;
+		const folder = targetFolder.replace(/\/+$/, "");
 		const targetPath = `${folder}/talos-quick-note-${pathStamp(date)}.md`;
 		this.saveButton.disabled = true;
 		this.undoButton.hidden = true;

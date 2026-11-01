@@ -6,6 +6,7 @@ import type { LensData } from "./lens-data";
 
 export type LensModuleId =
 	| "overview"
+	| "workbench"
 	| "collect"
 	| "knowledge"
 	| "projects"
@@ -27,20 +28,13 @@ export interface LensModule {
 }
 
 export const LENS_MODULES: readonly LensModule[] = [
-	{ id: "overview", title: "总览", icon: "house", tabs: [["today", "今日"], ["rhythm", "执行节奏"]] },
-	{ id: "collect", title: "收集", icon: "inbox", tabs: [["pending", "待处理"], ["backlog", "积压分布"]] },
-	{ id: "knowledge", title: "知识", icon: "library", tabs: [["insights", "洞察"], ["materials", "素材"], ["moc", "MOC"]] },
-	{ id: "projects", title: "项目", icon: "git-branch" },
-	{ id: "output", title: "输出", icon: "send", tabs: [["queue", "待发"], ["platforms", "平台"], ["ops", "运营候选"]] },
-	{ id: "identity", title: "身份", icon: "fingerprint", tabs: [["context", "身份上下文"], ["soul", "人格"]] },
-	{ id: "system", title: "系统", icon: "shield-check", tabs: [["health", "健康"], ["approvals", "审批"], ["capability", "能力"], ["vault", "全库"]] },
-	{ id: "assistant", title: "助手", icon: "message-square", external: true },
-	{ id: "voice", title: "屈原语音", icon: "audio-lines" },
+	{ id: "overview", title: "系统总览", icon: "house", tabs: [["today", "总览"]] },
+	{ id: "assistant", title: "语音助手", icon: "audio-lines", tabs: [["voice", "语音"], ["chat", "对话"], ["harness", "Harness"]] },
+	{ id: "workbench", title: "工作台", icon: "layout-dashboard", tabs: [["inbox", "资料"], ["projects", "项目与任务"], ["health", "系统与记忆"]] },
 	{ id: "preferences", title: "设置", icon: "settings", bottom: true },
 ];
 
-// 与 Lens 图标栏一致：总览、资料（知识）、项目、对话、屈原语音
-export const LENS_RAIL_SHORTCUTS: readonly LensModuleId[] = ["overview", "knowledge", "projects", "assistant", "voice"];
+export const LENS_RAIL_SHORTCUTS: readonly LensModuleId[] = ["overview", "assistant", "workbench"];
 
 export function lensModule(id: LensModuleId): LensModule {
 	const found = LENS_MODULES.find((module) => module.id === id);
@@ -65,6 +59,7 @@ export interface LensContext {
 	app: App;
 	data: LensData;
 	paths: VaultPaths;
+	tasksPath: string;
 	profileName: string;
 	state: LensState;
 	tab: string | null;
@@ -74,6 +69,10 @@ export interface LensContext {
 	openDrawer(path: string): void;
 	drawerPath(): string | null;
 	openChat(): void;
+	invokeCommand(command: string): void;
+	openHarness(): void;
+	renderDecisions(host: HTMLElement): void;
+	renderInbox(host: HTMLElement): void;
 	renderSettings(host: HTMLElement): void;
 	mountVoice(host: HTMLElement): void;
 	refresh(): void;

@@ -10,38 +10,35 @@ const read = (path: string) => readFileSync(`${root}src/${path}`, "utf8");
 const count = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
 
 describe("module integration", () => {
-	it("renders the approval and preference workspace in exactly one place: Today", () => {
+	it("keeps decision actions in the workbench and routes the dashboard summary there", () => {
 		expect(count(all, /view\.renderDecisionWorkspace\(/g)).toBe(1);
-		expect(read("ui/pages/today-page.ts")).toContain("view.renderDecisionWorkspace(decisionPanel, d, 3)");
+		expect(read("ui/pages/workbench-projects.ts")).toContain("view.renderDecisionWorkspace(decisions, d, 3)");
+		expect(read("ui/pages/today-page.ts")).not.toContain("renderDecisionWorkspace");
+		expect(read("ui/pages/today-page.ts")).toContain("view.openDecisions()");
 	});
 
-	it("draws the health trend only on the System health page", () => {
-		expect(count(all, /fillTrend\(view, /g)).toBe(1);
+	it("provides a dashboard health chart with a link to the health details", () => {
+		const today = read("ui/pages/today-page.ts");
+		expect(today).toContain('"系统健康趋势"');
+		expect(today).toContain('"health"');
 		expect(read("ui/pages/project-pages.ts")).toContain("fillTrend(view, trend, d.healthTrend)");
 	});
 
-	it("routes every other decision entry to Today · decisions instead of opening a second workspace", () => {
-		const view = read("view.ts");
-		expect(view).toContain("openDecisions(): void {");
-		expect(view).toContain('this.panelTabSelections.set("today-status", "decisions");');
-		const attention = read("ui/pages/overview-page.ts");
-		expect(count(attention, /target: "decisions"/g)).toBe(2);
-		expect(attention).toContain('if (item.target === "decisions") view.openDecisions();');
-		expect(read("ui/pages/today-page.ts")).toContain('if (primary.target === "decisions") view.openDecisions();');
+	it("routes decision links to the workbench task page", () => {
+		const source = read("view.ts");
+		expect(source).toContain("openDecisions(): void {");
+		expect(source).toContain('this.navigateToPage("tasks")');
+		expect(source).toContain('data-workbench-section="decisions"');
 		expect(read("ui/view-modules.ts")).toContain("stat.onActivate");
 	});
 
-	it("groups same-purpose secondary modules into tab groups on the integrated pages", () => {
-		const groups: Array<[string, string]> = [
-			["ui/pages/workspace-pages.ts", "inbox-overview"],
-			["ui/pages/project-pages.ts", "projects-scenes"],
-			["ui/pages/project-pages.ts", "health-diagnostics"],
-			["ui/pages/knowledge-pages.ts", "vault-structure"],
-		];
-		for (const [file, key] of groups) expect(read(file)).toContain(`groupKey: "${key}"`);
-		const projects = read("ui/pages/project-pages.ts");
-		expect(projects).toContain('label: "重点项目"');
-		expect(projects).toContain("label: `全部项目 ${d.projects.length}`");
+	it("groups related modules into three shared workbench surfaces", () => {
+		const workbench = read("ui/pages/workbench-page.ts");
+		for (const renderer of ["renderWorkbenchData", "renderWorkbenchProjects", "renderWorkbenchSystem"]) expect(workbench).toContain(renderer);
+		expect(workbench).not.toContain("workbench-subnav");
+		const projects = read("ui/pages/workbench-projects.ts");
+		expect(projects).toContain('"项目列表"');
+		expect(projects).toContain('data-workbench-section", "decisions"');
 	});
 
 	it("folds the capability group controls into the capability browser", () => {

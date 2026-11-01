@@ -907,8 +907,8 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   margin: 0;
 }
 
-.talos-console
-  .sidebar:not(:hover):not(:focus-within)
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
   .pagenav-card {
   padding: 0 !important;
   border: 0 !important;
@@ -918,11 +918,11 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   overflow: visible;
 }
 
-.talos-console
-  .sidebar:not(:hover):not(:focus-within)
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
   .pagenav-card::before,
-.talos-console
-  .sidebar:not(:hover):not(:focus-within)
+.talos-console .app:not(:has(> .main > .talos-page-tabs.is-assistant-navigation))
+  > .sidebar:not(:hover):not(:focus-within)
   .pagenav-card::after {
   display: none !important;
 }
@@ -1058,6 +1058,7 @@ body[data-talos-vault-theme] .talos-quyuan-shell
 
 .talos-console[data-talos-page="jarvis"] .page-content {
   display: flex !important;
+  flex-direction: column !important;
   flex: 1 1 auto !important;
   width: 100% !important;
   height: 100% !important;
@@ -1065,6 +1066,21 @@ body[data-talos-vault-theme] .talos-quyuan-shell
   max-height: 100% !important;
   padding: 0 !important;
   overflow: hidden !important;
+}
+
+/* 语音快捷入口与面板共用纵向空间；中间容器必须取得确定高度，
+   否则按容器高度计算的 TALOS Ball 会缩成零。 */
+.talos-console[data-talos-page="jarvis"] .talos-voice-shortcuts {
+  flex: 0 0 auto;
+}
+
+.talos-console[data-talos-page="jarvis"] .talos-voice-surface {
+  display: flex;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .talos-console[data-talos-page="jarvis"] .tq-voice {
@@ -1886,6 +1902,61 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 
 }
 
+/* 助手入口展开期间固定保留侧栏轨道，鼠标/焦点跨越时语音页签不移动。
+   百分比相对当前应用面板，窄分栏仍给主区保留可换行的操作空间。 */
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+  --tq-assistant-nav-min: 72px;
+  --tq-assistant-nav-max: 296px;
+  --tq-assistant-command-height: 48px;
+  grid-template-columns: clamp(var(--tq-assistant-nav-min), 45%, var(--tq-assistant-nav-max)) minmax(0, 1fr) !important;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar {
+  width: 100%;
+  transition: none;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card :is(.section-title, .nav-group-label) {
+  display: flex;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav-label {
+  display: block;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav {
+  align-items: stretch;
+  gap: 14px;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .nav-group {
+  width: auto;
+  justify-items: stretch;
+  gap: 6px;
+}
+
+.talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) > .sidebar .pagenav-card .command {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: var(--tq-assistant-command-height);
+  overflow: visible;
+}
+
+@media (max-width: 1080px) {
+  .talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+    --tq-assistant-nav-max: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .talos-console .app:has(> .main > .talos-page-tabs.is-assistant-navigation) {
+    --tq-assistant-nav-min: 54px;
+    --tq-assistant-command-height: 44px;
+  }
+}
+
 /* 控制台内嵌设置：复用 TalosSettingTab 的单一设置渲染与保存逻辑。 */
 .talos-console .talos-settings-nav-command {
   margin-top: 0 !important;
@@ -1902,7 +1973,7 @@ body[data-talos-vault-theme] .talos-console .tq-voice
 }
 
 .talos-console.section-settings .main > .hero,
-.talos-console.section-settings .main > .talos-page-tabs,
+.talos-console.section-settings .main > .talos-page-tabs:not(.is-assistant-navigation),
 .talos-console.section-settings .main > .cosmos-commandbar,
 .talos-console.section-settings .main > .footer {
   display: none !important;
@@ -3266,104 +3337,4 @@ body[data-talos-vault-theme] .talos-console .tq-voice .tq-btn.tq-send-btn:not(.t
 
 .talos-harness__error button:hover {
   background: var(--interactive-hover);
-}
-
-/* ===== D-TLP-015 · 对话页双通道切换器（DeepSeek ｜ Codex） ===== */
-/* iOS UISwitch 风格：无边框彩色轨道 + 白色圆形滑块，避免边框遮挡问题。
-   字号 12px 档（D-TLP-012）。 */
-.talos-harness-switcher {
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.talos-harness-switch {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 10px auto 6px;
-}
-
-.talos-harness-switch__option {
-  padding: 4px 2px;
-  font-size: 12px;
-  line-height: 1.4;
-  background: none;
-  border: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.18s ease;
-}
-
-.talos-harness-switch__option.is-active {
-  color: var(--interactive-accent);
-  font-weight: 700;
-}
-
-.talos-console .talos-harness-switch .talos-harness-switch__track {
-  position: relative;
-  flex: 0 0 auto;
-  box-sizing: border-box;
-  width: 54px;
-  height: 32px;
-  padding: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  /* 椭圆（胶囊）描边：结构性几何，!important 防 vault 主题把按钮压成直角 */
-  border: 2px solid var(--text-faint, var(--background-modifier-border));
-  border-radius: 999px !important;
-  background: var(--background-secondary);
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.talos-console .talos-harness-switch .talos-harness-switch__track.is-on {
-  background: var(--interactive-accent);
-  border-color: var(--interactive-accent);
-  /* 选中态加强： accent 光晕 + 投影 */
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--interactive-accent) 25%, transparent),
-    0 4px 14px color-mix(in srgb, var(--interactive-accent) 45%, transparent);
-}
-
-.talos-console .talos-harness-switch .talos-harness-switch__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50% !important;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  /* Apple 式回弹滑动 */
-  transition: transform 0.28s cubic-bezier(0.25, 0.9, 0.3, 1.08);
-  pointer-events: none;
-}
-
-.talos-console .talos-harness-switch .talos-harness-switch__track.is-on .talos-harness-switch__thumb {
-  transform: translateX(22px);
-}
-
-.talos-harness-switcher__body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.talos-harness-switcher__slot {
-  display: none;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.talos-harness-switcher__slot.is-active {
-  display: flex;
-  flex-direction: column;
 }

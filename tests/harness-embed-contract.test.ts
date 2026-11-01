@@ -11,7 +11,6 @@ import {
 	normalizeDshPort,
 } from "../src/harness/dsh-runtime";
 import { HARNESS_IFRAME_SANDBOX } from "../src/harness/harness-workbench";
-import { normalizeHarnessSurface } from "../src/harness/harness-switcher";
 import { pluginSource as readPluginSource, viewSource as readViewSource } from "./helpers/source-text";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -91,9 +90,7 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(view).toContain('case "harness": void this.pageChat(page); break;');
 		expect(view).toContain("getHarnessManager");
 		expect(readPluginSource()).toContain("TalosAgentWorkbench");
-		// D-TLP-034（2026-08-26 改写）：对话页为 DeepSeek Harness｜TALOS 智能体双通道，
-		// 恢复地址由 TALOS 原生 renderer 接管，
-		// 构造隔离代理不直接出现在 view.ts。
+		// 恢复地址由 TALOS 原生 renderer 接管；已移除的构造隔离代理不会重新进入视图。
 		expect(view).not.toContain("chatWorkbenchView");
 		expect(view).not.toContain("createConstructorIsolatedProxy");
 		expect(view).not.toContain('import type { ClaudianView }');
@@ -137,16 +134,4 @@ describe("harness embed contract (D-TLP-014)", () => {
 		expect(settings).toContain("DSH 保留独立对话面");
 	});
 
-	it("persists either selected channel without replacing it (D-TLP-015)", () => {
-		const settings = readSrc("src/settings.ts");
-		expect(settings).toContain("harnessSurface: string");
-		expect(settings).toContain('harnessSurface: "dsh"');
-		expect(normalizeHarnessSurface("codex")).toBe("codex");
-		expect(normalizeHarnessSurface("dsh")).toBe("dsh");
-		expect(normalizeHarnessSurface("nope")).toBe("dsh");
-		expect(normalizeHarnessSurface(undefined)).toBe("dsh");
-		const view = readViewSource();
-		expect(view).not.toContain("resolveInitialHarnessSurface");
-		expect(view).not.toContain("已自动切换到 Codex 工作台");
-	});
 });

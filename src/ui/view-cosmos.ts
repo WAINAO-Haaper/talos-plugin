@@ -111,7 +111,7 @@ export function renderCosmosStats(view: TalosView, d: Collected): void {
 	view.cosmosNodesEl.empty();
 	const capCount = d.capGroups.reduce((sum, g) => sum + g.items.length, 0);
 	const nodes = [
-		{ page: "output", icon: "send", label: "输出", value: d.output.metrics[0]?.value ?? String(d.warRoom.published), sub: "今日输出", ac: "#FB7185" },
+		{ page: "output", icon: "send", label: "输出", value: String(d.output.queue.length), sub: "待处理", ac: "#FB7185" },
 		{ page: "inbox", icon: "inbox", label: "收件箱", value: String(d.inbox.count), sub: "待处理", ac: "#FBBF24" },
 		{ page: "health", icon: "activity", label: "健康", value: d.overview.health.value, sub: "系统分", ac: "#34D399" },
 		{ page: "projects", icon: "folder", label: "项目", value: String(d.projects.length), sub: "进行中", ac: "#F59E0B" },
@@ -209,40 +209,11 @@ export function syncPixelScene(view: TalosView, d: Collected): void {
 		patrol.dataset.sceneTone = Number.isFinite(score) && score < 90 ? "hurt" : "";
 		patrol.dataset.sceneGlitch = String(broken > 0);
 	}
-	// 批次 2 · talos 闸门守卫：闸门位置均布轨道，done=常开绿灯 / ready=闪烁 /
-	// blocked=红灯闭合；--scene-progress = 当前闸门前站位（已过闸门比例推算）
-	if (view.activePage === "talos") {
-		const gateEls = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.gate"));
-		const gates = d.warRoom.gates.slice(0, gateEls.length);
-		const doneCount = gates.filter((g) => g.state === "done").length;
-		gateEls.forEach((el, i) => {
-			const gate = gates[i];
-			el.classList.toggle("is-on", Boolean(gate));
-			if (!gate) return;
-			el.style.left = `${(((i + 1) / (gates.length + 1)) * 100).toFixed(1)}%`;
-			el.classList.toggle("is-open", gate.state === "done");
-			el.classList.toggle("is-now", gate.state === "ready");
-			el.classList.toggle("is-blocked", gate.state === "blocked");
-		});
-		const progress = gates.length > 0
-			? (doneCount + 0.7) / (gates.length + 1)
-			: 0.4;
-		patrol.setCssProps({ "--scene-progress": progress.toFixed(3) });
-	}
-	// 批次 2 · output 发射指挥：待发队列 = 排队火箭（cap 5）；published 增加时
-	// 队首火箭一次性点火升空；stopTriggered → 红灯 + 小人举停止牌静止。
-	// lastPublished 只在 output 页更新，「发布后再进作战室」同样能看到升空。
+	// 输出动画只反映待处理条目，不依赖个人发布状态。
 	if (view.activePage === "output") {
 		const rockets = Array.from(patrol.querySelectorAll<HTMLElement>(".pixel-prop.rocket"));
 		const queued = Math.min(d.output.queue.length, rockets.length);
 		rockets.forEach((el, i) => el.classList.toggle("is-on", i < queued));
-		patrol.dataset.sceneTone = d.warRoom.stopTriggered ? "hot" : "";
-		const published = d.warRoom.published;
-		if (view.lastPublished !== undefined && published > view.lastPublished) {
-			const top = rockets.find((el) => el.classList.contains("is-on"));
-			top?.classList.add("is-launch");
-		}
-		view.lastPublished = published;
 	}
 	// 批次 3 · projects 工地巡视：P0 项目 = 发光集装箱（cap 3），小人戴安全帽巡检
 	if (view.activePage === "projects") {

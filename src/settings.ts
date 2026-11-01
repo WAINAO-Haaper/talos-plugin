@@ -102,7 +102,8 @@ export interface TalosSettings {
 	// 屈原语音助手
 	voiceAgentCommand: string; // 语音大脑命令，如 claude -p
 	voicePermission: string; // 工具权限：readonly | acceptEdits | all | off
-	voicePersona: string; // 人格前缀，留空用默认
+	voicePersona: string; // 人格前缀，留空用通用默认
+	voiceWakeWord: string; // 实时语音唤醒词，留空兼容原有默认
 	voiceLang: string; // TTS 语言，如 zh-CN
 	ttsVoice: string; // 指定 speechSynthesis 嗓音名，留空自动
 	ttsRate: number; // 朗读语速 0.5–2
@@ -219,6 +220,7 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	voiceAgentCommand: "",
 	voicePermission: "off",
 	voicePersona: "",
+	voiceWakeWord: "屈原",
 	voiceLang: "zh-CN",
 	ttsVoice: "",
 	ttsRate: 1.02,
@@ -303,7 +305,7 @@ type FreeTextSettingKey = Exclude<
 	| "quyuanVoiceSessionJson"
 >;
 
-type TabId = "ui" | "library" | "channel" | "voice";
+type TabId = "ui" | "library" | "channel" | "voice" | "maintenance";
 
 interface TalosSettingTabDefinition {
 	id: TabId;
@@ -334,9 +336,15 @@ const TALOS_SETTING_TABS: readonly TalosSettingTabDefinition[] = [
 	},
 	{
 		id: "voice",
-		label: "屈原 · 语音",
+		label: "语音",
 		description: "实时语音、查询与朗读",
 		icon: "audio-lines",
+	},
+	{
+		id: "maintenance",
+		label: "系统维护",
+		description: "状态、诊断与恢复",
+		icon: "shield-check",
 	},
 ]
 
@@ -389,7 +397,8 @@ export class TalosSettingTab extends PluginSettingTab {
 			if (active.id === "ui") this.renderUi(content);
 			else if (active.id === "library") this.renderLibrary(content);
 			else if (active.id === "channel") this.renderChannel(content);
-			else this.renderVoice(content);
+			else if (active.id === "voice") this.renderVoice(content);
+			else this.renderMaintenance(content);
 		};
 
 		const buttons: HTMLButtonElement[] = [];
@@ -570,64 +579,81 @@ export class TalosSettingTab extends PluginSettingTab {
 						this.rerender();
 					})
 			);
-		new Setting(c)
-			.setName("界面语言")
-			.setDesc("TALOS 经典控制台，或按 TALOS Lens 的布局与视觉语言重排的版本；两者共用同一份数据，切换立即生效。")
-			.addDropdown((d) =>
-				d
-					.addOption("classic", "TALOS 经典")
-					.addOption("lens", "Lens")
-					.setValue(this.plugin.talosSettings.uiLanguage)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.uiLanguage = normalizeUiLanguage(v);
-						await this.plugin.saveTalosSettings();
-						this.plugin.applyViewSettings();
-						this.rerender();
-					})
-			);
-		if (this.plugin.talosSettings.uiLanguage === "lens") {
+		if (this.plugin.talosSettings.consoleMode === "personal") {
 			new Setting(c)
-				.setName("Lens 外观")
-				.setDesc("Lens 界面语言的浅色或深色外观。")
+				.setName("界面语言")
+				.setDesc("TALOS 经典控制台，或按 TALOS Lens 的布局与视觉语言重排的版本；两者共用同一份数据，切换立即生效。")
 				.addDropdown((d) =>
 					d
-						.addOption("light", "浅色")
-						.addOption("dark", "深色")
-						.setValue(this.plugin.talosSettings.lensAppearance)
+						.addOption("classic", "TALOS 经典")
+						.addOption("lens", "Lens")
+						.setValue(this.plugin.talosSettings.uiLanguage)
 						.onChange(async (v) => {
-							this.plugin.talosSettings.lensAppearance = v === "dark" ? "dark" : "light";
+							this.plugin.talosSettings.uiLanguage = normalizeUiLanguage(v);
+							await this.plugin.saveTalosSettings();
+							this.plugin.applyViewSettings();
+							this.rerender();
+						})
+				);
+			if (this.plugin.talosSettings.uiLanguage === "lens") {
+				new Setting(c)
+					.setName("Lens 外观")
+					.setDesc("Lens 界面语言的浅色或深色外观。")
+					.addDropdown((d) =>
+						d
+							.addOption("light", "浅色")
+							.addOption("dark", "深色")
+							.setValue(this.plugin.talosSettings.lensAppearance)
+							.onChange(async (v) => {
+								this.plugin.talosSettings.lensAppearance = v === "dark" ? "dark" : "light";
+								await this.plugin.saveTalosSettings();
+								this.plugin.applyViewSettings();
+							})
+					);
+			}
+		}
+		this.textIn(c, "主标题", "今日页标题；Lens 界面用作问候语里的名字", "mainTitle");
+		if (this.plugin.talosSettings.consoleMode === "personal" && this.plugin.talosSettings.uiLanguage !== "lens") {
+			new Setting(c)
+				.setName("视觉风格")
+				.setDesc("八套 TALOS 视觉风格（经典界面）。")
+				.addDropdown((d) =>
+					d
+						.addOption("aurora", "Aurora 原版")
+						.addOption("cosmos-dark", "Nebula 深色宇宙稿")
+						.addOption("animal-island", "Animal Island 小岛主题")
+						.addOption("data-stream", "数据流 · 动态终端")
+						.addOption("soft-relief", "柔光浮雕 · Neumorphism")
+						.addOption("geometric-modern", "几何现代主义 · Bauhaus（默认）")
+						.addOption("executive-brief", "Executive Brief 商务简约（浅色）")
+						.addOption("paper-ink", "Paper 纸感墨水（浅色）")
+						.setValue(this.plugin.talosSettings.visualTheme)
+						.onChange(async (v) => {
+							this.plugin.talosSettings.visualTheme = normalizeVisualTheme(v);
 							await this.plugin.saveTalosSettings();
 							this.plugin.applyViewSettings();
 						})
 				);
+			this.toggleIn(c, "同步到整个库", "侧栏、标签页、编辑器与弹窗跟随 TALOS 主题；关闭即恢复 Obsidian 原主题。", "syncVaultTheme", () => this.plugin.applyViewSettings());
 		}
-		this.textIn(c, "主标题", "今日页标题；Lens 界面用作问候语里的名字", "mainTitle");
-		new Setting(c)
-			.setName("视觉风格")
-			.setDesc("八套 TALOS 视觉风格（经典界面）。")
-			.addDropdown((d) =>
-				d
-					.addOption("aurora", "Aurora 原版")
-					.addOption("cosmos-dark", "Nebula 深色宇宙稿")
-					.addOption("animal-island", "Animal Island 小岛主题")
-					.addOption("data-stream", "数据流 · 动态终端")
-					.addOption("soft-relief", "柔光浮雕 · Neumorphism")
-					.addOption("geometric-modern", "几何现代主义 · Bauhaus（默认）")
-					.addOption("executive-brief", "Executive Brief 商务简约（浅色）")
-					.addOption("paper-ink", "Paper 纸感墨水（浅色）")
-					.setValue(this.plugin.talosSettings.visualTheme)
-					.onChange(async (v) => {
-						this.plugin.talosSettings.visualTheme = normalizeVisualTheme(v);
-						await this.plugin.saveTalosSettings();
-						this.plugin.applyViewSettings();
-					})
-			);
-		this.toggleIn(c, "同步到整个库", "侧栏、标签页、编辑器与弹窗跟随 TALOS 主题；关闭即恢复 Obsidian 原主题。", "syncVaultTheme", () => this.plugin.applyViewSettings());
 
 		new Setting(c).setName("启动与提示").setHeading();
 		this.toggleIn(c, "启动时作为首页打开", "Obsidian 启动后自动打开 TALOS 控制台。", "openOnStartup");
 		this.toggleIn(c, "开屏彩蛋", "打开控制台时播放头像彩蛋与插件说明。", "welcomeEasterEgg");
-		this.toggleIn(c, "TALOS 状态桥", "只读 lili 生成的本地状态快照，显示当前焦点、主线与下一步。", "talosPeerStatusBridgeEnabled");
+	}
+
+	private renderMaintenance(c: HTMLElement): void {
+		new Setting(c).setName("插件状态").setDesc(`TALOS ${this.plugin.manifest.version} 已加载。`);
+		new Setting(c).setName("健康诊断").setDesc("查看最近的健康日志、错误记录和循环状态。")
+			.addButton((button) => button.setButtonText("查看健康").onClick(() => {
+				void this.plugin.openTalosPage(this.plugin.talosSettings.consoleMode === "superbrain" ? "sb-system" : "health");
+			}));
+		new Setting(c).setName("统计与只读检查").setDesc("进入工作台，展开统计检查后可刷新统计或运行只读检查。")
+			.addButton((button) => button.setButtonText("打开检查入口").onClick(() => {
+				void this.plugin.openTalosPage(this.plugin.talosSettings.consoleMode === "superbrain" ? "sb-system" : "tasks");
+			}));
+		this.toggleIn(c, "lili 状态桥（可选）", "仅支持读取 lili 生成的本地状态快照；关闭后不读取。未使用 lili 时可关闭。", "talosPeerStatusBridgeEnabled");
+		new Setting(c).setName("备份与恢复").setDesc("恢复时使用你已保存的备份；此处不会自动覆盖资料或设置。");
 	}
 
 	private toggleIn(
@@ -1019,12 +1045,13 @@ export class TalosSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(c).setName("朗读与人格").setHeading();
+		this.textIn(c, "唤醒词", "持续监听时用于唤醒语音；重开语音后生效。留空使用原有唤醒词「屈原」。", "voiceWakeWord", "屈原");
 		new Setting(c)
 			.setName("人格前缀")
-			.setDesc("注入到每次提问前的角色设定。留空用内置屈原人格（简洁、口语、便于朗读）。")
+			.setDesc("注入到每次提问前的角色设定。留空使用简洁、口语、便于朗读的通用语音助手。")
 			.addTextArea((t) => {
 				t
-					.setPlaceholder("你是屈原，Haaper 的语音助手……")
+					.setPlaceholder("你是一位简洁、清晰的语音助手……")
 					.setValue(this.plugin.talosSettings.voicePersona)
 					.onChange(async (v) => {
 						this.plugin.talosSettings.voicePersona = v;

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { ConversationManagementService } from "../src/agent-workbench/core/conversation-management-service";
 import { ConversationService } from "../src/agent-workbench/core/conversation-service";
+import type { ConversationManifest } from "../src/agent-workbench/contracts/conversation";
 import { ClaudianReadonlyImporter, type LegacyImportState, type LegacyReadAdapter } from "../src/agent-workbench/legacy/claudian-readonly-importer";
 import { PortableConversationStore, type PortableFileAdapter } from "../src/agent-workbench/storage/portable-conversation-store";
 
@@ -43,6 +44,186 @@ function syntheticLegacy() {
 }
 
 describe("ClaudianReadonlyImporter", () => {
+	it.each(["matching-source", "unknown-source", "conflicting-source"] as const)("handles an index publication failure with %s without claiming unrelated data", async (identity) => {
+		const legacy = new LegacyFiles(new Map([...syntheticLegacy().files].filter(([file]) => file.includes("/full."))));
+		const sourceBefore = legacy.digest();
+		const files = new MemoryPortableFiles();
+		const store = new PortableConversationStore(files);
+		const conversations = new ConversationService(store);
+		let state: LegacyImportState | null = null;
+		const stateWrites: LegacyImportState[] = [];
+		const stateHost = { read: async () => structuredClone(state), write: async (value: LegacyImportState) => {
+			state = structuredClone(value); stateWrites.push(structuredClone(value));
+		} };
+		const indexPath = ".talos/agent-workbench/v1/index.json";
+		const replace = files.replace.bind(files);
+		let manifestPublished = false;
+		let failIndex = true;
+		files.replace = async (from, to) => {
+			if (to === indexPath && manifestPublished && failIndex) {
+				failIndex = false;
+				throw new Error("synthetic index replace failure");
+			}
+			await replace(from, to);
+			if (to.endsWith("/manifest.json")) manifestPublished = true;
+		};
+		await expect(new ClaudianReadonlyImporter(legacy, conversations, stateHost).import()).rejects.toThrow("synthetic index replace failure");
+		expect(stateWrites).toEqual([]);
+		expect(await store.list()).toEqual([]);
+		const manifestPath = [...files.files.keys()].find((file) => file.endsWith("/manifest.json"));
+		if (!manifestPath) throw new Error("expected published manifest");
+		const saved = JSON.parse(files.files.get(manifestPath)!) as ConversationManifest;
+		const edited: ConversationManifest = {
+			...saved, title: "User title in unindexed manifest", lifecycle: "archived",
+			selection: { runtimeId: "ohmypi", model: "user-model" }, updatedAt: "2099-01-01T00:00:00.000Z",
+		};
+		if (identity === "unknown-source") delete edited.importedFrom;
+		if (identity === "conflicting-source") edited.importedFrom = { ...saved.importedFrom!, sourceDigest: "unrelated-source" };
+		const editedBytes = JSON.stringify(edited);
+		files.files.set(manifestPath, editedBytes);
+		const staleIndex = files.files.get(indexPath);
+		const reopened = new ConversationService(new PortableConversationStore(files));
+		const retry = new ClaudianReadonlyImporter(legacy, reopened, stateHost);
+		if (identity !== "matching-source") {
+			await expect(retry.import()).rejects.toThrow("来源身份不匹配");
+			expect(files.files.get(manifestPath)).toBe(editedBytes);
+			expect(files.files.get(indexPath)).toBe(staleIndex);
+			expect(stateWrites).toEqual([]);
+			expect([...files.files.keys()].filter((file) => file.includes("/events/") && file.endsWith(".json"))).toEqual([]);
+		} else {
+			expect(await retry.import()).toMatchObject({ full: 1, partial: 0, skipped: 0 });
+			const projection = await reopened.store.load(saved.conversationId);
+			expect(projection.manifest).toEqual(edited);
+			expect(projection.events.map((event) => event.payload.text)).toEqual(["synthetic question", "synthetic answer"]);
+			expect(projection.events.map((event) => event.runtimeId)).toEqual(["claude", "claude"]);
+			expect(await reopened.store.list()).toEqual([edited]);
+			expect(stateWrites).toHaveLength(1);
+			expect(await retry.import()).toMatchObject({ skipped: 1, full: 0 });
+			expect((await reopened.store.load(saved.conversationId)).events).toEqual(projection.events);
+		}
+		expect(legacy.digest()).toBe(sourceBefore);
+	});
+
+	it.each(["before-write", "after-write"] as const)("resumes an import interrupted %s without duplicating events or reverting user fields", async (failurePoint) => {
+		const legacy = new LegacyFiles(new Map([...syntheticLegacy().files].filter(([file]) => file.includes("/full."))));
+		legacy.files.set(".talos/quyuan/sessions/full.messages.json", JSON.stringify([
+			{ id: "u1", role: "user", content: "Keep this question", timestamp: 1_700_000_000_100 },
+			{ id: "a1", role: "assistant", content: "inspect /etc/passwd", timestamp: 1_700_000_000_200 },
+		]));
+		const sourceBefore = legacy.digest();
+		const files = new MemoryPortableFiles();
+		const store = new PortableConversationStore(files);
+		const conversations = new ConversationService(store);
+		let state: LegacyImportState | null = null;
+		const stateWrites: LegacyImportState[] = [];
+		const stateHost = { read: async () => structuredClone(state), write: async (value: LegacyImportState) => {
+			state = structuredClone(value);
+			stateWrites.push(structuredClone(value));
+		} };
+		const append = conversations.append.bind(conversations);
+		let interrupt = true;
+		conversations.append = async (input) => {
+			if (interrupt) {
+				interrupt = false;
+				if (failurePoint === "after-write") await append(input);
+				throw new Error("synthetic interruption");
+			}
+			return append(input);
+		};
+		await expect(new ClaudianReadonlyImporter(legacy, conversations, stateHost).import()).rejects.toThrow("synthetic interruption");
+		expect(state).toBeNull();
+		const [incomplete] = await store.list();
+		expect((await store.load(incomplete.conversationId)).events).toHaveLength(failurePoint === "after-write" ? 1 : 0);
+		// Earlier versions could publish full before discovering redacted content.
+		files.files.set(`.talos/agent-workbench/v1/conversations/${incomplete.conversationId}/manifest.json`, JSON.stringify({
+			...incomplete, importedFrom: { ...incomplete.importedFrom, transcript: "full" },
+		}));
+		await conversations.rename(incomplete.conversationId, "User title after interruption");
+		await conversations.archive(incomplete.conversationId);
+		await store.patchManifest(incomplete.conversationId, { selection: { runtimeId: "ohmypi", model: "user-model" } }, "2099-01-01T00:00:00.000Z");
+		const reopened = new ConversationService(new PortableConversationStore(files));
+		const importer = new ClaudianReadonlyImporter(legacy, reopened, stateHost);
+		expect(await importer.import()).toMatchObject({ full: 0, partial: 1, skipped: 0 });
+		const projection = await reopened.store.load(incomplete.conversationId);
+		expect(projection.manifest).toMatchObject({
+			title: "User title after interruption", lifecycle: "archived", updatedAt: "2099-01-01T00:00:00.000Z",
+			selection: { runtimeId: "ohmypi", model: "user-model" },
+			importedFrom: { ...incomplete.importedFrom, transcript: "partial" },
+		});
+		expect(projection.events.map((event) => event.payload.text)).toEqual(["Keep this question", "inspect [本机路径已省略]"]);
+		expect(projection.events.map((event) => event.runtimeId)).toEqual(["claude", "claude"]);
+		expect(new Set(projection.events.map((event) => event.eventId)).size).toBe(2);
+		expect(await reopened.store.list()).toHaveLength(1);
+		expect(Object.values(stateWrites.at(-1)?.imports ?? {})).toHaveLength(1);
+		expect(await importer.import()).toMatchObject({ full: 0, partial: 0, skipped: 1 });
+		expect(await reopened.store.load(incomplete.conversationId)).toEqual(projection);
+		expect(legacy.digest()).toBe(sourceBefore);
+	});
+
+	it("fails closed on conflicting replay content without marking an interrupted import complete", async () => {
+		const legacy = new LegacyFiles(new Map([...syntheticLegacy().files].filter(([file]) => file.includes("/full."))));
+		const sourceBefore = legacy.digest();
+		const files = new MemoryPortableFiles();
+		const conversations = new ConversationService(new PortableConversationStore(files));
+		let state: LegacyImportState | null = null;
+		const stateHost = { read: async () => structuredClone(state), write: async (value: LegacyImportState) => { state = structuredClone(value); } };
+		const append = conversations.append.bind(conversations);
+		conversations.append = async (input) => { await append(input); throw new Error("synthetic interruption"); };
+		await expect(new ClaudianReadonlyImporter(legacy, conversations, stateHost).import()).rejects.toThrow("synthetic interruption");
+		const eventPath = [...files.files.keys()].find((file) => file.includes("/events/") && file.endsWith(".json"));
+		if (!eventPath) throw new Error("expected persisted event");
+		const conflicting = JSON.parse(files.files.get(eventPath)!) as { payload: { text: string } };
+		conflicting.payload.text = "Conflicting saved content";
+		const conflictingBytes = JSON.stringify(conflicting);
+		files.files.set(eventPath, conflictingBytes);
+		const reopened = new ConversationService(new PortableConversationStore(files));
+		await expect(new ClaudianReadonlyImporter(legacy, reopened, stateHost).import()).rejects.toThrow("eventId 内容冲突");
+		expect(state).toBeNull();
+		expect(files.files.get(eventPath)).toBe(conflictingBytes);
+		expect([...files.files.keys()].filter((file) => file.includes("/events/") && file.endsWith(".json"))).toHaveLength(1);
+		expect(legacy.digest()).toBe(sourceBefore);
+	});
+
+	it("publishes final transcript metadata once and preserves changes made while appending history", async () => {
+		const legacy = new LegacyFiles(new Map([
+			[".talos/quyuan/sessions/import.meta.json", JSON.stringify({
+				id: "import", title: "Original", createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
+			})],
+			[".talos/quyuan/sessions/import.messages.json", JSON.stringify([
+				{ id: "u1", role: "user", content: "Keep this history", timestamp: 1_700_000_002_000 },
+				{ id: "a1", role: "assistant", content: "inspect /etc/passwd", timestamp: 1_700_000_003_000 },
+			])],
+		]));
+		const before = legacy.digest();
+		const conversations = new ConversationService(new PortableConversationStore(new MemoryPortableFiles()), {
+			now: () => "2099-01-01T00:00:00.000Z", id: () => "unused",
+		});
+		let state: LegacyImportState | null = null;
+		const append = conversations.append.bind(conversations);
+		let first = true;
+		conversations.append = async (input) => {
+			if (first) {
+				first = false;
+				expect((await conversations.store.load(input.conversationId)).manifest.importedFrom?.transcript).toBe("partial");
+				await conversations.rename(input.conversationId, "User title");
+				await conversations.archive(input.conversationId);
+			}
+			return append(input);
+		};
+		const importer = new ClaudianReadonlyImporter(legacy, conversations, {
+			read: async () => state, write: async (value) => { state = structuredClone(value); },
+		});
+		expect(await importer.import()).toMatchObject({ full: 0, partial: 1, skipped: 0, corrupt: 0 });
+		const [manifest] = await conversations.store.list();
+		expect(manifest).toMatchObject({ title: "User title", lifecycle: "archived",
+			updatedAt: "2099-01-01T00:00:00.000Z", importedFrom: { transcript: "partial" } });
+		const projection = await conversations.store.load(manifest.conversationId);
+		expect(projection.events.map((event) => event.payload.text)).toEqual(["Keep this history", "inspect [本机路径已省略]"]);
+		expect(await importer.import()).toMatchObject({ partial: 0, skipped: 1 });
+		expect((await conversations.store.list())[0]).toEqual(manifest);
+		expect(legacy.digest()).toBe(before);
+	});
+
 	it("imports full/partial data idempotently while preserving every legacy byte", async () => {
 		const legacy = syntheticLegacy(); const before = legacy.digest();
 		const conversations = new ConversationService(new PortableConversationStore(new MemoryPortableFiles()), { now: () => "2026-08-26T00:00:00.000Z", id: () => "generated" });

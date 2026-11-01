@@ -17,11 +17,22 @@ const { greeting, freshness, stageIndex, label } = await import("../src/ui/lens/
 const { LENS_MODULES, LENS_RAIL_SHORTCUTS, defaultTab } = await import("../src/ui/lens/lens-pages");
 const { summarizeMarkdown } = await import("../src/ui/lens/lens-drawer");
 const { buildLensFocus } = await import("../src/ui/lens/lens-data");
+const { recentHeatCells } = await import("../src/ui/lens/lens-library");
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
 
 describe("Lens interface language", () => {
+	it("limits recent creation activity to local today across month boundaries", () => {
+		const cells = [
+			...Array.from({ length: 15 }, (_, i) => ({ date: `2026-10-${String(i + 17).padStart(2, "0")}`, count: 0, level: 0 as const })),
+			...Array.from({ length: 6 }, (_, i) => ({ date: `2026-11-${String(i + 1).padStart(2, "0")}`, count: i, level: 0 as const })),
+		];
+		const days = recentHeatCells([{ label: "fixture", weeks: [cells] }], new Date(2026, 10, 1, 9));
+		expect(days).toHaveLength(14);
+		expect(days[0].date).toBe("2026-10-19");
+		expect(days.at(-1)?.date).toBe("2026-11-01");
+	});
 	it("is an opt-in setting that falls back to the classic console", () => {
 		expect(normalizeUiLanguage("lens")).toBe("lens");
 		expect(normalizeUiLanguage(undefined)).toBe("classic");
@@ -32,13 +43,14 @@ describe("Lens interface language", () => {
 		expect(read("src/main.ts")).toContain('this.talosSettings.uiLanguage === "lens"');
 	});
 
-	it("organises modules around the vault's own features with Lens's five rail shortcuts", () => {
-		expect(LENS_MODULES.map((m) => m.title)).toEqual(["总览", "收集", "知识", "项目", "输出", "身份", "系统", "助手", "屈原语音", "设置"]);
-		expect(LENS_RAIL_SHORTCUTS).toEqual(["overview", "knowledge", "projects", "assistant", "voice"]);
-		expect(LENS_MODULES.find((m) => m.id === "assistant")?.external).toBe(true);
+	it("organises overview, voice and the compact workbench like the classic interface", () => {
+		expect(LENS_MODULES.map((m) => m.title)).toEqual(["系统总览", "语音助手", "工作台", "设置"]);
+		expect(LENS_RAIL_SHORTCUTS).toEqual(["overview", "assistant", "workbench"]);
+		expect(LENS_MODULES.find((m) => m.id === "workbench")?.tabs?.map(([id]) => id)).toEqual(["inbox", "projects", "health"]);
+		expect(LENS_MODULES.find((m) => m.id === "assistant")?.tabs?.map(([id]) => id)).toEqual(["voice", "chat", "harness"]);
 		expect(defaultTab("overview")).toBe("today");
-		expect(defaultTab("system")).toBe("health");
-		expect(defaultTab("projects")).toBeNull();
+		expect(defaultTab("workbench")).toBe("inbox");
+		expect(defaultTab("assistant")).toBe("voice");
 	});
 
 	it("uses Lens's own wording for greetings, freshness, stages and statuses", () => {
@@ -87,13 +99,13 @@ describe("Lens interface language", () => {
 		const view = read("src/view.ts");
 		expect(view).toContain("if (this.usesLens) {\n\t\t\tthis.buildLensShell();");
 		expect(view).toContain("this.lens.setData(this.data, this.peerStatus);");
-		expect(view).toContain('inbox: "collect"');
+		expect(view).toContain('inbox: "workbench"');
 		expect(view).toContain('settings: "preferences"');
-		expect(view).toContain('jarvis: "voice"');
+		expect(view).toContain('jarvis: "assistant"');
 		expect(view).toContain("mountVoice: (host) => void this.mountLensVoice(host),");
 		const shell = read("src/ui/lens/lens-console.ts");
-		expect(shell).toContain('if (this.location.module === "voice" && module !== "voice") this.host.unmountVoice();');
-		expect(shell).toContain('if (this.location.module === "voice" && !first) return;');
+		expect(shell).toContain('if (isVoice(this.location) && !isVoice(next)) this.host.unmountVoice();');
+		expect(shell).toContain('if (isVoice(this.location) && !first) return;');
 		expect(view).toContain("void this.rebuildShell();");
 		const console = read("src/ui/lens/lens-console.ts");
 		expect(console).toContain('el(doc, "div", { id: LENS_ROOT_ID, "data-motion": "on" }, windowEl)');

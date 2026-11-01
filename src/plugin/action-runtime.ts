@@ -1,11 +1,12 @@
 // TALOS 插件控制台动作运行时装配；由 TalosPlugin 委托调用。
 import { type ConsoleActionRuntime, createConsoleActionRuntime } from "../console-action-runtime";
-import { Notice, TFile, normalizePath } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import { TRIAGE_TARGET_KEYS } from "../inbox-triage";
 import { VaultRecoveryStore } from "../task-core/recovery-store";
 import { createWindowTimerHost, partialTaskResult } from "../task-core/task-runner";
 import type TalosPlugin from "../main";
 import { ensureVaultFolder } from "./quyuan-diagnostics";
+import { revealChatSidebar } from "./chat-sidebar-view";
 
 export function createTalosActionRuntime(plugin: TalosPlugin): ConsoleActionRuntime {
 	const actionTimers = createWindowTimerHost(activeWindow);
@@ -40,33 +41,17 @@ export function createTalosActionRuntime(plugin: TalosPlugin): ConsoleActionRunt
 				return { refreshed: true };
 			},
 			vaultLint: async () => {
-				const notes = plugin.app.vault.getMarkdownFiles();
-				const missingFrontmatter = notes.filter(
-					(file) =>
-						!plugin.app.metadataCache.getFileCache(file)?.frontmatter
-				).length;
-				new Notice(
-					`只读 Lint：扫描 ${notes.length} 篇，缺 frontmatter ${missingFrontmatter} 篇`
-				);
-				if (missingFrontmatter > 0) {
-					return partialTaskResult({
-						result: {
-							notes: notes.length,
-							missingFrontmatter,
-						},
-						error: `${missingFrontmatter} 篇笔记缺少 frontmatter`,
-					});
-				}
-				return { notes: notes.length, missingFrontmatter };
+				const { vaultLint } = await import("../actions");
+				const result = vaultLint(plugin.app);
+				const missing = result.missingFrontmatter + result.missingTags + result.missingStatus;
+				return missing > 0
+					? partialTaskResult({ result, error: `发现 ${missing} 项元数据问题` })
+					: result;
 			},
+			// 保留旧 actionId 的风险合同，但不再启动独立命令或写研究报告。
 			deepResearch: async (_input, context) => {
-				const { deepResearch } = await import("../actions");
-				await deepResearch(
-					plugin.app,
-					plugin.talosSettings,
-					context.signal
-				);
-				return { requested: true };
+				const { openResearchWorkbench } = await import("../actions");
+				return openResearchWorkbench(() => revealChatSidebar(plugin.app.workspace), context.signal);
 			},
 			createNote: async (input) => {
 				if (

@@ -30,18 +30,6 @@ const sdkNodeTimersShim = {
 	},
 };
 
-// 经审计的第三方浏览器运行时以文本快照进入 bundle，再由专用 Worker 执行。
-// 仅匹配仓库内的 *.vendor.txt；运行时不解析 URL、不下载或执行远程 JavaScript。
-const staticVendorText = {
-	name: 'static-vendor-text',
-	setup(build) {
-		build.onLoad({ filter: /\.vendor\.txt$/ }, async (args) => ({
-			contents: await readFile(args.path, 'utf8'),
-			loader: 'text',
-		}));
-	},
-};
-
 const banner = `/*
 TALOS PERSONAL USE SOURCE LICENSE 1.0
 Copyright (c) 2026 外脑玩家 Haaper.
@@ -118,7 +106,6 @@ const contexts = await Promise.all([
 	esbuild.context({
 		...shared,
 		entryPoints: ['src/main.ts'],
-		plugins: [staticVendorText],
 		outfile: 'main.js',
 	}),
 	esbuild.context({

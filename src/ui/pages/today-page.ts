@@ -1,16 +1,14 @@
 // TALOS「今日」页：现在做什么、需要处理什么、待决策与任务进度，一屏取齐。
 // 2026-10-07 导航重构：合并原工作台与每日执行的首屏信息；健康趋势、知识分布等
 // 只在各自主场页（系统 / 内容流）出现，这里只保留带跳转的提醒。
-import { mountPanelTabs } from "../panel-tabs";
-import type { Collected, OverviewAttention } from "../talos-view-model";
+import type { Collected } from "../talos-view-model";
 import { WEEKDAYS } from "../talos-view-model";
 import { ConsoleActionPanel } from "../console-action-panel";
 import { QuickNote } from "../quick-note";
 import { openFile } from "../../actions";
-import { setIcon } from "obsidian";
 import type { TalosView } from "../../view";
-import { moduleHero, overviewToneColor } from "../view-modules";
-import { collectOverviewAttention, renderOverviewAttentionRows } from "./overview-page";
+import { moduleHero } from "../view-modules";
+import { CONTENT_KEYS } from "../../data/schema";
 
 export interface TodayTimelineSlot {
 	time: string;
@@ -31,206 +29,167 @@ export function pickTodaySlots<T extends TodayTimelineSlot>(
 	return { current, next };
 }
 
-function renderSlot(view: TalosView, parent: HTMLElement, tag: string, slot: TodayTimelineSlot): void {
-	const item = parent.createDiv({ cls: "today-v1-slot daily-item" });
-	item.createSpan({ cls: "today-v1-slot__tag", text: tag });
-	const body = item.createDiv({ cls: "today-v1-slot__body" });
-	body.createEl("b", { text: `${slot.time} · ${slot.title}` });
-	body.createEl("small", { text: slot.starter });
-	item.setAttribute("role", "button");
-	item.setAttribute("tabindex", "0");
-	item.addEventListener("click", () => void openFile(view.app, slot.path));
-}
-
 export function renderTodayPage(view: TalosView, page: HTMLElement, d: Collected): void {
-	const now = new Date();
-	const attention = collectOverviewAttention(view, d);
-	const focusItem = d.focus[0];
-	const primary: OverviewAttention = attention[0] || {
-		title: focusItem?.title || "今日焦点尚未设置",
-		meta: focusItem?.doneWhen
-			? `done_when · ${focusItem.doneWhen}`
-			: "从 tasks.md 读取",
-		detail:
-			focusItem?.desc ||
-			"先运行 /morning，写下今天唯一胜利条件，再进入执行。",
-		action: focusItem ? "打开今日焦点" : "打开任务池",
-		path: focusItem?.path || view.plugin.talosSettings.tasksPath,
-		icon: focusItem ? "target" : "calendar-plus",
-		tone: focusItem ? "default" : "warn",
+	const root = page.createDiv({ cls: "talos-home-v3" });
+	const folderExists = (path: string): boolean => {
+		const item = view.app.vault.getAbstractFileByPath(path);
+		return !!item && "children" in item;
 	};
-	const pendingTotal = d.approvals.length + d.candidates.length;
+	const availableContent = CONTENT_KEYS.filter((key) => folderExists(view.paths.dir(key))).length;
+	const contentComplete = availableContent === CONTENT_KEYS.length;
+	const inboxReady = folderExists(view.plugin.talosSettings.inboxFolder);
+	const projectsReady = folderExists(view.paths.dir("projects"));
+	const tasksReady = d.setup?.tasksPath === "ok";
+	const healthReady = d.setup?.healthLogPath === "ok";
+	const approvalsReady = d.setup?.pendingApprovalsPath === "ok";
+	const candidatesReady = d.setup?.candidatesPath === "ok";
+	const pending = (approvalsReady ? d.approvals.length : 0) + (candidatesReady ? d.candidates.length : 0);
+	const pendingText = approvalsReady && candidatesReady ? String(pending) : approvalsReady || candidatesReady ? `≥${pending}` : "—";
+	const now = new Date();
 	const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 · 周${WEEKDAYS[now.getDay()]}`;
-
-	moduleHero(view, page, {
-		ac: "#F59E0B",
-		icon: "sun",
-		eyebrow: `${view.plugin.talosSettings.mainTitle} · ${dateLabel}`,
-		title: "今日",
-		desc: focusItem?.doneWhen
-			? `唯一胜利：${focusItem.doneWhen}`
-			: "先跑 /morning，写下今天唯一的胜利条件。",
+	const latestHealth = healthReady ? d.healthTrend.at(-1) : undefined;
+	moduleHero(view, root, {
+		ac: "#F59E0B", icon: "layout-dashboard", eyebrow: `TALOS · ${dateLabel}`,
+		title: "系统总览", desc: "用图表查看资料、工作和系统健康。", metricLimit: 5,
 		stats: [
-			{
-				label: "今日执行",
-				value: d.overview.taskFlow.value,
-				sub: d.overview.taskFlow.sub,
-				path: view.plugin.talosSettings.tasksPath,
-				tone: d.overview.taskFlow.tone,
-			},
-			{
-				label: "待决策",
-				value: String(pendingTotal),
-				sub: "审批与偏好确认",
-				path: view.plugin.talosSettings.pendingApprovalsPath,
-				tone: pendingTotal > 0 ? "warn" : "good",
-			},
-			{
-				label: "收件积压",
-				value: String(d.inbox.count),
-				sub: d.inbox.count > 0 ? `最老 ${d.inbox.oldestDays} 天` : "已清空",
-				path: view.paths.readme("inbox"),
-				tone: d.inbox.oldestDays >= 14 ? "hot" : d.inbox.count > 0 ? "warn" : "good",
-			},
-		],
-		actions: [
-			{ label: "开工", icon: "play", command: "开工" },
-			{ label: "晨间", icon: "sunrise", command: "/morning" },
-			{ label: "收工", icon: "moon", command: "收工" },
+			{ label: "知识笔记", value: availableContent === 0 ? "—" : `${contentComplete ? "" : "≥"}${d.total}`, sub: contentComplete ? "六大内容目录 · Markdown" : "部分内容目录未配置", onActivate: () => view.navigateToPage("knowledge") },
+			{ label: "收件积压", value: inboxReady ? String(d.inbox.count) : "—", sub: inboxReady ? "收件目录 · 文件创建时间" : "收件目录未配置", onActivate: () => view.navigateToPage("inbox") },
+			{ label: "项目", value: projectsReady ? String(d.projects.length) : "—", sub: projectsReady ? "项目目录的一级文件夹" : "项目目录未配置", onActivate: () => view.navigateToPage("projects") },
+			{ label: "任务池完成", value: tasksReady ? d.overview.taskFlow.value : "—", sub: tasksReady ? d.overview.taskFlow.sub : "任务池未配置或格式待检查", onActivate: () => view.navigateToPage("tasks") },
+			{ label: "最近健康记录", value: latestHealth ? String(latestHealth.score) : "—", sub: latestHealth ? `健康日志 · ${latestHealth.label}` : "健康日志未就绪或无记录", onActivate: () => view.navigateToPage("health") },
 		],
 	});
 
-	const grid = page.createDiv({ cls: "today-v1-grid" });
-	grid.setAttribute("data-today-section", "primary");
-
-	const minsNow = now.getHours() * 60 + now.getMinutes();
-	const { current, next } = pickTodaySlots(view.dailyTimeline(), minsNow);
-	const nowPanel = view.panel(
-		grid,
-		"#4D8DFF",
-		"现在做什么",
-		current ? `${current.time} 起 · ${current.dur} 分钟` : "当前不在执行时段"
-	);
-	nowPanel.setAttribute("data-today-section", "now");
-	if (current) renderSlot(view, nowPanel, "现在", current);
-	if (next) renderSlot(view, nowPanel, "下一段", next);
-	if (!current && !next) {
-		nowPanel.createDiv({ cls: "empty", text: "今日节奏已结束 · 收工回填" });
+	const grid = root.createDiv({ cls: "talos-home-v3-grid" });
+	grid.setAttribute("aria-label", "系统统计图表");
+	const distribution = homePanel(view, grid, "#34D399", "资料分布", contentComplete ? "六大内容目录 · Markdown 文件" : "部分内容目录未配置 · 仅显示已找到的目录", null);
+	const bars = distribution.createDiv({ cls: "talos-home-v3-bars" });
+	const maxCount = Math.max(1, ...d.dist.map((item) => item.count));
+	for (const [index, item] of d.dist.entries()) {
+		const key = CONTENT_KEYS[index];
+		const ready = key !== undefined && folderExists(view.paths.dir(key));
+		const row = bars.createEl("button", { cls: "talos-home-v3-bar", attr: { type: "button" } });
+		row.disabled = !ready;
+		row.setAttribute("aria-label", `${item.name}：${ready ? `${item.count} 篇，打开详情` : "目录未配置"}`);
+		row.addEventListener("click", () => {
+			if (key === "inbox") view.navigateToPage("inbox");
+			else if (key === "projects") view.navigateToPage("projects");
+			else if (key === "insights" || key === "assets") view.navigateToPage("knowledge");
+			else if (key === "logs" || key === "archive") void openFile(view.app, item.readme);
+		});
+		row.createSpan({ text: item.name });
+		const track = row.createDiv({ cls: "talos-home-v3-bar-track" });
+		track.createSpan().style.width = `${ready ? Math.round(item.count / maxCount * 100) : 0}%`;
+		row.createEl("b", { text: ready ? String(item.count) : "—" });
 	}
-	const focusList = nowPanel.createDiv({ cls: "today-v1-focus-list" });
-	focusList.createEl("small", { cls: "today-v1-label", text: "当前焦点" });
-	if (d.focus.length === 0) {
-		focusList.createDiv({ cls: "empty", text: "tasks.md 暂无活跃焦点" });
+	if (availableContent === 0) bars.createDiv({ cls: "empty", text: "内容目录未配置" });
+
+	const heat = homePanel(view, grid, "#A78BFA", "资料活跃情况", "近12个月 · 文件创建时间，迁移可能改变日期", "knowledge");
+	const heatWrap = heat.createDiv({ cls: "talos-home-v3-heat" });
+	heatWrap.setAttribute("role", "img");
+	heatWrap.setAttribute("aria-label", `笔记创建热力图：${d.heatmap.meta}`);
+	const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+	for (const month of d.heatmap.months) {
+		const monthEl = heatWrap.createDiv({ cls: "talos-home-v3-month" });
+		monthEl.createEl("small", { text: month.label });
+		const weeks = monthEl.createDiv({ cls: "talos-home-v3-weeks" });
+		for (const week of month.weeks) {
+			const weekEl = weeks.createDiv({ cls: "talos-home-v3-week" });
+			for (const cell of week) {
+				const cellEl = weekEl.createDiv({ cls: "talos-home-v3-cell" });
+				if (!cell.date || cell.date > today) cellEl.addClass("is-empty");
+				else { cellEl.setAttribute("data-level", String(cell.level)); cellEl.setAttribute("title", `${cell.date} · ${cell.count} 篇`); }
+			}
+		}
 	}
-	for (const focus of d.focus.slice(0, 3)) {
-		const row = focusList.createDiv({ cls: `today-v1-focus focus tone-${focus.level}` });
-		row.createEl("b", { text: focus.title });
-		if (focus.doneWhen) row.createEl("small", { text: `done_when · ${focus.doneWhen}` });
-		const target = focus.path || view.plugin.talosSettings.tasksPath;
-		row.addEventListener("click", () => void openFile(view.app, target));
+	heat.createEl("small", { cls: "talos-home-v3-note", text: d.heatmap.meta });
+
+	const age = homePanel(view, grid, "#F59E0B", "收件积压年龄", "收件目录 · 按文件创建时间", "inbox");
+	if (!inboxReady) age.createDiv({ cls: "empty", text: "收件目录未配置" });
+	else if (d.inbox.count === 0) age.createDiv({ cls: "empty", text: "收件箱没有积压" });
+	else {
+		const track = age.createDiv({ cls: "talos-home-v3-age-track" });
+		track.setAttribute("role", "img");
+		track.setAttribute("aria-label", `收件年龄分布：${d.inbox.ageBuckets.map((item) => `${item.label} ${item.count}篇`).join("，")}`);
+		for (const bucket of d.inbox.ageBuckets) {
+			if (!bucket.count) continue;
+			const segment = track.createSpan({ cls: `tone-${bucket.tone}` });
+			segment.style.width = `${bucket.count / d.inbox.count * 100}%`;
+		}
+		const legend = age.createDiv({ cls: "talos-home-v3-age-legend" });
+		for (const bucket of d.inbox.ageBuckets) {
+			const label = legend.createSpan({ cls: `tone-${bucket.tone}` });
+			label.createEl("i"); label.createSpan({ text: `${bucket.label} · ${bucket.count}` });
+		}
+		age.createEl("small", { cls: "talos-home-v3-note", text: `共 ${d.inbox.count} 篇 · 最老 ${d.inbox.oldestDays} 天 · 迁移可能改变日期` });
 	}
 
-	const attentionPanel = view.panel(
-		grid,
-		overviewToneColor(view, primary.tone),
-		"需要你处理",
-		attention.length > 0
-			? `${attention.length} 项需要处理`
-			: "当前没有阻塞性异常"
-	);
-	attentionPanel.addClass("overview-v2-attention-panel");
-	attentionPanel.setAttribute("data-today-section", "attention");
-	const priority = attentionPanel.createDiv({
-		cls: `overview-v2-priority tone-${primary.tone}`,
-	});
-	const priorityHead = priority.createDiv({ cls: "overview-v2-priority__head" });
-	const priorityIcon = priorityHead.createSpan({
-		cls: "overview-v2-priority__icon",
-	});
-	setIcon(priorityIcon, primary.icon);
-	const priorityCopy = priorityHead.createDiv({
-		cls: "overview-v2-priority__copy",
-	});
-	priorityCopy.createEl("small", {
-		text: attention.length > 0 ? "第一优先级" : "下一步",
-	});
-	priorityCopy.createEl("h3", { text: primary.title });
-	priority.createEl("p", { text: primary.detail });
-	priority.createEl("span", { text: primary.meta });
-	const priorityAction = priority.createEl("button", {
-		cls: "module-hero-action overview-v2-priority__action",
-		attr: { type: "button" },
-	});
-	setIcon(
-		priorityAction.createSpan({ cls: "module-hero-action-icon" }),
-		"arrow-up-right"
-	);
-	priorityAction.createSpan({ text: primary.action });
-	priorityAction.addEventListener("click", () => {
-		if (primary.target === "decisions") view.openDecisions();
-		else void openFile(view.app, primary.path);
-	});
-	renderOverviewAttentionRows(view, attentionPanel, attention.slice(1, 4));
+	const health = homePanel(view, grid, "#4D8DFF", "系统健康趋势", "健康日志 · 最近最多9次记录", "health");
+	if (!healthReady) health.createDiv({ cls: "empty", text: "健康日志未配置或格式待检查" });
+	else if (d.healthTrend.length === 0) health.createDiv({ cls: "empty", text: "健康日志暂无有效记录" });
+	else renderHomeHealth(health, d.healthTrend);
 
-	// 单页原则：第二行把决策、进度、状态与工具合进两个页签组，内容与渲染不变。
-	mountPanelTabs({
-		parent: grid,
-		groupKey: "today-status",
-		label: "决策与进度",
-		selections: view.panelTabSelections,
-		tabs: [
-			{
-				key: "decisions",
-				label: "待决策",
-				badge: pendingTotal,
-				render: (host) => {
-					const decisionPanel = view.panel(
-						host,
-						"var(--amber)",
-						"待决策",
-						pendingTotal > 0 ? `${pendingTotal} 项待决策` : "审批池已清空"
-					);
-					decisionPanel.setAttribute("data-today-section", "decisions");
-					view.renderDecisionWorkspace(decisionPanel, d, 3);
-				},
-			},
-			{
-				key: "kanban",
-				label: "任务进度",
-				render: (host) => {
-					const kanbanPanel = view.panel(
-						host,
-						"#F59E0B",
-						"任务进度",
-						"待办 · 进行中 · 最近完成"
-					);
-					kanbanPanel.addClass("overview-v2-kanban-panel");
-					kanbanPanel.setAttribute("data-today-section", "task-kanban");
-					view.fillOverviewKanban(kanbanPanel, d);
-				},
-			},
-			{ key: "peer", label: "TALOS 状态", render: (host) => view.renderPeerStatusPanel(host) },
-		],
-	});
-
-	mountPanelTabs({
-		parent: grid,
-		groupKey: "today-tools",
-		label: "工具",
-		selections: view.panelTabSelections,
-		tabs: [
-			{ key: "actions", label: "可执行动作", render: (host) => renderTodayActions(view, host) },
-			{ key: "note", label: "快捷便签", render: (host) => renderTodayQuickNote(view, host) },
-		],
-	});
+	const summary = root.createDiv({ cls: "talos-home-v3-summary" });
+	const cutoff = Date.now() - 7 * 86400000;
+	const recentProjects = projectsReady ? d.projects.filter((item) => (item.latestMtime ?? 0) >= cutoff).length : null;
+	homeSummary(summary, "近期项目", recentProjects === null ? "项目目录未配置" : `近7天更新 ${recentProjects} 个 · 按笔记修改时间`, () => view.navigateToPage("projects"));
+	homeSummary(summary, "当前焦点", !tasksReady ? "任务池来源待检查" : d.focus[0]?.title || "暂无活跃焦点", () => view.navigateToPage("tasks"));
+	homeSummary(summary, "待决策", approvalsReady && candidatesReady ? `${pendingText} 项待处理` : `已识别 ${pendingText} · 来源待检查`, () => view.openDecisions());
 }
 
-function renderTodayActions(view: TalosView, host: HTMLElement): void {
+function homePanel(view: TalosView, parent: HTMLElement, color: string, title: string, detail: string, target: string | null): HTMLElement {
+	const panel = view.panel(parent, color, title, detail);
+	panel.addClass("talos-home-v3-chart");
+	if (!target) {
+		panel.setAttribute("role", "group");
+		panel.setAttribute("aria-label", `${title}，${detail}。选择分类打开详情`);
+		return panel;
+	}
+	panel.setAttribute("role", "button");
+	panel.setAttribute("tabindex", "0");
+	panel.setAttribute("aria-label", `${title}，${detail}。打开详情`);
+	panel.addEventListener("click", () => view.navigateToPage(target));
+	panel.addEventListener("keydown", (event) => {
+		if (event.key !== "Enter" && event.key !== " ") return;
+		event.preventDefault(); view.navigateToPage(target);
+	});
+	return panel;
+}
+
+function homeSummary(parent: HTMLElement, label: string, text: string, activate: () => void): void {
+	const button = parent.createEl("button", { cls: "talos-home-v3-summary-item", attr: { type: "button" } });
+	button.createEl("strong", { text: label }); button.createSpan({ text });
+	button.addEventListener("click", activate);
+}
+
+function renderHomeHealth(parent: HTMLElement, points: Collected["healthTrend"]): void {
+	const ns = "http://www.w3.org/2000/svg";
+	const svg = parent.ownerDocument.createElementNS(ns, "svg");
+	svg.setAttribute("viewBox", "0 0 400 108");
+	svg.setAttribute("role", "img");
+	svg.setAttribute("aria-label", `健康日志记录：${points.map((p) => `${p.label} ${p.score}分`).join("，")}`);
+	svg.classList.add("talos-home-v3-line");
+	const xs = points.map((_, index) => points.length === 1 ? 200 : 18 + index * 364 / (points.length - 1));
+	const ceiling = Math.max(100, ...points.map((point) => point.score));
+	const y = (score: number) => 88 - Math.max(0, score) / ceiling * 72;
+	const polyline = parent.ownerDocument.createElementNS(ns, "polyline");
+	polyline.setAttribute("points", points.map((p, i) => `${xs[i]},${y(p.score)}`).join(" "));
+	svg.appendChild(polyline);
+	points.forEach((p, i) => {
+		const circle = parent.ownerDocument.createElementNS(ns, "circle"); circle.setAttribute("cx", String(xs[i])); circle.setAttribute("cy", String(y(p.score))); circle.setAttribute("r", "4");
+		const title = parent.ownerDocument.createElementNS(ns, "title"); title.textContent = `${p.label} · ${p.score}分`; circle.appendChild(title); svg.appendChild(circle);
+	});
+	parent.appendChild(svg);
+	const last = points.at(-1);
+	parent.createEl("small", { cls: "talos-home-v3-note", text: last ? `最近记录：${last.label} · ${last.score}分 · 纵轴 0–${ceiling}` : "暂无记录" });
+}
+
+export function renderTodayActions(view: TalosView, host: HTMLElement): void {
 	const actionRuntimePanel = view.panel(
 		host,
 		"#38E1FF",
-		"可执行动作",
-		"A 直接执行 · C 提案后审批"
+		"统计检查",
+		"本地只读 · 不修改资料"
 	);
 	actionRuntimePanel.setAttribute("data-workbench-section", "runtime-actions");
 	const actionStamp = Date.now();
@@ -274,37 +233,12 @@ function renderTodayActions(view: TalosView, host: HTMLElement): void {
 					reversible: false,
 				},
 			},
-			{
-				actionId: "deep-research",
-				idempotencyKey: `overview-research-${actionStamp}`,
-				input: undefined,
-				request: {
-					readPaths: ["**"],
-					writePaths: ["<external>"],
-					effects: ["external-publish"],
-				},
-				proposal: {
-					title: "启动 Deep Research",
-					provider: "当前 Agent 命令",
-					steps: [
-						"展示本次外部执行范围",
-						"等待独立批准",
-						"进入 10 秒可取消安全窗口",
-						"批准后调用同一 TALOS runner",
-					],
-					fileCount: 1,
-					keyDiffs: [
-						`研究结果将写入 ${view.plugin.talosSettings.reportsFolder}`,
-					],
-					reversible: false,
-				},
-			},
 		],
 	});
 	view.actionPanel.mount();
 }
 
-function renderTodayQuickNote(view: TalosView, host: HTMLElement): void {
+export function renderTodayQuickNote(view: TalosView, host: HTMLElement): void {
 	const quickNotePanel = view.panel(
 		host,
 		"#A78BFA",
@@ -312,9 +246,10 @@ function renderTodayQuickNote(view: TalosView, host: HTMLElement): void {
 		"B 类可恢复写入 · ⌘/Ctrl + Enter 保存"
 	);
 	quickNotePanel.setAttribute("data-workbench-section", "quick-note");
-	new QuickNote({
+	view.quickNote ??= new QuickNote({
 		parent: quickNotePanel,
 		runtime: view.plugin.getConsoleActionRuntime(),
-		targetFolder: view.paths.dir("inbox"),
-	}).mount();
+		targetFolder: () => view.paths.dir("inbox"),
+	});
+	view.quickNote.mount(quickNotePanel);
 }

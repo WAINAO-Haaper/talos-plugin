@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { resolveVoiceWake } from "../src/quyuan/qwen-realtime-voice";
 import { viewSource as readViewSource } from "./helpers/source-text";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -14,7 +15,7 @@ describe("voice focus workspace v2", () => {
 		expect(panel).toContain('root.dataset.talosComponent = "voice-workspace"');
 		expect(panel).toContain("tq-workspace-bar");
 		expect(panel).toContain("VOICE WORKSPACE");
-		expect(panel).toContain("屈原语音");
+		expect(panel).toContain("语音助手");
 		expect(panel).toContain("语音硬只读");
 		expect(panel).toContain("tq-talos-ball-host");
 		expect(panel).toContain("tq-voice-dock");
@@ -256,5 +257,21 @@ describe("voice focus workspace v2", () => {
 		expect(panel).toContain("if (!current() || this.navigatingToChat) return;");
 		const view = readViewSource();
 		expect(view).toContain("(pageKey) => view.navigateToPage(pageKey)");
+	});
+});
+
+
+describe("voice wake configuration", () => {
+	it("retains legacy aliases for old and empty settings", () => {
+		for (const value of [undefined, "", "，。", "屈原"]) {
+			const wake = resolveVoiceWake(value);
+			expect(wake.word).toBe("屈原");
+			expect(wake.aliases).toContain("曲原");
+		}
+	});
+	it("uses the custom wake word without retaining the old aliases", () => {
+		const wake = resolveVoiceWake("  小助手  ");
+		expect(wake.word).toBe("小助手");
+		expect(wake.aliases).toEqual(["小助手"]);
 	});
 });

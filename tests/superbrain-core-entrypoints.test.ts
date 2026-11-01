@@ -101,7 +101,7 @@ describe("Superbrain core entrypoints", () => {
 		expect(view.lens).toBeNull();
 		view.navigateToPage("knowledge");
 		expect(view.lens).toBe(restoredLens);
-		expect(restoredLens.navigate).toHaveBeenCalledWith("knowledge");
+		expect(restoredLens.navigate).toHaveBeenCalledWith("workbench", "knowledge");
 		expect(view.plugin.talosSettings.uiLanguage).toBe("lens");
 	});
 

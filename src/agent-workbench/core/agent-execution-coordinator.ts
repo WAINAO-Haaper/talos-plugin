@@ -48,6 +48,16 @@ const TRANSIENT_RUNTIME_EVENTS = new Set<AgentEvent["type"]>([
 	"usage.updated",
 ]);
 
+const NATIVE_DEDUPLICATED_EVENTS = new Set<AgentEvent["type"]>([
+	"assistant.final",
+	"tool.started",
+	"tool.finished",
+	"approval.requested",
+	"approval.resolved",
+	"user.question",
+	"turn.finished",
+]);
+
 function shouldPersistRuntimeEvent(event: AgentEvent): boolean {
 	return !TRANSIENT_RUNTIME_EVENTS.has(event.type);
 }
@@ -221,10 +231,7 @@ export class AgentExecutionCoordinator {
 					...(reasoning ? { reasoning } : {}),
 					...(serviceTier ? { serviceTier } : {}),
 				};
-				if (JSON.stringify(conversation.selection) !== JSON.stringify(selection)) {
-					conversation = { ...conversation, selection, updatedAt: new Date().toISOString() };
-					await this.options.conversations.conversations.store.updateManifest(conversation);
-				}
+				conversation = await this.options.conversations.conversations.store.patchManifest(conversationId, { selection });
 				const recordId = crypto.randomUUID();
 				const turnId = crypto.randomUUID();
 				const turn: RuntimeTurn = {
@@ -307,7 +314,9 @@ export class AgentExecutionCoordinator {
 				if (!this.isCurrent(execution)) continue;
 				if (nativeEvent.conversationId !== conversationId || nativeEvent.turnId !== turnId || nativeEvent.runtimeId !== selection.runtimeId) continue;
 				if (lease.seenEventIds.has(nativeEvent.eventId)) continue;
-				const nativeEventKey = nativeEvent.nativeId
+				// Streaming updates share their parent message/tool id. Only immutable
+				// frames can use native identity as a duplicate key.
+				const nativeEventKey = nativeEvent.nativeId && NATIVE_DEDUPLICATED_EVENTS.has(nativeEvent.type)
 					? `${nativeEvent.type}:${nativeEvent.nativeId}`
 					: null;
 				if (nativeEventKey && lease.seenNativeEventKeys.has(nativeEventKey)) continue;

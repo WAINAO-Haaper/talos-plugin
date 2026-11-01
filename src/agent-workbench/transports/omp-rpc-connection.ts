@@ -74,6 +74,7 @@ export class OmpJsonLineConnection implements OmpRpcConnection {
 	private buffer = "";
 	private closed = false;
 	private closePromise: Promise<void> | null = null;
+	private processClosed = false;
 	private readonly pending = new Map<string, PendingRequest>();
 	private readonly subscribers = new Set<FrameSubscription>();
 	private pendingChunks: PendingChunks | null = null;
@@ -90,7 +91,7 @@ export class OmpJsonLineConnection implements OmpRpcConnection {
 		child.stdout.on("data", (chunk: string) => this.accept(chunk));
 		child.stderr.on("data", () => { /* stderr is intentionally not persisted */ });
 		child.once("error", (error) => this.fail(error));
-		child.once("close", (code) => this.fail(new Error(`OhMyPi RPC 进程退出：${code ?? "unknown"}`)));
+		child.once("close", (code) => { this.processClosed = true; this.fail(new Error(`OhMyPi RPC 进程退出：${code ?? "unknown"}`)); });
 	}
 
 	ready(): Promise<void> { return this.readyPromise; }
@@ -195,17 +196,45 @@ export class OmpJsonLineConnection implements OmpRpcConnection {
 
 	private async terminate(): Promise<void> {
 		this.closed = true;
-		this.child.stdin.end();
-		if (!this.child.killed) this.child.kill("SIGTERM");
-		await new Promise<void>((resolve) => {
-			if (this.child.exitCode !== null) { resolve(); return; }
-			const timer = scheduleTimeout(() => { if (!this.child.killed) this.child.kill("SIGKILL"); resolve(); }, 2_000);
-			this.child.once("close", () => { cancelTimeout(timer); resolve(); });
-		});
-		if (this.readyTimer) cancelTimeout(this.readyTimer); this.readyTimer = null; this.rejectReady?.(new Error("OhMyPi RPC transport 已关闭")); this.resolveReady = null; this.rejectReady = null;
-		for (const pending of this.pending.values()) { cancelTimeout(pending.timer); pending.reject(new Error("OhMyPi RPC transport 已关闭")); } this.pending.clear();
-		for (const subscriber of this.subscribers) subscriber.end(); this.subscribers.clear();
-		this.pendingChunks = null;
+		try {
+			this.child.stdin.end();
+			await new Promise<void>((resolve, reject) => {
+				const hasExited = () => this.processClosed || this.child.exitCode !== null || this.child.signalCode !== null;
+				if (hasExited()) { resolve(); return; }
+				let settled = false;
+				let timer: ReturnType<typeof scheduleTimeout>;
+				const finish = (error?: Error) => {
+					if (settled) return;
+					settled = true;
+					cancelTimeout(timer);
+					this.child.removeListener("exit", finished);
+					this.child.removeListener("close", finished);
+					if (error) reject(error); else resolve();
+				};
+				const finished = () => finish();
+				const signal = (value: NodeJS.Signals) => {
+					try { this.child.kill(value); }
+					catch (error) { finish(new Error("OhMyPi RPC 进程未能停止", { cause: error })); }
+				};
+				this.child.once("exit", finished);
+				this.child.once("close", finished);
+				timer = scheduleTimeout(() => {
+					if (hasExited()) { finish(); return; }
+					// killed records signal delivery, not process termination.
+					signal("SIGKILL");
+					if (!settled) timer = scheduleTimeout(() => {
+						if (hasExited()) finish();
+						else finish(new Error("OhMyPi RPC 进程在 SIGKILL 后仍未退出"));
+					}, 2_000);
+				}, 2_000);
+				signal("SIGTERM");
+			});
+		} finally {
+			if (this.readyTimer) cancelTimeout(this.readyTimer); this.readyTimer = null; this.rejectReady?.(new Error("OhMyPi RPC transport 已关闭")); this.resolveReady = null; this.rejectReady = null;
+			for (const pending of this.pending.values()) { cancelTimeout(pending.timer); pending.reject(new Error("OhMyPi RPC transport 已关闭")); } this.pending.clear();
+			for (const subscriber of this.subscribers) subscriber.end(); this.subscribers.clear();
+			this.pendingChunks = null;
+		}
 	}
 }
 

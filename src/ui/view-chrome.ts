@@ -1,11 +1,12 @@
 // TALOS 控制台外壳、侧栏与导航；由 TalosView 委托调用。
-import { CreateModal, PublishBackfillModal, deepResearch, vaultLint } from "../actions";
-import { navigationFor, primaryPage, type TalosPrimaryPageKey } from "./navigation-model";
+import { CreateModal, PublishBackfillModal, openResearchWorkbench } from "../actions";
+import { navigationFor, primaryPage, type TalosPageRoute, type TalosPrimaryPageKey } from "./navigation-model";
 import { SVG_NS } from "./talos-view-model";
-import { setIcon } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 import type { TalosView } from "../view";
 import { buildPixelPatrol } from "./view-cosmos";
 import { collectOverviewAttention } from "./pages/overview-page";
+import { revealChatSidebar } from "../plugin/chat-sidebar-view";
 
 // ---------- 外壳 ----------
 export function buildShell(view: TalosView): void {
@@ -92,19 +93,34 @@ export function buildSidebar(view: TalosView, side: HTMLElement): void {
 	quick.setCssProps({ "--ac": "#A78BFA" });
 	view.secTitle(quick, "快捷入口", "ACTIONS");
 	const qnav = quick.createEl("nav", { cls: "nav" });
-	const act = (mark: string, label: string, fn: () => void) => {
-		const a = qnav.createDiv({ cls: "command" });
-		a.createDiv({ cls: "mark", text: mark });
-		view.addActionButtonContent(a, label);
-		a.addEventListener("click", fn);
+	const act = (host: HTMLElement, mark: string, label: string, fn: () => void) => {
+		const button = host.createEl("button", { cls: "command", attr: { type: "button" } });
+		button.createDiv({ cls: "mark", text: mark });
+		view.addActionButtonContent(button, label);
+		button.addEventListener("click", fn);
 	};
-	act("刷", "刷新统计", () => void view.refresh());
-	act("发", "发布回填", () =>
-		new PublishBackfillModal(view.app, view.plugin.talosSettings, () => void view.refresh()).open());
-	act("新", "新建", () =>
+	act(qnav, "新", "新建记录", () =>
 		new CreateModal(view.app, view.plugin.talosSettings, () => void view.refresh()).open());
-	act("研", "Deep Research", () => void deepResearch(view.app, view.plugin.talosSettings));
-	act("检", "Vault Lint", () => void vaultLint(view.app, view.plugin.talosSettings));
+	act(qnav, "研", "AI 研究", () => {
+		void openResearchWorkbench(() => revealChatSidebar(view.app.workspace))
+			.catch((error: unknown) => new Notice(error instanceof Error ? error.message : String(error)));
+	});
+	const more = quick.createEl("details", { cls: "talos-secondary-tools" });
+	more.createEl("summary", { text: "更多工具" });
+	const tools = more.createEl("nav", { cls: "nav", attr: { "aria-label": "更多 TALOS 工具" } });
+	act(tools, "刷", "刷新统计", () => void view.refresh());
+	act(tools, "检", "只读检查", () => {
+		void view.plugin.getConsoleActionRuntime().runner.run({
+			actionId: "vault-lint",
+			idempotencyKey: `sidebar-lint-${Date.now()}`,
+			input: undefined,
+			request: { readPaths: ["**"], writePaths: [], effects: ["read"] },
+		});
+	});
+	act(tools, "声", "屈原语音", () => view.navigateToPage("jarvis"));
+	act(tools, "H", "DeepSeek Harness", () => view.navigateToPage("harness"));
+	act(tools, "发", "发布回填", () =>
+		new PublishBackfillModal(view.app, view.plugin.talosSettings, () => void view.refresh()).open());
 
 	// 待审批（无审批时整卡隐藏——健康时保持安静）
 	const ap = side.createEl("section", { cls: "card approval-card is-hidden" });
@@ -114,9 +130,15 @@ export function buildSidebar(view: TalosView, side: HTMLElement): void {
 	view.approvalSideEl = ap.createDiv({ cls: "approval" });
 }
 
+function navigationRoute(view: TalosView): TalosPageRoute {
+	return view.assistantNavigationOpen
+		? { primary: "assistant", secondary: "chat" }
+		: view.pageRouter.current();
+}
+
 export function renderNav(view: TalosView): void {
 	view.pageNavEl.empty();
-	const route = view.pageRouter.current();
+	const route = navigationRoute(view);
 	const groupEl = view.pageNavEl.createDiv({ cls: "nav-group" });
 	groupEl.setAttribute("data-nav-group", "primary");
 	groupEl.createDiv({ cls: "nav-group-label", text: "主界面" });
@@ -152,14 +174,14 @@ export function renderNav(view: TalosView): void {
 }
 
 function activatePrimary(view: TalosView, key: TalosPrimaryPageKey): void {
-	view.superbrainPages.activeDetailId = null;
-	// 助手：文字对话在右侧边栏打开（同 Claudian），主区切到同组的语音页。
+	// 助手主入口直接显示语音工作台；文字对话继续在右侧栏打开。
 	if (key === "assistant") {
-		view.activePage = "jarvis";
-		void view.plugin.activateChatSidebar();
-	} else {
-		view.pageRouter.selectPrimary(key);
+		view.navigateToPage("jarvis");
+		return;
 	}
+	view.assistantNavigationOpen = false;
+	view.superbrainPages.activeDetailId = null;
+	view.pageRouter.selectPrimary(key);
 	renderNav(view);
 	view.renderPage();
 }
@@ -175,7 +197,7 @@ export function renderCanvasRailNav(view: TalosView): void {
 	if (!rail) return;
 	rail.empty();
 	if (view.consoleMode !== "superbrain") return;
-	const current = view.pageRouter.current().primary;
+	const current = navigationRoute(view).primary;
 	for (const page of navigationFor("superbrain")) {
 		const active = page.key === current;
 		const button = rail.createEl("button", {
@@ -221,12 +243,16 @@ export function navMeta(view: TalosView, key: string): { value: string; alert?: 
 export function renderSecondaryTabs(view: TalosView): void {
 	if (!view.pageTabsEl) return;
 	view.pageTabsEl.empty();
-	const route = view.pageRouter.current();
+	const route = navigationRoute(view);
 	const page = primaryPage(route.primary);
-	// 只有一个分区的入口（设置）不需要二级页签
-	view.pageTabsEl.toggleClass("is-hidden", page.children.length <= 1);
-	if (page.children.length <= 1) return;
+	// 设置主区保留时，也允许显示临时展开的助手二级入口。
+	view.pageTabsEl.toggleClass("is-assistant-navigation", view.assistantNavigationOpen);
+	// 隐藏单页签时也同步标签，避免保留上一个分区的无障碍名称。
 	view.pageTabsEl.setAttribute("aria-label", `${page.label}二级页面`);
+	// 工作台自身提供三个分类和分类内入口，不重复呈现八个旧页面标签。
+	const hidden = page.key === "workbench" || page.children.length <= 1;
+	view.pageTabsEl.toggleClass("is-hidden", hidden);
+	if (hidden) return;
 	for (const child of page.children) {
 		const active = child.key === route.secondary;
 		const button = view.pageTabsEl.createEl("button", {
@@ -247,9 +273,14 @@ export function renderSecondaryTabs(view: TalosView): void {
 			});
 		}
 		button.addEventListener("click", () => {
-			view.pageRouter.selectSecondary(child.key);
-			renderSecondaryTabs(view);
-			view.renderPage();
+			if (child.key === "chat") {
+				view.assistantNavigationOpen = true;
+				void view.plugin.activateChatSidebar();
+				renderNav(view);
+				return;
+			}
+			view.assistantNavigationOpen = false;
+			view.navigateToPage(child.key);
 		});
 	}
 }
@@ -296,8 +327,8 @@ export function buildMain(view: TalosView, main: HTMLElement): void {
 	const logoModule = heroHead.createDiv({ cls: "logo-module" });
 	logoModule.setAttribute("role", "button");
 	logoModule.setAttribute("tabindex", "0");
-	logoModule.setAttribute("aria-label", "打开屈原工作台");
-	logoModule.setAttribute("title", "打开屈原工作台");
+	logoModule.setAttribute("aria-label", "打开语音工作台");
+	logoModule.setAttribute("title", "打开语音工作台");
 	logoModule.addEventListener("click", () => void view.openQuyuan());
 	logoModule.addEventListener("keydown", (ev) => {
 		if (ev.key === "Enter" || ev.key === " ") {
@@ -321,7 +352,7 @@ export function buildMain(view: TalosView, main: HTMLElement): void {
 	const commandBar = main.createDiv({ cls: "cosmos-commandbar" });
 	const voice = commandBar.createDiv({ cls: "cosmos-command-voice" });
 	setIcon(voice, "audio-lines");
-	commandBar.createDiv({ cls: "cosmos-command-text", text: "问屈原或执行命令..." });
+	commandBar.createDiv({ cls: "cosmos-command-text", text: "向助手提问或执行命令..." });
 	const keys = commandBar.createDiv({ cls: "cosmos-command-keys" });
 	keys.createSpan({ text: "⌘ K" });
 	const mic = keys.createSpan();

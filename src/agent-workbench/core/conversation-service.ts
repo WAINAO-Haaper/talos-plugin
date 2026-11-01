@@ -49,12 +49,7 @@ export class ConversationService {
 	}
 
 	async rename(id: string, title: string): Promise<void> {
-		const current = await this.store.load(id);
-		await this.store.updateManifest({
-			...current.manifest,
-			title: title.trim() || "未命名会话",
-			updatedAt: this.clock.now(),
-		});
+		await this.store.patchManifest(id, { title: title.trim() || "未命名会话" }, this.clock.now());
 	}
 
 	archive(id: string): Promise<void> { return this.store.setLifecycle(id, "archived"); }

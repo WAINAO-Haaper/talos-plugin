@@ -119,13 +119,10 @@ describe("voice read-only and bounded Qwen search policy", () => {
 	it("keeps legacy cloud ASR, WebSpeech, and serial online TTS unreachable", () => {
 		const panel = readSrc("src/quyuan/voice-panel.ts");
 		const main = readPluginSource();
-		const cloudAsr = readSrc("src/quyuan/cloud-asr.ts");
 		const voiceIo = readSrc("src/jarvis/voiceio.ts");
 		const settings = readSrc("src/settings.ts");
 		expect(panel).not.toContain("new CloudAsr");
 		expect(main).not.toContain("new MicStt");
-		expect(cloudAsr).not.toContain("requestUrl");
-		expect(cloudAsr).not.toContain("dashscope.aliyuncs.com");
 		expect(voiceIo).not.toContain("requestUrl");
 		expect(voiceIo).not.toContain("WebSocket");
 		expect(voiceIo).not.toContain("https://");

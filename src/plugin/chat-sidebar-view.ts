@@ -17,6 +17,7 @@ export interface ChatSidebarHost {
 export class TalosChatSidebarView extends ItemView {
 	private workbench: ChatSurfaceWorkbench | null = null;
 	private mountError: string | null = null;
+	private mountReady: Promise<boolean> | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private readonly host: ChatSidebarHost) {
 		super(leaf);
@@ -38,21 +39,36 @@ export class TalosChatSidebarView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass("talos-chat-sidebar");
 		const surface = this.contentEl.createDiv({ cls: "talos-chat-sidebar__surface" });
-		this.workbench = new DeferredChatWorkbench(async () => {
+		const workbench = new DeferredChatWorkbench(async () => {
 			const { service } = await this.host.waitForAgentWorkbench();
 			const { TalosAgentWorkbench } = await import("../agent-workbench/ui/talos-agent-workbench");
 			return new TalosAgentWorkbench({ leaf: this.leaf, service, customApi: this.host.customApi });
 		});
-		try {
-			await this.workbench.mount(surface, "chat");
-			this.mountError = null;
-		} catch (error) {
-			this.mountError = error instanceof Error ? error.message : String(error);
-			surface.empty();
-			const panel = surface.createDiv({ cls: "talos-chat-sidebar__error" });
-			panel.createEl("strong", { text: "TALOS 对话加载失败" });
-			panel.createEl("p", { text: this.mountError });
-		}
+		this.workbench = workbench;
+		this.mountError = null;
+		this.mountReady = (async () => {
+			try {
+				await workbench.mount(surface, "chat");
+				return this.workbench === workbench;
+			} catch (error) {
+				if (this.workbench !== workbench) return false;
+				this.mountError = error instanceof Error ? error.message : String(error);
+				surface.empty();
+				const panel = surface.createDiv({ cls: "talos-chat-sidebar__error" });
+				panel.createEl("strong", { text: "TALOS 对话加载失败" });
+				panel.createEl("p", { text: this.mountError });
+				return false;
+			}
+		})();
+		await this.mountReady;
+	}
+
+	/** 叶子创建成功不代表工作台加载成功；所有打开入口共用这个结果。 */
+	async waitUntilReady(): Promise<boolean> {
+		const ready = this.mountReady;
+		if (ready && !(await ready)) return false;
+		return this.workbench !== null && this.mountError === null
+			&& (!ready || this.mountReady === ready);
 	}
 
 	focusComposer(): void {
@@ -69,6 +85,7 @@ export class TalosChatSidebarView extends ItemView {
 	async onClose(): Promise<void> {
 		const workbench = this.workbench;
 		this.workbench = null;
+		this.mountReady = null;
 		await workbench?.destroy();
 	}
 }
@@ -89,7 +106,7 @@ export async function revealChatSidebar(workspace: SidebarWorkspace, prefill?: s
 		leaf = created;
 	}
 	await workspace.revealLeaf(leaf);
-	if (!(leaf.view instanceof TalosChatSidebarView)) return prefill === undefined ? leaf : null;
+	if (!(leaf.view instanceof TalosChatSidebarView) || !(await leaf.view.waitUntilReady())) return null;
 	if (prefill === undefined) leaf.view.focusComposer();
 	else if (!leaf.view.prefillComposer(prefill)) return null;
 	return leaf;

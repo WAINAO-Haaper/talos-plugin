@@ -37,6 +37,32 @@ class NodeVaultAdapter implements VaultDataAdapter {
 }
 
 describe("AgentWorkbench composition persistence", () => {
+	it("persists independent concurrent metadata changes across a cold reopen", async () => {
+		const vault = await mkdtemp(path.join(tmpdir(), "talos-manifest-merge-"));
+		created.push(vault);
+		const storage = new ObsidianWorkbenchStorage(new NodeVaultAdapter(vault), vault);
+		const conversations = new ConversationService(new PortableConversationStore(storage));
+		const coordinator = new WorkbenchConversationCoordinator(conversations, new RuntimeBindingStore({
+			read: async () => null, write: async () => undefined,
+		}));
+		const manifest = await conversations.create("Original", "codex");
+		await conversations.append({ conversationId: manifest.conversationId, turnId: "turn-1",
+			runtimeId: "codex", type: "user.message", payload: { text: "Preserve history" } });
+		await Promise.all([
+			conversations.rename(manifest.conversationId, "Renamed"),
+			conversations.archive(manifest.conversationId),
+			coordinator.switchRuntime(manifest.conversationId, "claude"),
+		]);
+		const reopened = new PortableConversationStore(new ObsidianWorkbenchStorage(new NodeVaultAdapter(vault), vault));
+		const projection = await reopened.load(manifest.conversationId);
+		expect(projection.manifest).toMatchObject({
+			title: "Renamed", lifecycle: "archived", selection: { runtimeId: "claude" },
+			createdAt: manifest.createdAt, conversationId: manifest.conversationId,
+		});
+		expect(projection.events.map((event) => event.type)).toEqual(["user.message", "handoff.created"]);
+		expect((await reopened.list())[0]).toEqual(projection.manifest);
+	});
+
 	it("imports legacy bytes read-only and keeps portable events separate from native bindings", async () => {
 		const vault = await mkdtemp(path.join(tmpdir(), "talos-composition-"));
 		const syntheticHome = path.join(path.sep, "synthetic-home");
