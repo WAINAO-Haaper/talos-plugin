@@ -277,7 +277,10 @@ export class QuyuanVoicePanel {
 				"data-workspace-section": "voice-controls",
 			},
 		});
-		const workspaceBar = dock.createDiv({
+		const header = dock.createDiv({ cls: "tq-dock-header" });
+		const conversation = dock.createDiv({ cls: "tq-dock-conversation" });
+		const footer = dock.createDiv({ cls: "tq-dock-footer" });
+		const workspaceBar = header.createDiv({
 			cls: "tq-workspace-bar",
 			attr: { role: "group", "aria-label": "语音工作台状态与导航" },
 		});
@@ -308,7 +311,7 @@ export class QuyuanVoicePanel {
 		chatButton.createSpan({ text: "转到 AI 对话" });
 		chatButton.addEventListener("click", () => this.goToChat());
 
-		const statusRow = dock.createDiv({ cls: "tq-dock-status" });
+		const statusRow = header.createDiv({ cls: "tq-dock-status" });
 		const liveStatus = statusRow.createDiv({ cls: "tq-dock-live" });
 		this.wakeStatusEl = liveStatus.createSpan({
 			text: this.settings.quyuanVoiceRecognitionEnabled === false
@@ -327,7 +330,7 @@ export class QuyuanVoicePanel {
 		});
 		badges.createSpan({ text: `模型 · ${this.modelLabel()}` });
 
-		const overlay = dock.createDiv({
+		const overlay = conversation.createDiv({
 			cls: "tq-overlay-text",
 			attr: { role: "region", "aria-label": "助手回复" },
 		});
@@ -342,7 +345,7 @@ export class QuyuanVoicePanel {
 		});
 		this.setOverlayMessage(`说「${this.wakeWord}」唤醒，或在下方输入只读查询。`);
 
-		this.overlayTranscriptEl = dock.createDiv({
+		this.overlayTranscriptEl = conversation.createDiv({
 			cls: "tq-transcript-editor is-visible",
 			attr: { "aria-label": "实时语音转写" },
 		});
@@ -354,7 +357,7 @@ export class QuyuanVoicePanel {
 			attr: { "aria-live": "polite" },
 		});
 
-		const controls = dock.createDiv({
+		const controls = footer.createDiv({
 			cls: "tq-voice-controls",
 			attr: { role: "group", "aria-label": "语音控制" },
 		});
@@ -401,7 +404,7 @@ export class QuyuanVoicePanel {
 		const settingsButton = controlButton("", "settings", "设置");
 		settingsButton.addEventListener("click", () => this.openSettings());
 
-		const query = dock.createDiv({
+		const query = footer.createDiv({
 			cls: "tq-readonly-query",
 			attr: { role: "search", "aria-label": "文本只读查询" },
 		});
@@ -437,12 +440,12 @@ export class QuyuanVoicePanel {
 			submit();
 		});
 
-		const safety = dock.createDiv({ cls: "tq-voice-safety" });
+		const safety = footer.createDiv({ cls: "tq-voice-safety" });
 		setIcon(safety.createSpan(), "shield-check");
 		safety.createSpan({
 			text: "实时音频发送至已配置的百炼地域 · 长期密钥由 SecretStorage 隔离 · 语音工具只读；仅明确说“联网搜索”或“上网查”才发送当前问题",
 		});
-		this.confirmHostEl = dock.createDiv({
+		this.confirmHostEl = footer.createDiv({
 			cls: "tq-confirm-host",
 			attr: { "aria-live": "assertive" },
 		});
