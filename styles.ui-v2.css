@@ -4188,6 +4188,11 @@ body .talos-custom-api__kinds button.is-active {
 	font-size: 10px;
 }
 
+/* 对话正文与工作台共享阅读字号，输入控件保留原样。 */
+.talos-chat-sidebar .claudian-message-content {
+	font-size: max(16px, var(--font-text-size, 16px));
+}
+
 .talos-chat-sidebar .claudian-message-assistant .claudian-message-content {
 	padding-left: 2px;
 	color: var(--text-normal);

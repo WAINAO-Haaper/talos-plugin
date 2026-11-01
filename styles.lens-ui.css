@@ -347,7 +347,7 @@
 .talos-scope.talos-canvas-shell :is(.talos-agent-model-menu, .talos-agent-permission-menu) { border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-surface); background: var(--talos-surface-raised); color: var(--talos-text-primary); box-shadow: var(--talos-shadow-3); }
 .talos-scope.talos-canvas-shell .claudian-container { --claudian-brand: var(--talos-text-primary); background: var(--talos-surface-raised); color: var(--talos-text-primary); font: var(--talos-type-body-md); }
 .talos-scope.talos-canvas-shell .claudian-messages { padding: var(--talos-space-4) var(--talos-space-5); background: var(--talos-surface-raised); }
-.talos-scope.talos-canvas-shell .claudian-message-content { font: var(--talos-type-body-md); }
+.talos-scope.talos-canvas-shell .claudian-message-content { font: var(--talos-type-body-md); font-size: max(16px, var(--font-text-size, 16px)); }
 .talos-scope.talos-canvas-shell .claudian-input-wrapper { border: var(--talos-stroke-hairline) solid var(--talos-border-default); border-radius: var(--talos-radius-dialog); background: var(--talos-surface-raised); box-shadow: var(--talos-shadow-1); }
 .talos-scope.talos-canvas-shell .claudian-input-wrapper textarea.claudian-input { padding: var(--talos-space-4); background: transparent; color: var(--talos-text-primary); font: var(--talos-type-body-md); }
 .talos-scope.talos-canvas-shell .claudian-input-wrapper textarea.claudian-input::placeholder { color: var(--talos-text-secondary); }
