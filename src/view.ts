@@ -30,6 +30,7 @@ import {
 	collectModules,
 	collectOverview,
 } from "./data/stats";
+import { collectInsightStats } from "./data/insights";
 import { collectWarRoom } from "./data/talos";
 import type { TalosSchemaKey } from "./data/schema";
 import { collectCapabilities, type CapabilityGroup } from "./data/capabilities";
@@ -73,6 +74,7 @@ import { WEEKDAYS, PAGE_ARCHETYPES, dailyRota, dailyTimeline, type QuyuanVoicePa
 import { fillCapabilityDistribution, fillGateStateChart, fillOutputClosureChart, fillProjectPortfolioChart } from "./ui/charts/talos-view-charts";
 import { renderOverviewAttentionRows } from "./ui/pages/overview-page";
 import { renderTodayPage } from "./ui/pages/today-page";
+import { renderHomePage } from "./ui/pages/home";
 import { renderWorkbenchContent, renderWorkbenchPage } from "./ui/pages/workbench-page";
 import { renderDailyPage } from "./ui/pages/daily-page";
 import { renderHealthPage, renderOutputPage, renderProjectsPage } from "./ui/pages/project-pages";
@@ -587,6 +589,7 @@ export class TalosView extends ItemView {
 		const projects = await collectProjectScenes(app, paths);
 		const knowledge = collectKnowledgeHub(app, paths);
 		const talosProduct = collectTalosProduct(app, paths);
+		const insights = collectInsightStats(app);
 		const registered = await readRegisteredFiles(this.plugin);
 		const setup = Object.fromEntries(
 			registered.map(({ spec, content }) => [spec.key, fileStatus(spec, content)])
@@ -611,6 +614,7 @@ export class TalosView extends ItemView {
 			projects,
 			knowledge,
 			talosProduct,
+			insights,
 			setup,
 		};
 
@@ -815,6 +819,7 @@ export class TalosView extends ItemView {
 		if (!d) { page.createDiv({ cls: "empty", text: "加载中…" }); return; }
 		switch (this.activePage) {
 			case "today": this.pageToday(page, d); break;
+			case "home": this.pageHome(page, d); break;
 			case "harness": void this.pageChat(page); break;
 			case "jarvis": void this.pageJarvis(page); break;
 			case "daily": this.pageDaily(page, d); break;
@@ -910,6 +915,10 @@ export class TalosView extends ItemView {
 
 	private pageToday(page: HTMLElement, d: Collected): void {
 		return renderTodayPage(this, page, d);
+	}
+
+	private pageHome(page: HTMLElement, d: Collected): void {
+		return renderHomePage(this, page, d);
 	}
 
 

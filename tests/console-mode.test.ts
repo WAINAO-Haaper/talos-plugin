@@ -32,7 +32,7 @@ describe("console mode (dual mode, per vault)", () => {
 	});
 
 	it("sends pages that do not belong to the mode back to that mode's home", () => {
-		expect(homePageFor("personal")).toBe("today");
+		expect(homePageFor("personal")).toBe("home");
 		expect(homePageFor("superbrain")).toBe("sb-loop");
 		expect(pageBelongsTo("personal", "sb-loop")).toBe(false);
 		expect(pageBelongsTo("superbrain", "today")).toBe(false);

@@ -16,14 +16,14 @@ export interface TalosViewState {
 	page: string;
 }
 
-export const DEFAULT_PAGE_KEY = "today";
+export const DEFAULT_PAGE_KEY = "home";
 
 function renderKeyForRoute(route: TalosPageRoute): string {
 	return route.secondary ?? defaultRouteForPrimary(route.primary).secondary ?? DEFAULT_PAGE_KEY;
 }
 
 function defaultRoute(): TalosPageRoute {
-	return resolvePageRoute(DEFAULT_PAGE_KEY) ?? { primary: "today", secondary: "today" };
+	return resolvePageRoute(DEFAULT_PAGE_KEY) ?? { primary: "home", secondary: "home" };
 }
 
 export function encodeTalosViewState(pageKey: string): TalosViewState {

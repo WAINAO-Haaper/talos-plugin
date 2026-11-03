@@ -47,12 +47,14 @@ describe("TALOS navigation model", () => {
 
 	it("puts the workbench, voice, overview and settings in the requested order", () => {
 		expect(PRIMARY_NAVIGATION.map((item) => item.key)).toEqual([
+			"home",
 			"workbench",
 			"assistant",
 			"today",
 			"settings",
 		]);
 		expect(PRIMARY_NAVIGATION.map((item) => item.children.map((child) => child.key))).toEqual([
+			["home"],
 			["inbox", "knowledge", "output", "projects", "tasks", "health", "capability", "identity"],
 			["jarvis", "chat", "harness"],
 			["today"],
@@ -120,8 +122,8 @@ describe("TALOS navigation model", () => {
 describe("TalosPageRouter", () => {
 	it("switches primary regions and secondary tabs without creating leaves", () => {
 		const router = new TalosPageRouter();
-		expect(router.current()).toEqual({ primary: "today", secondary: "today" });
-		expect(router.renderKey()).toBe("today");
+		expect(router.current()).toEqual({ primary: "home", secondary: "home" });
+		expect(router.renderKey()).toBe("home");
 
 		router.navigate("projects");
 		expect(router.current()).toEqual({ primary: "workbench", secondary: "projects" });
@@ -159,8 +161,8 @@ describe("TALOS view state", () => {
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "voice" })).toBe("jarvis");
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "daily" })).toBe("tasks");
 		expect(decodeTalosViewState({ schemaVersion: 1, page: "talos" })).toBe("projects");
-		expect(decodeTalosViewState({ schemaVersion: 2, page: "chat" })).toBe("today");
-		expect(decodeTalosViewState({ schemaVersion: 1, page: "missing" })).toBe("today");
-		expect(decodeTalosViewState(null)).toBe("today");
+		expect(decodeTalosViewState({ schemaVersion: 2, page: "chat" })).toBe("home");
+		expect(decodeTalosViewState({ schemaVersion: 1, page: "missing" })).toBe("home");
+		expect(decodeTalosViewState(null)).toBe("home");
 	});
 });

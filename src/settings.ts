@@ -483,6 +483,20 @@ export class TalosSettingTab extends PluginSettingTab {
 	}
 
 	// 通用文本设置项
+	/** 通栏容器：说明卡不吃列宽。 */
+	private wideContainer(c: HTMLElement): HTMLElement {
+		return typeof (c as HTMLElement).createDiv === "function"
+			? c.createDiv({ cls: "talos-setting-wide" })
+			: c;
+	}
+
+	/** 四列紧凑网格容器；测试里的最小容器没有 createDiv 时落回原容器。 */
+	private gridContainer(c: HTMLElement): HTMLElement {
+		return typeof (c as HTMLElement).createDiv === "function"
+			? c.createDiv({ cls: "talos-setting-grid" })
+			: c;
+	}
+
 	private textIn(c: HTMLElement, name: string, desc: string, key: FreeTextSettingKey, ph = ""): void {
 		new Setting(c)
 			.setName(name)
@@ -757,9 +771,11 @@ export class TalosSettingTab extends PluginSettingTab {
 
 		new Setting(c).setName("模块目录").setHeading();
 		const current = resolveSchema(this.plugin.talosSettings.vaultSchema);
+		// 真实页面用四列网格容器；测试里的最小容器没有 createDiv，直接落回原容器。
+		const schemaGrid = this.gridContainer(c);
 		for (const key of MODULE_KEYS) {
 			const exists = this.app.vault.getAbstractFileByPath(current[key]) !== null;
-			new Setting(c)
+			new Setting(schemaGrid)
 				.setName(SCHEMA_LABELS[key])
 				.setDesc(exists ? "✅ 库内存在" : `⚠️ 库内未找到 · 默认：${SCHEMA_PRESET_CN[key]}`)
 				.addText((t) =>
@@ -781,13 +797,14 @@ export class TalosSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(c).setName("统计来源文件").setHeading();
-		this.textIn(c, "系统焦点任务", "今日焦点解析源", "tasksPath");
-		this.textIn(c, "TALOS 发布任务", "发布作战室解析源", "talosTasksPath");
-		this.textIn(c, "待审批", "pending-approvals.md", "pendingApprovalsPath");
-		this.textIn(c, "偏好候选", "candidates.md", "candidatesPath");
-		this.textIn(c, "健康分日志", "health-log.md（EVAL_HISTORY）", "healthLogPath");
-		this.textIn(c, "报告目录", "Lint / 周报输出", "reportsFolder");
-		this.textIn(c, "重估期启动日", "算冻结天数，YYYY-MM-DD", "freezeStartDate");
+		const sourceGrid = this.gridContainer(c);
+		this.textIn(sourceGrid, "系统焦点任务", "今日焦点解析源", "tasksPath");
+		this.textIn(sourceGrid, "TALOS 发布任务", "发布作战室解析源", "talosTasksPath");
+		this.textIn(sourceGrid, "待审批", "pending-approvals.md", "pendingApprovalsPath");
+		this.textIn(sourceGrid, "偏好候选", "candidates.md", "candidatesPath");
+		this.textIn(sourceGrid, "健康分日志", "health-log.md（EVAL_HISTORY）", "healthLogPath");
+		this.textIn(sourceGrid, "报告目录", "Lint / 周报输出", "reportsFolder");
+		this.textIn(sourceGrid, "重估期启动日", "算冻结天数，YYYY-MM-DD", "freezeStartDate");
 
 		this.renderVaultFiles(c);
 
@@ -826,7 +843,8 @@ export class TalosSettingTab extends PluginSettingTab {
 	/** 固定文件位置：登记表中的每个文件 / 目录可单独指定；缺失项可一键补齐。 */
 	private renderVaultFiles(c: HTMLElement): void {
 		new Setting(c).setName("固定文件位置").setHeading();
-		new Setting(c)
+		const intro = this.wideContainer(c);
+		new Setting(intro)
 			.setDesc("各页面读取的固定文件。留空即使用默认位置；你的库结构不同时可逐项指定，或让插件按文件名查找。")
 			.addButton((b) =>
 				b.setButtonText("自动查找文件位置").onClick(async () => {
@@ -847,12 +865,13 @@ export class TalosSettingTab extends PluginSettingTab {
 				b.setButtonText("补齐库结构…").setCta().onClick(() => void this.plugin.openScaffold())
 			);
 		const paths = this.plugin.paths;
+		const filesGrid = this.gridContainer(c);
 		for (const key of VAULT_FILE_KEYS) {
 			const spec = specFor(key);
 			const location = paths.file(key);
 			const exists = this.app.vault.getAbstractFileByPath(location) !== null;
 			const fallback = defaultLocation(spec, (module) => paths.dir(module));
-			new Setting(c)
+			new Setting(filesGrid)
 				.setName(spec.label + (spec.personal ? "（个人体系，可选）" : ""))
 				.setDesc(exists ? `✅ ${location}` : `⚠️ 未找到 · 默认：${fallback}`)
 				.addText((t) =>

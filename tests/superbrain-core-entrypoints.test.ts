@@ -77,7 +77,7 @@ describe("Superbrain core entrypoints", () => {
 		const personal = createView("personal", false);
 		const render = vi.spyOn(personal.superbrainPages, "render").mockImplementation(() => {});
 		personal.openSuperbrainDetailPage("C01");
-		expect(personal.activePage).toBe("today");
+		expect(personal.activePage).toBe("home");
 		expect(personal.superbrainPages.activeDetailId).toBeNull();
 		expect(render).not.toHaveBeenCalled();
 		expect(personal.contentEl.classList.contains("talos-canvas-shell")).toBe(false);
@@ -163,6 +163,7 @@ function createView(mode: "personal" | "superbrain" = "personal", hasCatalog = t
 		wireModuleSelection: vi.fn(),
 		syncPixelScene: vi.fn(),
 		pageToday: vi.fn(),
+		pageHome: vi.fn(),
 	}) as InstanceType<typeof TalosView>;
 	Object.assign(view, { superbrainPages: new SuperbrainPages(view) });
 	return view;

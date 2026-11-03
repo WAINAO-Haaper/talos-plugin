@@ -2,6 +2,7 @@ import type { AnyFileKey, FileStatus } from "../data/vault-files";
 import type { CapabilityGroup } from "../data/capabilities";
 import type { DistBar, FocusItem, HealthDigest, HealthPoint, HeatMonth, InboxDigest, KnowledgeHub, ModuleTile, OutputCenter, ProjectScene, ReleaseWarRoom, SignalItem, StatCard, TalosProduct } from "../types";
 import type { VaultPaths } from "../data/schema";
+import type { InsightStats } from "../data/insights";
 
 export type QuyuanVoicePanelLike = {
 	mount(container: HTMLElement): void;
@@ -73,6 +74,8 @@ export interface Collected {
 	projects: ProjectScene[];
 	knowledge: KnowledgeHub;
 	talosProduct: TalosProduct;
+	/** 长期数据画像（标签、双链、月度增长、合规）。 */
+	insights: InsightStats;
 	/** 登记文件的状态（缺失 / 缺分区 / 正常），用于页面缺失提示。 */
 	setup?: Partial<Record<AnyFileKey, FileStatus>>;
 }

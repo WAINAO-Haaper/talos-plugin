@@ -1,4 +1,5 @@
 export type TalosPrimaryPageKey =
+	| "home"
 	| "today"
 	| "workbench"
 	| "flow"
@@ -12,6 +13,7 @@ export type TalosPrimaryPageKey =
 export type SuperbrainPageKey = "sb-loop" | "sb-knowledge" | "sb-memory" | "sb-output" | "sb-system";
 
 export type TalosSecondaryPageKey =
+	| "home"
 	| "today"
 	| "tasks"
 	| "daily"
@@ -53,6 +55,15 @@ export interface TalosPageRoute {
 // 每项数据只有一个主场页面，其他页面只放带跳转的提醒。二级页 key 沿用原页面 key，
 // 页面实现与样式不受分组变化影响。
 export const PRIMARY_NAVIGATION: readonly TalosPrimaryPage[] = [
+	{
+		key: "home",
+		label: "首页",
+		icon: "house",
+		subtitle: "系统体检、今日处理与数据画像",
+		children: [
+			{ key: "home", label: "首页", icon: "house" },
+		],
+	},
 	{
 		key: "workbench",
 		label: "工作台",
@@ -143,7 +154,7 @@ export function navigationFor(mode: "personal" | "superbrain", hasSuperbrainCata
 }
 
 export function homePageFor(mode: "personal" | "superbrain"): string {
-	return mode === "superbrain" ? "sb-loop" : "today";
+	return mode === "superbrain" ? "sb-loop" : "home";
 }
 
 /** 页面是否属于该模式的导航（助手与设置两种模式共用）。 */
@@ -169,6 +180,7 @@ export const LEGACY_PAGE_KEYS = [
 
 // 旧页面 key（含已保存的视图状态与命令入口）统一映射到新分组。
 const PAGE_ROUTES: Readonly<Record<string, TalosPageRoute>> = {
+	home: { primary: "home", secondary: "home" },
 	today: { primary: "today", secondary: "today" },
 	overview: { primary: "today", secondary: "today" },
 	workbench: { primary: "workbench", secondary: "inbox" },

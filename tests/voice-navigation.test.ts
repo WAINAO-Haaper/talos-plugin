@@ -133,7 +133,7 @@ describe("assistant voice navigation and mounting", () => {
 		const { view, win } = fixture("settings", catalog);
 		useRealPageRendering(view);
 		renderNav(view);
-		expect(view.pageNavEl.querySelectorAll('[role="button"]').length).toBe(catalog ? 9 : 4);
+		expect(view.pageNavEl.querySelectorAll('[role="button"]').length).toBe(catalog ? 10 : 5);
 		const assistant = view.pageNavEl.querySelector('[aria-label="语音助手"]') as HTMLElement;
 		assistant.focus();
 		assistant.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true }) as never);
