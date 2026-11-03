@@ -1,6 +1,6 @@
 # TALOS for Obsidian
 
-![version](https://img.shields.io/badge/version-v0.4.6-2f6feb)
+![version](https://img.shields.io/badge/version-v0.4.22-2f6feb)
 ![obsidian](https://img.shields.io/badge/Obsidian-1.11.4%2B-7c3aed)
 ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-111827)
 ![license](https://img.shields.io/badge/license-Personal%20Use%20Source%20Available-FAD861)
@@ -13,42 +13,42 @@ TALOS 是一个桌面端 Obsidian 原生插件。它把散落在 Vault 里的任
 
 ## 界面预览
 
-以下为控制台实际运行界面与 v0.4.5 TalosBall 0.3.0 动画预览。点击图片可查看原始尺寸。
+以下为 v0.4.22 在「超级大脑」Vault 中的真实运行界面。点击图片可查看原始尺寸。
 
-| 指挥总览 · Bauhaus | AI 对话 · DeepSeek Harness |
+| 首页 · 身份、灵魂与六器官 | 数据画像 · 知识图谱 |
 |---|---|
-| [![TALOS 指挥总览](docs/screenshots/v0.4.1/overview-bauhaus.png)](docs/screenshots/v0.4.1/overview-bauhaus.png) | [![TALOS AI 对话与 DeepSeek Harness](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png)](docs/screenshots/v0.4.1/ai-chat-deepseek-harness.png) |
-| 屈原语音 · TalosBall 0.3.0 | 设置 · 主题与模型 |
-| [![TalosBall 语音状态视觉](docs/screenshots/v0.4.4/voice-workspace-talosball.png)](docs/screenshots/v0.4.4/voice-workspace-talosball.png) | [![TALOS 设置与十套主题](docs/screenshots/v0.4.1/settings-themes.png)](docs/screenshots/v0.4.1/settings-themes.png) |
-| 收件箱治理 | 全库视图 |
-| [![TALOS 收件箱治理](docs/screenshots/v0.4.1/inbox-governance.png)](docs/screenshots/v0.4.1/inbox-governance.png) | [![TALOS 全库视图](docs/screenshots/v0.4.1/vault-overview.png)](docs/screenshots/v0.4.1/vault-overview.png) |
+| [![TALOS 首页系统体检](docs/screenshots/v0.4.22/home-system.png)](docs/screenshots/v0.4.22/home-system.png) | [![TALOS 数据画像](docs/screenshots/v0.4.22/home-insight.png)](docs/screenshots/v0.4.22/home-insight.png) |
+| 屈原语音 · TALOS Ball | AI 对话 · 多智能体工作台 |
+| [![TalosBall 语音状态视觉](docs/screenshots/v0.4.22/voice-workspace.png)](docs/screenshots/v0.4.22/voice-workspace.png) | [![TALOS AI 对话](docs/screenshots/v0.4.22/ai-chat.png)](docs/screenshots/v0.4.22/ai-chat.png) |
+| 资料工作台 · 收件与分诊 | 统一设置 · 界面与主题 |
+| [![TALOS 资料工作台](docs/screenshots/v0.4.22/workbench-inbox.png)](docs/screenshots/v0.4.22/workbench-inbox.png) | [![TALOS 设置与主题](docs/screenshots/v0.4.22/settings.png)](docs/screenshots/v0.4.22/settings.png) |
 
 ## 产品全景
 
 | 工作区 | 你可以做什么 |
 |---|---|
-| **指挥总览** | 查看今日焦点、知识规模、系统健康、发布闭环、重要事项、审批队列和任务进度。 |
-| **AI 对话** | 在 TALOS 原生多会话工作台与嵌入式 DeepSeek Harness 中切换项目、模型和会话。 |
-| **屈原语音** | 使用 Qwen Realtime 进行唤醒、连续对话、实时转写与语音回复；语音工具默认只读。 |
-| **收件箱治理** | 按积压年龄、主题聚类和最近进入情况整理内容，并进入归档、消化或地图视图。 |
-| **全库视图** | 查看内容分布、README 完整性、库健康、活跃天数、项目地图和笔记热力图。 |
-| **统一设置** | 配置界面、目录映射、数据源、智能体、模型、SecretStorage 和语音服务。 |
+| **首页** | 系统体检、今日处理、数据画像三视图：身份/灵魂/记忆/安全等六器官状态、收件队列逐条归位、知识图谱与结构缺口。 |
+| **工作台** | 资料、项目与任务、系统与记忆三段式工作台，承载收件分诊、知识库、输出队列、项目场景、任务与待决策、健康、能力与身份入口。 |
+| **语音助手** | 屈原语音（Qwen Realtime）、AI 对话（多智能体原生会话）与嵌入式 DeepSeek Harness。 |
+| **系统总览** | 查看全库资料分布、活跃热力图、收件积压年龄与系统健康趋势。 |
+| **统一设置** | 配置界面与主题、库与数据、对话与模型、语音服务、系统维护与诊断。 |
 
 ## 核心能力
 
 - **实时 Vault 控制台**：基于 Obsidian `ItemView` 原生渲染；打开即统计，文件变化后事件驱动刷新。
+- **首页三视图**：系统体检、今日处理、数据画像共用同一份实时数据；六器官状态、收件逐条归位与知识图谱在同一入口切换。
 - **行动与治理**：将焦点、待办、审批、偏好候选、发布门和健康信号放在同一个决策面板中。
 - **多智能体工作台**：支持 Claude、Codex、OhMyPi、本机登录态和兼容 Anthropic/OpenAI 协议的 Direct API Provider；提供会话恢复、分叉、压缩、附件、工具调用、diff、MCP、Skills 和子智能体界面。
 - **DeepSeek Harness**：在控制台内打开隔离的 Harness 工作区，保留项目与多会话导航，并由插件管理本地进程和健康状态。
 - **屈原 Qwen Realtime 语音**：支持语音唤醒、持续监听、实时转写、音频回复、文本只读查询和 TALOS Ball 状态舞台。
 - **只读语音工具**：语音可查询 Vault 状态、统计和进度；不会暴露写库或命令执行工具。只有明确说出「联网搜索」或「上网查」时，才会发送当前问题进行联网检索。
-- **十套视觉主题**：Aurora、Nebula、Animal Island、Macintosh、数据流、柔光浮雕、Bauhaus、Executive Brief、Paper 和 Swiss Modernism；可选择只应用于控制台或同步到整个 Vault。
+- **八套视觉主题**：Aurora、Nebula、Animal Island、数据流、柔光浮雕、Bauhaus（几何现代主义）、Executive Brief、Paper；可选择只应用于控制台或同步到整个 Vault。
 - **安全默认值**：API 密钥只写入 Obsidian SecretStorage；审计记录脱敏；缺少可验证 OS 沙箱时，写入型 Execute 会失败关闭。
 - **无损升级**：迁移按 schema 分步执行；首次启动可补齐缺失的 TALOS 基线人格与注册文件，但不会覆盖已有内容。
 
 ## 平台状态
 
-v0.4.6 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
+v0.4.22 使用同一套跨平台代码，但不同系统的安全能力并不伪装成完全一致。
 
 | 平台 | 当前状态 | AI 执行边界 |
 |---|---|---|
@@ -70,16 +70,16 @@ v0.4.6 使用同一套跨平台代码，但不同系统的安全能力并不伪�
 
 ## 安装
 
-TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。商业使用须先取得书面授权；完整边界见 [`LICENSE`](LICENSE)。v0.4.5 候选已嵌入 TalosBall 0.3.0；v0.4.1 不再建议用于商业分发。
+TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商店。请从本仓库 [Releases](https://github.com/WAINAO-Haaper/talos-plugin/releases) 安装。商业使用须先取得书面授权；完整边界见 [`LICENSE`](LICENSE)。v0.4.22 已嵌入 TalosBall 0.3.0。
 
 ### 按系统下载安装包
 
 | 操作系统 | 安装包名称 |
 |---|---|
-| **macOS** | `TALOS-v0.4.6-macOS.zip` |
-| **Windows 10/11 x64** | `TALOS-v0.4.6-Windows.zip` |
+| **macOS** | `TALOS-v0.4.22-macOS.zip` |
+| **Windows 10/11 x64** | `TALOS-v0.4.22-Windows.zip` |
 
-两个压缩包使用同一套 v0.4.6 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
+两个压缩包使用同一套 v0.4.22 插件载荷，文件名用于帮助用户选择对应系统的安装入口。
 
 1. 从最新 Release 下载与你的操作系统对应的 ZIP。
 2. 解压后将其中的 `talos` 文件夹放到 `<你的 Vault>/.obsidian/plugins/`。
@@ -91,7 +91,7 @@ TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商�
 把 Release 中的以下文件放入 `<你的 Vault>/.obsidian/plugins/talos/`：
 
 - `main.js`
-- `claude-sdk.cjs`（v0.4.6 起，Claude 运行时按需加载）
+- `claude-sdk.cjs`（Claude 运行时按需加载）
 - `manifest.json`
 - `styles.css`
 - `LICENSE`
@@ -106,10 +106,10 @@ TALOS 对个人非商业用途开放源码，不进入 Obsidian 社区插件商�
 ## 快速上手
 
 1. 点击 Obsidian 左侧栏的 TALOS 图标，打开统一控制台。
-2. 在「总览」确认今日焦点、系统健康、审批队列和待处理事项。
-3. 在「AI 对话」选择工作区、Provider、模型与工作流。Windows 用户优先选择 Direct API 的 Plan 模式。
-4. 在「屈原语音」配置百炼地域、Qwen Realtime 模型和音色；说出唤醒词后开始连续对话。
-5. 在「收件箱」处理积压，在「全库视图」检查内容分布、README 完整性和创建热力图。
+2. 在「首页 → 系统体检」确认身份、灵魂、记忆、安全与系统健康；在「今日处理」逐条归位收件；在「数据画像」查看知识图谱与结构缺口。
+3. 在「工作台」按资料、项目与任务、系统与记忆三个入口处理收件、知识、输出、项目、任务、健康、能力与身份。
+4. 在「语音助手」打开屈原语音或 AI 对话；Windows 用户优先选择 Direct API 的 Plan 模式。
+5. 在「系统总览」检查资料分布、活跃热力图、收件积压与健康趋势。
 6. 在「设置」选择主题、映射目录，并决定是否把 TALOS 主题同步到整个 Vault。
 
 ## 安全与隐私
@@ -139,10 +139,12 @@ npm run build
 ### 源码结构
 
 - `src/main.ts`：插件生命周期、命令与装配；语音工具、诊断、Provider 等拆在 `src/plugin/`。
-- `src/view.ts`：控制台 ItemView 与导航；业务页面、图表和审批区拆在 `src/ui/pages/`、`src/ui/charts/` 与 `src/ui/view-*.ts`。
-- `src/agent-workbench/`：多智能体会话、运行时适配、审批、安全、存储和 UI。
+- `src/view.ts`：控制台 ItemView、经典导航与 Lens 入口；业务页面拆在 `src/ui/pages/`，图表在 `src/ui/charts/`，审批与外壳在 `src/ui/view-*.ts`。
+- `src/ui/`：首页三视图、工作台三段式、设置页、Lens 与通用页面组件。
+- `src/agent-workbench/`：多智能体会话、运行时适配、审批、安全、存储和原生 UI。
 - `src/harness/`：DeepSeek Harness 嵌入、进程管理和健康检查。
 - `src/quyuan/`：人格、Qwen Realtime 语音、只读工具和 TALOS Ball 舞台。
+- `src/ai/`：Provider 门面、Direct API、隐私出库审计与上下文检索。
 - `src/data/`：全库统计、导航、项目与发布状态采集。
 - `tests/`：跨平台、安全、迁移、语音、Provider 和 UI 契约回归。
 
