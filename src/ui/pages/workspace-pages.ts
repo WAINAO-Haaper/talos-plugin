@@ -103,7 +103,6 @@ export async function renderJarvisPage(view: TalosView, page: HTMLElement): Prom
 				(pageKey) => view.navigateToPage(pageKey)
 			);
 		}
-		renderVoiceHarnessShortcut(view, page);
 		view.jarvis.mount(page.createDiv({ cls: "talos-voice-surface" }));
 		view.jarvisMounted = true;
 	} catch (error) {

@@ -47,7 +47,6 @@ describe("voice focus workspace v2", () => {
 			"TalosBallView",
 			"tq-overlay-text",
 			"tq-transcript-editor",
-			"tq-readonly-query",
 			"播报已开",
 			"stopCurrentWork",
 			"setOutputLevel",
@@ -73,7 +72,6 @@ describe("voice focus workspace v2", () => {
 	});
 
 	it("shows each realtime transcript once without a bordered editor", () => {
-		expect(panel).toContain("仅显示转写 · 不自动注入 AI 对话");
 		expect(panel).toContain("tq-transcript-line--partial");
 		expect(panel).toContain("this.clearPartialTranscript()");
 		expect(panel).toContain("this.pushTranscriptLine(text)");

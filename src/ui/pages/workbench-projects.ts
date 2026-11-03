@@ -1,12 +1,11 @@
-// 项目、任务与待决策使用同一工作面；不改写项目或任务文件。
+// 项目与任务：一屏给出「当前焦点 + 卡住的项目」；完整图表、动作记录与便签收进底部展开。
 import { openFile } from "../../actions";
 import type { TalosView } from "../../view";
 import type { Collected } from "../talos-view-model";
-import { moduleHero } from "../view-modules";
 import { fillProjectPortfolioChart } from "../charts/talos-view-charts";
 import { renderTodayActions, renderTodayQuickNote } from "./today-page";
+import { renderWorkbenchHome, type WorkbenchHomeHandle, type WorkbenchLink, type WorkbenchRow } from "./workbench-home";
 
-/** projects 和 tasks 是历史深链；tasks 保留到待决策的定位。 */
 export function renderWorkbenchProjects(view: TalosView, page: HTMLElement, d: Collected, focusKey: string): void {
 	const projectRoot = view.paths.dir("projects");
 	const projectFolder = view.app.vault.getAbstractFileByPath(projectRoot);
@@ -16,70 +15,147 @@ export function renderWorkbenchProjects(view: TalosView, page: HTMLElement, d: C
 	const candidatesReady = d.setup?.candidatesPath === "ok";
 	const pending = (approvalsReady ? d.approvals.length : 0) + (candidatesReady ? d.candidates.length : 0);
 	const allReady = approvalsReady && candidatesReady;
-	const recent = d.projects.filter((project) => (project.latestMtime ?? 0) >= Date.now() - 7 * 86400000).length;
+	const recent = projectReady ? d.projects.filter((project) => (project.latestMtime ?? 0) >= Date.now() - 7 * 86400000).length : 0;
+	const focusItem = tasksReady ? d.focus[0] : undefined;
+	const focusTotal = tasksReady ? d.focusTotal ?? d.focus.length : 0;
+	const taskDetail = focusKey === "tasks";
 
-	page.dataset.workbenchFocus = focusKey === "tasks" ? "tasks" : "projects";
-	moduleHero(view, page, {
-		ac: "#4D8DFF", icon: "folder-kanban", title: "项目与任务",
-		desc: "在一处查看项目、任务、焦点和待决策。",
+	page.dataset.workbenchFocus = taskDetail ? "tasks" : "projects";
+	let handle: WorkbenchHomeHandle | null = null;
+
+	const projectRows: WorkbenchRow[] = projectReady
+		? d.projects.slice(0, 4).map((project) => ({
+			title: project.name,
+			meta: `${project.count} 篇笔记 · ${project.latestMtime ? `更新 ${new Date(project.latestMtime).toLocaleDateString()}` : "无更新时间"}`,
+			onActivate: () => void openFile(view.app, project.readme),
+		}))
+		: [];
+
+	const commands: WorkbenchLink[] = [
+		{ label: "检索项目", onActivate: () => void view.sendCommandToChat("/retrieval"), onSecondary: () => void view.copyText("/retrieval") },
+		{ label: "晨间", onActivate: () => void view.sendCommandToChat("/morning"), onSecondary: () => void view.copyText("/morning") },
+	];
+
+	handle = renderWorkbenchHome(view, page, {
+		eyebrow: "工作台 · 项目与任务",
+		title: "项目与任务",
+		lede: projectReady
+			? `${d.projects.length} 个项目里 ${recent} 个在近 7 天动过。${focusItem ? `当前焦点是「${focusItem.title}」，先把它推到 done_when。` : "任务池暂无活跃焦点，先处理待决策。"}`
+			: "项目目录未配置。先在设置里指定项目目录，再回来查看项目与任务。",
 		stats: [
-			{ label: "项目数", value: projectReady ? String(d.projects.length) : "—", sub: projectReady ? "项目目录一级文件夹" : "项目目录未配置", path: view.paths.readme("projects") },
-			{ label: "近7天更新", value: projectReady ? String(recent) : "—", sub: projectReady ? "按项目笔记修改时间" : "项目目录未配置", path: view.paths.sceneIndexFile },
-			{ label: "当前焦点", value: tasksReady && d.focusTotal !== undefined ? String(d.focusTotal) : "—", sub: tasksReady ? "任务池 · 最多预览3项" : "任务池来源待检查", path: view.plugin.talosSettings.tasksPath },
-			{ label: "任务池完成占比", value: tasksReady ? d.overview.taskFlow.value : "—", sub: tasksReady ? d.overview.taskFlow.sub : "任务池来源待检查", path: view.plugin.talosSettings.tasksPath },
+			{
+				label: "项目",
+				value: projectReady ? String(d.projects.length) : "—",
+				unit: "个",
+				sub: projectReady ? "项目目录一级文件夹" : "项目目录未配置",
+				onActivate: () => void openFile(view.app, view.paths.readme("projects")),
+			},
+			{
+				label: "近 7 天更新",
+				value: projectReady ? String(recent) : "—",
+				unit: "个",
+				sub: projectReady ? "按项目笔记修改时间" : "项目目录未配置",
+				onActivate: () => handle?.openDetail("portfolio"),
+			},
+			{
+				label: "待决策",
+				value: allReady ? String(pending) : "—",
+				unit: "项",
+				sub: allReady ? `审批 ${approvalsReady ? d.approvals.length : 0} · 偏好候选 ${candidatesReady ? d.candidates.length : 0}` : "来源缺失或格式待检查",
+				alert: allReady && pending > 0,
+				onActivate: () => view.openDecisions(),
+			},
 		],
-		actions: [
-			{ label: "项目总图", icon: "map", path: view.paths.readme("projects") },
-			{ label: "场景索引", icon: "external-link", path: view.paths.sceneIndexFile },
-			{ label: "任务池", icon: "list-checks", path: view.plugin.talosSettings.tasksPath },
+		focus: {
+			accent: "#4D8DFF",
+			kicker: focusItem ? "当前焦点 · 最高优先级" : "当前焦点",
+			title: focusItem?.title ?? (tasksReady ? "任务池暂无活跃焦点" : "任务池未配置或格式待检查"),
+			meta: focusItem?.doneWhen
+				? `done_when · ${focusItem.doneWhen}`
+				: tasksReady ? "任务池 · 最多预览 3 项" : "在设置里检查任务池来源",
+			cta: tasksReady ? "打开任务池 →" : "去设置 →",
+			onActivate: () => {
+				if (tasksReady) void openFile(view.app, view.plugin.talosSettings.tasksPath);
+				else view.navigateToPage("settings");
+			},
+			rows: [
+				{
+					title: `当前焦点 · ${tasksReady ? `${focusTotal} 个` : "来源待检查"}`,
+					meta: "任务池里的活跃焦点",
+					go: "打开任务池 →",
+					onActivate: () => {
+						if (tasksReady) void openFile(view.app, view.plugin.talosSettings.tasksPath);
+						else view.navigateToPage("settings");
+					},
+				},
+				{
+					title: `待决策 · ${allReady ? `${pending} 项` : "来源待检查"}`,
+					meta: "审批与偏好候选",
+					go: "去决策 →",
+					onActivate: () => view.openDecisions(),
+				},
+				{
+					title: "项目场景索引",
+					meta: "所有项目的场景入口",
+					go: "打开索引 →",
+					onActivate: () => void openFile(view.app, view.paths.sceneIndexFile),
+				},
+			],
+		},
+		blocks: [
+			{
+				accent: "#4D8DFF",
+				title: "项目列表",
+				meta: projectReady ? `${d.projects.length} 个项目 · 按修改时间` : "项目目录未配置或不存在",
+				section: "projects",
+				empty: projectReady ? (d.projects.length === 0 ? "项目目录暂无一级文件夹" : undefined) : "项目目录未配置或不存在",
+				rows: projectRows,
+				links: [
+					{ label: "查看全部项目 →", onActivate: () => void openFile(view.app, view.paths.readme("projects")) },
+					{ label: "项目总图", onActivate: () => void openFile(view.app, view.paths.readme("projects")) },
+					{ label: "场景索引", onActivate: () => void openFile(view.app, view.paths.sceneIndexFile) },
+					...commands,
+				],
+			},
+			{
+				accent: "#F59E0B",
+				title: "待决策",
+				meta: allReady ? `${pending} 项待处理` : "来源缺失或格式待检查",
+				section: "decisions",
+				mount: (slot) => { view.renderDecisionWorkspace(slot, d, 3); },
+				links: [
+					{ label: "打开决策区 →", onActivate: () => view.openDecisions() },
+				],
+			},
+		],
+		details: [
+			{
+				key: "portfolio",
+				label: "展开项目概况与更新时间分布",
+				mount: (host) => {
+					const chart = host.createDiv({ cls: "project-v2-portfolio-chart" });
+					if (projectReady) fillProjectPortfolioChart(view, chart, d.projects);
+					else chart.createDiv({ cls: "empty", text: "项目目录未配置或不存在。" });
+				},
+			},
+			{
+				key: "focus-log",
+				label: "展开焦点与动作记录",
+				mount: (host) => { view.fillOverviewKanban(host, tasksReady ? d : { ...d, focus: [] }); },
+			},
+			{
+				key: "quick-note",
+				label: "展开快捷便签",
+				mount: (host) => { renderTodayQuickNote(view, host); },
+			},
+			{
+				key: "runtime",
+				label: "展开统计检查",
+				mount: (host) => { renderTodayActions(view, host); },
+			},
 		],
 	});
-	const commands = page.createDiv({ cls: "module-hero-actions workbench-projects-commands" });
-	for (const [label, command] of [["检索项目", "/retrieval"], ["晨间", "/morning"]] as const) {
-		const button = commands.createEl("button", { cls: "module-hero-action", text: label, attr: { type: "button" } });
-		button.title = `填入 TALOS 对话「${command}」，按回车发送 · 右键复制`;
-		button.addEventListener("click", () => { void view.sendCommandToChat(command); });
-		button.addEventListener("contextmenu", (event) => { event.preventDefault(); void view.copyText(command); });
-	}
 
-	const grid = page.createDiv({ cls: "workflow-v2-primary workbench-projects-grid" });
-	grid.setAttribute("data-workflow-layout", "split");
-	const portfolio = view.panel(grid, "#4D8DFF", "项目概况", "更新时间分布 · 部分项目最多扫描最近40篇笔记");
-	portfolio.setAttribute("data-workbench-section", "project-statistics");
-	if (projectReady) fillProjectPortfolioChart(view, portfolio.createDiv({ cls: "project-v2-portfolio-chart" }), d.projects);
-	else portfolio.createDiv({ cls: "empty", text: "项目目录未配置或不存在。" });
-
-	const list = view.panel(grid, "#A78BFA", "项目列表", projectReady ? `${d.projects.length} 个项目 · 按笔记修改时间排序` : "项目目录未配置");
-	list.setAttribute("data-workbench-section", "projects");
-	if (!projectReady) list.createDiv({ cls: "empty", text: "请在设置中检查项目目录。" });
-	else if (d.projects.length === 0) list.createDiv({ cls: "empty", text: "项目目录暂无一级文件夹。" });
-	else for (const project of d.projects) {
-		const row = list.createEl("button", { cls: "project-card project-v2-priority-row", attr: { type: "button" } });
-		row.createEl("strong", { text: project.name });
-		row.createEl("small", { text: `${project.count} 篇笔记 · ${project.latestMtime ? `更新 ${new Date(project.latestMtime).toLocaleDateString()}` : "无更新时间"}` });
-		if (project.progress) row.createEl("small", { text: `扫描任务 ${project.progress.done}/${project.progress.total}${project.progress.sampled ? ` · 最近 ${project.progress.scannedFiles}/${project.progress.totalFiles} 篇` : " · 全部项目笔记"}` });
-		row.addEventListener("click", () => void openFile(view.app, project.readme));
-	}
-
-	const focus = view.panel(grid, "#4D8DFF", "当前焦点", "任务池预览 · 最多3项");
-	focus.setAttribute("data-workbench-section", "focus");
-	if (!tasksReady) focus.createDiv({ cls: "empty", text: "任务池未配置或格式待检查，请在设置中检查来源。" });
-	else if (!d.focus.length) focus.createDiv({ cls: "empty", text: "任务池暂无活跃焦点" });
-	else for (const item of d.focus.slice(0, 3)) {
-		const button = focus.createEl("button", { cls: `today-v1-focus talos-focusable tone-${item.level}`, attr: { type: "button" } });
-		button.createEl("b", { text: item.title });
-		if (item.doneWhen) button.createEl("small", { text: `done_when · ${item.doneWhen}` });
-		button.addEventListener("click", () => void openFile(view.app, item.path || view.plugin.talosSettings.tasksPath));
-	}
-
-	const decisions = view.panel(grid, "var(--amber)", "待决策", allReady ? `${pending} 项待处理` : "来源缺失或格式待检查");
-	decisions.setAttribute("data-workbench-section", "decisions");
-	view.renderDecisionWorkspace(decisions, d, 3);
-	renderTodayQuickNote(view, grid);
-	const more = page.createEl("details", { cls: "today-v1-secondary" });
-	more.createEl("summary", { text: "焦点、动作记录与统计检查" });
-	const records = more.createDiv({ cls: "workflow-v2-secondary" });
-	const actions = view.panel(records, "#F59E0B", "焦点与动作记录", "焦点预览 · 运行中的动作 · 最近结束的动作（含失败）");
-	view.fillOverviewKanban(actions, tasksReady ? d : { ...d, focus: [] });
-	renderTodayActions(view, records);
+	page.querySelectorAll<HTMLElement>(".talos-wb-detail-body > .talos-ui-page-header").forEach((node) => node.remove());
+	void handle;
 }

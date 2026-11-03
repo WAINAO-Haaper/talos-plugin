@@ -12,7 +12,7 @@ const count = (source: string, pattern: RegExp) => source.match(pattern)?.length
 describe("module integration", () => {
 	it("keeps decision actions in the workbench and routes the dashboard summary there", () => {
 		expect(count(all, /view\.renderDecisionWorkspace\(/g)).toBe(1);
-		expect(read("ui/pages/workbench-projects.ts")).toContain("view.renderDecisionWorkspace(decisions, d, 3)");
+		expect(read("ui/pages/workbench-projects.ts")).toContain("view.renderDecisionWorkspace(slot, d, 3)");
 		expect(read("ui/pages/today-page.ts")).not.toContain("renderDecisionWorkspace");
 		expect(read("ui/pages/today-page.ts")).toContain("view.openDecisions()");
 	});
@@ -38,7 +38,7 @@ describe("module integration", () => {
 		expect(workbench).not.toContain("workbench-subnav");
 		const projects = read("ui/pages/workbench-projects.ts");
 		expect(projects).toContain('"项目列表"');
-		expect(projects).toContain('data-workbench-section", "decisions"');
+		expect(projects).toContain('section: "decisions"');
 	});
 
 	it("folds the capability group controls into the capability browser", () => {

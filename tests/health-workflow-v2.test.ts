@@ -47,7 +47,7 @@ describe("System health v2", () => {
 		expect(view).toContain("renderApprovalItem(view, pendingList, item)");
 		expect(view).toContain("renderCandidateItem(view, preferenceList, item)");
 		expect(view.match(/view\.renderDecisionWorkspace\(/g)?.length).toBe(1);
-		expect(view).toContain('decisions.setAttribute("data-workbench-section", "decisions")');
+		expect(view).toContain('section: "decisions"');
 	});
 
 	it("uses a container breakpoint and natural page height", () => {

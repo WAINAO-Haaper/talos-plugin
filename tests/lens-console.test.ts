@@ -171,7 +171,7 @@ describe("Lens integrated workspaces", () => {
 		expect(renderWorkbench).toHaveBeenLastCalledWith(expect.anything(), "tasks");
 		console.navigate("knowledge", "output");
 		expect(renderWorkbench).toHaveBeenLastCalledWith(expect.anything(), "output");
-		expect(console.root.textContent).toContain("输出来源未配置或无法统计");
+		expect(console.root.textContent).toContain("待处理输出 · 来源待检查");
 		expect(console.root.textContent).not.toContain("待处理 0 项");
 		console.dispose();
 		void window.happyDOM.abort();

@@ -25,7 +25,7 @@ describe("Identity context v2", () => {
 	it("routes decisions to the single shared workspace in Projects and Tasks", () => {
 		expect(view).toContain("export function renderDecisionWorkspace(");
 		expect(view.match(/view\.renderDecisionWorkspace\(/g)?.length).toBe(1);
-		expect(view).toContain('decisions.setAttribute("data-workbench-section", "decisions")');
+		expect(view).toContain('section: "decisions"');
 		expect(page).not.toContain("renderDecisionWorkspace");
 		expect(page).toContain("onActivate: () => view.openDecisions()");
 		expect(view).toContain(

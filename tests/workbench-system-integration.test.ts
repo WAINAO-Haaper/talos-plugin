@@ -26,15 +26,12 @@ function fixture() {
 		empty: { configurable: true, value(this: HTMLElement) { this.replaceChildren(); } },
 	});
 	const page = win.document.createElement("main"); win.document.body.appendChild(page);
-	const sendCommand = vi.fn().mockResolvedValue(undefined);
+	const sendCommandToChat = vi.fn().mockResolvedValue(undefined);
 	const copyText = vi.fn().mockResolvedValue(undefined);
-	const navigate = vi.fn();
+	const navigateToPage = vi.fn();
 	const openDecisions = vi.fn();
 	const view = {
-		app: {}, activeCap: "commands", sendCommandToChat: sendCommand, copyText, navigateToPage: navigate, openDecisions,
-		panel: (host: HTMLElement, _accent: string, title: string, description: string) => {
-			const node = host.createEl("section"); node.createEl("h2", { text: title }); node.createEl("p", { text: description }); return node;
-		},
+		app: {}, activeCap: "commands", sendCommandToChat, copyText, navigateToPage, openDecisions,
 		plugin: { talosSettings: { tasksPath: "tasks.md", pendingApprovalsPath: "approvals.md", candidatesPath: "candidates.md", healthLogPath: "health.md" } },
 		paths: { readme: (key: string) => `${key}/README.md`, errorPatternsFile: "errors.md", loopHealthFile: "loops.md", telosFile: "telos.md", contextFile: "context.md", profileFile: "profile.md", decisionsFile: "decisions.md", personaFile: "persona.md", personaMemoryFile: "persona-memory.md" },
 	} as unknown as TalosView;
@@ -47,35 +44,61 @@ function fixture() {
 			{ key: "agents", label: "Agents", sourceStatus: "unavailable", items: [{ name: "推荐", invoke: "agent", desc: "", origin: "fallback" }] },
 		],
 	} as unknown as Collected;
-	return { page: page as unknown as HTMLElement, view, data, sendCommand, copyText, navigate, openDecisions };
+	return { page: page as unknown as HTMLElement, view, data, sendCommandToChat, copyText, navigateToPage, openDecisions, win };
 }
 
-describe("system workbench integration", () => {
-	it("keeps health, capability and identity in one page with old destinations", () => {
+describe("系统与记忆工作台", () => {
+	it("renders the unified skeleton and never claims zero for missing sources", () => {
 		const { page, view, data } = fixture();
-		renderWorkbenchSystem(view, page, data, "identity");
-		expect(Array.from(page.querySelectorAll("[data-workbench-section]"), (node) => node.getAttribute("data-workbench-section"))).toEqual(["health", "capability", "identity"]);
-		expect(page.textContent).toContain("最近健康记录：88");
-		expect(page.textContent).toContain("错误模式 · 来源待检查");
-		expect(page.textContent).toContain("循环记录");
-		expect(page.textContent).toContain("PERSONA");
-		expect(page.querySelector('[data-workbench-section="identity"]')?.getAttribute("data-focus-requested")).toBe("true");
+		renderWorkbenchSystem(view, page, data, "health");
+		expect(page.querySelectorAll(".talos-wb-kpi")).toHaveLength(3);
+		expect(page.querySelectorAll(".talos-wb-block")).toHaveLength(2);
+		expect(page.querySelectorAll('[data-workbench-section="health"]')).toHaveLength(1);
+		expect(page.querySelectorAll('[data-workbench-section="capability"]')).toHaveLength(1);
+		expect(page.querySelector(".talos-wb-focus-title")?.textContent).toContain("健康分 88");
+		expect(page.textContent).toContain("循环状态");
+		expect(page.textContent).toContain("来源待检查");
 	});
 
-	it("preserves command invocation, source opening, and separate missing-source feedback", () => {
-		const { page, view, data, sendCommand, copyText, navigate, openDecisions } = fixture();
-		renderWorkbenchSystem(view, page, data, "capability");
+	it("opens the health detail for the health deep link with its original actions", () => {
+		const { page, view, data, openDecisions, sendCommandToChat } = fixture();
+		renderWorkbenchSystem(view, page, data, "health");
+		const detail = page.querySelector<HTMLDetailsElement>('[data-workbench-data="health"]');
+		expect(detail?.open).toBe(true);
+		expect(page.textContent).toContain("循环记录");
 		const click = (name: string) => {
-			const item = Array.from(page.querySelectorAll("button")).find((node) => node.textContent === name);
+			const item = Array.from(page.querySelectorAll<HTMLButtonElement>(".talos-wb-link")).find((node) => node.textContent === name);
 			expect(item).toBeDefined(); item!.click();
 		};
-		click("填入对话"); expect(sendCommand).toHaveBeenCalledWith("/morning");
+		click("处理待决策"); expect(openDecisions).toHaveBeenCalledOnce();
+		click("快检 /maintain quick"); expect(sendCommandToChat).toHaveBeenCalledWith("/maintain quick");
+	});
+
+	it("keeps capability browsing with invoke, copy and source opening", () => {
+		const { page, view, data, sendCommandToChat, copyText } = fixture();
+		renderWorkbenchSystem(view, page, data, "capability");
+		const capDetail = page.querySelector<HTMLDetailsElement>('[data-workbench-data="capability"]');
+		expect(capDetail?.open).toBe(true);
+		const click = (name: string) => {
+			const item = Array.from(page.querySelectorAll<HTMLButtonElement>(".talos-wb-link")).find((node) => node.textContent === name);
+			expect(item).toBeDefined(); item!.click();
+		};
+		click("填入对话"); expect(sendCommandToChat).toHaveBeenCalledWith("/morning");
 		click("复制调用"); expect(copyText).toHaveBeenCalledWith("/morning");
 		click("打开源文件"); expect(vi.mocked(openFile)).toHaveBeenCalledWith(view.app, "morning.md");
-		click("处理待决策"); expect(openDecisions).toHaveBeenCalledOnce();
-		click("打开错误模式来源"); expect(navigate).toHaveBeenCalledWith("settings");
 		click("Agents —");
 		expect(page.textContent).toContain("推荐入口，未发现对应文件");
 		expect(page.textContent).toContain("部分能力来源不可用");
+	});
+
+	it("exposes identity entries for the identity deep link", () => {
+		const { page, view, data } = fixture();
+		renderWorkbenchSystem(view, page, data, "identity");
+		const detail = page.querySelector<HTMLDetailsElement>('[data-workbench-data="identity"]');
+		expect(detail?.open).toBe(true);
+		expect(page.textContent).toContain("PERSONA");
+		const persona = Array.from(page.querySelectorAll<HTMLButtonElement>(".talos-wb-row")).find((node) => node.textContent?.includes("PERSONA"));
+		persona?.click();
+		expect(vi.mocked(openFile)).toHaveBeenCalledWith(view.app, "persona.md");
 	});
 });

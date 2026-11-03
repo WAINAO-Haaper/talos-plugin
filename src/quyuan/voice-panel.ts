@@ -106,10 +106,8 @@ export class QuyuanVoicePanel {
 
 	private rootEl: HTMLElement | null = null;
 	private bodyEl: HTMLElement | null = null;
-	private sessionInputEl: HTMLTextAreaElement | null = null;
 	private wakeStatusEl: HTMLElement | null = null;
 	private micBtn: HTMLButtonElement | null = null;
-	private sendBtn: HTMLButtonElement | null = null;
 	private characterStage: QuyuanVoiceCharacterStage | null = null;
 	private talosBall: TalosBallView | null = null;
 	private talosThemeObserver: MutationObserver | null = null;
@@ -323,12 +321,6 @@ export class QuyuanVoicePanel {
 			text: "就绪",
 			attr: { role: "status", "aria-live": "polite" },
 		});
-		const badges = statusRow.createDiv({ cls: "tq-dock-badges" });
-		badges.createSpan({ text: `文字审批 · ${this.permissionLabel()}` });
-		badges.createSpan({
-			text: "千问 Realtime",
-		});
-		badges.createSpan({ text: `模型 · ${this.modelLabel()}` });
 
 		const overlay = conversation.createDiv({
 			cls: "tq-overlay-text",
@@ -351,7 +343,6 @@ export class QuyuanVoicePanel {
 		});
 		const transcriptHead = this.overlayTranscriptEl.createDiv({ cls: "tq-transcript-head" });
 		transcriptHead.createSpan({ text: "实时转写" });
-		transcriptHead.createEl("small", { text: "仅显示转写 · 不自动注入 AI 对话" });
 		this.overlayTranscriptLinesEl = this.overlayTranscriptEl.createDiv({
 			cls: "tq-transcript-lines",
 			attr: { "aria-live": "polite" },
@@ -404,41 +395,6 @@ export class QuyuanVoicePanel {
 		const settingsButton = controlButton("", "settings", "设置");
 		settingsButton.addEventListener("click", () => this.openSettings());
 
-		const query = footer.createDiv({
-			cls: "tq-readonly-query",
-			attr: { role: "search", "aria-label": "文本只读查询" },
-		});
-		const queryCopy = query.createDiv({ cls: "tq-readonly-query__copy" });
-		queryCopy.createEl("b", { text: "文本只读查询" });
-		queryCopy.createEl("small", { text: "独立语音会话 · 遵循 A/B/C 审批" });
-		this.sessionInputEl = query.createEl("textarea", {
-			attr: {
-				rows: "1",
-				maxlength: "1200",
-				placeholder: "输入要查询的状态、统计或进度",
-				"aria-label": "发送文本查询",
-			},
-		});
-		this.sendBtn = query.createEl("button", {
-			cls: "tq-btn tq-btn--primary tq-btn--icon tq-send-btn",
-			attr: { type: "button", "aria-label": "发送文本查询" },
-		});
-		setIcon(this.sendBtn.createSpan(), "arrow-up");
-		this.sendBtn.disabled = true;
-		const submit = (): void => {
-			const text = this.sessionInputEl?.value.trim() ?? "";
-			if (!text) return;
-			if (this.sessionInputEl) this.sessionInputEl.value = "";
-			this.updateSendState();
-			this.commitUser(text, "text");
-		};
-		this.sendBtn.addEventListener("click", submit);
-		this.sessionInputEl.addEventListener("input", () => this.updateSendState());
-		this.sessionInputEl.addEventListener("keydown", (event) => {
-			if (event.key !== "Enter" || event.shiftKey) return;
-			event.preventDefault();
-			submit();
-		});
 
 		const safety = footer.createDiv({ cls: "tq-voice-safety" });
 		setIcon(safety.createSpan(), "shield-check");
@@ -970,11 +926,6 @@ export class QuyuanVoicePanel {
 		button.createSpan({ cls: "tq-control-label", text: visualLabel });
 	}
 
-	private updateSendState(): void {
-		if (!this.sendBtn) return;
-		this.sendBtn.disabled = !(this.sessionInputEl?.value.trim());
-	}
-
 	private restingState(): VoiceState {
 		if (!(this.realtime?.isConnected() ?? false)) return "idle";
 		return this.wakeActive ? "listen" : "sleep";
@@ -1433,10 +1384,8 @@ export class QuyuanVoicePanel {
 		this.markdownComponent = null;
 		this.rootEl = null;
 		this.bodyEl = null;
-		this.sessionInputEl = null;
 		this.wakeStatusEl = null;
 		this.micBtn = null;
-		this.sendBtn = null;
 		this.engBtn = null;
 		this.voiceModeBtn = null;
 		this.ttsBtn = null;

@@ -23,7 +23,7 @@ vi.mock("../src/quyuan/voice-panel", () => ({
 }));
 
 describe("voice stage layout", () => {
-	it("keeps the mounted ball in a growing surface below the shortcut", async () => {
+	it("keeps the mounted ball in a growing surface", async () => {
 		const win = new Window();
 		try {
 			const doc = win.document;
@@ -57,12 +57,10 @@ describe("voice stage layout", () => {
 			};
 			const { renderJarvisPage } = await import("../src/ui/pages/workspace-pages");
 			await renderJarvisPage(view as never, page as never);
-			const shortcut = page.querySelector(".talos-voice-shortcuts")!;
 			const surface = page.querySelector(".talos-voice-surface")!;
 			const voice = surface.querySelector(".tq-voice")!;
 			expect(voice.querySelector(".tq-talos-ball-host")).not.toBeNull();
 			expect(win.getComputedStyle(page).flexDirection).toBe("column");
-			expect(win.getComputedStyle(shortcut).flex).toBe("0 0 auto");
 			expect(win.getComputedStyle(surface).display).toBe("flex");
 			expect(win.getComputedStyle(surface).flex).toMatch(/^1 1 0/);
 			expect(win.getComputedStyle(surface).minHeight).toBe("0");

@@ -200,7 +200,6 @@ describe("UI spec v2 convergence phase 2 · voice panel (C-4)", () => {
 		expect(blockWithSize(".tq-control-btn", "11px")).toBe(true);
 		expect(blockWithSize(".tq-dock-live > small", "11px")).toBe(true);
 		expect(blockWithSize(".tq-voice-safety", "10px")).toBe(true);
-		expect(blockWithSize(".tq-readonly-query__copy > b", "11px")).toBe(true);
 	});
 
 	it("documents the console font:inherit flattening on embedded tq buttons", () => {

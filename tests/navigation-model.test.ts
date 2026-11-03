@@ -108,7 +108,8 @@ describe("TALOS navigation model", () => {
 	});
 
 	it("uses the primary navigation instead of duplicating nine launch cards", () => {
-		expect(viewSource).toContain('"data-workbench-section", "decisions"');
+		expect(viewSource).toContain('section: "decisions"');
+		expect(viewSource).toContain("dataset.workbenchSection");
 		expect(viewSource).toContain('"aria-label", "工作台分类"');
 		expect(viewSource).not.toContain("for (const module of WORKBENCH_MODULES)");
 		expect(viewSource).not.toContain('"data-workbench-section", "customer-modules"');
