@@ -148,7 +148,7 @@ export class DesktopRuntimeFactory {
 		const probe = await this.probe(runtimeId, input.runtimeProfile);
 		if (probe.status !== "ready" || !probe.executable) throw new Error(probe.reason ?? `${runtimeId} 运行时不可用`);
 		await this.sandbox.assertAvailable();
-		const probeRuntime = (signal?: AbortSignal) => this.discovery.probe(runtimeId, input.runtimeProfile);
+		const probeRuntime = () => this.discovery.probe(runtimeId, input.runtimeProfile);
 		const providerEnvironment = providerEnvironmentForRuntime(
 			runtimeId,
 			input.providerProfile,

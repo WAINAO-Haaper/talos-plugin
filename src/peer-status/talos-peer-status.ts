@@ -11,8 +11,6 @@ import path from "node:path";
 
 export const TALOS_PEER_STATUS_CACHE_PATH = ".talos/peer-status/v1/talos-system.json";
 export const TALOS_PEER_STATUS_MAX_BYTES = 64 * 1024;
-export const TALOS_PEER_STATUS_TTL_MS = 5 * 60 * 1000;
-export const TALOS_PEER_STATUS_CONTRACT = "peer-status-v1";
 
 export type PeerReadStatus = "current" | "stale" | "partial" | "unreachable" | "error";
 
@@ -408,7 +406,7 @@ export function publicInvalidReason(reason: string | null): string | null {
 	return reason.startsWith("cache-") ? reason : null;
 }
 
-export function talosPeerStatusDisplay(status: TalosPeerStatusState, now: Date = new Date()): TalosPeerStatusDisplay {
+export function talosPeerStatusDisplay(status: TalosPeerStatusState): TalosPeerStatusDisplay {
 	if (status.state === "disabled") {
 		return { state: "disabled", statusLabel: "已停用", focusName: "—", mainlineTitle: "—", nextAction: "—", blockerCount: 0, blockerTop: null, revision: "—", generatedAtLabel: "—", sequence: null, reason: null };
 	}

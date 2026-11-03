@@ -14,8 +14,6 @@ export interface EffectiveRuntimePolicy {
 	uiLabel: string;
 }
 
-export const TALOS_RUNTIME_CHANNEL_SETTING = "talosRuntimeChannel";
-
 // Explicit 2026-08-26 user authorization: voice media may use the configured
 // Realtime provider. A later bounded authorization allows only current-turn
 // Qwen search queries after an explicit spoken command. The agent/tool process
@@ -73,13 +71,6 @@ const MUTATION_TOOLS = new Set([
 	"file_change",
 ]);
 
-export function runtimeChannelFromSettings(
-	settings: Record<string, unknown>
-): TalosRuntimeChannel {
-	const value = settings[TALOS_RUNTIME_CHANNEL_SETTING];
-	if (value === "voice" || value === "auxiliary") return value;
-	return "chat";
-}
 
 /**
  * Resolve the policy that actually reaches the provider runtime. Persisted user

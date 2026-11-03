@@ -270,7 +270,6 @@ function renderOrgans(view: TalosView, host: HTMLElement, d: Collected): void {
 // ───────────────────────────── V2 · 今日处理 ─────────────────────────────
 
 function renderTriage(view: TalosView, host: HTMLElement, d: Collected): void {
-	const doc = host.ownerDocument;
 	const queue = d.inbox.queue ?? [];
 	const head = host.createDiv({ cls: "hm-head" });
 	head.createDiv({ cls: "hm-eyebrow", text: "超级大脑 · 今日处理" });
@@ -283,7 +282,7 @@ function renderTriage(view: TalosView, host: HTMLElement, d: Collected): void {
 	const track = progress.createDiv({ cls: "hm-bar" });
 	const fill = track.createEl("i");
 	fill.style.width = `${d.inbox.count === 0 ? 0 : Math.round((queue.length / d.inbox.count) * 100)}%`;
-	fill.style.background = "#f59e0b";
+	fill.setCssProps({ background: "#f59e0b" });
 	progress.createDiv({ cls: "hm-progress-note", text: `最老 ${d.inbox.oldestDays} 天` });
 
 	if (!queue.length) {
@@ -556,7 +555,7 @@ function renderInsight(view: TalosView, host: HTMLElement, d: Collected): void {
 		const track = row.createDiv({ cls: "hm-bar" });
 		const fill = track.createEl("i");
 		fill.style.width = `${Math.round((tag.count / maxTag) * 100)}%`;
-		fill.style.background = "#2052b8";
+		fill.setCssProps({ background: "#2052b8" });
 		row.createEl("b", { text: String(tag.count) });
 	}
 
@@ -572,7 +571,7 @@ function renderInsight(view: TalosView, host: HTMLElement, d: Collected): void {
 		const bar = col.createDiv({ cls: "hm-month-bar" });
 		const fill = bar.createEl("i");
 		fill.style.height = `${Math.round((month.count / maxMonth) * 100)}%`;
-		if (month.current) fill.style.background = "#158b69";
+		if (month.current) fill.setCssProps({ background: "#158b69" });
 		col.createSpan({ text: month.label });
 	}
 
@@ -610,7 +609,7 @@ function renderInsight(view: TalosView, host: HTMLElement, d: Collected): void {
 		const track = line.createDiv({ cls: "hm-bar" });
 		const fill = track.createEl("i");
 		fill.style.width = `${Math.round((folder.count / maxFolder) * 100)}%`;
-		fill.style.background = "#a78bfa";
+		fill.setCssProps({ background: "#a78bfa" });
 		line.createEl("b", { text: String(folder.count) });
 	}
 	if (!folders.length) folderList.createDiv({ cls: "hm-empty", text: "目录未识别" });

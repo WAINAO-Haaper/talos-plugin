@@ -140,17 +140,6 @@ export function renderTalosPageHeader(
 	return header;
 }
 
-export function renderTalosKpiStrip(
-	parent: HTMLElement,
-	metrics: TalosUiMetric[]
-): HTMLElement {
-	const strip = parent.createDiv({ cls: "talos-ui-kpi-strip" });
-	strip.dataset.talosComponent = "kpi-strip";
-	for (const metric of metrics.slice(0, 4)) {
-		renderMetric(strip, metric, "talos-ui-kpi");
-	}
-	return strip;
-}
 
 export function renderTalosEmptyState(
 	parent: HTMLElement,

@@ -83,6 +83,8 @@ export default tseslint.config(
 		files: ['tests/**/*.ts'],
 		rules: {
 			'obsidianmd/prefer-window-timers': 'off',
+			// 测试跑在 Node/happy-dom，没有 Obsidian 的 activeDocument；document 只用于构造测试 DOM。
+			'obsidianmd/prefer-active-doc': 'off',
 		},
 	},
 );

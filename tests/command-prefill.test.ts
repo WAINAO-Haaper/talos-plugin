@@ -87,7 +87,7 @@ describe("console command → TALOS chat prefill", () => {
 
 	it("routes every console command entry to the chat and keeps copy only as the right-click path", () => {
 		const read = (path: string) => readFileSync(new URL(`../src/${path}`, import.meta.url), "utf8");
-		const sources = [read("ui/view-modules.ts"), read("ui/pages/knowledge-pages.ts")];
+		const sources = [read("ui/view-modules.ts"), read("ui/pages/workbench-projects.ts")];
 		for (const source of sources) {
 			expect(source).toContain("sendCommandToChat(");
 			expect(source).not.toMatch(/addEventListener\("click", \(\) =>\s*void view\.copyText/);

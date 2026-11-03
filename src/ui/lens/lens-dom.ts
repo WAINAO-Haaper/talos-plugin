@@ -57,11 +57,6 @@ export function button(doc: Document, text: LensChild, attrs: LensAttrs = {}, pr
 	return el(doc, "button", { type: "button", class: `ta-button${primary ? " ta-primary" : ""}`, ...attrs }, text);
 }
 
-export function link(doc: Document, text: string, onClick: () => void, attrs: LensAttrs = {}): HTMLButtonElement {
-	const node = el(doc, "button", { type: "button", class: "ta-link", ...attrs }, text, icon(doc, "arrow-up-right"));
-	node.addEventListener("click", onClick);
-	return node;
-}
 
 export function fact(doc: Document, label: string, value: LensChild): HTMLElement {
 	return el(doc, "div", { class: "ta-fact" }, el(doc, "span", {}, label), el(doc, "span", {}, value));
@@ -90,8 +85,3 @@ export function heading(doc: Document, title: string, subtitle = "", context = "
 }
 
 /** 单值比例条（visual-kit meter）。 */
-export function meter(doc: Document, value: number, max: number, tone = "idle"): HTMLElement {
-	const width = max > 0 ? Math.max(value > 0 ? 4 : 0, Math.round((value / max) * 100)) : 0;
-	return el(doc, "span", { class: "vk-meter", "aria-hidden": "true" },
-		el(doc, "span", { "data-tone": tone, style: `--vk-w:${width}%` }));
-}

@@ -605,10 +605,6 @@ export default class TalosPlugin extends Plugin {
 		settings.visualTheme = normalizeVisualTheme(settings.visualTheme);
 		settings.uiLanguage = normalizeUiLanguage(settings.uiLanguage);
 		if (settings.lensAppearance !== "dark") settings.lensAppearance = "light";
-		// 屈原背景效果容错：只接受合法值，否则回退默认
-		if (settings.quyuanBackground !== "letter-glitch" && settings.quyuanBackground !== "grid-scan") {
-			settings.quyuanBackground = "letter-glitch";
-		}
 		const secretStore = providerSecretStoreFromApp(this.app);
 		try {
 			const migration = await migrateWp7Data({

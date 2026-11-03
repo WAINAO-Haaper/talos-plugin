@@ -84,7 +84,9 @@ describe("资料工作台首页", () => {
 		click("开始归档 /intake"); expect(sendCommandToChat).toHaveBeenCalledWith("/intake");
 		click("消化偏好 /digest"); expect(sendCommandToChat).toHaveBeenCalledWith("/digest");
 		click("收件地图"); expect(openFile).toHaveBeenCalledWith(view.app, "inbox/README.md");
-		click("去确认 →"); expect(view.openDecisions).toHaveBeenCalledOnce();
+		click("去确认 →");
+		// eslint-disable-next-line @typescript-eslint/unbound-method -- fixture 用 vi.fn 覆盖了原型方法
+		expect(view.openDecisions).toHaveBeenCalledOnce();
 	});
 
 	it("opens the matching full detail for old deep links and drops its duplicated header", () => {

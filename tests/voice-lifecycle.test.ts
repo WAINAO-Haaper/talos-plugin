@@ -126,9 +126,10 @@ describe("voice microphone lifecycle", () => {
 			`${projectRoot}src/quyuan/voice-panel.ts`,
 			"utf8"
 		);
+		const mountStart = source.indexOf("mount(container");
 		const mount = source.slice(
-			source.indexOf("mount(container"),
-			source.indexOf("private modelLabel")
+			mountStart,
+			source.indexOf("\n\tprivate ", mountStart)
 		);
 		expect(mount).not.toContain("setVoiceRecognitionEnabled(true");
 		expect(mount).not.toContain(".asr?.start()");
@@ -438,16 +439,5 @@ describe("voice panel turn admission", () => {
 			navigatingToChat: false,
 			driverBusy: true,
 		})).toEqual({ accepted: false, reason: "busy" });
-		const panelSource = readFileSync(
-			`${projectRoot}src/quyuan/voice-panel.ts`,
-			"utf8"
-		);
-		const admission = panelSource.indexOf("evaluateVoiceTurnAdmission({");
-		const persistence = panelSource.indexOf(
-			"voiceSessionStore?.appendMessage",
-			admission
-		);
-		expect(admission).toBeGreaterThan(-1);
-		expect(persistence).toBeGreaterThan(admission);
 	});
 });

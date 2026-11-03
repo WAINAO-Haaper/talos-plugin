@@ -26,6 +26,7 @@ function fixture() {
 		createDiv: { configurable: true, value(this: HTMLElement, options?: Options) { return createEl.call(this, "div", options); } },
 		createSpan: { configurable: true, value(this: HTMLElement, options?: Options) { return createEl.call(this, "span", options); } },
 		empty: { configurable: true, value(this: HTMLElement) { this.replaceChildren(); } },
+		setCssProps: { configurable: true, value(this: HTMLElement, props: Record<string, string>) { for (const [key, value] of Object.entries(props)) this.style.setProperty(key, value); } },
 	});
 	const page = win.document.createElement("main"); win.document.body.appendChild(page);
 	const navigateToPage = vi.fn();

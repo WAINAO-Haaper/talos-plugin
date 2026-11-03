@@ -46,12 +46,6 @@ export const CANONICAL_REGISTRY_TEMPLATE = `${JSON.stringify({
 	}],
 }, null, 2)}\n`;
 
-export const TALOS_BOOTSTRAP_TEMPLATES = {
-	persona: PERSONA_TEMPLATE,
-	personaMemory: PERSONA_MEMORY_TEMPLATE,
-	context: CONTEXT_TEMPLATE,
-	registry: CANONICAL_REGISTRY_TEMPLATE,
-} as const;
 
 export function normalizeBootstrapPath(value: string): string {
 	if (!value || value.includes("\0") || path.posix.isAbsolute(value) || path.win32.isAbsolute(value)) {

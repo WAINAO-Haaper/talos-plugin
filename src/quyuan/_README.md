@@ -7,8 +7,6 @@
 - `contract.ts`：不可缩水的通用 Agent 能力合同。
 - `persona-context.ts`：首轮对话前完整加载 PERSONA、persona-memory、CONTEXT；缺一即失败。
 - `governance.ts`：写库前的 TALOS 铁律判定，不依赖具体 Provider。
-- `workbench-adapter.ts`：TALOS 与 provider-neutral runtime 的稳定适配契约。
-- `module.ts`：把人格、治理和工作台适配器编排为一个屈原模块。
 - `styles.quyuan-shell.css`（插件根目录）：完整 Agent 工作台不再自带固定浅色宣纸变量；开启全库同步时消费 `body[data-talos-vault-theme]` 的七主题令牌，关闭同步时继承 Obsidian 当前明暗主题。主题色、文字、边框、圆角与 `color-scheme` 共用同一来源，切换无需重建视图。
 - `voice-panel.ts`：控制台屈原页的语音交互舞台与六态总调度。右侧为可拖拽调宽、可折叠的 TALOS 交互面板，默认承载同源语音/文字会话，并提供上下文、能力、快捷指令和完整工作台入口。语音识别结果不再进入全宽字幕流，改为圆环右上方独立编辑卡：卡片从右侧 42px 滑入，textarea 支持多行编辑、内部滚动和 Esc 收起；扇形菜单展开时卡片联动上滑 64px（窄屏 58px）为按钮与气泡让位。仅语音通道更新该卡，文字输入仍留在会话区。AI 回复区固定收窄到左侧阅读栏，编辑卡与回复、圆环、扇形按钮分别占用独立区域。悬浮标签只保留组件自己的圆角气泡；按钮通过隐藏文本和 `aria-labelledby` 保持无障碍名称。持续监听默认处于休眠门控，说“屈原”唤醒，30 秒内可连续对话，说“退下”立即休眠；显式“退出语音”才停止 ASR、唤醒词监听并释放麦克风，文字输入始终可用。
 - `voice-character-stage.ts`：控制台与粒子 Logo 渲染器之间的稳定适配层，只暴露六态、唤醒状态、麦克风输入量、TTS 输出量和销毁契约。内部创建双层 Canvas；若 Canvas 初始化失败，只降级为静态 TALOS 图标，不阻断屈原页打开。
@@ -22,7 +20,7 @@
 1. 旧 `src/jarvis/` 在 v2 实机回归通过前不删除；回滚入口仅保留在命令面板，不再重复占用侧栏。
 2. Agent Workbench 行为代码不得依赖 Claudian 旧版目录或类型。
 3. 人格与治理必须独立于 Claude/Codex/OpenCode/Pi。
-4. 所有能力以 `contract.ts` 为发布闸门；缺失能力必须显式报告，不能静默降级。
+4. `contract.ts` 保留通用能力合同与单测；生产工具策略统一走 `governance.ts` 与 `../plugin/quyuan-voice-tools.ts`，缺失能力必须显式报告，不能静默降级。
 
 ## 架构研究基线
 

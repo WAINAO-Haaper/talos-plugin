@@ -239,7 +239,7 @@ export function renderWorkbenchSystem(view: TalosView, page: HTMLElement, d: Col
 						] },
 					]) {
 						host.createEl("h3", { cls: "talos-wb-subhead", text: group.title });
-						signals(host, group.items as SignalItem[], "暂无入口");
+						signals(host, group.items, "暂无入口");
 					}
 				},
 			},

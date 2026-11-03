@@ -57,8 +57,3 @@ export function stageIndex(status: string): number {
 }
 
 /** 项目状态 → 色调（与 Lens statusTone 一致）。 */
-export const STATUS_TONE: Readonly<Record<string, string>> = {
-	planned: "c1", active: "c5", review: "c3", completed: "pass", paused: "c4", blocked: "fail",
-};
-
-export const CHECK_TONE: Readonly<Record<string, string>> = { passed: "pass", failed: "fail", not_run: "idle", unknown: "idle" };

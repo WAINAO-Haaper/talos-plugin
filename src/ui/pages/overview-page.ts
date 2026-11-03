@@ -1,7 +1,5 @@
 // 「今日」页的重要事项收集与行渲染；由今日页、导航计数与审批区复用。
 import type { Collected, OverviewAttention } from "../talos-view-model";
-import { openFile } from "../../actions";
-import { setIcon } from "obsidian";
 import type { TalosView } from "../../view";
 
 export function collectOverviewAttention(view: TalosView, d: Collected): OverviewAttention[] {
@@ -45,40 +43,4 @@ export function collectOverviewAttention(view: TalosView, d: Collected): Overvie
 		});
 	}
 	return items;
-}
-
-export function renderOverviewAttentionRows(view: TalosView, parent: HTMLElement, items: OverviewAttention[]): void {
-	const list = parent.createDiv({ cls: "overview-v2-attention-list" });
-	if (items.length === 0) {
-		list.createDiv({
-			cls: "ok",
-			text: "其余巡检项正常，暂无需要展开的异常。",
-		});
-		return;
-	}
-	for (const item of items) {
-		const row = list.createDiv({
-			cls: `overview-v2-attention-row tone-${item.tone}`,
-		});
-		row.setAttribute("role", "button");
-		row.setAttribute("tabindex", "0");
-		row.setAttribute("aria-label", `${item.title}：${item.action}`);
-		const icon = row.createSpan({ cls: "overview-v2-attention-row__icon" });
-		setIcon(icon, item.icon);
-		const copy = row.createDiv({ cls: "overview-v2-attention-row__copy" });
-		copy.createEl("strong", { text: item.title });
-		copy.createEl("span", { text: item.meta });
-		const arrow = row.createSpan({ cls: "overview-v2-attention-row__arrow" });
-		setIcon(arrow, "chevron-right");
-		const activate = () => {
-			if (item.target === "decisions") view.openDecisions();
-			else void openFile(view.app, item.path);
-		};
-		row.addEventListener("click", activate);
-		row.addEventListener("keydown", (event) => {
-			if (event.key !== "Enter" && event.key !== " ") return;
-			event.preventDefault();
-			activate();
-		});
-	}
 }

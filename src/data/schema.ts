@@ -331,10 +331,6 @@ export function detectVaultFiles(app: App, schema: TalosVaultSchema): Partial<Re
 	return out;
 }
 
-/** 兼容旧签名：只要 schema */
-export function detectSchema(app: App): TalosVaultSchema {
-	return detectSchemaDetailed(app).schema;
-}
 
 /**
  * 自动定位统计来源的关键文件（tasks / 待审批 / 候选池 / 健康日志）。

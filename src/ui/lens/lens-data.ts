@@ -1,8 +1,7 @@
 // Lens 界面的数据视图：把控制台已采集的 Collected、lili 状态快照与库元数据
 // 整理成 Lens 页面需要的形状。全部只读，不新增任何写库操作。
-import { TFile, getAllTags, type App } from "obsidian";
+import { TFile, type App } from "obsidian";
 import type { Collected } from "../talos-view-model";
-import type { VaultPaths } from "../../data/schema";
 import type { TalosPeerStatusState } from "../../peer-status/talos-peer-status";
 
 export interface LensProject {
@@ -112,28 +111,4 @@ export function buildLensData(app: App, collected: Collected, peer: TalosPeerSta
 		focus: buildLensFocus(peer),
 		peerState: peer?.state ?? "missing",
 	};
-}
-
-/** 目录下的 Markdown 笔记（按修改时间倒序），供收集 / 知识 / 身份等模块的卡片列表使用。 */
-export function listNotes(app: App, folder: string, options: { skipReadme?: boolean } = {}): LensNote[] {
-	const prefix = folder.replace(/\/+$/, "") + "/";
-	return app.vault.getMarkdownFiles()
-		.filter((file) => file.path.startsWith(prefix) && !(options.skipReadme && file.basename === "_README"))
-		.sort((a, b) => b.stat.mtime - a.stat.mtime)
-		.map((file) => {
-			const cache = app.metadataCache.getFileCache(file);
-			const tags = cache ? [...new Set(getAllTags(cache) ?? [])].map((tag) => tag.replace(/^#/, "")) : [];
-			return {
-				path: file.path,
-				name: file.basename,
-				folder: file.parent?.path.slice(prefix.length) || "",
-				mtime: file.stat.mtime,
-				size: file.stat.size,
-				tags,
-			};
-		});
-}
-
-export function moduleDir(paths: VaultPaths, key: Parameters<VaultPaths["dir"]>[0]): string {
-	return paths.dir(key);
 }

@@ -51,11 +51,9 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 	private readonly app: App;
 	private root: HTMLElement | null = null;
 	private tabBar: HTMLElement | null = null;
-	private messages: HTMLElement | null = null;
 	private history: HTMLElement | null = null;
 	private historyList: HTMLElement | null = null;
 	private approvalRegion: HTMLElement | null = null;
-	private composerHost: HTMLElement | null = null;
 	private composer: NativeComposer | null = null;
 	private pendingPrefill: string | null = null;
 	private readonly contextUsage = new Map<string, ContextUsage>();
@@ -176,9 +174,7 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 		root.appendChild(main);
 
 		this.root = root;
-		this.messages = messages;
 		this.approvalRegion = approval;
-		this.composerHost = composerHost;
 		this.renderer = new NativeEventRenderer(messages, this.app, () => this.app.workspace.getActiveFile()?.path ?? "");
 		const composer = new NativeComposer(composerHost, {
 			app: this.app,
@@ -969,11 +965,9 @@ export class NativeConversationView implements AgentWorkbenchInteractionPort {
 		this.root?.remove();
 		this.root = null;
 		this.tabBar = null;
-		this.messages = null;
 		this.history = null;
 		this.historyList = null;
 		this.approvalRegion = null;
-		this.composerHost = null;
 		this.composer = null;
 		this.renderer = null;
 		this.manifests.clear();

@@ -7,7 +7,6 @@ import {
 	type InteractionChannel,
 	type TalosVoiceRuntimeHost,
 } from "./native-voice-driver";
-import { resolveEffectiveRuntimePolicy } from "./runtime-policy";
 import { buildTalosDataMap } from "./voice-data-map";
 import { QuyuanVoiceCharacterStage } from "./voice-character-stage";
 import {
@@ -21,7 +20,6 @@ import {
 	VoiceModeController,
 	type VoiceInputMode,
 } from "./voice-mode-controller";
-import { evaluateVoiceTurnAdmission } from "./voice-turn-admission";
 import {
 	QwenRealtimeVoiceSession,
 	resolveVoiceWake,
@@ -105,7 +103,6 @@ export class QuyuanVoicePanel {
 	private ttsBtn: HTMLButtonElement | null = null;
 
 	private rootEl: HTMLElement | null = null;
-	private bodyEl: HTMLElement | null = null;
 	private wakeStatusEl: HTMLElement | null = null;
 	private micBtn: HTMLButtonElement | null = null;
 	private characterStage: QuyuanVoiceCharacterStage | null = null;
@@ -247,7 +244,6 @@ export class QuyuanVoicePanel {
 		root.setAttribute("data-voice-recognition", "off");
 
 		const body = root.createDiv({ cls: "tq-body" });
-		this.bodyEl = body;
 
 		const stage = body.createDiv({
 			cls: "tq-stage",
@@ -419,18 +415,6 @@ export class QuyuanVoicePanel {
 		} else {
 			this.renderVoiceRecognitionOff();
 		}
-	}
-
-	private modelLabel(): string {
-		return this.settings.quyuanRealtimeModel?.trim()
-			|| "qwen3.5-omni-flash-realtime";
-	}
-
-	private permissionLabel(): string {
-		return resolveEffectiveRuntimePolicy({
-			channel: "voice",
-			permissionMode: this.settings.jarvisPermissionMode,
-		}).uiLabel;
 	}
 
 	private openSettings(): void {
@@ -1005,22 +989,6 @@ export class QuyuanVoicePanel {
 	}
 
 
-	// 打断（barge-in）：用户在屈原思考/朗读时开口 → 取消在途回复并停朗读
-	private onBargeIn(): void {
-		if (this.state === "think" || this.state === "speak" || this.driver?.isBusy()) {
-			++this.responseGeneration;
-			this.voiceMode.bargeIn();
-			this.responseActive = false;
-			this.driver?.cancel();
-			this.ttsWasCancelled = true;
-			this.tts?.stop();
-			this.ttsPending = false;
-			this.ttsSpeaking = false;
-			this.setTalosBallState("stop", 900);
-		}
-	}
-
-
 	// ---------- 状态机 ----------
 	private setState(state: VoiceState): void {
 		if (!this.mounted) return;
@@ -1059,36 +1027,6 @@ export class QuyuanVoicePanel {
 		await this.setVoiceRecognitionEnabled(
 			!(this.realtime?.isConnected() ?? false)
 		);
-	}
-
-	private commitUser(text: string, channel: InteractionChannel): void {
-		const admission = evaluateVoiceTurnAdmission({
-			text,
-			mounted: this.mounted,
-			navigatingToChat: this.navigatingToChat,
-			driverBusy: this.driver?.isBusy() ?? false,
-		});
-		if (!admission.accepted) {
-			if (admission.reason !== "busy") return;
-			this.controlStatusEl?.setText("上一轮仍在处理，当前消息未发送");
-			return;
-		}
-		const trimmed = admission.text;
-		void this.voiceSessionStore?.appendMessage({
-			id: `voice-user-${Date.now()}`,
-			role: "user",
-			text: trimmed,
-			modality: channel === "voice" ? "speech" : "text",
-			createdAt: Date.now(),
-		});
-		if (channel === "voice") {
-			this.showFinalTranscript(trimmed);
-		} else {
-			this.controlStatusEl?.setText("文本查询已提交 · 遵循审批合同");
-		}
-		this.activeReplySource = "driver";
-		if (this.overlayReply) this.overlayReply.empty();
-		void this.respond(trimmed, channel);
 	}
 
 	/**
@@ -1383,7 +1321,6 @@ export class QuyuanVoicePanel {
 		this.markdownComponent?.unload();
 		this.markdownComponent = null;
 		this.rootEl = null;
-		this.bodyEl = null;
 		this.wakeStatusEl = null;
 		this.micBtn = null;
 		this.engBtn = null;

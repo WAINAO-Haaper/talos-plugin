@@ -26,9 +26,6 @@ export function executionText(input: RuntimeInputBlock[]): string {
 		.trim();
 }
 
-export function imageBlocks(input: RuntimeInputBlock[]): Extract<RuntimeInputBlock, { type: "image" }>[] {
-	return input.filter((block): block is Extract<RuntimeInputBlock, { type: "image" }> => block.type === "image");
-}
 
 function contextSection(context: RuntimeExecutionContext | undefined): string {
 	if (!context) return "";

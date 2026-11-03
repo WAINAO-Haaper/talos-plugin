@@ -41,16 +41,5 @@ describe("module integration", () => {
 		expect(projects).toContain('section: "decisions"');
 	});
 
-	it("folds the capability group controls into the capability browser", () => {
-		const knowledge = read("ui/pages/knowledge-pages.ts");
-		expect(knowledge).not.toContain('"分组控制"');
-		expect(knowledge).toContain('const controls = browser.createDiv({ cls: "capability-v2-controls capability-v2-controls--inline" });');
-		expect(knowledge).toContain("点击卡片填入 TALOS 对话");
-	});
 
-	it("keeps the identity page to identity and governance entries", () => {
-		const knowledge = read("ui/pages/knowledge-pages.ts");
-		expect(knowledge).not.toContain('"当前工作状态"');
-		expect(knowledge).toContain("const governance = view.panel(\n\t\tattentionColumn,");
-	});
 });

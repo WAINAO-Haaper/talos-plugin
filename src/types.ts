@@ -68,12 +68,6 @@ export interface ReleaseWarRoom {
 	pubActions: GateItem[];
 }
 
-export interface TodoItem {
-	id: string;
-	text: string;
-	tag: "p0" | "p1" | "b" | "";
-	done: boolean;
-}
 
 export interface MetricTile {
 	label: string;
@@ -175,22 +169,4 @@ export interface TalosModule {
 export interface TalosProduct {
 	metrics: MetricTile[];
 	modules: TalosModule[];
-}
-
-export interface DashboardData {
-	syncTime: string;
-	overview: {
-		totalNotes: StatCard;
-		inbox: StatCard;
-		taskFlow: StatCard;
-		health: StatCard;
-	};
-	modules: ModuleTile[];
-	dist: DistBar[];
-	heatmap: { meta: string; months: HeatMonth[] };
-	focus: FocusItem[];
-	approvals: SignalItem[];
-	candidates: SignalItem[];
-	healthTrend: HealthPoint[];
-	warRoom: ReleaseWarRoom;
 }

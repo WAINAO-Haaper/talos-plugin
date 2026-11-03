@@ -3,15 +3,12 @@ import { AgentWorkbenchService } from "../agent-workbench/core/agent-workbench-s
 import { AnthropicApiProvider } from "../ai/provider/anthropic-api-provider";
 import { Notice } from "obsidian";
 import { OpenAiCompatibleProvider } from "../ai/provider/openai-compatible-provider";
-import { type ProviderCenterSnapshot, buildProviderCenterSnapshot } from "../ui/provider-center";
-import type { ProviderConfigFile } from "../ai/provider/provider-config-store";
 import { ProviderFacade } from "../ai/provider/provider-facade";
 import { TALOS_MANAGED_PROVIDER_PROFILE_IDS, buildTalosProviderProfiles, preferredDirectApiProfile } from "../agent-workbench/config/talos-provider-profiles";
 import { TRUSTED_PROVIDER_FETCH, TalosAskPromptModal, isRecord } from "./plugin-support";
 import { TalosAskCommand } from "../canonical/talos-ask-command";
 import { TalosAskService } from "../ai/ask-service";
 import { VaultRetriever } from "../ai/context/vault-retrieval";
-import { buildProviderConfig } from "../ai/provider/provider-config-runtime";
 import { createAgentWorkbenchProviderAdapters } from "../ai/provider/agent-workbench-provider-adapter";
 import { createVaultCanonicalRegistryReader } from "../canonical/registry-reader";
 import { createVaultCanonicalRequestWriter } from "../canonical/request-writer";
@@ -137,67 +134,7 @@ export function getTalosProviderFacade(plugin: TalosPlugin): ProviderFacade {
 	return facade;
 }
 
-export function getProviderCenterSnapshot(plugin: TalosPlugin): ProviderCenterSnapshot {
-	const facade = getTalosProviderFacade(plugin);
-	const config: ProviderConfigFile = buildProviderConfig(
-		plugin.talosSettings
-	);
-	const known = new Set(config.providers.map((provider) => provider.id));
-	const capabilities = [
-		"chat",
-		"stream",
-		"tools",
-		"usage",
-		"cancel",
-		"resume",
-		"fork",
-	] as const;
-	for (const provider of facade.listProviders()) {
-		if (known.has(provider.id)) continue;
-		const missing = new Set(
-			facade.getAvailability(provider.id, [...capabilities]).missing
-		);
-		config.providers.push({
-			id: provider.id,
-			name:
-				provider.id === "codex"
-					? "Codex harness · 本机"
-					: `${provider.id} · 本机 Provider`,
-			kind: provider.kind,
-			endpoint: "local://cli",
-			model: plugin.talosSettings.jarvisModel.trim() || "CLI 默认模型",
-			capabilities: capabilities.filter(
-				(capability) => !missing.has(capability)
-			),
-			isDefault:
-				provider.id === plugin.selectedTalosAskProviderId(),
-			secretRef: "talos-local-cli",
-			vaultAccess: plugin.talosSettings.providerVaultAccess
-				? "full"
-				: "denied",
-			moduleAccess: {
-				...(plugin.talosSettings.providerModuleAccess[provider.id] ??
-					{}),
-			},
-		});
-	}
-	return buildProviderCenterSnapshot({
-		facade,
-		config,
-		secrets: providerSecretStoreFromApp(plugin.app),
-	});
-}
 
-export async function changeConsoleProviderModel(plugin: TalosPlugin, providerId: string, model: string): Promise<void> {
-	const normalized = model.trim();
-	if (!normalized) throw new Error("模型名称不能为空");
-	if (providerId === "openai-compatible") {
-		plugin.talosSettings.openaiModel = normalized;
-	} else {
-		plugin.talosSettings.jarvisModel = normalized;
-	}
-	await plugin.saveTalosSettings();
-}
 
 export function getTalosAskService(plugin: TalosPlugin): TalosAskService {
 	if (plugin.talosAskService) return plugin.talosAskService;

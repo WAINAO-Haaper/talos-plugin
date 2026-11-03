@@ -36,7 +36,7 @@ describe("TALOS unified interface language v2 foundation", () => {
 		expect(view).toMatch(/from "(?:\.\/ui|\.\.)\/page-primitives"/);
 		expect(view).toContain("renderTalosPageHeader(parent");
 		expect(primitives).toContain('data.talosComponent = "page-header"'.replace("data.", "dataset."));
-		expect(primitives).toContain("metrics.slice(0, 4)");
+		expect(primitives).toContain("options.metrics.slice(0, options.metricLimit ?? 4)");
 		expect(primitives).toContain("actions.slice(0, 3)");
 	});
 

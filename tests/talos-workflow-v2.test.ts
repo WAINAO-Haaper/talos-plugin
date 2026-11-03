@@ -20,7 +20,7 @@ describe("TALOS release governance v2", () => {
 	});
 
 	it("charts real gate states without invented denominators", () => {
-		expect(view).toContain("private fillGateStateChart(");
+		expect(view).toContain("export function fillGateStateChart(");
 		expect(view).toContain(
 			"gates.filter((gate) => gate.state === state.key).length"
 		);

@@ -122,11 +122,18 @@ export function collectInsightStats(app: App): InsightStats {
 		if (monthCounts.has(key)) monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
 
 		const cache = app.metadataCache.getFileCache(file);
-		const frontmatter = cache?.frontmatter as Record<string, unknown> | undefined;
-		if (frontmatter && REQUIRED_FIELDS.every((field) => {
-			const value = frontmatter[field];
-			return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && String(value).trim() !== "";
-		})) compliant += 1;
+		const frontmatter = isFrontmatterRecord(cache?.frontmatter)
+			? cache.frontmatter
+			: undefined;
+		if (
+			frontmatter
+			&& REQUIRED_FIELDS.every((field) => {
+				const value = frontmatter[field];
+				if (Array.isArray(value)) return value.length > 0;
+				if (typeof value === "string") return value.trim() !== "";
+				return value !== undefined && value !== null;
+			})
+		) compliant += 1;
 
 		const perFile = new Set<string>();
 		for (const tag of cache?.tags ?? []) perFile.add(normalizeTag(tag.tag));
@@ -178,6 +185,10 @@ export function collectInsightStats(app: App): InsightStats {
 		stale,
 		missingReadme,
 	};
+}
+
+function isFrontmatterRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function frontmatterTags(frontmatter: Record<string, unknown> | undefined): string[] {

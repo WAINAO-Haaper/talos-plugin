@@ -16,12 +16,8 @@ import {
 	applyCandidateDecision,
 	type CandidateDecision,
 } from "./candidate-actions";
-import {
-	createApprovalTaskRuntime,
-	type ApprovalTaskRuntime,
-} from "./approval-task-runtime";
+import type { ApprovalTaskRuntime } from "./approval-task-runtime";
 import type { TalosSettings } from "./settings";
-import { createWindowTimerHost } from "./task-core/task-runner";
 
 const approvalTaskRuntimes = new WeakMap<App, ApprovalTaskRuntime>();
 
@@ -36,15 +32,6 @@ export function unregisterApprovalTaskRuntime(app: App): void {
 	approvalTaskRuntimes.delete(app);
 }
 
-export function getApprovalTaskRuntime(app: App): ApprovalTaskRuntime {
-	const existing = approvalTaskRuntimes.get(app);
-	if (existing) return existing;
-	const runtime = createApprovalTaskRuntime(
-		createWindowTimerHost(activeWindow)
-	);
-	approvalTaskRuntimes.set(app, runtime);
-	return runtime;
-}
 
 function todayStr(): string {
 	const d = new Date();

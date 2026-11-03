@@ -1,5 +1,5 @@
 // TALOS 控制台模块头图、模块选择与按钮内容；由 TalosView 委托调用。
-import { type ModuleHeroOptions, type OverviewAttention, SELECTABLE_MODULES } from "./talos-view-model";
+import { type ModuleHeroOptions, SELECTABLE_MODULES } from "./talos-view-model";
 import { openFile } from "../actions";
 import { renderTalosPageHeader } from "./page-primitives";
 import { setIcon } from "obsidian";
@@ -120,11 +120,4 @@ export function selectModule(view: TalosView, module: HTMLElement, selectionScop
 	view.selectedModuleByScope.set(selectionScope, key);
 	module.addClass("is-module-selected");
 	module.setAttribute("aria-pressed", "true");
-}
-
-export function overviewToneColor(view: TalosView, tone: OverviewAttention["tone"] | "good"): string {
-	if (tone === "hot") return "var(--rose)";
-	if (tone === "warn") return "var(--amber)";
-	if (tone === "good") return "var(--green)";
-	return "var(--blue)";
 }

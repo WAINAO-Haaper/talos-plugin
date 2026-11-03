@@ -2,18 +2,17 @@
 // 模块命令、本地工具 / 工作流 / 定时入口的受控执行、官方 API 直写执行与收据、C/M 详情页端口、画布布局保存。
 // 安全边界原样保留：本地执行只在既有确认窗口点击后经 TALOS runner 运行；API 只发往 Anthropic / OpenAI 官方端点，
 // 经出库审计；资料读写拒绝凭据、系统规则与运行收据，并在写入时复核秘密内容与版本条件。
-import { FileSystemAdapter, Notice, TFile } from "obsidian";
+import { FileSystemAdapter, TFile } from "obsidian";
 import type TalosPlugin from "../main";
 import type { TalosSettings } from "../settings";
 import { TalosView, VIEW_TYPE_TALOS } from "../view";
 import { normalizeSuperbrainCanvasLayout } from "../ui/superbrain-canvas-layout";
 import { ModuleCommandController } from "../module-commands/controller";
 import { LocalMediaRecognition } from "../module-commands/media-recognition";
-import { SuperbrainWorkflowPanel } from "../ui/superbrain-workflow-panel";
-import { parseSuperbrainCatalog, SUPERBRAIN_CATALOG_PATH, type SuperbrainWorkflowSlug } from "../module-commands/superbrain-catalog";
+import type { SuperbrainWorkflowSlug } from "../module-commands/superbrain-catalog";
 import { LocalSuperbrainRunner, SuperbrainToolService, SuperbrainScheduleService, type SuperbrainToolPlan, type SuperbrainSchedulePlan } from "../module-commands/superbrain-tool-service";
-import { SuperbrainApiWorkflowService, SuperbrainWorkflowService, type SuperbrainApiAction, type SuperbrainDirectApiPlan, type SuperbrainWorkflowPlan } from "../module-commands/superbrain-workflow-service";
-import { SuperbrainApiExecution, SuperbrainDirectApiExecution, type ApiWorkflowExecutionResult, type ConfirmedApiActionResult } from "../module-commands/superbrain-api-execution";
+import { SuperbrainApiWorkflowService, SuperbrainWorkflowService, type SuperbrainDirectApiPlan, type SuperbrainWorkflowPlan } from "../module-commands/superbrain-workflow-service";
+import { SuperbrainDirectApiExecution, type ApiWorkflowExecutionResult } from "../module-commands/superbrain-api-execution";
 import type { SuperbrainDirectVaultHost } from "../module-commands/superbrain-direct-vault-tools";
 import type { SuperbrainDetailPorts } from "../ui/superbrain-detail-page";
 import type { ApiToolRunner } from "../ai/provider/api-agent-runtime";
@@ -28,12 +27,11 @@ import { validateVaultRelativePath } from "../module-commands/data-format";
 import { createModuleBoundaryCheck, preserveCreatedFileOnRecovery } from "../module-commands/vault-access";
 import { completedTaskResult, partialTaskResult } from "../task-core/task-runner";
 import { isRecord, TRUSTED_PROVIDER_FETCH } from "./plugin-support";
-import { getTalosAskCommand, getTalosProviderFacade } from "./provider-runtime";
+import { getTalosAskCommand } from "./provider-runtime";
 import { ensureVaultFolder } from "./quyuan-diagnostics";
 
 export class SuperbrainRuntime {
 	readonly moduleCommands: ModuleCommandController;
-	private superbrainPanel: SuperbrainWorkflowPanel | null = null;
 	private superbrainServices: { tool: SuperbrainToolService; workflow: SuperbrainWorkflowService; schedule: SuperbrainScheduleService } | null = null;
 	private canvasSettingsSave: Promise<void> = Promise.resolve();
 
@@ -158,25 +156,6 @@ export class SuperbrainRuntime {
 		});
 		if ((task.state === "completed" || task.state === "partial") && task.result !== undefined) return task.result;
 		throw new Error(task.error ?? `任务状态：${task.state}`);
-	}
-
-	private async runApiSuggestedAction(action: SuperbrainApiAction, moduleCommands: ModuleCommandController): Promise<ConfirmedApiActionResult | null> {
-		const store = this.plugin.getConsoleActionRuntime().store;
-		const started = Date.now();
-		let selectedTaskId: string | null = null;
-		const unsubscribe = store.subscribe(task => {
-			if (task.actionId === `module-command-${action.actionId}` && task.idempotencyKey.startsWith("module-command:") && Date.parse(task.createdAt) >= started - 1000) selectedTaskId = task.id;
-		});
-		try {
-			await moduleCommands.openSuggested(action.actionId, action.input);
-			const task = selectedTaskId ? store.get(selectedTaskId) : undefined;
-			if (!task?.approvedAt) return null;
-			const outcome = task.result && typeof task.result === "object" ? task.result as Record<string, unknown> : {};
-			const resultPaths = Array.isArray(outcome.paths) ? outcome.paths.filter((path): path is string => typeof path === "string") : [];
-			const evidencePaths = [...new Set([...task.changes.map(change => change.path), ...resultPaths])].slice(0, 100);
-			const state = ["completed", "partial", "failed", "cancelled"].includes(task.state) ? task.state as ConfirmedApiActionResult["state"] : "failed";
-			return { actionId: action.actionId, taskId: task.id, confirmed: true, state, evidencePaths, summary: typeof outcome.message === "string" ? outcome.message : task.error };
-		} finally { unsubscribe(); }
 	}
 
 	private async saveApiWorkflowReceipt(result: ApiWorkflowExecutionResult, vaultRoot: string): Promise<string> {
@@ -399,53 +378,6 @@ export class SuperbrainRuntime {
 			openPublishing: () => this.plugin.openPublishing(),
 			hostStatus: () => ({ codex: "按需预检", claude: "按需预检", api: officialProviders().length ? "官方 API 已配置" : "未配置官方 API" }),
 		};
-	}
-
-	private async openSuperbrainPanel(initialId?: string): Promise<void> {
-		const moduleCommands = this.moduleCommands;
-		if (!moduleCommands) { new Notice("模块执行器尚未准备好"); return; }
-		const adapter = this.plugin.app.vault.adapter as FileSystemAdapter;
-		if (typeof adapter.getBasePath !== "function") { new Notice("当前宿主不支持本地工具运行"); return; }
-		const services = this.superbrainRuntimeServices(adapter.getBasePath());
-		const readWorkflowRule = async (slug: SuperbrainWorkflowSlug): Promise<string> => {
-			const raw = await this.plugin.app.vault.adapter.read("System/WORKFLOWS.md");
-			const heading = `## /${slug} `;
-			const start = raw.indexOf(heading);
-			if (start < 0) throw new Error(`工作流 /${slug} 规则缺失`);
-			const next = raw.indexOf("\n## ", start + heading.length);
-			return raw.slice(start, next < 0 ? undefined : next).slice(0, 12_000);
-		};
-		const apiService = new SuperbrainApiWorkflowService(async (providerId, query, signal) => {
-			const text: string[] = [];
-			for await (const event of getTalosAskCommand(this.plugin).execute({ channel: "obsidian", providerId, query, signal, writebackIntent: "display-only", approvalState: "not-required" })) {
-				if (signal?.aborted) throw new Error("模型 API 提案已取消");
-				if (event.type === "text") text.push(event.text);
-				if (event.type === "error") throw new Error(event.message);
-			}
-			return text.join("");
-		});
-		this.superbrainPanel?.close();
-		this.superbrainPanel = new SuperbrainWorkflowPanel({
-			app: this.plugin.app,
-			loadCatalog: async () => parseSuperbrainCatalog(await this.plugin.app.vault.adapter.read(SUPERBRAIN_CATALOG_PATH)),
-			readWorkflowRule,
-			workflowService: services.workflow,
-			toolService: services.tool,
-			scheduleService: services.schedule,
-			runTool: (plan, signal) => this.runConfirmedSuperbrainAction("superbrain-tool-write", plan, signal),
-			runWorkflow: async (plan, signal) => await this.runConfirmedSuperbrainAction("superbrain-workflow-run", plan, signal) as Awaited<ReturnType<SuperbrainWorkflowService["run"]>>,
-			runSchedule: (plan, signal) => this.runConfirmedSuperbrainAction("superbrain-scheduled-run", plan, signal),
-			apiService,
-			runApi: (plan, rule, instruction, signal, onPlan) => new SuperbrainApiExecution(apiService, {
-				runWithUserConfirmation: action => this.runApiSuggestedAction(action, moduleCommands),
-				evidenceExists: path => this.plugin.app.vault.adapter.exists(path),
-				saveReceipt: result => this.saveApiWorkflowReceipt(result, adapter.getBasePath()),
-			}).run({ workflow: plan.workflow, providerId: plan.providerId, rule, instruction, initialPlan: plan, signal, onPlan }),
-			apiProviders: () => getTalosProviderFacade(this.plugin).listProviders().filter(provider => provider.kind === "api").map(provider => provider.id),
-			moduleCommands,
-			moduleRoots: () => ({ ...this.plugin.paths.schema }),
-		}, initialId);
-		this.superbrainPanel.open();
 	}
 
 	/** Persist only the user-arranged canvas; Markdown and workflow results stay in the vault. */

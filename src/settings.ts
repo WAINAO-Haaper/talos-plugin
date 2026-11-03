@@ -53,9 +53,6 @@ export function normalizeUiLanguage(value: unknown): TalosUiLanguage {
 
 export const TALOS_SETTINGS_SCHEMA_VERSION = 1;
 
-/** 屈原语音舞台背景效果（独立于全局 visualTheme） */
-export type QuyuanBackgroundType = "letter-glitch" | "grid-scan";
-
 export function normalizeVisualTheme(value: unknown): TalosVisualTheme {
 	if (value === "cosmos-dark") return "cosmos-dark";
 	if (value === "animal-island") return "animal-island";
@@ -153,7 +150,6 @@ export interface TalosSettings {
 	quyuanRealtimeRegion: string; // cn-beijing | ap-southeast-1
 	quyuanRealtimeModel: string; // Qwen Omni Realtime 模型
 	quyuanRealtimeVoice: string; // Qwen Omni Realtime 音色
-	quyuanBackground: QuyuanBackgroundType; // 屈原舞台背景效果：letter-glitch | grid-scan
 	quyuanVoiceRecognitionEnabled: boolean; // 屈原语音识别模式：false 时释放麦克风且不监听唤醒词
 	quyuanVoiceInputMode: "continuous" | "push-to-talk"; // 默认持续监听；失败时降级为点击说话
 	quyuanVoiceSessionJson: string; // 独立 voice namespace 会话，不与 TALOS 文字对话会话混用
@@ -268,7 +264,6 @@ export const DEFAULT_SETTINGS: TalosSettings = {
 	quyuanRealtimeRegion: "cn-beijing",
 	quyuanRealtimeModel: "qwen3.5-omni-flash-realtime",
 	quyuanRealtimeVoice: "Tina",
-	quyuanBackground: "letter-glitch",
 	quyuanVoiceRecognitionEnabled: true,
 	quyuanVoiceInputMode: "continuous",
 	quyuanVoiceSessionJson: "",
@@ -300,7 +295,6 @@ type FreeTextSettingKey = Exclude<
 	| "uiLanguage"
 	| "consoleMode"
 	| "lensAppearance"
-	| "quyuanBackground"
 	| "quyuanVoiceInputMode"
 	| "quyuanVoiceSessionJson"
 >;
@@ -485,14 +479,14 @@ export class TalosSettingTab extends PluginSettingTab {
 	// 通用文本设置项
 	/** 通栏容器：说明卡不吃列宽。 */
 	private wideContainer(c: HTMLElement): HTMLElement {
-		return typeof (c as HTMLElement).createDiv === "function"
+		return typeof c.createDiv === "function"
 			? c.createDiv({ cls: "talos-setting-wide" })
 			: c;
 	}
 
 	/** 四列紧凑网格容器；测试里的最小容器没有 createDiv 时落回原容器。 */
 	private gridContainer(c: HTMLElement): HTMLElement {
-		return typeof (c as HTMLElement).createDiv === "function"
+		return typeof c.createDiv === "function"
 			? c.createDiv({ cls: "talos-setting-grid" })
 			: c;
 	}

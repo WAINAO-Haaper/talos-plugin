@@ -14,12 +14,6 @@ import { LensConsole, LENS_ROOT_ID } from "./ui/lens/lens-console";
 import type { QuickNote } from "./ui/quick-note";
 import type { InboxTriageSession } from "./ui/inbox-triage-panel";
 import type { LensModuleId } from "./ui/lens/lens-pages";
-import type {
-	GateItem,
-	OutputCenter,
-	ProjectScene,
-	SignalItem,
-} from "./types";
 import {
 	collectApprovals,
 	collectCandidates,
@@ -33,7 +27,7 @@ import {
 import { collectInsightStats } from "./data/insights";
 import { collectWarRoom } from "./data/talos";
 import type { TalosSchemaKey } from "./data/schema";
-import { collectCapabilities, type CapabilityGroup } from "./data/capabilities";
+import { collectCapabilities } from "./data/capabilities";
 import {
 	collectHealthDigest,
 	collectInboxDigest,
@@ -70,17 +64,14 @@ import {
 	talosPeerStatusDisplay,
 	type TalosPeerStatusState,
 } from "./peer-status/talos-peer-status";
-import { WEEKDAYS, PAGE_ARCHETYPES, dailyRota, dailyTimeline, type QuyuanVoicePanelLike, type Collected, type OverviewAttention, type ApprovalDecisionFeedback, type CandidateDecisionFeedback } from "./ui/talos-view-model";
-import { fillCapabilityDistribution, fillGateStateChart, fillOutputClosureChart, fillProjectPortfolioChart } from "./ui/charts/talos-view-charts";
-import { renderOverviewAttentionRows } from "./ui/pages/overview-page";
+import { WEEKDAYS, PAGE_ARCHETYPES, dailyRota, dailyTimeline, type QuyuanVoicePanelLike, type Collected, type ApprovalDecisionFeedback, type CandidateDecisionFeedback } from "./ui/talos-view-model";
 import { renderTodayPage } from "./ui/pages/today-page";
 import { renderHomePage } from "./ui/pages/home";
 import { renderWorkbenchContent, renderWorkbenchPage } from "./ui/pages/workbench-page";
 import { renderDailyPage } from "./ui/pages/daily-page";
-import { renderHealthPage, renderOutputPage, renderProjectsPage } from "./ui/pages/project-pages";
-import { renderCapabilityPage, renderIdentityPage, renderKnowledgePage, renderVaultPage } from "./ui/pages/knowledge-pages";
+import { renderVaultPage } from "./ui/pages/knowledge-pages";
 import { renderChatPage, renderInboxPage, renderJarvisPage, renderSettingsPage, renderTalosPage } from "./ui/pages/workspace-pages";
-import { createApprovalActionButton, createCandidateActionButton, renderApprovalSide, renderDecisionWorkspace } from "./ui/view-approvals";
+import { renderApprovalSide, renderDecisionWorkspace } from "./ui/view-approvals";
 import { renderCosmosStats, syncPixelScene, updateCosmosHeader } from "./ui/view-cosmos";
 import { buildShell, renderNav, renderSecondaryTabs } from "./ui/view-chrome";
 import { addActionButtonContent, wireModuleSelection } from "./ui/view-modules";
@@ -529,8 +520,6 @@ export class TalosView extends ItemView {
 	}
 
 
-
-
 	// ---------- 时钟 ----------
 	private updateClock(): void {
 		if (!this.timeEl) return;
@@ -652,27 +641,10 @@ export class TalosView extends ItemView {
 	}
 
 
-
 	renderDecisionWorkspace(parent: HTMLElement,
 		d: Collected,
 		limit = 2): void {
 		return renderDecisionWorkspace(this, parent, d, limit);
-	}
-
-	private createCandidateActionButton(parent: HTMLElement,
-		decision: "approve" | "reject",
-		iconName: string,
-		label: string,
-		it: SignalItem): void {
-		return createCandidateActionButton(this, parent, decision, iconName, label, it);
-	}
-
-	private createApprovalActionButton(parent: HTMLElement,
-		decision: "approve" | "reject",
-		iconName: string,
-		label: string,
-		it: SignalItem): void {
-		return createApprovalActionButton(this, parent, decision, iconName, label, it);
 	}
 
 
@@ -680,7 +652,6 @@ export class TalosView extends ItemView {
 		const now = new Date();
 		return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 	}
-
 
 
 	// ---------- 页 ----------
@@ -922,12 +893,6 @@ export class TalosView extends ItemView {
 	}
 
 
-
-	private renderOverviewAttentionRows(parent: HTMLElement,
-		items: OverviewAttention[]): void {
-		return renderOverviewAttentionRows(this, parent, items);
-	}
-
 	private async pageChat(page: HTMLElement): Promise<void> {
 		return renderChatPage(this, page);
 	}
@@ -944,10 +909,6 @@ export class TalosView extends ItemView {
 		return renderDailyPage(this, page, d);
 	}
 
-	private pageOutput(page: HTMLElement, d: Collected): void {
-		return renderOutputPage(this, page, d);
-	}
-
 	private pageTalos(page: HTMLElement, d: Collected): void {
 		return renderTalosPage(this, page, d);
 	}
@@ -956,63 +917,9 @@ export class TalosView extends ItemView {
 		return renderInboxPage(this, page, d);
 	}
 
-	private pageHealth(page: HTMLElement, d: Collected): void {
-		return renderHealthPage(this, page, d);
-	}
-
-	private pageProjects(page: HTMLElement, d: Collected): void {
-		return renderProjectsPage(this, page, d);
-	}
-
-	private pageKnowledge(page: HTMLElement, d: Collected): void {
-		return renderKnowledgePage(this, page, d);
-	}
-
-	private pageIdentity(page: HTMLElement, d: Collected): void {
-		return renderIdentityPage(this, page, d);
-	}
-
 	private pageVault(page: HTMLElement, d: Collected): void {
 		return renderVaultPage(this, page, d);
 	}
-
-	private pageCapability(page: HTMLElement, d: Collected): void {
-		return renderCapabilityPage(this, page, d);
-	}
-
-
-
-
-
-
-	private fillCapabilityDistribution(parent: HTMLElement,
-		groups: CapabilityGroup[]): void {
-		return fillCapabilityDistribution(this, parent, groups);
-	}
-
-	private fillGateStateChart(parent: HTMLElement,
-		gates: GateItem[]): void {
-		return fillGateStateChart(this, parent, gates);
-	}
-
-
-	private fillOutputClosureChart(parent: HTMLElement,
-		platforms: OutputCenter["platforms"]): void {
-		return fillOutputClosureChart(this, parent, platforms);
-	}
-
-	private fillProjectPortfolioChart(parent: HTMLElement,
-		projects: ProjectScene[]): void {
-		return fillProjectPortfolioChart(this, parent, projects);
-	}
-
-
-
-
-
-
-
-
 
 
 	/** 控制台命令按钮：填进右栏 TALOS 对话由用户确认发送；对话不可用时退回复制。 */
