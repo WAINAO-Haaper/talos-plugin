@@ -182,8 +182,10 @@ export class DesktopRuntimeFactory {
 		const runtimeTemp = path.join(input.vaultRoot, ".talos", "agent-workbench", "v1", "runtime-tmp", runtimeId);
 		await cleanupRuntimeStatusFiles(runtimeTemp);
 		await Promise.all([mkdir(runtimeTemp, { recursive: true }), mkdir(sessionRoot, { recursive: true })]);
-		const proxy = new LoopbackEgressProxy(async ({ host, port }) => {
-			const decision = await input.approve("NetworkRequest", { url: "https://" + host + ":" + port }, { reason: "provider-egress-proxy", host, port });
+		const proxy = new LoopbackEgressProxy(async ({ host, port, connection }) => {
+			// 审批必须显示连接的真实语义：plain HTTP 网关（wire_api=responses + http://）走 80 端口，
+			// 统一写死 https:// 会误导用户以为流量是加密的。connection 供审批 UI 按隧道/明文区分展示。
+			const decision = await input.approve("NetworkRequest", { url: "https://" + host + ":" + port, connection }, { reason: "provider-egress-proxy", host, port, connection });
 			return decision;
 		});
 		const proxyPort = await proxy.start();
