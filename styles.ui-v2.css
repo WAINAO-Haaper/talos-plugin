@@ -5964,3 +5964,60 @@ body .talos-console .tq-voice .tq-transcript-editor {
 	min-width: 0;
 }
 .talos-console[data-talos-page="settings"] .talos-setting-wide > .setting-item { margin: 0; }
+
+/* ============================================================
+   工作台展开列 · 窄列降级
+   工作台底部三段详情是三等分网格，展开那一列只有约 500px，但列内
+   页头 module-hero 仍按两栏排（右列有 minmax(320px, …) 硬下限）、
+   内容流水线被 nowrap 压成一字一行、知识页二级网格仍是两栏，
+   卡片于是溢出并互相压叠。以展开列自身为容器，窄于 760px 时统一降级单列。
+   ============================================================ */
+.talos-console .talos-wb-detail-body {
+	container: talos-wb-detail / inline-size;
+}
+
+@container talos-wb-detail (max-width: 760px) {
+	.talos-console .talos-wb-detail-body .talos-ui-page-header.module-hero {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"main"
+			"metrics"
+			"scene"
+			"actions";
+	}
+
+	.talos-console .talos-wb-detail-body .talos-ui-page-header.module-hero > :is(.module-hero-main, .module-hero-stats, .module-hero-actions) {
+		min-width: 0;
+	}
+
+	/* 指标区自身也会排成多栏（指标卡 + 流水线），窄列内同样降为单列 */
+	/* 必须比 .talos-console[data-talos-theme] ... > .module-hero-stats 的
+	   !important 规则多一级特异性，否则会被 auto-fit 多栏覆盖 */
+	.talos-console .talos-wb-detail > .talos-wb-detail-body .talos-ui-page-header.module-hero > .module-hero-stats {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+
+	/* 流水线窄列下允许换行，站点保持可读宽度 */
+	.talos-console .talos-wb-detail-body .talos-flow-pipeline {
+		flex-wrap: wrap;
+	}
+
+	.talos-console .talos-wb-detail-body .talos-flow-station {
+		flex: 1 1 96px;
+	}
+
+	/* 知识 / 工作流 / 系统页二级网格在窄列内一律单列 */
+	.talos-console .talos-wb-detail-body :is(
+		.knowledge-v2-primary,
+		.workflow-v2-primary,
+		.workflow-v2-secondary,
+		.system-v2-primary,
+		.system-v2-secondary
+	) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.talos-console .talos-wb-detail-body :is(.knowledge-v2-moc-panel, .knowledge-v2-panel) .detail-list {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
